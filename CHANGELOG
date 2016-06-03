@@ -97,6 +97,10 @@ Miscellaneous
 - Added support for secure socket communications in class socketstream based on
   the GnuTLS library, see INSTALL for more details.
 
+- Renamed config/user.mk.in to config/defaults.mk; moved default options from
+  the makefile to config/defaults.mk; include config/defaults.mk into the
+  makefile.
+
 - Various other simplifications, extensions, and bugfixes in the code.
 
 
