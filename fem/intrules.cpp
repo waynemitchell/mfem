@@ -381,6 +381,11 @@ void QuadratureFunctions1D::GivePolyPoints(const int np, double *pts ,
          ClosedEquallySpaced(np,&ir);
          break;
       }
+      default:
+      {
+          MFEM_ABORT("Asking for an unknown type of 1D Quadrature points" <<
+                  "Requesting type=" << type);
+      }
    }
 
    for (int i = 0 ; i < np ; ++i)

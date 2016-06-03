@@ -6497,58 +6497,58 @@ void Poly_1D::CalcChebyshev(const int p, const double x, double *u, double *d)
 
 const double *Poly_1D::OpenPoints(const int p,const int type)
 {
-   double *op;
-
    if (open_pts.Size() <= p)
    {
       int i = open_pts.Size();
       open_pts.SetSize(p + 1);
-      for ( ; i < p; i++)
+      for ( ; i <= p; i++)
       {
          open_pts[i] = NULL;
       }
-      goto alloc_open;
    }
-   if ((op = open_pts[p]) != NULL)
+   if ( open_pts[p] == NULL)
    {
-      return op;
+       open_pts[p] = new double[p + 1];
+       GaussPoints(p, open_pts[p] );
    }
-alloc_open:
+
+   return open_pts[p];
+
+   /*alloc_open:
    open_pts[p] = op = new double[p + 1];
    GaussPoints(p, op);
    // ChebyshevPoints(p, op);
    return op;
+*/
 }
 
 const double *Poly_1D::ClosedPoints(const int p, const int type)
 {
-   double *cp;
-
    if (closed_pts.Size() <= p)
    {
       int i = closed_pts.Size();
       closed_pts.SetSize(p + 1);
-      for ( ; i < p; i++)
+      for ( ; i <= p; i++)
       {
          closed_pts[i] = NULL;
       }
-      goto alloc_closed;
    }
-   if ((cp = closed_pts[p]) != NULL)
+   if ( closed_pts[p] == NULL)
    {
-      return cp;
+       closed_pts[p] = new double[p + 1];
+       GaussLobattoPoints(p, closed_pts[p]);
    }
-alloc_closed:
+
+   return closed_pts[p];
+/*alloc_closed:
    closed_pts[p] = cp = new double[p + 1];
    GaussLobattoPoints(p, cp);
    // UniformPoints(p, cp);
-   return cp;
+   return cp; */
 }
 
 Poly_1D::Basis &Poly_1D::OpenBasis(const int p,const int type)
 {
-   Basis *ob;
-
    if (open_basis.Size() <= p)
    {
       int i = open_basis.Size();
@@ -6561,17 +6561,13 @@ Poly_1D::Basis &Poly_1D::OpenBasis(const int p,const int type)
    if ( open_basis[p] == NULL)
    {
        open_basis[p] = new Basis(p, OpenPoints(p,type));
-       return *open_basis[p];
    }
-   else
-       return *open_basis[p];
 
+   return *open_basis[p];
 }
 
 Poly_1D::Basis &Poly_1D::ClosedBasis(const int p, const int type)
 {
-   Basis *cb;
-
    if (closed_basis.Size() <= p)
    {
       int i = closed_basis.Size();
@@ -6584,11 +6580,8 @@ Poly_1D::Basis &Poly_1D::ClosedBasis(const int p, const int type)
    if ( closed_basis[p] == NULL)
    {
       closed_basis[p] = new Basis(p, ClosedPoints(p, type));
-      return *closed_basis[p];
    }
-   else
-       return *closed_basis[p];
-
+   return *closed_basis[p];
 }
 
 Poly_1D::~Poly_1D()
