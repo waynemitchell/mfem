@@ -30,9 +30,8 @@ const int Hexahedron::faces[6][4] =
    {3, 0, 4, 7}, {4, 5, 6, 7}
 };
 
-
-Hexahedron::Hexahedron(const int *ind, int attr)
-   : Element(Geometry::CUBE)
+Hexahedron::Hexahedron(const int *ind, int attr, int *alloc)
+   : Element(Geometry::CUBE, alloc, 8)
 {
    attribute = attr;
    for (int i = 0; i < 8; i++)
@@ -43,7 +42,8 @@ Hexahedron::Hexahedron(const int *ind, int attr)
 
 Hexahedron::Hexahedron(int ind1, int ind2, int ind3, int ind4,
                        int ind5, int ind6, int ind7, int ind8,
-                       int attr) : Element(Geometry::CUBE)
+                       int attr, int *alloc) 
+   : Element(Geometry::CUBE, alloc, 8)
 {
    attribute  = attr;
    indices[0] = ind1;

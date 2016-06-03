@@ -15,7 +15,8 @@
 namespace mfem
 {
 
-Point::Point( const int *ind, int attr ) : Element(Geometry::POINT)
+Point::Point( const int *ind, int attr, int *alloc ) 
+   : Element(Geometry::POINT, alloc, 1)
 {
    attribute = attr;
    indices[0] = ind[0];

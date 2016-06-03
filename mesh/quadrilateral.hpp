@@ -22,18 +22,27 @@ namespace mfem
 class Quadrilateral : public Element
 {
 protected:
-   int indices[4];
+   //int indices[4];
+   //int *indices;
    static const int edges[4][2];
 
 public:
 
-   Quadrilateral() : Element(Geometry::SQUARE) {}
+   Quadrilateral(int *alloc = NULL) : Element(Geometry::SQUARE, alloc, 4) { }
+
 
    /// Constructs quadrilateral by specifying the indices and the attribute.
-   Quadrilateral(const int *ind, int attr = 1);
+   /// We also allow an external memory location for the indices to be
+   /// Specified.
+   Quadrilateral(const int *ind, int attr = 1,
+         int *alloc = NULL);
 
    /// Constructs quadrilateral by specifying the indices and the attribute.
-   Quadrilateral(int ind1, int ind2, int ind3, int ind4, int attr = 1);
+   /// We also allow an external memory location for the indices to be
+   /// Specified.
+   Quadrilateral(int ind1, int ind2, int ind3, int ind4, int attr = 1,
+         int *alloc = NULL);
+
 
    /// Return element's type
    int GetType() const { return Element::QUADRILATERAL; }

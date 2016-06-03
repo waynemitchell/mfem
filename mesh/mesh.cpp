@@ -27,6 +27,76 @@
 #include "graph.h"
 #endif
 
+
+
+// allocation stuff
+allocator::allocator(size_t _capacity, cbk _alloc) {
+   if (_capacity == 0) {
+      throw "yah can't have this";
+   }
+   capacity = _capacity;
+   data = (int*)malloc(capacity * sizeof(int));
+   count = 0;
+   alloc = _alloc;
+}
+
+allocator::~allocator() {
+   if (!data) {
+      free(data);
+      data = NULL;
+   }
+}
+
+
+mfem_allocator::mfem_allocator(size_t _capacity, mfem::Array<mfem::Element*> *_elements, cbk _alloc) 
+   : allocator(_capacity, _alloc) {
+   elements = _elements;
+}
+
+
+int *mfem_allocator::default_alloc(size_t _count) {
+   if (!data) {
+      throw "no memory error";
+   }
+   if (count + _count > capacity) {
+      capacity *= 2;
+      {
+         printf("reallocating indices from size %zu to %zu\n", 
+               capacity / 2, capacity);
+      }
+      mfem::Array<mfem::Element*> &elms = *elements;
+      int *old_address = data;
+      data = (int*)realloc(data, capacity * sizeof(int));
+      size_t int_count = 0;
+      for (int i = 0; i < elms.Size() && 
+            int_count < count; i++) {
+         if (elms[i] == NULL || elms[i]->IsSelfAlloc()) {
+            continue;
+         }
+         int *temp = elms[i]->GetIndices();
+         size_t offset = elms[i]->GetIndices() - old_address;
+         elms[i]->SetIndices(data + offset);
+         int_count += elms[i]->GetNVertices();
+         {
+            printf("Moving %p (offset of %zu from %p)\n", temp,
+                  offset, old_address);
+            temp = elms[i]->GetIndices();
+            offset = temp - data;
+            printf("New location %p (offset of %zu from %p)\n",
+                  temp, offset, data);
+         } 
+         // TODO: check for breaks in the memory block and clean up?
+      }
+   }
+   count += _count;
+   // we have already incremented incides_count to include the
+   // new set of indices so add the total index count to the 
+   // base pointer and move back 'count' entires in indices
+   return data + (count - _count);
+}
+
+
+
 namespace mfem
 {
 
@@ -2176,108 +2246,83 @@ Mesh::Mesh(std::istream &input, int generate_edges, int refine,
 }
 
 
+
 // were going to try to provide 
-void *Mesh::get_element_allocation(size_t size) {
-   if (element_allocation) {
-      if (element_allocation_top + size > 
-            element_allocation + element_allocation_size) {
-         //throw "not enough memory in the element allocation array";
-         //printf("not enough memory in prealloc, using default allocator\n");
-         // weird realloc fun
-         //return ::operator new(size);
-         void *old_address = element_allocation;
-         std::vector<int> old;
-         for (int i = 0; i < temp_allocation_count; i++) {
-            Array<int> a;
-            elements[i]->GetVertices(a);
-            for (int j = 0; j < a.Size(); j++) {
-               old.push_back(a[j]);
-            }
-         }
-
-         element_allocation_size += 2*size;
-         element_allocation = realloc(element_allocation, element_allocation_size);
-         printf("reallocated. new addess is %p new size is %zu\n", element_allocation,
-               element_allocation_size);
-         for (int i = 0; i < elements.Size(); i++) {
-            // shifty
-            if (elements[i] == NULL) {
-               //printf("skipping %d (nil) and breaking...\n", i);
-               continue;
-            }
-            size_t offset = (elements[i] - (Element*)old_address) * sizeof(Element);
-            if (offset > element_allocation_fill || offset < 0) {
-               continue;
-            }
-            //printf("reassigning %d, which was at %p relative to %p\n", i, elements[i], old_address);
-            void * new_address = element_allocation + offset;
-            //printf("offset is %zu and the new address is %p\n", offset, new_address);
-            elements[i] = (Element*)(new_address);
-         }
-
-         std::vector<int> neww;
-         for (int i = 0; i < temp_allocation_count; i++) {
-            Array<int> a;
-            elements[i]->GetVertices(a);
-            for (int j = 0; j < a.Size(); j++) {
-               neww.push_back(a[j]);
-            }
-         }
-         for (int i = 0; i < old.size(); i++) {
-            if (old[i] != neww[i]) {
-               printf("%d - %d~=%d\n", i, old[i], neww[i]);
-            }
-         }
-         printf("realloc move finished\n\n");
-         printf("allocating size %zu at %p\n", size, element_allocation_top);
-         element_allocation_top = element_allocation + element_allocation_fill;
-         element_allocation_fill += size;
-         element_allocation_top += size;
-         temp_allocation_count++;
-         //printf("we've allocated %d elements\n", temp_allocation_count);
-         return element_allocation_top - size;
+int *Mesh::indices_alloc(size_t count) {
+   if (!indices) {
+      indices_capacity = INITIAL_INDICES_SIZE; 
+      indices_count = 0;
+      indices = (int*)malloc(indices_capacity * sizeof(int));
+      if (!indices) {
+         throw "Memory Allocation Error";
       }
       else {
-         //printf("allocating size %zu at %p\n", size, element_allocation_top);
-         element_allocation_top += size;
-         element_allocation_fill += size;
-         temp_allocation_count++;
-         //printf("we've allocated %d elements\n", temp_allocation_count);
-         return element_allocation_top - size;
+         printf("allocated `indices` to size %zu (ints)\n", indices_capacity);
       }
    }
-   return ::operator new(size);
+   if (indices_count + count > indices_capacity) {
+      indices_capacity *= 2;
+      printf("reallocating indices from size %zu to %zu\n", 
+            indices_capacity / 2, indices_capacity);
+      int *old_address = indices;
+      indices = (int*)realloc(indices, indices_capacity * sizeof(int));
+      size_t index_count = 0;
+      for (int i = 0; i < elements.Size() && 
+            index_count < indices_count; i++) {
+         if (elements[i] == NULL || elements[i]->IsSelfAlloc()) {
+            continue;
+         }
+         int *temp = elements[i]->GetIndices();
+         size_t offset = elements[i]->GetIndices() - old_address;
+         elements[i]->SetIndices(indices + offset);
+         index_count += elements[i]->GetNVertices();
+         {
+            printf("Moving %p (offset of %zu from %p)\n", temp,
+                  offset, old_address);
+            temp = elements[i]->GetIndices();
+            offset = temp - indices;
+            printf("New location %p (offset of %zu from %p)\n",
+                  temp, offset, indices);
+         } 
+         // TODO: check for breaks in the memory block and clean up?
+      }
+   }
+   indices_count += count;
+   // we have already incremented incides_count to include the
+   // new set of indices so add the total index count to the 
+   // base pointer and move back 'count' entires in indices
+   return indices + (indices_count - count);
 }
 
 
 
-Element *Mesh::NewElement(int geom)
+Element *Mesh::NewElement(int geom, int_alloc f)
 {
    switch (geom)
    {
-      case Geometry::POINT:     return (new(get_element_allocation(sizeof(Point))) Point);
-      case Geometry::SEGMENT:   return (new(get_element_allocation(sizeof(Segment))) Segment);
-      case Geometry::TRIANGLE:  return (new(get_element_allocation(sizeof(Triangle))) Triangle);
-      case Geometry::SQUARE:    return (new(get_element_allocation(sizeof(Quadrilateral))) Quadrilateral);
-      case Geometry::CUBE:      return (new(get_element_allocation(sizeof(Hexahedron))) Hexahedron);
+      case Geometry::POINT:     return (new Point((this->*f)(1)));
+      case Geometry::SEGMENT:   return (new Segment((this->*f)(2)));
+      case Geometry::TRIANGLE:  return (new Triangle((this->*f)(3)));
+      case Geometry::SQUARE:    return (new Quadrilateral((this->*f)(4)));
+      case Geometry::CUBE:      return (new Hexahedron((this->*f)(8)));
       case Geometry::TETRAHEDRON:
 #ifdef MFEM_USE_MEMALLOC
          return TetMemory.Alloc();
 #else
-         return (new(get_element_allocation(sizeof(Tetrahedron))) Tetrahedron);
+         return (new Tetrahedron((this->*f)(6)));
 #endif
    }
 
    return NULL;
 }
 
-Element *Mesh::ReadElementWithoutAttr(std::istream &input)
+Element *Mesh::ReadElementWithoutAttr(std::istream &input, int_alloc f)
 {
    int geom, nv, *v;
    Element *el;
 
    input >> geom;
-   el = NewElement(geom);
+   el = NewElement(geom, f);
    nv = el->GetNVertices();
    v  = el->GetVertices();
    for (int i = 0; i < nv; i++)
@@ -2300,13 +2345,13 @@ void Mesh::PrintElementWithoutAttr(const Element *el, std::ostream &out)
    out << '\n';
 }
 
-Element *Mesh::ReadElement(std::istream &input)
+Element *Mesh::ReadElement(std::istream &input, int_alloc f)
 {
    int attr;
    Element *el;
 
    input >> attr;
-   el = ReadElementWithoutAttr(input);
+   el = ReadElementWithoutAttr(input, f);
    el->SetAttribute(attr);
 
    return el;
@@ -2380,36 +2425,9 @@ void Mesh::ReadMFEMMesh(std::istream &input, bool mfem_v11, int &curved)
    input >> NumOfElements;
    elements.SetSize(NumOfElements);
 
-   // a bunch of debug stuff
-   {
-      printf("we have %d elements\n", NumOfElements);
-      printf("first pass set to max size of any element\n"); 
-      element_allocation_size = 6100; //sizeof(Point) * NumOfElements;
-      element_allocation_fill = 0;
-      element_allocation = malloc(element_allocation_size);
-      element_allocation_top = element_allocation;
-      temp_allocation_count = 0;
-      if (!element_allocation) {
-         throw "Memory Allocation Error";
-      }
-      size_t point_size = sizeof(Point);
-      size_t segment_size = sizeof(Segment);
-      size_t triangle_size = sizeof(Triangle);
-      size_t quad_size = sizeof(Quadrilateral);
-      size_t hex_size = sizeof(Hexahedron);
-      size_t tetra_size = sizeof(Tetrahedron);
-      printf("point size: %zu\n", point_size);
-      printf("segment size: %zu\n", segment_size);
-      printf("triangle size: %zu\n", triangle_size);
-      printf("quad size: %zu\n", quad_size);
-      printf("hex size: %zu\n", hex_size);
-      printf("tetra size: %zu\n", tetra_size);
-   }
-   // okay done with the debug stuff
-
    for (int j = 0; j < NumOfElements; j++)
    {
-      elements[j] = ReadElement(input);
+      elements[j] = ReadElement(input, &Mesh::indices_alloc);
    }
 
    skip_comment_lines(input, '#');
@@ -6491,7 +6509,9 @@ void Mesh::UpdateNodes()
 
 void Mesh::QuadUniformRefinement()
 {
-   int i, j, *v, vv[2], attr;
+   //int i, j, *v, vv[2], attr;
+   int i, j, vv[2], attr;
+   int *v;
    const int *e;
 
    if (el_to_edge == NULL)
@@ -6523,30 +6543,39 @@ void Mesh::QuadUniformRefinement()
    for (i = 0; i < NumOfElements; i++)
    {
       attr = elements[i]->GetAttribute();
+      // this is not safe if one of the alloc calls remaps
       v = elements[i]->GetVertices();
       e = el_to_edge->GetRow(i);
       j = NumOfElements + 3 * i;
-   
       /*
-      elements[j+0] = new Quadrilateral(oedge+e[0], v[1], oedge+e[1],
-                                        oelem+i, attr);
-      elements[j+1] = new Quadrilateral(oelem+i, oedge+e[1], v[2],
-                                        oedge+e[2], attr);
-      elements[j+2] = new Quadrilateral(oedge+e[3], oelem+i, oedge+e[2],
-                                        v[3], attr);
+      int **__v = elements[0]->GetVerticesPtr();
+      int **&_v = __v;
+      printf("v[0] is %d _v[0] is %d\n", v[0], _v[0]);
       */
-
-      elements[j+0] = new(get_element_allocation(sizeof(Quadrilateral))) Quadrilateral(oedge+e[0], v[1], oedge+e[1],
-                                        oelem+i, attr);
-      elements[j+1] = new(get_element_allocation(sizeof(Quadrilateral))) Quadrilateral(oelem+i, oedge+e[1], v[2],
-                                        oedge+e[2], attr);
-      elements[j+2] = new(get_element_allocation(sizeof(Quadrilateral))) Quadrilateral(oedge+e[3], oelem+i, oedge+e[2],
-                                        v[3], attr);
+   
+      const int COUNT = 4; 
+      elements[j+0] = new Quadrilateral(oedge+e[0], v[1], oedge+e[1],
+                                        oelem+i, attr, indices_alloc(COUNT));
+      if (elements[i]->GetVertices() != v) {
+         printf("WARNING!!!! v is now invalid\n");
+         v = elements[i]->GetVertices();
+      }
+      elements[j+1] = new Quadrilateral(oelem+i, oedge+e[1], v[2],
+                                        oedge+e[2], attr, indices_alloc(COUNT));
+      if (elements[i]->GetVertices() != v) {
+         printf("WARNING!!!! v is now invalid\n");
+         v = elements[i]->GetVertices();
+      }
+      elements[j+2] = new Quadrilateral(oedge+e[3], oelem+i, oedge+e[2],
+                                        v[3], attr, indices_alloc(COUNT));
+      
 
       v[1] = oedge+e[0];
       v[2] = oelem+i;
       v[3] = oedge+e[3];
    }
+
+
 
    boundary.SetSize(2 * NumOfBdrElements);
    for (i = 0; i < NumOfBdrElements; i++)
@@ -9485,10 +9514,6 @@ void Mesh::RemoveInternalBoundaries()
 
 void Mesh::FreeElement(Element *E)
 {
-   if (E > element_allocation && E < element_allocation_top) {
-      // don't free stuff in the contiguous block
-      return;
-   }
 #ifdef MFEM_USE_MEMALLOC
    if (E)
    {
@@ -9519,13 +9544,11 @@ Mesh::~Mesh()
 
    for (i = 0; i < NumOfElements; i++)
    {
-      printf("on elm %d\n", i);
       FreeElement(elements[i]);
    }
 
    for (i = 0; i < NumOfBdrElements; i++)
    {
-      printf("on bdr %d\n", i);
       FreeElement(boundary[i]);
    }
 
@@ -9534,8 +9557,9 @@ Mesh::~Mesh()
       FreeElement(faces[i]);
    }
 
-   if (element_allocation) {
-      free(element_allocation);
+   if (indices) {
+      free(indices);
+      indices = NULL;
    }
 
    DeleteTables();
