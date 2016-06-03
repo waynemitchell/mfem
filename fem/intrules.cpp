@@ -233,7 +233,7 @@ void QuadratureFunctions1D::GaussLobatto(const int np, IntegrationRule* ir)
          /// initial guess is the corresponding Chebyshev point
          double x_i = cos(M_PI * double (np -1 -i) / double(np -1) );
          double p_l = 0.;
-         for (int iter = 0 ; ; true)
+         for (int iter = 0 ;true ; ++iter)
          {
             /// build Legendre polynomials, up to P_{np}(x_i)
             double p_lm1 = 1.;
@@ -1039,15 +1039,7 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
          break;
       }
    }
-   IntegrationRule *ir = SegmentIntRules[Order];
-/*   int ir_size = ir->Size();
-   std::cout << "Size of integration rule being returned: " << ir_size <<
-             std::endl;
-   for (int i = 0 ; i < ir->Size() ; ++i)
-   {
-      std::cout << "point: " << ir->IntPoint(i).x << "  weight: " << ir->IntPoint(
-                   i).weight << std::endl;
-   } */
+
    return SegmentIntRules[Order];
 }
 

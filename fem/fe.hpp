@@ -1247,6 +1247,7 @@ private:
    static void CalcChebyshev(const int p, const double x, double *u);
    static void CalcChebyshev(const int p, const double x, double *u, double *d);
 
+   QuadratureFunctions1D quad_func;
 public:
    Poly_1D() { }
 

@@ -6509,17 +6509,10 @@ const double *Poly_1D::OpenPoints(const int p,const int type)
    if ( open_pts[p] == NULL)
    {
        open_pts[p] = new double[p + 1];
-       GaussPoints(p, open_pts[p] );
+       quad_func.GivePolyPoints(p+1, open_pts[p],type );
    }
 
    return open_pts[p];
-
-   /*alloc_open:
-   open_pts[p] = op = new double[p + 1];
-   GaussPoints(p, op);
-   // ChebyshevPoints(p, op);
-   return op;
-*/
 }
 
 const double *Poly_1D::ClosedPoints(const int p, const int type)
@@ -6536,15 +6529,10 @@ const double *Poly_1D::ClosedPoints(const int p, const int type)
    if ( closed_pts[p] == NULL)
    {
        closed_pts[p] = new double[p + 1];
-       GaussLobattoPoints(p, closed_pts[p]);
+       quad_func.GivePolyPoints(p+1, closed_pts[p],type );
    }
 
    return closed_pts[p];
-/*alloc_closed:
-   closed_pts[p] = cp = new double[p + 1];
-   GaussLobattoPoints(p, cp);
-   // UniformPoints(p, cp);
-   return cp; */
 }
 
 Poly_1D::Basis &Poly_1D::OpenBasis(const int p,const int type)
