@@ -90,13 +90,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    MPI_Comm_size(MyComm, &NRanks);
    MPI_Comm_rank(MyComm, &MyRank);
 
-   Dim = mesh.Dim;
-   spaceDim = mesh.spaceDim;
-
-   BaseGeom = mesh.BaseGeom;
-   BaseBdrGeom = mesh.BaseBdrGeom;
-
-   if (mesh.ncmesh)
+   if (mesh.Nonconforming())
    {
       pncmesh = new ParNCMesh(comm, *mesh.ncmesh);
 
@@ -112,15 +106,15 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       Mesh::Init();
       Mesh::InitTables();
       Mesh::InitFromNCMesh(*pncmesh);
-      spaceDim = mesh.spaceDim;
       pncmesh->OnMeshUpdated(this);
-      // TODO: call GenerateNCFaceInfo
 
-      meshgen = mesh.MeshGenerator();
       ncmesh = pncmesh;
+      meshgen = mesh.MeshGenerator();
 
       mesh.attributes.Copy(attributes);
       mesh.bdr_attributes.Copy(bdr_attributes);
+
+      GenerateNCFaceInfo();
 
       if (mesh.GetNodes())
       {
@@ -128,13 +122,18 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
          own_nodes = 1;
       }
       delete [] partition;
+
       have_face_nbr_data = false;
       return;
    }
-   else
-   {
-      ncmesh = pncmesh = NULL;
-   }
+
+   Dim = mesh.Dim;
+   spaceDim = mesh.spaceDim;
+
+   BaseGeom = mesh.BaseGeom;
+   BaseBdrGeom = mesh.BaseBdrGeom;
+
+   ncmesh = pncmesh = NULL;
 
    if (partitioning_)
    {
@@ -795,10 +794,12 @@ void ParMesh::GetFaceNbrElementTransformation(
 
       pointmat.SetSize(spaceDim, nv);
       for (int k = 0; k < spaceDim; k++)
+      {
          for (int j = 0; j < nv; j++)
          {
             pointmat(k, j) = face_nbr_vertices[v[j]](k);
          }
+      }
 
       ElTr->SetFE(GetTransformationFEforElementType(elem->GetType()));
    }
@@ -812,16 +813,19 @@ void ParMesh::GetFaceNbrElementTransformation(
          int n = vdofs.Size()/spaceDim;
          pointmat.SetSize(spaceDim, n);
          for (int k = 0; k < spaceDim; k++)
+         {
             for (int j = 0; j < n; j++)
             {
                pointmat(k,j) = (pNodes->FaceNbrData())(vdofs[n*k+j]);
             }
+         }
 
          ElTr->SetFE(pNodes->ParFESpace()->GetFaceNbrFE(i));
       }
       else
-         mfem_error("ParMesh::GetFaceNbrElementTransformation : "
-                    "Nodes are not ParGridFunction!");
+      {
+         MFEM_ABORT("Nodes are not ParGridFunction!");
+      }
    }
 }
 
@@ -850,6 +854,16 @@ void ParMesh::ExchangeFaceNbrData()
 {
    if (have_face_nbr_data)
    {
+      return;
+   }
+
+   if (Nonconforming())
+   {
+      // with ParNCMesh we can set up face neigbors without communication
+      pncmesh->GetFaceNeighbors(*this);
+      have_face_nbr_data = true;
+
+      ExchangeFaceNbrNodes();
       return;
    }
 
@@ -1247,6 +1261,12 @@ void ParMesh::ExchangeFaceNbrNodes()
    }
    else if (Nodes == NULL)
    {
+      if (Nonconforming())
+      {
+         // with ParNCMesh we already have the vertices
+         return;
+      }
+
       int num_face_nbrs = GetNFaceNeighbors();
 
       MPI_Request *requests = new MPI_Request[2*num_face_nbrs];
@@ -1286,24 +1306,26 @@ void ParMesh::ExchangeFaceNbrNodes()
    else
    {
       ParGridFunction *pNodes = dynamic_cast<ParGridFunction *>(Nodes);
-      if (pNodes)
-      {
-         pNodes->ExchangeFaceNbrData();
-      }
-      else
-         mfem_error("ParMesh::ExchangeFaceNbrNodes() : "
-                    "Nodes are not ParGridFunction!");
+      MFEM_VERIFY(pNodes != NULL, "Nodes are not ParGridFunction!");
+      pNodes->ExchangeFaceNbrData();
    }
 }
 
 int ParMesh::GetFaceNbrRank(int fn) const
 {
-   int nbr_group = face_nbr_group[fn];
-   const int *nbs = gtopo.GetGroup(nbr_group);
-   int nbr_lproc = (nbs[0]) ? nbs[0] : nbs[1];
-   int nbr_rank = gtopo.GetNeighborRank(nbr_lproc);
-
-   return nbr_rank;
+   if (Conforming())
+   {
+      int nbr_group = face_nbr_group[fn];
+      const int *nbs = gtopo.GetGroup(nbr_group);
+      int nbr_lproc = (nbs[0]) ? nbs[0] : nbs[1];
+      int nbr_rank = gtopo.GetNeighborRank(nbr_lproc);
+      return nbr_rank;
+   }
+   else
+   {
+      // NC: simplified handling of face neighbor ranks
+      return face_nbr_group[fn];
+   }
 }
 
 Table *ParMesh::GetFaceToAllElementTable() const
@@ -1364,49 +1386,102 @@ Table *ParMesh::GetFaceToAllElementTable() const
    return face_elem;
 }
 
+ElementTransformation* ParMesh::GetGhostFaceTransformation(
+   FaceElementTransformations* FETr, int face_type, int face_geom)
+{
+   // calculate composition of FETr->Loc1 and FETr->Elem1
+   DenseMatrix &face_pm = FaceTransformation.GetPointMat();
+   if (Nodes == NULL)
+   {
+      FETr->Elem1->Transform(FETr->Loc1.Transf.GetPointMat(), face_pm);
+      FaceTransformation.SetFE(GetTransformationFEforElementType(face_type));
+   }
+   else
+   {
+      const FiniteElement* face_el =
+         Nodes->FESpace()->GetTraceElement(FETr->Elem1No, face_geom);
+
+#if 0 // TODO: handle the case of non-nodal Nodes
+      DenseMatrix I;
+      face_el->Project(Transformation.GetFE(), FETr->Loc1.Transf, I);
+      MultABt(Transformation.GetPointMat(), I, pm_face);
+#else
+      IntegrationRule eir(face_el->GetDof());
+      FETr->Loc1.Transform(face_el->GetNodes(), eir);
+      Nodes->GetVectorValues(*FETr->Elem1, eir, face_pm);
+#endif
+      FaceTransformation.SetFE(face_el);
+   }
+   return &FaceTransformation;
+}
+
 FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
 {
    int FaceNo = GetSharedFace(sf);
 
-   // fill-in the face and the first (local) element data into FaceElemTr
-   GetFaceElementTransformations(FaceNo);
-
    FaceInfo &face_info = faces_info[FaceNo];
+
+   bool is_slave = Nonconforming() && IsSlaveFace(face_info);
+   bool is_ghost = Nonconforming() && FaceNo >= GetNumFaces();
+
+   NCFaceInfo* nc_info = NULL;
+   if (is_slave) { nc_info = &nc_faces_info[face_info.NCFace]; }
+
+   int local_face = is_ghost ? nc_info->MasterFace : FaceNo;
+   int face_type = GetFaceElementType(local_face);
+   int face_geom = GetFaceGeometryType(local_face);
+
+   // setup the transformation for the first element
+   FaceElemTr.Elem1No = face_info.Elem1No;
+   GetElementTransformation(FaceElemTr.Elem1No, &Transformation);
+   FaceElemTr.Elem1 = &Transformation;
 
    // setup the transformation for the second (neighbor) element
    FaceElemTr.Elem2No = -1 - face_info.Elem2No;
    GetFaceNbrElementTransformation(FaceElemTr.Elem2No, &Transformation2);
    FaceElemTr.Elem2 = &Transformation2;
 
-   // setup Loc2
-   int face_type = (Dim == 1) ? Element::POINT : faces[FaceNo]->GetType();
-   switch (face_type)
+   // setup the face transformation if the face is not a ghost
+   FaceElemTr.FaceGeom = face_geom;
+   if (!is_ghost)
    {
-      case Element::POINT:
-         GetLocalPtToSegTransformation(FaceElemTr.Loc2.Transf,
-                                       face_info.Elem2Inf);
-         break;
+      FaceElemTr.Face = GetFaceTransformation(FaceNo);
+      // NOTE: GetFaceElementTransformation destroys FaceElemTr.Loc1
+   }
 
-      case Element::SEGMENT:
-         if (face_nbr_elements[FaceElemTr.Elem2No]->GetType() == Element::TRIANGLE)
-            GetLocalSegToTriTransformation(FaceElemTr.Loc2.Transf,
-                                           face_info.Elem2Inf);
-         else // assume the element is a quad
-            GetLocalSegToQuadTransformation(FaceElemTr.Loc2.Transf,
-                                            face_info.Elem2Inf);
-         break;
+   // setup Loc1 & Loc2
+   int elem_type = GetElementType(face_info.Elem1No);
+   GetLocalFaceTransformation(face_type, elem_type, FaceElemTr.Loc1.Transf,
+                              face_info.Elem1Inf);
 
-      case Element::TRIANGLE:
-         // ---------  assumes the face is a triangle -- face of a tetrahedron
-         GetLocalTriToTetTransformation(FaceElemTr.Loc2.Transf,
-                                        face_info.Elem2Inf);
-         break;
+   elem_type = face_nbr_elements[FaceElemTr.Elem2No]->GetType();
+   GetLocalFaceTransformation(face_type, elem_type, FaceElemTr.Loc2.Transf,
+                              face_info.Elem2Inf);
 
-      case Element::QUADRILATERAL:
-         // ---------  assumes the face is a quad -- face of a hexahedron
-         GetLocalQuadToHexTransformation(FaceElemTr.Loc2.Transf,
-                                         face_info.Elem2Inf);
-         break;
+   // adjust Loc1 or Loc2 of the master face if this is a slave face
+   if (is_slave)
+   {
+      // is a ghost slave? -> master not a ghost -> choose Elem1 local transf
+      // not a ghost slave? -> master is a ghost -> choose Elem2 local transf
+      IsoparametricTransformation &loctr =
+         is_ghost ? FaceElemTr.Loc1.Transf : FaceElemTr.Loc2.Transf;
+
+      ApplyLocalSlaveTransformation(loctr, face_info);
+
+      if (face_type == Element::SEGMENT)
+      {
+         // fix slave orientation in 2D: flip Loc2 to match Loc1 and Face
+         DenseMatrix &pm = FaceElemTr.Loc2.Transf.GetPointMat();
+         std::swap(pm(0,0), pm(0,1));
+         std::swap(pm(1,0), pm(1,1));
+      }
+   }
+
+   // for ghost faces we need a special version of GetFaceTransformation
+   if (is_ghost)
+   {
+      FaceElemTr.Face =
+         GetGhostFaceTransformation(&FaceElemTr, face_type, face_geom);
    }
 
    return &FaceElemTr;
@@ -1414,25 +1489,43 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
 
 int ParMesh::GetNSharedFaces() const
 {
-   if (Dim == 1)
+   if (Conforming())
    {
-      return svert_lvert.Size();
+      switch (Dim)
+      {
+         case 1:  return svert_lvert.Size();
+         case 2:  return sedge_ledge.Size();
+         default: return sface_lface.Size();
+      }
    }
-   if (Dim == 2)
+   else
    {
-      return sedge_ledge.Size();
+      MFEM_ASSERT(Dim > 1, "");
+      const NCMesh::NCList &shared = pncmesh->GetSharedList(Dim-1);
+      return shared.conforming.size() + shared.slaves.size();
    }
-   return sface_lface.Size();
 }
 
 int ParMesh::GetSharedFace(int sface) const
 {
-   switch (Dim)
+   if (Conforming())
    {
-      case 1: return svert_lvert[sface];
-      case 2: return sedge_ledge[sface];
+      switch (Dim)
+      {
+         case 1:  return svert_lvert[sface];
+         case 2:  return sedge_ledge[sface];
+         default: return sface_lface[sface];
+      }
    }
-   return sface_lface[sface];
+   else
+   {
+      MFEM_ASSERT(Dim > 1, "");
+      const NCMesh::NCList &shared = pncmesh->GetSharedList(Dim-1);
+      int csize = (int) shared.conforming.size();
+      return sface < csize
+             ? shared.conforming[sface].index
+             : shared.slaves[sface - csize].index;
+   }
 }
 
 long ParMesh::GlobalNE() const
@@ -2057,7 +2150,7 @@ void ParMesh::NonconformingRefinement(const Array<Refinement> &refinements,
    // and this mesh will be the new fine mesh
    Swap(*pmesh2, false);
 
-   delete pmesh2;
+   delete pmesh2; // NOTE: old face neighbors destroyed here
 
    GenerateNCFaceInfo();
 
@@ -2127,6 +2220,8 @@ void ParMesh::Rebalance()
                  " meshes.");
    }
 
+   DeleteFaceNbrData();
+
    pncmesh->Rebalance();
 
    ParMesh* pmesh2 = new ParMesh(*pncmesh);
@@ -2138,7 +2233,7 @@ void ParMesh::Rebalance()
    Swap(*pmesh2, false);
    delete pmesh2;
 
-   // TODO: call GenerateNCFaceInfo
+   GenerateNCFaceInfo();
 
    last_operation = Mesh::REBALANCE;
    sequence++;

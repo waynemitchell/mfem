@@ -12,6 +12,8 @@
 //               mpirun -np 4 ex14p -m ../data/disc-nurbs.mesh -rs 4 -o 2 -s 1 -k 0
 //               mpirun -np 4 ex14p -m ../data/pipe-nurbs.mesh -o 1
 //               mpirun -np 4 ex14p -m ../data/inline-segment.mesh -rs 5
+//               mpirun -np 4 ex14p -m ../data/amr-quad.mesh -rs 3
+//               mpirun -np 4 ex14p -m ../data/amr-hex.mesh
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               discontinuous Galerkin (DG) finite element discretization of
@@ -103,10 +105,6 @@ int main(int argc, char *argv[])
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
    int dim = mesh->Dimension();
-   if (mesh->NURBSext)
-   {
-      mesh->SetCurvature(2);
-   }
 
    // 4. Refine the serial mesh on all processors to increase the resolution. In
    //    this example we do 'ser_ref_levels' of uniform refinement. By default,
@@ -121,6 +119,10 @@ int main(int argc, char *argv[])
       {
          mesh->UniformRefinement();
       }
+   }
+   if (mesh->NURBSext)
+   {
+      mesh->SetCurvature(max(order, 1));
    }
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
