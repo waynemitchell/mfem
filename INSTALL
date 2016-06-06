@@ -176,6 +176,12 @@ MFEM_TIMER_TYPE = 0/1/2/3/NO
       3  - use QueryPerformanceCounter from <windows.h>
       NO - use option 3 if the compiler macro _WIN32 is defined, 0 otherwise
 
+
+MFEM_USE_NETCDF = YES/NO
+   NetCDF is the library that is by the SNL Cubit mesh generator to create Genesis
+   mesh files. This option enables reader for these files, and requires that NetCDF
+   be installed.
+
 MFEM_BUILD_TAG = (any value)
    An optional tag to characterize the build. Exported to config/config.mk.
    Can be used to identify the MFEM build from other makefiles.
@@ -225,6 +231,12 @@ The specific libraries and their options are:
 - High-resolution POSIX clocks: when using MFEM_TIMER_TYPE = 2, it may be
   necessary to link with a system library (e.g. librt.so).
   Option: POSIX_CLOCKS_LIB (default = -lrt).
+
+- NetCDF, used when MFEM_USE_NETCDF = YES, required for reading Cubit mesh files. Also
+  requires instalation of HDF5 and ZLIB, as explained at the NetCDF web site. Note that we use the plain
+  vanilla "C" version of NetCDF, you don't need the C++ or parallel versions.
+  URL: www.unidata.ucar.edu/software/netcdf
+  Options: NETCDF_OPT, NETCDF_LIB.
 
 
 Building without GNU make
