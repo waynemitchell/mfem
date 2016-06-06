@@ -21,6 +21,7 @@
 #include "../fem/eltrans.hpp"
 #include "../fem/coefficient.hpp"
 #include <iostream>
+#include <fstream>
 
 namespace mfem
 {
@@ -37,6 +38,16 @@ struct Refinement;
 class ParMesh;
 class ParNCMesh;
 #endif
+
+/// Input file stream that remembers the input file name (useful for reading
+/// NetCDF meshes).
+class nifstream : public std::ifstream
+{
+public:
+   const char *filename;
+   nifstream(const char *mesh_name) :
+      std::ifstream(mesh_name), filename(mesh_name) {}
+};
 
 class Mesh
 {
@@ -443,9 +454,10 @@ public:
    void Load(std::istream &input, int generate_edges = 0, int refine = 1,
              bool fix_orientation = true);
 
-  /* Temporary solution for reading cubit NetCDF files */
-  void LoadCubit(const char *filename, int generate_edges = 0, int refine = 1,
-		 bool fix_orientation = true);
+   /* Note NetCDF (optional library) is used for reading cubit files */
+#ifdef MFEM_USE_NETCDF
+  void ReadCubit(nifstream &input, int &curved, int &read_gf);
+#endif
 
    /** Return a bitmask:
        bit 0 - simplices are present in the mesh (triangles, tets),

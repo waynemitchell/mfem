@@ -21,6 +21,7 @@ MFEM makefile targets:
    make parallel
    make debug
    make pdebug
+   make check/test
    make install
    make clean
    make distclean
@@ -34,7 +35,7 @@ make config MFEM_USE_MPI=YES MFEM_DEBUG=YES MPICXX=mpiCC
 make -j 4
    Build the library (in parallel) using the current configuration options.
 make all
-   Build the library, the exa/g/g10/dwhite/mfemApps/meshes/coil_thex.mples and the miniapps using the current configuration.
+   Build the library, the examples and the miniapps using the current configuration.
 make status
    Display information about the current configuration.
 make serial
@@ -45,6 +46,10 @@ make debug
    A shortcut to configure and build the serial debug version of the library.
 make pdebug
    A shortcut to configure and build the parallel debug version of the library.
+make check
+   Quick-check the build by compiling and running Example 1/1p.
+make test
+   Verify the build by checking the results from running all examples and miniapps.
 make install PREFIX=<dir>
    Install the library and headers in <dir>/lib and <dir>/include.
 make clean
@@ -110,19 +115,36 @@ ifeq ($(MFEM_DEBUG),YES)
 endif
 CXXFLAGS ?= $(OPTIM_FLAGS)
 
+# MFEM configuration options
+MFEM_USE_MPI         ?= NO
+MFEM_USE_LAPACK      ?= NO
+MFEM_USE_OPENMP      ?= NO
+MFEM_USE_MESQUITE    ?= NO
+MFEM_USE_SUITESPARSE ?= NO
+MFEM_USE_SUPERLU     ?= NO
+MFEM_USE_MEMALLOC    ?= YES
+MFEM_USE_GECKO       ?= NO
+
 # HYPRE library configuration (needed to build the parallel version)
 HYPRE_DIR ?= @MFEM_DIR@/../hypre-2.10.0b/src/hypre
 HYPRE_OPT ?= -I$(HYPRE_DIR)/include
 HYPRE_LIB ?= -L$(HYPRE_DIR)/lib -lHYPRE
 
 # METIS library configuration
-METIS_DIR ?= @MFEM_DIR@/../metis-4.0
-METIS_OPT ?=
-METIS_LIB ?= -L$(METIS_DIR) -lmetis
+ifeq ($(MFEM_USE_SUPERLU),NO)
+   METIS_DIR ?= @MFEM_DIR@/../metis-4.0
+   METIS_OPT ?=
+   METIS_LIB ?= -L$(METIS_DIR) -lmetis
+   MFEM_USE_METIS_5 ?= NO
+else
+   # ParMETIS currently needed only with SuperLU
+   METIS_DIR ?= @MFEM_DIR@/../parmetis-4.0.3
+   METIS_OPT ?=
+   METIS_LIB ?= -L$(METIS_DIR) -lparmetis -lmetis
+   MFEM_USE_METIS_5 ?= YES
+endif
 
-MFEM_USE_METIS_5 ?= NO
-
-MFEM_USE_MPI ?= NO
+# MPI configuration
 ifneq ($(MFEM_USE_MPI),YES)
    MFEM_CXX ?= $(CXX)
 else
@@ -133,7 +155,6 @@ endif
 
 DEP_CXX ?= $(MFEM_CXX)
 
-MFEM_USE_LAPACK ?= NO
 # LAPACK library configuration
 LAPACK_OPT ?=
 LAPACK_LIB ?= -llapack
@@ -142,7 +163,6 @@ ifeq ($(MFEM_USE_LAPACK),YES)
    ALL_LIBS += $(LAPACK_LIB)
 endif
 
-MFEM_USE_OPENMP ?= NO
 # OpenMP configuration
 OPENMP_OPT ?= -fopenmp
 OPENMP_LIB ?=
@@ -157,7 +177,6 @@ else
    MFEM_THREAD_SAFE ?= NO
 endif
 
-MFEM_USE_MESQUITE ?= NO
 # MESQUITE library configuration
 MESQUITE_DIR ?= @MFEM_DIR@/../mesquite-2.99
 MESQUITE_OPT ?= -I$(MESQUITE_DIR)/include
@@ -167,15 +186,32 @@ ifeq ($(MFEM_USE_MESQUITE),YES)
    ALL_LIBS += $(MESQUITE_LIB)
 endif
 
-MFEM_USE_SUITESPARSE ?= NO
 # SuiteSparse library configuration
 SUITESPARSE_DIR ?= @MFEM_DIR@/../SuiteSparse
 SUITESPARSE_OPT ?= -I$(SUITESPARSE_DIR)/include
-SUITESPARSE_LIB ?= -L$(SUITESPARSE_DIR)/lib -lklu -lbft -lumfpack -lcholmod -lcolamd -lamd\
+SUITESPARSE_LIB ?= -L$(SUITESPARSE_DIR)/lib -lklu -lbtf -lumfpack -lcholmod -lcolamd -lamd\
  -lcamd -lccolamd -lsuitesparseconfig -lrt $(METIS_LIB) $(LAPACK_LIB)
 ifeq ($(MFEM_USE_SUITESPARSE),YES)
    INCFLAGS += $(SUITESPARSE_OPT)
    ALL_LIBS += $(SUITESPARSE_LIB)
+endif
+
+# SuperLU library configuration
+SUPERLU_DIR ?= @MFEM_DIR@/../SuperLU_DIST_5.1.0
+SUPERLU_OPT ?= -I$(SUPERLU_DIR)/SRC
+SUPERLU_LIB ?= -L$(SUPERLU_DIR)/SRC -lsuperlu_dist -lblas $(METIS_LIB)
+ifeq ($(MFEM_USE_SUPERLU),YES)
+   INCFLAGS += $(SUPERLU_OPT)
+   ALL_LIBS += $(SUPERLU_LIB)
+endif
+
+# Gecko library configuration
+GECKO_DIR ?= @MFEM_DIR@/../gecko
+GECKO_OPT ?= -I$(GECKO_DIR)/inc
+GECKO_LIB ?= -L$(GECKO_DIR)/lib -lgecko
+ifeq ($(MFEM_USE_GECKO),YES)
+   INCFLAGS += $(GECKO_OPT)
+   ALL_LIBS += $(GECKO_LIB)
 endif
 
 MFEM_USE_NETCDF ?= NO
@@ -184,22 +220,13 @@ NETCDF_DIR ?= @MFEM_DIR@/../NetCDF
 HDF5_DIR ?= @MFEM_DIR@/../hdf5
 ZLIB_DIR ?= @MFEM_DIR@/../zlib
 NETCDF_OPT ?= -I$(NETCDF_DIR)/include
-NETCDF_LIB ?= -L$(NETCDF_DIR)/lib  -lnetcdf -L $(HDF5_DIR)/lib -lhdf5_hl -lhdf5 -L $(ZLIB_DIR)/lib -lz 
+NETCDF_LIB ?= -L$(NETCDF_DIR)/lib -lnetcdf -L$(HDF5_DIR)/lib -lhdf5_hl -lhdf5 -L$(ZLIB_DIR)/lib -lz
 ifeq ($(MFEM_USE_NETCDF),YES)
    INCFLAGS += $(NETCDF_OPT)
    ALL_LIBS += $(NETCDF_LIB)
 endif
 
 MFEM_USE_MEMALLOC ?= YES
-
-MFEM_USE_GECKO ?= NO
-GECKO_DIR ?= @MFEM_DIR@/../gecko
-GECKO_OPT ?= -I$(GECKO_DIR)/inc
-GECKO_LIB ?= -L$(GECKO_DIR)/lib -lgecko
-ifeq ($(MFEM_USE_GECKO),YES)
-   INCFLAGS += $(GECKO_OPT)
-   ALL_LIBS += $(GECKO_LIB)
-endif
 
 # Use POSIX clocks for timing unless kernel-name is 'Darwin' (mac)
 ifeq ($(shell uname -s),Darwin)
@@ -215,7 +242,8 @@ endif
 # List of all defines that may be enabled in config.hpp and config.mk:
 MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_TIMER_TYPE\
  MFEM_USE_LAPACK MFEM_THREAD_SAFE MFEM_USE_OPENMP MFEM_USE_MESQUITE\
- MFEM_USE_SUITESPARSE MFEM_USE_MEMALLOC MFEM_USE_GECKO MFEM_USE_NETCDF
+ MFEM_USE_SUITESPARSE MFEM_USE_SUPERLU MFEM_USE_MEMALLOC MFEM_USE_GECKO\
+ MFEM_USE_NETCDF
 
 # List of makefile variables that will be written to config.mk:
 MFEM_CONFIG_VARS = MFEM_CXX MFEM_CPPFLAGS MFEM_CXXFLAGS MFEM_INC_DIR\
@@ -263,7 +291,7 @@ SOURCE_FILES = $(foreach dir,$(DIRS),$(wildcard $(dir)/*.cpp))
 OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 
 .PHONY: lib all clean distclean install config status info deps serial parallel\
- debug pdebug style
+ debug pdebug style check test
 
 .SUFFIXES: .cpp .o
 .cpp.o:
@@ -304,6 +332,26 @@ deps:
 	rm -f deps.mk
 	for i in $(SOURCE_FILES:.cpp=); do \
 	   $(DEP_CXX) $(MFEM_FLAGS) -MM -MT $${i}.o $${i}.cpp >> deps.mk; done
+
+check: lib
+	@printf "Quick-checking the MFEM library."
+	@printf " Use 'make test' for more extensive tests.\n"
+	@$(MAKE) -C examples \
+	$(if $(findstring YES,$(MFEM_USE_MPI)),ex1p-test-par,ex1-test-seq)
+
+test: lib
+	@echo "Testing the MFEM library. This may take a while..."
+	@echo "Building all examples and miniapps..."
+	@make all
+	@echo "Running examples..."
+	@$(MAKE) -C examples test
+	@echo "Running meshing miniapps..."
+	@$(MAKE) -C miniapps/meshing test
+	@echo "Running electromagnetic miniapps..."
+	@$(MAKE) -C miniapps/electromagnetics test
+	@echo "Running high-performance miniapps..."
+	@$(MAKE) -C miniapps/performance test
+	@echo "Done."
 
 clean:
 	rm -f */*.o */*~ *~ libmfem.a deps.mk
@@ -360,8 +408,10 @@ status info:
 	$(info MFEM_USE_OPENMP      = $(MFEM_USE_OPENMP))
 	$(info MFEM_USE_MESQUITE    = $(MFEM_USE_MESQUITE))
 	$(info MFEM_USE_SUITESPARSE = $(MFEM_USE_SUITESPARSE))
+	$(info MFEM_USE_SUPERLU     = $(MFEM_USE_SUPERLU))
 	$(info MFEM_USE_MEMALLOC    = $(MFEM_USE_MEMALLOC))
 	$(info MFEM_USE_GECKO       = $(MFEM_USE_GECKO))
+	$(info MFEM_USE_NETCDF      = $(MFEM_USE_NETCDF))
 	$(info MFEM_TIMER_TYPE      = $(MFEM_TIMER_TYPE))
 	$(info MFEM_CXX             = $(value MFEM_CXX))
 	$(info MFEM_CPPFLAGS        = $(value MFEM_CPPFLAGS))

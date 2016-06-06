@@ -59,15 +59,19 @@ MESQUITE_LIB = -L$(MESQUITE_DIR)/lib -lmesquite
 
 SUITESPARSE_DIR = @MFEM_DIR@/../SuiteSparse
 SUITESPARSE_OPT = -I$(SUITESPARSE_DIR)/include
-SUITESPARSE_LIB = -L$(SUITESPARSE_DIR)/lib -lklu -lbft -lumfpack -lcholmod -lcolamd -lamd\
+SUITESPARSE_LIB = -L$(SUITESPARSE_DIR)/lib -lklu -lbtf -lumfpack -lcholmod -lcolamd -lamd\
  -lcamd -lccolamd -lsuitesparseconfig -lrt $(METIS_LIB) $(LAPACK_LIB)
+
+SUPERLU_DIR = @MFEM_DIR@/../SuperLU_DIST_5.1.0
+SUPERLU_OPT = -I$(SUPERLU_DIR)/SRC
+SUPERLU_LIB = -L$(SUPERLU_DIR)/SRC -lsuperlu_dist
 
 # NetCDF stuff
 NETCDF_DIR  = @MFEM_DIR@/../NetCDF
 HDF5_DIR    = @MFEM_DIR@/../hdf5-1.8.16
 ZLIB_DIR    = @MFEM_DIR@/../zlib-1.2.8
 NETCDF_OPT  = -I$(NETCDF_DIR)/include
-NETCDF_LIB  = -L$(NETCDF_DIR)/lib  -lnetcdf -L $(HDF5_DIR)/lib -lhdf5_hl -lhdf5 -L $(ZLIB_DIR)/lib -lz 
+NETCDF_LIB  = -L$(NETCDF_DIR)/lib -lnetcdf -L$(HDF5_DIR)/lib -lhdf5_hl -lhdf5 -L$(ZLIB_DIR)/lib -lz
 
 POSIX_CLOCKS_LIB = -lrt
 
@@ -82,6 +86,7 @@ MFEM_THREAD_SAFE     = NO
 MFEM_USE_OPENMP      = NO
 MFEM_USE_MESQUITE    = NO
 MFEM_USE_SUITESPARSE = NO
+MFEM_USE_SUPERLU     = NO
 MFEM_USE_MEMALLOC    = YES
 MFEM_USE_GECKO       = NO
 MFEM_USE_NETCDF      = NO

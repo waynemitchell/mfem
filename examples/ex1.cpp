@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
    //    quadrilateral, tetrahedral, hexahedral, surface and volume meshes with
    //    the same code.
    Mesh *mesh;
-   ifstream imesh(mesh_file);
+   nifstream imesh(mesh_file);
    if (!imesh)
    {
       cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;

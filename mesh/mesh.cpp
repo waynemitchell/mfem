@@ -27,7 +27,9 @@
 #include "graph.h"
 #endif
 
+#ifdef MFEM_USE_NETCDF
 #include "netcdf.h"
+#endif
 
 namespace mfem
 {
@@ -2287,876 +2289,721 @@ void skip_comment_lines(std::istream &is, const char comment_char)
    }
 }
 
-void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
-		     bool fix_orientation)
+
+#ifdef MFEM_USE_NETCDF
+void Mesh::ReadCubit(nifstream &input, int &curved, int &read_gf)
 {
-  int curved = 0;
+   read_gf = 0;
 
-  if (NumOfVertices != -1)
-    {
-      // Delete the elements.
-      for (int i = 0; i < NumOfElements; i++)
-	{
-	  FreeElement(elements[i]);
-	}
-      elements.DeleteAll();
-      NumOfElements = 0;
-      
-      // Delete the vertices.
-      vertices.DeleteAll();
-      NumOfVertices = 0;
-      
-      // Delete the boundary elements.
-      for (int i = 0; i < NumOfBdrElements; i++)
-	{
-	  FreeElement(boundary[i]);
-	}
-      boundary.DeleteAll();
-      NumOfBdrElements = 0;
-      
-      // Delete interior faces (if generated)
-      for (int i = 0; i < faces.Size(); i++)
-	{
-	  FreeElement(faces[i]);
-	}
-      faces.DeleteAll();
-      NumOfFaces = 0;
-      
-      faces_info.DeleteAll();
-      
-      // Delete the edges (if generated).
-      DeleteTables();
-      be_to_edge.DeleteAll();
-      be_to_face.DeleteAll();
-      NumOfEdges = 0;
-      
-      // TODO: make this a Destroy function
-    }
-  
-  delete ncmesh;
-  ncmesh = NULL;
-  
-  if (own_nodes) { delete Nodes; }
-  Nodes = NULL;
-  
-  InitTables();
-  spaceDim = 0;
-  
-  //
-  // OK now we process the cubit file putting vertices and elements 
-  // into temporary work arrays
-  //
-  
-  const int sideMapHex8[6][4] = {{1,2,6,5},
-				 {2,3,7,6},
-				 {4,3,7,8},
-				 {1,4,8,5},
-				 {1,4,3,2},
-				 {5,8,7,6}};
+   // curved set to zero will chang if mesh is indeed curved
+   curved = 0;
 
-  const int sideMapTet4[4][3] = {{1,2,4},
-				 {2,3,4},
-				 {1,4,3},
-				 {1,3,2}};
+   const int sideMapHex8[6][4] = {
+      {1,2,6,5},
+      {2,3,7,6},
+      {4,3,7,8},
+      {1,4,8,5},
+      {1,4,3,2},
+      {5,8,7,6}
+   };
 
-  //                                  1,2,3,4,5,6,7,8,9,10
-  const int mfemToGenesisTet10[10] = {1,2,3,4,5,7,8,6,9,10};
+   const int sideMapTet4[4][3] = {
+      {1,2,4},
+      {2,3,4},
+      {1,4,3},
+      {1,3,2}
+   };
+
+   //                                  1,2,3,4,5,6,7,8,9,10
+   const int mfemToGenesisTet10[10] = {1,2,3,4,5,7,8,6,9,10};
+
+   //                                  1,2,3,4,5,6,7,8,9,10,11,
+   const int mfemToGenesisHex27[27] = {1,2,3,4,5,6,7,8,9,10,11,
+                                    // 12,13,14,15,16,17,18,19
+                                       12,17,18,19,20,13,14,15,
+                                    // 20,21,22,23,24,25,26,27
+                                       16,22,26,25,27,24,23,21};
+
+   const int mfemToGenesisTri6[6]   = {1,2,3,4,5,6};
+   const int mfemToGenesisQuad9[9]  = {1,2,3,4,5,6,7,8,9};
+
+   const int sideMapHex27[6][9] = {
+      {1,2,6,5,9,14,17,13,26},
+      {2,3,7,6,10,15,18,14,25},
+      {4,3,7,8,11,15,19,16,27},
+      {1,4,8,5,12,16,20,13,24},
+      {1,4,3,2,12,11,10,9,22},
+      {5,8,7,6,20,19,18,17,23}
+   };
+
+   const int sideMapTet10[4][6] = {
+      {1,2,4,5,9,8},
+      {2,3,4,6,10,9},
+      {1,4,3,8,10,7},
+      {1,3,2,7,6,5}
+   };
+
+   // error handling.
+   int retval;
+
+   // dummy string
+   char str_dummy[256];
+
+   // Open the file.
+   int ncid;
+   const char* filename = input.filename;
+   if ((retval = nc_open(filename, NC_NOWRITE, &ncid)))
+   {
+      cerr << "NetCDF error " << nc_strerror(retval) << endl;
+      MFEM_ASSERT(false," fatal NetCDF error\n");
+   }
+
+   //
+   // important dimensions to read first
+   //
+
+   int id_num_dim;
+   size_t num_dim;
+   char str_num_dim[] = "num_dim";
+
+   Dim = num_dim;
+
+   int id_num_nodes;
+   size_t num_nodes;
+   char str_num_nodes[] = "num_nodes";
+
+   int id_num_elem;
+   size_t num_elem;
+   char str_num_elem[] = "num_elem";
+
+   int id_num_el_blk;
+   size_t num_el_blk;
+   char str_num_el_blk[] = "num_el_blk";
+
+   int id_num_side_sets;
+   size_t num_side_sets;
+   char str_num_side_sets[] = "num_side_sets";
 
 
-  //                                  1,2,3,4,5,6,7,8,9,10,11,
-  const int mfemToGenesisHex27[27] = {1,2,3,4,5,6,7,8,9,10,11,
+   //
+   // read the important dimensions
+   //
 
-  //				      12,13,14,15,16,17,18,19,
-				      12,17,18,19,20,13,14,15,
+   if ((retval = nc_inq_dimid(ncid, str_num_dim,&id_num_dim)))
+   {
+      cerr << "NetCDF error " << nc_strerror(retval) << endl;
+      MFEM_ASSERT(false," fatal NetCDF error\n");
+   }
+   if ((retval = nc_inq_dim(ncid, id_num_dim, str_dummy, &num_dim)))
+   {
+      cerr << "NetCDF error " << nc_strerror(retval) << endl;
+      MFEM_ASSERT(false," fatal NetCDF error\n");
+   }
 
-  //				      20,21,22,23,24,25,26,27
-				      16,22,26,25,27,24,23,21};
+   if ((retval = nc_inq_dimid(ncid, str_num_nodes,&id_num_nodes)))
+   {
+      cerr << "NetCDF error " << nc_strerror(retval) << endl;
+      MFEM_ASSERT(false," fatal NetCDF error\n");
+   }
+   if ((retval = nc_inq_dim(ncid, id_num_nodes, str_dummy, &num_nodes)))
+   {
+      cerr << "NetCDF error " << nc_strerror(retval) << endl;
+      MFEM_ASSERT(false," fatal NetCDF error\n");
+   }
+
+   if ((retval = nc_inq_dimid(ncid, str_num_elem,&id_num_elem)))
+   {
+      cerr << "NetCDF error " << nc_strerror(retval) << endl;
+      MFEM_ASSERT(false," fatal NetCDF error\n");
+   }
+   if ((retval = nc_inq_dim(ncid, id_num_elem, str_dummy, &num_elem)))
+   {
+      cerr << "NetCDF error " << nc_strerror(retval) << endl;
+      MFEM_ASSERT(false," fatal NetCDF error\n");
+   }
+
+   if ((retval = nc_inq_dimid(ncid, str_num_el_blk,&id_num_el_blk)))
+   {
+      cerr << "NetCDF error " << nc_strerror(retval) << endl;
+      MFEM_ASSERT(false," fatal NetCDF error\n");
+   }
+   if ((retval = nc_inq_dim(ncid, id_num_el_blk, str_dummy, &num_el_blk)))
+   {
+      cerr << "NetCDF error " << nc_strerror(retval) << endl;
+      MFEM_ASSERT(false," fatal NetCDF error\n");
+   }
+
+   if ((retval = nc_inq_dimid(ncid, str_num_side_sets,&id_num_side_sets)))
+   {
+      cerr << "NetCDF error " << nc_strerror(retval) << endl;
+      MFEM_ASSERT(false," fatal NetCDF error\n");
+   }
+   if ((retval = nc_inq_dim(ncid, id_num_side_sets, str_dummy, &num_side_sets)))
+   {
+      cerr << "NetCDF error " << nc_strerror(retval) << endl;
+      MFEM_ASSERT(false," fatal NetCDF error\n");
+   }
+
+   Dim = num_dim;
+
+   //
+   // create arrays for the next set of dimensions, i.e. element blocks and side sets
+   //
+
+   size_t *num_el_in_blk   = new size_t[num_el_blk];
+   size_t *num_nod_per_el  = new size_t[num_el_blk];
+   size_t *num_side_in_ss  = new size_t[num_side_sets];
+
+   int previous_num_nod_per_el;
+   for (int i = 0; i < (int) num_el_blk; i++)
+   {
+      char temp_str[256];
+      int temp_id;
+
+      sprintf(temp_str,"num_el_in_blk%d",i+1);
+
+      if ((retval = nc_inq_dimid(ncid, temp_str ,&temp_id)))
+      {
+         cerr << "NetCDF error " << nc_strerror(retval) << endl;
+         MFEM_ASSERT(false," fatal NetCDF error\n");
+      }
+      if ((retval = nc_inq_dim(ncid, temp_id, str_dummy, &num_el_in_blk[i])))
+      {
+         cerr << "NetCDF error " << nc_strerror(retval) << endl;
+         MFEM_ASSERT(false," fatal NetCDF error\n");
+      }
+
+      sprintf(temp_str,"num_nod_per_el%d",i+1);
+
+      if ((retval = nc_inq_dimid(ncid, temp_str ,&temp_id)))
+      {
+         cerr << "NetCDF error " << nc_strerror(retval) << endl;
+         MFEM_ASSERT(false," fatal NetCDF error\n");
+      }
+      if ((retval = nc_inq_dim(ncid, temp_id, str_dummy, &num_nod_per_el[i])))
+      {
+         cerr << "NetCDF error " << nc_strerror(retval) << endl;
+         MFEM_ASSERT(false," fatal NetCDF error\n");
+      }
+
+      // check for different element types in each block
+      // which is not currently supported
+      if (i != 0)
+      {
+         if ((int) num_nod_per_el[i] !=  previous_num_nod_per_el)
+         {
+            mfem_error("Element blocks of different element types not supported\n");
+            MFEM_ASSERT(false," fatal NetCDF error\n");
+         }
+      }
+      previous_num_nod_per_el = num_nod_per_el[i];
+   }
+
+   int order;
+   if (num_nod_per_el[0] == 4 || num_nod_per_el[0] == 8)
+   {
+      order = 1;
+   }
+   else if (num_nod_per_el[0] == 10 || num_nod_per_el[0] == 27)
+   {
+      order = 2;
+   }
+   else
+   {
+      cerr << "Don't know what to do with a " << num_nod_per_el[0]  <<
+           " node element\n";
+      MFEM_ASSERT(false," fatal NetCDF error\n");
+   }
+
+
+   for (int i = 0; i < (int) num_side_sets; i++)
+   {
+      char temp_str[256];
+      int temp_id;
+      sprintf(temp_str,"num_side_ss%d",i+1);
+      if ((retval = nc_inq_dimid(ncid, temp_str ,&temp_id)))
+      {
+         cerr << "NetCDF error " << nc_strerror(retval) << endl;
+         MFEM_ASSERT(false," fatal NetCDF error\n");
+      }
+      if ((retval = nc_inq_dim(ncid, temp_id, str_dummy, &num_side_in_ss[i])))
+      {
+         cerr << "NetCDF error " << nc_strerror(retval) << endl;
+         MFEM_ASSERT(false," fatal NetCDF error\n");
+      }
+   }
+
+   //
+   // read the data
+   //
+   // read the cordinates
+
+   char str_coordx[] = "coordx";
+   char str_coordy[] = "coordy";
+   char str_coordz[] = "coordz";
+   int id_coordx,id_coordy,id_coordz;
+   double *coordx = new double[num_nodes];
+   double *coordy = new double[num_nodes];
+   double *coordz = new double[num_nodes];
+   if ((retval = nc_inq_varid(ncid, str_coordx ,&id_coordx)))
+   {
+      cerr << "NetCDF error " << nc_strerror(retval) << endl;
+      MFEM_ASSERT(false," fatal NetCDF error\n");
+   }
+   if ((retval = nc_get_var_double(ncid, id_coordx, coordx)))
+   {
+      cerr << "NetCDF error " << nc_strerror(retval) << endl;
+      MFEM_ASSERT(false," fatal NetCDF error\n");
+   }
+   if ((retval = nc_inq_varid(ncid, str_coordy ,&id_coordy)))
+   {
+      cerr << "NetCDF error " << nc_strerror(retval) << endl;
+      MFEM_ASSERT(false," fatal NetCDF error\n");
+   }
+   if ((retval = nc_get_var_double(ncid, id_coordy, coordy)))
+   {
+      cerr << "NetCDF error " << nc_strerror(retval) << endl;
+      MFEM_ASSERT(false," fatal NetCDF error\n");
+   }
+
+   if (num_dim == 3)
+   {
+      if ((retval = nc_inq_varid(ncid, str_coordz ,&id_coordz)))
+      {
+         cerr << "NetCDF error " << nc_strerror(retval) << endl;
+         MFEM_ASSERT(false," fatal NetCDF error\n");
+      }
+      if ((retval = nc_get_var_double(ncid, id_coordz, coordz)))
+      {
+         cerr << "NetCDF error " << nc_strerror(retval) << endl;
+         MFEM_ASSERT(false," fatal NetCDF error\n");
+      }
+   }
+
+   //
+   // read the element blocks
+   //
+
+   int **elem_blk = new int*[num_el_blk];
+   for (int i = 0; i < (int) num_el_blk; i++)
+   {
+      elem_blk[i] = new int[num_el_in_blk[i]*num_nod_per_el[i]];
+   }
+   for (int i = 0; i < (int) num_el_blk; i++)
+   {
+      char temp_str[256];
+      int temp_id;
+      sprintf(temp_str,"connect%d",i+1);
+      if ((retval = nc_inq_varid(ncid, temp_str ,&temp_id)))
+      {
+         cerr << "NetCDF error " << nc_strerror(retval) << endl;
+         MFEM_ASSERT(false," fatal NetCDF error\n");
+      }
+      if ((retval = nc_get_var_int(ncid, temp_id, elem_blk[i])))
+      {
+         cerr << "NetCDF error " << nc_strerror(retval) << endl;
+         MFEM_ASSERT(false," fatal NetCDF error\n");
+      }
+   }
+   int *ebprop = new int[num_el_blk];
+   char str_eb_prop[] = "eb_prop1";
+   int id_eb_prop;
+   if ((retval = nc_inq_varid(ncid, str_eb_prop ,&id_eb_prop)))
+   {
+      cerr << "NetCDF error " << nc_strerror(retval) << endl;
+      MFEM_ASSERT(false," fatal NetCDF error\n");
+   }
+   if ((retval = nc_get_var_int(ncid, id_eb_prop, ebprop)))
+   {
+      cerr << "NetCDF error " << nc_strerror(retval) << endl;
+      MFEM_ASSERT(false," fatal NetCDF error\n");
+   }
+
+   //
+   // read the side sets
+   // a side is is given by (element, face) pairs
+   //
+
+   int **elem_ss = new int*[num_side_sets];
+   int **side_ss = new int*[num_side_sets];
+   for (int i = 0; i < (int) num_side_sets; i++)
+   {
+      elem_ss[i] = new int[num_side_in_ss[i]];
+      side_ss[i] = new int[num_side_in_ss[i]];
+   }
+   for (int i = 0; i < (int) num_side_sets; i++)
+   {
+      char temp_str[256];
+      int temp_id;
+      sprintf(temp_str,"elem_ss%d",i+1);
+      if ((retval = nc_inq_varid(ncid, temp_str ,&temp_id)))
+      {
+         cerr << "NetCDF error " << nc_strerror(retval) << endl;
+         MFEM_ASSERT(false," fatal NetCDF error\n");
+      }
+      if ((retval = nc_get_var_int(ncid, temp_id, elem_ss[i])))
+      {
+         cerr << "NetCDF error " << nc_strerror(retval) << endl;
+         MFEM_ASSERT(false," fatal NetCDF error\n");
+      }
+
+      sprintf(temp_str,"side_ss%d",i+1);
+
+      if ((retval = nc_inq_varid(ncid, temp_str ,&temp_id)))
+      {
+         cerr << "NetCDF error " << nc_strerror(retval) << endl;
+         MFEM_ASSERT(false," fatal NetCDF error\n");
+      }
+      if ((retval = nc_get_var_int(ncid, temp_id, side_ss[i])))
+      {
+         cerr << "NetCDF error " << nc_strerror(retval) << endl;
+         MFEM_ASSERT(false," fatal NetCDF error\n");
+      }
+   }
+   int *ssprop = new int[num_side_sets];
+   int id_ss_prop;
+   char str_ss_prop[] = "ss_prop1";
+   if ((retval = nc_inq_varid(ncid, str_ss_prop ,&id_ss_prop)))
+   {
+      cerr << "NetCDF error " << nc_strerror(retval) << endl;
+      MFEM_ASSERT(false," fatal NetCDF error\n");
+   }
+   if ((retval = nc_get_var_int(ncid, id_ss_prop, ssprop)))
+   {
+      cerr << "NetCDF error " << nc_strerror(retval) << endl;
+      MFEM_ASSERT(false," fatal NetCDF error\n");
+   }
+
+
+   //
+   // convert (elem,side) pairs to 2D elements
+   //
+
+   int num_nod_per_side;
+   if (num_nod_per_el[0] == 4)
+   {
+      num_nod_per_side = 3;
+   }
+   if (num_nod_per_el[0] == 8)
+   {
+      num_nod_per_side = 4;
+   }
+   if (num_nod_per_el[0] == 10)
+   {
+      num_nod_per_side = 6;
+   }
+   if (num_nod_per_el[0] == 27)
+   {
+      num_nod_per_side = 9;
+   }
+
+   //
+   // given a global element number, determine the element block and local
+   // element number
+
+   int *start_of_block = new int[num_el_blk+1];
+   start_of_block[0] = 0;
+   for (int i = 1; i < (int) num_el_blk+1; i++)
+   {
+      start_of_block[i] = start_of_block[i-1] + num_el_in_blk[i-1];
+   }
+
+   int **ss_node_id = new int*[num_side_sets];
+
+   for (int i = 0; i < (int) num_side_sets; i++)
+   {
+      ss_node_id[i] = new int[num_side_in_ss[i]*num_nod_per_side];
+      for (int j = 0; j < (int) num_side_in_ss[i]; j++)
+      {
+         int glob_ind = elem_ss[i][j]-1;
+         int iblk = 0;
+         int loc_ind;
+         while (iblk < (int) num_el_blk && glob_ind >= start_of_block[iblk+1]) { iblk++; }
+         if (iblk >=(int)  num_el_blk)
+         {
+            mfem_error("Sideset element does not exiss_node_idst\n");
+         }
+         loc_ind = glob_ind - start_of_block[iblk];
+         int this_side = side_ss[i][j];
+         int ielem = loc_ind*num_nod_per_el[iblk];
+         if (num_nod_per_side == 3)
+         {
+            for (int k = 0; k < num_nod_per_side; k++)
+            {
+               int inode = sideMapTet4[this_side-1][k];
+               ss_node_id[i][j*num_nod_per_side+k] = elem_blk[iblk][ielem + inode - 1];
+            }
+         }
+         else if (num_nod_per_side == 6)
+         {
+            for (int k = 0; k < num_nod_per_side; k++)
+            {
+               int inode = sideMapTet10[this_side-1][k];
+               ss_node_id[i][j*num_nod_per_side+k] = elem_blk[iblk][ielem + inode - 1];
+            }
+         }
+         else if (num_nod_per_side == 4)
+         {
+            for (int k = 0; k < num_nod_per_side; k++)
+            {
+               int inode = sideMapHex8[this_side-1][k];
+               ss_node_id[i][j*num_nod_per_side+k] = elem_blk[iblk][ielem + inode - 1];
+            }
+         }
+         else if (num_nod_per_side == 9)
+         {
+            for (int k = 0; k < num_nod_per_side; k++)
+            {
+               int inode = sideMapHex27[this_side-1][k];
+               ss_node_id[i][j*num_nod_per_side+k] = elem_blk[iblk][ielem + inode - 1];
+            }
+         }
+      }
+   }
+
+
+   //
+   // we need another node ID mapping since it seems MFEM wants contiguous vertex ID's
+   //
+   std::vector<int> uniqueVertexID;
+   for (int iblk = 0; iblk < (int) num_el_blk; iblk++)
+   {
+      for (int i = 0; i < (int) num_el_in_blk[iblk]; i++)
+      {
+         int NumNodePerEl = num_nod_per_el[iblk];
+         int NumVertPerEl;
+         if (NumNodePerEl == 8 || NumNodePerEl == 27)
+         {
+            NumVertPerEl = 8;
+         }
+         if (NumNodePerEl == 4 || NumNodePerEl == 10)
+         {
+            NumVertPerEl = 4;
+         }
+         for (int j = 0; j < NumVertPerEl; j++)
+         {
+            uniqueVertexID.push_back(elem_blk[iblk][i*NumNodePerEl + j]);
+         }
+      }
+   }
+   std::sort(uniqueVertexID.begin(),uniqueVertexID.end());
+   std::vector<int>::iterator newEnd;
+   newEnd = std::unique(uniqueVertexID.begin(),uniqueVertexID.end());
+   uniqueVertexID.resize(std::distance(uniqueVertexID.begin(),newEnd));
+
+   //
+   // OK at this point uniqueVertexID contains a list of all the nodes that are actually
+   // used by the mesh, 1-based, and sorted. We need to invert this list, the inverse is a map
+   //
+   std::map<int,int> cubitToMFEMVertMap;
+   for (int i = 0; i < (int) uniqueVertexID.size(); i++)
+   {
+      cubitToMFEMVertMap[uniqueVertexID[i]] = i+1;
+   }
+   MFEM_ASSERT( cubitToMFEMVertMap.size() == uniqueVertexID.size(),
+                "This should never happen\n");
+
+   //
+   // OK now load up the MFEM mesh structures
+   //
+
+   //
+   // load up the vertices
+   //
+
+
+   NumOfVertices = uniqueVertexID.size();
+   vertices.SetSize(NumOfVertices);
+   for (int i = 0; i < (int) uniqueVertexID.size(); i++)
+   {
+      vertices[i](0) = coordx[uniqueVertexID[i] - 1];
+      vertices[i](1) = coordy[uniqueVertexID[i] - 1];
+      vertices[i](2) = coordz[uniqueVertexID[i] - 1];
+   }
 
 
 
-
-
-  const int mfemToGenesisTri6[6]   = {1,2,3,4,5,6};
-  const int mfemToGenesisQuad9[9]  = {1,2,3,4,5,6,7,8,9};
-
-  const int sideMapHex27[6][9] = {{1,2,6,5,9,14,17,13,26},
-				  {2,3,7,6,10,15,18,14,25},
-				  {4,3,7,8,11,15,19,16,27},
-				  {1,4,8,5,12,16,20,13,24},
-				  {1,4,3,2,12,11,10,9,22},
-				  {5,8,7,6,20,19,18,17,23}};
-
-  const int sideMapTet10[4][6] = {{1,2,4,5,9,8},
-				  {2,3,4,6,10,9},
-				  {1,4,3,8,10,7},
-				  {1,3,2,7,6,5}};
-  
-
-  
-  // error handling. 
-  int retval;
-  
-  // dummy string
-  char str_dummy[256];
-  
-  // Open the file. 
-  int ncid;
-  if ((retval = nc_open(filename, NC_NOWRITE, &ncid)))
-    { cerr << "NetCDF error " << nc_strerror(retval) << endl; MFEM_ASSERT(false," fatal NetCDF error\n");}
-  
-  //
-  // important dimensions to read first
-  //
-  
-  int id_num_dim;
-  size_t num_dim;
-  char str_num_dim[] = "num_dim";
-  
-  Dim = num_dim;
-  
-  int id_num_nodes;
-  size_t num_nodes;
-  char str_num_nodes[] = "num_nodes";
-  
-  int id_num_elem;
-  size_t num_elem;
-  char str_num_elem[] = "num_elem";
-  
-  int id_num_el_blk;
-  size_t num_el_blk;
-  char str_num_el_blk[] = "num_el_blk";
-  
-  int id_num_side_sets;
-  size_t num_side_sets;
-  char str_num_side_sets[] = "num_side_sets";
-  
-  
-  //
-  // read the important dimensions
-  //
-  
-  if ((retval = nc_inq_dimid(ncid, str_num_dim,&id_num_dim)))
-    { 
-      cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-      MFEM_ASSERT(false," fatal NetCDF error\n");
-    }
-  if ((retval = nc_inq_dim(ncid, id_num_dim, str_dummy, &num_dim)))
-    { 
-      cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-      MFEM_ASSERT(false," fatal NetCDF error\n");
-    }
-  printf("id_num_dim = %d\n",(int) id_num_dim);
-  printf("num_dim = %d\n",(int)num_dim);
-  
-  if ((retval = nc_inq_dimid(ncid, str_num_nodes,&id_num_nodes)))
-    { 
-      cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-      MFEM_ASSERT(false," fatal NetCDF error\n");
-    }
-  if ((retval = nc_inq_dim(ncid, id_num_nodes, str_dummy, &num_nodes)))
-    { 
-      cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-      MFEM_ASSERT(false," fatal NetCDF error\n");
-    }
-  printf("id_num_nodes = %d\n",(int) id_num_nodes);
-  printf("num_nodes = %d\n",(int) num_nodes);
-  
-  if ((retval = nc_inq_dimid(ncid, str_num_elem,&id_num_elem)))
-    { 
-      cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-      MFEM_ASSERT(false," fatal NetCDF error\n");
-    }
-  if ((retval = nc_inq_dim(ncid, id_num_elem, str_dummy, &num_elem)))
-    { 
-      cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-      MFEM_ASSERT(false," fatal NetCDF error\n");
-    }
-  printf("id_num_elem = %d\n",(int) id_num_elem);
-  printf("num_elem = %d\n",(int) num_elem);
-  
-  if ((retval = nc_inq_dimid(ncid, str_num_el_blk,&id_num_el_blk)))
-    { 
-      cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-      MFEM_ASSERT(false," fatal NetCDF error\n");
-    }
-  if ((retval = nc_inq_dim(ncid, id_num_el_blk, str_dummy, &num_el_blk)))
-    { 
-      cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-      MFEM_ASSERT(false," fatal NetCDF error\n");
-    }
-  printf("id_num_el_blk = %d\n",(int) id_num_el_blk);
-  printf("num_el_blk = %d\n",(int) num_el_blk);
-  
-  if ((retval = nc_inq_dimid(ncid, str_num_side_sets,&id_num_side_sets)))
-    { 
-      cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-      MFEM_ASSERT(false," fatal NetCDF error\n");
-    }
-  if ((retval = nc_inq_dim(ncid, id_num_side_sets, str_dummy, &num_side_sets)))
-    { 
-      cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-      MFEM_ASSERT(false," fatal NetCDF error\n");
-    }
-  printf("id_num_side_sets = %d\n",(int) id_num_side_sets);
-  printf("num_side_sets = %d\n",(int) num_side_sets);
-  
-  Dim = num_dim;
-
-  //
-  // create arrays for the next set of dimensions, i.e. element blocks and side sets
-  //
-  
-  size_t *num_el_in_blk   = new size_t[num_el_blk];
-  size_t *num_nod_per_el  = new size_t[num_el_blk];
-  size_t *num_side_in_ss  = new size_t[num_side_sets];
-  
-  int previous_num_nod_per_el;
-  for (int i = 0;i < (int) num_el_blk;i++) {
-    char temp_str[256];
-    int temp_id;
-    
-    sprintf(temp_str,"num_el_in_blk%d",i+1);
-    
-    if ((retval = nc_inq_dimid(ncid, temp_str ,&temp_id)))
-      { 
-	cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-	MFEM_ASSERT(false," fatal NetCDF error\n");
-      }
-    if ((retval = nc_inq_dim(ncid, temp_id, str_dummy, &num_el_in_blk[i])))
-      { 
-	cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-	MFEM_ASSERT(false," fatal NetCDF error\n");
-      }
-    
-    printf("temp id %d = %d\n",i+1,temp_id);
-    printf("num_el_in_blk%d = %d\n",i+1,(int) num_el_in_blk[i]);
-    sprintf(temp_str,"num_nod_per_el%d",i+1);
-    
-    if ((retval = nc_inq_dimid(ncid, temp_str ,&temp_id)))
-      { 
-	cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-	MFEM_ASSERT(false," fatal NetCDF error\n");
-      }
-    if ((retval = nc_inq_dim(ncid, temp_id, str_dummy, &num_nod_per_el[i])))
-      { 
-	cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-	MFEM_ASSERT(false," fatal NetCDF error\n");
-      }
-    
-    // check for different element types in each block
-    // which is not currently supported
-    if (i != 0) {
-      if ((int) num_nod_per_el[i] !=  previous_num_nod_per_el) {
-	mfem_error("Element blocks of different element types not supported\n");
-	MFEM_ASSERT(false," fatal NetCDF error\n");
-      }
-    }
-    previous_num_nod_per_el = num_nod_per_el[i];
-    printf("temp id %d = %d\n",i+1,temp_id);
-    printf("num_nod_per_el%d = %d\n",i+1,(int) num_nod_per_el[i]);
-  }
-  
-  int order;
-  if (num_nod_per_el[0] == 4 || num_nod_per_el[0] == 8) {
-    order = 1;
-  }
-  else if (num_nod_per_el[0] == 10 || num_nod_per_el[0] == 27){
-    order = 2;
-  }
-  else {
-    cerr << "Don't know what to do with a " << num_nod_per_el[0]  << " node element\n";
-    MFEM_ASSERT(false," fatal NetCDF error\n");
-  }
-  
-  
-  for (int i = 0;i < (int) num_side_sets;i++) {
-    char temp_str[256];
-    int temp_id;
-    sprintf(temp_str,"num_side_ss%d",i+1);
-    if ((retval = nc_inq_dimid(ncid, temp_str ,&temp_id)))
-      { 
-	cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-	MFEM_ASSERT(false," fatal NetCDF error\n");
-      }
-    if ((retval = nc_inq_dim(ncid, temp_id, str_dummy, &num_side_in_ss[i])))
-      { 
-	cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-	MFEM_ASSERT(false," fatal NetCDF error\n");
-      }
-    
-    printf("temp id %d = %d\n",i+1,temp_id);
-    printf("num_side_in_ss%d = %d\n",i+1,(int) num_side_in_ss[i]);
-  }
-  
-  //
-  // read the data
-  //
-  // read the cordinates
-  
-  char str_coordx[] = "coordx";
-  char str_coordy[] = "coordy";
-  char str_coordz[] = "coordz";
-  int id_coordx,id_coordy,id_coordz;
-  double *coordx = new double[num_nodes];
-  double *coordy = new double[num_nodes];
-  double *coordz = new double[num_nodes];
-  if ((retval = nc_inq_varid(ncid, str_coordx ,&id_coordx)))
-    { 
-      cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-      MFEM_ASSERT(false," fatal NetCDF error\n");
-    }
-  if ((retval = nc_get_var_double(ncid, id_coordx, coordx)))
-    { 
-      cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-      MFEM_ASSERT(false," fatal NetCDF error\n");
-    }
-  if ((retval = nc_inq_varid(ncid, str_coordy ,&id_coordy)))
-    { 
-      cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-      MFEM_ASSERT(false," fatal NetCDF error\n");
-    }
-  if ((retval = nc_get_var_double(ncid, id_coordy, coordy)))
-    { 
-      cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-      MFEM_ASSERT(false," fatal NetCDF error\n");
-    }
-  
-  if (num_dim == 3) {
-    if ((retval = nc_inq_varid(ncid, str_coordz ,&id_coordz)))
-      { 
-	cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-	MFEM_ASSERT(false," fatal NetCDF error\n");
-      }
-    if ((retval = nc_get_var_double(ncid, id_coordz, coordz)))
-      { 
-	cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-	MFEM_ASSERT(false," fatal NetCDF error\n");
-      }
-  }
-  
-  //
-  // read the element blocks
-  //
-  
-  int **elem_blk = new int*[num_el_blk];
-  for (int i = 0;i < (int) num_el_blk;i++) {
-    elem_blk[i] = new int[num_el_in_blk[i]*num_nod_per_el[i]];
-  }
-  for (int i = 0;i < (int) num_el_blk;i++) {
-    char temp_str[256];
-    int temp_id;
-    sprintf(temp_str,"connect%d",i+1);
-    if ((retval = nc_inq_varid(ncid, temp_str ,&temp_id)))
-      { 
-	cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-	MFEM_ASSERT(false," fatal NetCDF error\n");
-      }
-    if ((retval = nc_get_var_int(ncid, temp_id, elem_blk[i])))
-      { 
-	cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-	MFEM_ASSERT(false," fatal NetCDF error\n");
-      }
-  }
-  int *ebprop = new int[num_el_blk];
-  char str_eb_prop[] = "eb_prop1";
-  int id_eb_prop;
-  if ((retval = nc_inq_varid(ncid, str_eb_prop ,&id_eb_prop)))
-    { 
-      cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-      MFEM_ASSERT(false," fatal NetCDF error\n");
-    }
-  if ((retval = nc_get_var_int(ncid, id_eb_prop, ebprop)))
-    { 
-      cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-      MFEM_ASSERT(false," fatal NetCDF error\n");
-    }
-  
-  //
-  // read the side sets
-  // a side is is given by (element, face) pairs
-  //
-  
-  int **elem_ss = new int*[num_side_sets];
-  int **side_ss = new int*[num_side_sets];
-  for (int i = 0;i < (int) num_side_sets;i++) {
-    elem_ss[i] = new int[num_side_in_ss[i]];
-    side_ss[i] = new int[num_side_in_ss[i]];
-  }
-  for (int i = 0;i < (int) num_side_sets;i++) {
-    char temp_str[256];
-    int temp_id;
-    sprintf(temp_str,"elem_ss%d",i+1);
-    if ((retval = nc_inq_varid(ncid, temp_str ,&temp_id)))
-      { 
-	cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-	MFEM_ASSERT(false," fatal NetCDF error\n");
-      }
-    if ((retval = nc_get_var_int(ncid, temp_id, elem_ss[i])))
-      { 
-	cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-	MFEM_ASSERT(false," fatal NetCDF error\n");
-      }
-    
-    sprintf(temp_str,"side_ss%d",i+1);
-    
-    if ((retval = nc_inq_varid(ncid, temp_str ,&temp_id)))
-      { 
-	cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-	MFEM_ASSERT(false," fatal NetCDF error\n");
-      }
-    if ((retval = nc_get_var_int(ncid, temp_id, side_ss[i])))
-      { 
-	cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-	MFEM_ASSERT(false," fatal NetCDF error\n");
-      }
-  }
-  int *ssprop = new int[num_side_sets];
-  int id_ss_prop;
-  char str_ss_prop[] = "ss_prop1";
-  if ((retval = nc_inq_varid(ncid, str_ss_prop ,&id_ss_prop)))
-    { 
-      cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-      MFEM_ASSERT(false," fatal NetCDF error\n");
-    }
-  if ((retval = nc_get_var_int(ncid, id_ss_prop, ssprop)))
-    { 
-      cerr << "NetCDF error " << nc_strerror(retval) << endl; 
-      MFEM_ASSERT(false," fatal NetCDF error\n");
-    }
-  
-  
-  //
-  // convert (elem,side) pairs to 2D elements
-  //
-  
-  int num_nod_per_side;
-  if (num_nod_per_el[0] == 4)
-    num_nod_per_side = 3;
-  if (num_nod_per_el[0] == 8)
-    num_nod_per_side = 4;
-  if (num_nod_per_el[0] == 10)
-    num_nod_per_side = 6;
-  if (num_nod_per_el[0] == 27)
-    num_nod_per_side = 9;
-  
-  //
-  // given a global element number, determine the element block and local 
-  // element number
-  
-  int *start_of_block = new int[num_el_blk+1];
-  start_of_block[0] = 0;
-  for (int i = 1;i < (int) num_el_blk+1;i++) {
-    start_of_block[i] = start_of_block[i-1] + num_el_in_blk[i-1];
-  }
-  
-  int **ss_node_id = new int*[num_side_sets];
-  
-  for (int i = 0;i < (int) num_side_sets;i++) {
-    ss_node_id[i] = new int[num_side_in_ss[i]*num_nod_per_side];
-    for (int j = 0;j < (int) num_side_in_ss[i];j++) {
-      int glob_ind = elem_ss[i][j]-1;
-      int iblk = 0;
-      int loc_ind;
-      while (iblk < (int) num_el_blk && glob_ind >= start_of_block[iblk+1]) iblk++;
-      if (iblk >=(int)  num_el_blk) {
-	mfem_error("Sideset element does not exiss_node_idst\n");
-      }
-      loc_ind = glob_ind - start_of_block[iblk]; 
-      int this_side = side_ss[i][j];
-      int ielem = loc_ind*num_nod_per_el[iblk];
-      if (num_nod_per_side == 3) {
-	for (int k = 0;k < num_nod_per_side;k++) {
-	  int inode = sideMapTet4[this_side-1][k];
-	  ss_node_id[i][j*num_nod_per_side+k] = elem_blk[iblk][ielem + inode - 1];
-	}
-      }
-      else if (num_nod_per_side == 6) {
-	for (int k = 0;k < num_nod_per_side;k++) {
-	  int inode = sideMapTet10[this_side-1][k];
-	  ss_node_id[i][j*num_nod_per_side+k] = elem_blk[iblk][ielem + inode - 1];
-	}
-      }
-      else if (num_nod_per_side == 4){
-	for (int k = 0;k < num_nod_per_side;k++) {
-	  int inode = sideMapHex8[this_side-1][k];
-	  ss_node_id[i][j*num_nod_per_side+k] = elem_blk[iblk][ielem + inode - 1];
-	}
-      }
-      else if (num_nod_per_side == 9){
-	for (int k = 0;k < num_nod_per_side;k++) {
-	  int inode = sideMapHex27[this_side-1][k];
-	  ss_node_id[i][j*num_nod_per_side+k] = elem_blk[iblk][ielem + inode - 1];
-	}
-      }
-    }
-  }
-  
-
-  //
-  // we need another node ID mapping since it seems MFEM wants contiguous vertex ID's
-  //
-  std::vector<int> uniqueVertexID;
-  for (int iblk = 0;iblk < (int) num_el_blk;iblk++) {
-    for (int i = 0;i < (int) num_el_in_blk[iblk];i++) {
+   NumOfElements = num_elem;
+   elements.SetSize(num_elem);
+   int elcount = 0;
+   int renumberedVertID[8];
+   for (int iblk = 0; iblk < (int) num_el_blk; iblk++)
+   {
       int NumNodePerEl = num_nod_per_el[iblk];
-      int NumVertPerEl;
-      if (NumNodePerEl == 8 || NumNodePerEl == 27)
-	NumVertPerEl = 8;
       if (NumNodePerEl == 4 || NumNodePerEl == 10)
-	NumVertPerEl = 4;
-      for (int j = 0;j < NumVertPerEl;j++)
-	uniqueVertexID.push_back(elem_blk[iblk][i*NumNodePerEl + j]);
-    }
-  }
-  std::sort(uniqueVertexID.begin(),uniqueVertexID.end());
-  std::vector<int>::iterator newEnd;
-  newEnd = std::unique(uniqueVertexID.begin(),uniqueVertexID.end());
-  uniqueVertexID.resize(std::distance(uniqueVertexID.begin(),newEnd));
-
-  //
-  // OK at this point uniqueVertexID contains a list of all the nodes that are actually
-  // used by the mesh, 1-based, and sorted. We need to invert this list, the inverse is a map
-  //
-  std::map<int,int> cubitToMFEMVertMap;
-  for (int i = 0;i < (int) uniqueVertexID.size();i++) {
-    cubitToMFEMVertMap[uniqueVertexID[i]] = i+1;
-  }
-  MFEM_ASSERT( cubitToMFEMVertMap.size() == uniqueVertexID.size(),"This should never happen\n");
-
-//   // FOR DEBUGGING ONLY
-//   cout << "cubitToMFEMVertMap" << endl;
-//   for (std::map<int,int>::iterator it =  cubitToMFEMVertMap.begin(); it != cubitToMFEMVertMap.end();it++) {
-//     cout << it->first << "  " << it->second << endl;
-//   }
-//   // END FOR DEBUGGING ONLY
-
-  
-  //
-  // OK now load up the MFEM mesh structures
-  //
-
-  //
-  // load up the vertices
-  //
-
-
-  NumOfVertices = uniqueVertexID.size();
-  vertices.SetSize(NumOfVertices);
-  for (int i = 0;i < (int) uniqueVertexID.size();i++) {
-    vertices[i](0) = coordx[uniqueVertexID[i] - 1];
-    vertices[i](1) = coordy[uniqueVertexID[i] - 1];
-    vertices[i](2) = coordz[uniqueVertexID[i] - 1];    
-  } 
-  
-
-  
-  NumOfElements = num_elem;
-  elements.SetSize(num_elem);
-  int elcount = 0;
-  int renumberedVertID[8];
-  for (int iblk = 0;iblk < (int) num_el_blk;iblk++) {
-    int NumNodePerEl = num_nod_per_el[iblk];
-    if (NumNodePerEl == 4 || NumNodePerEl == 10) {
-      for (int i = 0;i < (int) num_el_in_blk[iblk];i++) {
-	for (int j = 0;j < 4;j++) 
-	  renumberedVertID[j] =  cubitToMFEMVertMap[elem_blk[iblk][i*NumNodePerEl+j]]-1;
-	elements[elcount] = new Tetrahedron(renumberedVertID,ebprop[iblk]);
-	elcount++;
-      }
-    }
-    else if (NumNodePerEl == 8 || NumNodePerEl == 27) {
-      for (int i = 0;i < (int) num_el_in_blk[iblk];i++) {
-	for (int j = 0;j < 8;j++) 
-	  renumberedVertID[j] =  cubitToMFEMVertMap[elem_blk[iblk][i*NumNodePerEl+j]]-1;
-	elements[elcount] = new Hexahedron(renumberedVertID,ebprop[iblk]);
-	elcount++;
-      }
-    }
-  }
-    
-  //
-  // load up the boundary elements
-  //
-
-  
-  NumOfBdrElements = 0;
-  for (int iss = 0;iss < (int) num_side_sets;iss++) {
-    NumOfBdrElements += num_side_in_ss[iss];
-  }
-  boundary.SetSize(NumOfBdrElements);
-  int sidecount = 0;
-  for (int iss = 0;iss < (int) num_side_sets;iss++) {
-    if (num_nod_per_side == 3 || num_nod_per_side == 6) {
-      for (int i = 0;i < (int) num_side_in_ss[iss];i++) {
-	for (int j = 0;j < 3;j++) 
-	  renumberedVertID[j] =  cubitToMFEMVertMap[ss_node_id[iss][i*num_nod_per_side+j]]-1;
-	boundary[sidecount] = new Triangle(renumberedVertID,ssprop[iss]);
-	sidecount++;
-      }
-    }
-    else if (num_nod_per_side == 4 || num_nod_per_side == 9) {
-      for (int i = 0;i < (int) num_side_in_ss[iss];i++) {
-	for (int j = 0;j < 4;j++) 
-	  renumberedVertID[j] =  cubitToMFEMVertMap[ss_node_id[iss][i*num_nod_per_side+j]]-1;
-	boundary[sidecount] = new Quadrilateral(renumberedVertID,ssprop[iss]);
-	sidecount++;
-      }
-    }
-  }
-  
-  // FOR DEBUGGING ONLY
-  // set order to 1 even if higher order everything should still work
-  // order = 1;
-  // END FOR DEBUGGING ONLY
-
-  if (order == 2) {
-    
-    curved = 1;
-    int *mymap;
-    
-    if (num_nod_per_el[0] == 10)
-      mymap =  (int *) mfemToGenesisTet10;
-    if (num_nod_per_el[0] == 27)
-      mymap =  (int *) mfemToGenesisHex27;
-    if (num_nod_per_el[0] == 6)
-      mymap = (int *) mfemToGenesisTri6;
-    if (num_nod_per_el[0] == 9) 
-      mymap = (int *) mfemToGenesisQuad9;
-    
-    // Generate faces and edges so that we can define quadratic
-    // FE space on the mesh
-    
-    // Generate faces
-    if (Dim > 2)
       {
-	GetElementToFaceTable();
-	GenerateFaces();
+         for (int i = 0; i < (int) num_el_in_blk[iblk]; i++)
+         {
+            for (int j = 0; j < 4; j++)
+            {
+               renumberedVertID[j] =  cubitToMFEMVertMap[elem_blk[iblk][i*NumNodePerEl+j]]-1;
+            }
+            elements[elcount] = new Tetrahedron(renumberedVertID,ebprop[iblk]);
+            elcount++;
+         }
       }
-    else
+      else if (NumNodePerEl == 8 || NumNodePerEl == 27)
       {
-	NumOfFaces = 0;
+         for (int i = 0; i < (int) num_el_in_blk[iblk]; i++)
+         {
+            for (int j = 0; j < 8; j++)
+            {
+               renumberedVertID[j] =  cubitToMFEMVertMap[elem_blk[iblk][i*NumNodePerEl+j]]-1;
+            }
+            elements[elcount] = new Hexahedron(renumberedVertID,ebprop[iblk]);
+            elcount++;
+         }
       }
-    
-    // Generate edges
-    el_to_edge = new Table;
-    NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
-    if (Dim == 2)
+   }
+
+   //
+   // load up the boundary elements
+   //
+
+
+   NumOfBdrElements = 0;
+   for (int iss = 0; iss < (int) num_side_sets; iss++)
+   {
+      NumOfBdrElements += num_side_in_ss[iss];
+   }
+   boundary.SetSize(NumOfBdrElements);
+   int sidecount = 0;
+   for (int iss = 0; iss < (int) num_side_sets; iss++)
+   {
+      if (num_nod_per_side == 3 || num_nod_per_side == 6)
       {
-	GenerateFaces();   // 'Faces' in 2D refers to the edges
+         for (int i = 0; i < (int) num_side_in_ss[iss]; i++)
+         {
+            for (int j = 0; j < 3; j++)
+            {
+               renumberedVertID[j] =  cubitToMFEMVertMap[ss_node_id[iss][i*num_nod_per_side+j]]
+                                      -1;
+            }
+            boundary[sidecount] = new Triangle(renumberedVertID,ssprop[iss]);
+            sidecount++;
+         }
       }
-    
-    // Define quadratic FE space
-    FiniteElementCollection *fec = new QuadraticFECollection;
-    FiniteElementSpace *fes = new FiniteElementSpace(this, fec, Dim, Ordering::byVDIM);
-    Nodes = new GridFunction(fes);
-    Nodes->MakeOwner(fec); // Nodes will destroy 'fec' and 'fes'
-    own_nodes = 1;
-    
-    int nTotDofs = fes->GetNDofs();
-    int nTotVDofs = fes->GetVSize();
-    cout << endl << "nTotDofs = " << nTotDofs << "  nTotVDofs " << nTotVDofs << endl << endl;
-    for (int i = 0; i < NumOfElements; i++) {
-      Array<int> dofs;
-
-      fes->GetElementDofs(i, dofs);
-      Array<int> vdofs;
-      vdofs.SetSize(dofs.Size());
-      for (int l = 0;l < dofs.Size();l++) vdofs[l] = dofs[l];
-      fes->DofsToVDofs(vdofs);
-
-      // FOR DEBUGGING ONLY
-//       cout << "Element " << i << endl;
-//       cout << "dofs " << endl;
-//       for (int l = 0;l < dofs.Size();l++) cout << dofs[l] << "  ";
-//       cout << endl;
-
-//       cout << "vdofs " << endl;
-//       for (int l = 0;l < vdofs.Size();l++) cout << vdofs[l] << "  ";
-//       cout << endl;
-      // END FOR DEBUGGING ONLY
-      
-      int iblk = 0;
-      int loc_ind;
-      while (iblk < (int) num_el_blk && i >= start_of_block[iblk+1]) iblk++;
-      loc_ind = i - start_of_block[iblk]; 
-      
-      for (int j = 0; j < dofs.Size(); j++) {
-	int point_id = elem_blk[iblk][loc_ind*num_nod_per_el[iblk] + mymap[j] - 1] - 1;
-	(*Nodes)(vdofs[j])   = coordx[point_id];
-	(*Nodes)(vdofs[j]+1) = coordy[point_id];
-	(*Nodes)(vdofs[j]+2) = coordz[point_id];
-
-	// FOR DEBUGGING ONLY
-// 	cout << "j = " << j << " point_id = " << point_id << endl;
-// 	cout << "xyz: " << coordx[point_id] << "  " << coordy[point_id] << "  " << coordz[point_id] << endl;
-	// END FOR DEBUGGING ONLY
+      else if (num_nod_per_side == 4 || num_nod_per_side == 9)
+      {
+         for (int i = 0; i < (int) num_side_in_ss[iss]; i++)
+         {
+            for (int j = 0; j < 4; j++)
+            {
+               renumberedVertID[j] =  cubitToMFEMVertMap[ss_node_id[iss][i*num_nod_per_side+j]]
+                                      -1;
+            }
+            boundary[sidecount] = new Quadrilateral(renumberedVertID,ssprop[iss]);
+            sidecount++;
+         }
       }
-    }
-  }
+   }
 
-  // FOR DEBUGGING ONLY
-  ofstream ofs("NODES.gf");
-  ofs.precision(8);
-  Nodes->Save(ofs);
-  ofs.close();
+   if (order == 2)
+   {
 
-  // END FOR DEBUGGING ONLY
-  
-  // clean up all netcdf stuff
-  delete num_el_in_blk;
-  delete num_nod_per_el;
-  delete num_side_in_ss;
-  delete coordx;
-  delete coordy;
-  delete coordz;
-  for (int i = 0;i < (int) num_el_blk;i++) {
-    delete elem_blk[i];
-  }
-  delete elem_blk;
-  delete start_of_block;
-  for (int i = 0;i < (int) num_side_sets;i++) {
-    delete ss_node_id[i];
-  }
-  delete ss_node_id;
-  delete ebprop;
-  delete ssprop;
+      curved = 1;
+      int *mymap;
 
-  // at this point the following should be defined:
-  //  1) Dim
-  //  2) NumOfElements, elements
-  //  3) NumOfBdrElements, boundary
-  //  4) NumOfVertices, with allocated space in vertices
-  //  5) curved
-  //  5a) if curved == 0, vertices must be defined
-  //  5b) if curved != 0 and read_gf != 0,
-  //         'input' must point to a GridFunction
-  //  5c) if curved != 0 and read_gf == 0,
-  //         vertices and Nodes must be defined
-  
-  if (spaceDim == 0)
-    {
-      spaceDim = Dim;
-    }
-  
-  InitBaseGeom();
-  
-  // set the mesh type ('meshgen')
-  SetMeshGen();
-  
-  if (NumOfBdrElements == 0 && Dim > 2)
-    {
-      // in 3D, generate boundary elements before we 'MarkForRefinement'
-      GetElementToFaceTable();
-      GenerateFaces();
-      GenerateBoundaryElements();
-    }
-  
-  if (!curved)
-    {
-      // check and fix element orientation
-      CheckElementOrientation(fix_orientation);
-      
-      if (refine)
-	{
-	  MarkForRefinement();
-	}
-    }
-  
-  if (Dim == 1)
-    {
-      GenerateFaces();
-    }
-  
-  // generate the faces
-  if (Dim > 2)
-    {
-      GetElementToFaceTable();
-      GenerateFaces();
-      // check and fix boundary element orientation
-      if ( !(curved && (meshgen & 1)) )
-	{
-	  CheckBdrElementOrientation();
-	}
-    }
-  else
-    {
-      NumOfFaces = 0;
-    }
-  
-  // generate edges if requested
-  if (Dim > 1 && generate_edges == 1)
-    {
-      // el_to_edge may already be allocated (P2 VTK meshes)
-      if (!el_to_edge) { el_to_edge = new Table; }
+      if (num_nod_per_el[0] == 10)
+      {
+         mymap =  (int *) mfemToGenesisTet10;
+      }
+      if (num_nod_per_el[0] == 27)
+      {
+         mymap =  (int *) mfemToGenesisHex27;
+      }
+      if (num_nod_per_el[0] == 6)
+      {
+         mymap = (int *) mfemToGenesisTri6;
+      }
+      if (num_nod_per_el[0] == 9)
+      {
+         mymap = (int *) mfemToGenesisQuad9;
+      }
+
+      // Generate faces and edges so that we can define quadratic
+      // FE space on the mesh
+
+      // Generate faces
+      if (Dim > 2)
+      {
+         GetElementToFaceTable();
+         GenerateFaces();
+      }
+      else
+      {
+         NumOfFaces = 0;
+      }
+
+      // Generate edges
+      el_to_edge = new Table;
       NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
       if (Dim == 2)
-	{
-	  GenerateFaces(); // 'Faces' in 2D refers to the edges
-	  if (NumOfBdrElements == 0)
-	    {
-	      GenerateBoundaryElements();
-	    }
-	  // check and fix boundary element orientation
-	  if ( !(curved && (meshgen & 1)) )
-	    {
-	      CheckBdrElementOrientation();
-	    }
-	}
-    }
-  else
-    {
-      NumOfEdges = 0;
-    }
-  
-  if (ncmesh)
-    {
-      // tell NCMesh the numbering of edges/faces
-      ncmesh->OnMeshUpdated(this);
-      
-      // update faces_info with NC relations
-      GenerateNCFaceInfo();
-    }
-  
-  // generate the arrays 'attributes' and ' bdr_attributes'
-  SetAttributes();
-  
-  if (curved)
-    {      
-      // Check orientation and mark edges; only for triangles / tets
-      if (meshgen & 1)
-	{
-	  DSTable *old_v_to_v = NULL;
-	  Table *old_elem_vert = NULL;
-	  if (fix_orientation || refine)
-	    {
-	      PrepareNodeReorder(&old_v_to_v, &old_elem_vert);
-	    }
-	  
-	  // check orientation and mark for refinement using just vertices
-	  // (i.e. higher order curvature is not used)
-	  CheckElementOrientation(fix_orientation);
-	  if (refine)
-	    {
-	      MarkForRefinement();   // changes topology!
-	    }
-	  
-	  if (fix_orientation || refine)
-	    {
-	      DoNodeReorder(old_v_to_v, old_elem_vert);
-	      delete old_elem_vert;
-	      delete old_v_to_v;
-	    }
-	  
-	  Nodes->FESpace()->RebuildElementToDofTable();
-	  
-	  // TODO: maybe introduce Mesh::NODE_REORDER operation and FESpace::
-	  // NodeReorderMatrix and do Nodes->Update() instead of DoNodeReorder?
-	}
-    }
-  
-  if (ncmesh) { ncmesh->spaceDim = spaceDim; }
+      {
+         GenerateFaces();   // 'Faces' in 2D refers to the edges
+      }
+
+      // Define quadratic FE space
+      //FiniteElementCollection *fec = new QuadraticFECollection;
+      FiniteElementCollection *fec = new H1_FECollection(2,3);
+      FiniteElementSpace *fes = new FiniteElementSpace(this, fec, Dim,
+                                                       Ordering::byVDIM);
+      Nodes = new GridFunction(fes);
+      Nodes->MakeOwner(fec); // Nodes will destroy 'fec' and 'fes'
+      own_nodes = 1;
+
+      // int nTotDofs = fes->GetNDofs();
+      // int nTotVDofs = fes->GetVSize();
+      //    cout << endl << "nTotDofs = " << nTotDofs << "  nTotVDofs " << nTotVDofs << endl << endl;
+
+      for (int i = 0; i < NumOfElements; i++)
+      {
+         Array<int> dofs;
+
+         fes->GetElementDofs(i, dofs);
+         Array<int> vdofs;
+         vdofs.SetSize(dofs.Size());
+         for (int l = 0; l < dofs.Size(); l++) { vdofs[l] = dofs[l]; }
+         fes->DofsToVDofs(vdofs);
+         int iblk = 0;
+         int loc_ind;
+         while (iblk < (int) num_el_blk && i >= start_of_block[iblk+1]) { iblk++; }
+         loc_ind = i - start_of_block[iblk];
+
+         for (int j = 0; j < dofs.Size(); j++)
+         {
+            int point_id = elem_blk[iblk][loc_ind*num_nod_per_el[iblk] + mymap[j] - 1] - 1;
+            (*Nodes)(vdofs[j])   = coordx[point_id];
+            (*Nodes)(vdofs[j]+1) = coordy[point_id];
+            (*Nodes)(vdofs[j]+2) = coordz[point_id];
+         }
+      }
+   }
+
+
+   // clean up all netcdf stuff
+   delete num_el_in_blk;
+   delete num_nod_per_el;
+   delete num_side_in_ss;
+   delete coordx;
+   delete coordy;
+   delete coordz;
+   for (int i = 0; i < (int) num_el_blk; i++)
+   {
+      delete elem_blk[i];
+   }
+   delete elem_blk;
+   delete start_of_block;
+   for (int i = 0; i < (int) num_side_sets; i++)
+   {
+      delete ss_node_id[i];
+   }
+   delete ss_node_id;
+   delete ebprop;
+   delete ssprop;
 
 }
+#endif
 
 
 void Mesh::ReadMFEMMesh(std::istream &input, bool mfem_v11, int &curved)
@@ -3491,14 +3338,14 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf)
    string buff;
    getline(input, buff); // comment line
    getline(input, buff);
-   if (!buff.empty() && buff[buff.size()-1] == '\r') buff.erase(buff.size()-1);
+   if (!buff.empty() && buff[buff.size()-1] == '\r') { buff.erase(buff.size()-1); }
    if (buff != "ASCII")
    {
       MFEM_ABORT("VTK mesh is not in ASCII format!");
       return;
    }
    getline(input, buff);
-   if (!buff.empty() && buff[buff.size()-1] == '\r') buff.erase(buff.size()-1);
+   if (!buff.empty() && buff[buff.size()-1] == '\r') { buff.erase(buff.size()-1); }
    if (buff != "DATASET UNSTRUCTURED_GRID")
    {
       MFEM_ABORT("VTK mesh is not UNSTRUCTURED_GRID!");
@@ -3618,7 +3465,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf)
    {
       input >> n >> ws;
       getline(input, buff);
-      if (!buff.empty() && buff[buff.size()-1] == '\r') buff.erase(buff.size()-1);
+      if (!buff.empty() && buff[buff.size()-1] == '\r') { buff.erase(buff.size()-1); }
       // "SCALARS material dataType numComp"
       if (!strncmp(buff.c_str(), "SCALARS material", 16))
       {
@@ -4448,7 +4295,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    string mesh_type;
    input >> ws;
    getline(input, mesh_type);
-   if (!mesh_type.empty() && mesh_type[mesh_type.size()-1] == '\r') mesh_type.erase(mesh_type.size()-1);
+   if (!mesh_type.empty() && mesh_type[mesh_type.size()-1] == '\r') { mesh_type.erase(mesh_type.size()-1); }
 
    bool mfem_v10 = (mesh_type == "MFEM mesh v1.0");
    bool mfem_v11 = (mesh_type == "MFEM mesh v1.1");
@@ -4495,11 +4342,31 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    {
       ReadGmshMesh(input);
    }
-   else
+   else if (mesh_type.size() > 2 &&
+            mesh_type[0] == 'C' && mesh_type[1] == 'D' && mesh_type[2] == 'F')
    {
-      MFEM_ABORT("Unknown input mesh format: " << mesh_type);
-      return;
+     nifstream *mesh_input = dynamic_cast<nifstream *>(&input);
+     if (mesh_input)
+       {
+#ifdef MFEM_USE_NETCDF
+	 ReadCubit(*mesh_input, curved, read_gf);
+#else
+	 MFEM_ABORT("NetCDF support requires configuration with"
+		    " MFEM_USE_NETCDF=YES");
+	 return;
+#endif
+       }
+     else
+       {
+	 MFEM_ABORT("Need to use mfem_ifstream with NetCDF");
+	 return;
+       }
    }
+   else
+     {
+       MFEM_ABORT("Unknown input mesh format: " << mesh_type);
+       return;
+     }
 
    // at this point the following should be defined:
    //  1) Dim
@@ -6313,6 +6180,8 @@ void Mesh::ReorientTetMesh()
       DoNodeReorder(old_v_to_v, old_elem_vert);
       delete old_elem_vert;
       delete old_v_to_v;
+
+      Nodes->FESpace()->RebuildElementToDofTable();
    }
 }
 
