@@ -97,6 +97,7 @@ protected:
    Array<Element *> faces;
 
    // we just allocated contiguously
+   mfem_allocator element_alloc;
    typedef int*(Mesh::*int_alloc)(size_t count);
    int *indices;
    size_t indices_count;

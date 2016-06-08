@@ -2425,6 +2425,11 @@ void Mesh::ReadMFEMMesh(std::istream &input, bool mfem_v11, int &curved)
    input >> NumOfElements;
    elements.SetSize(NumOfElements);
 
+   {
+      mfem_allocator *element_alloc = new element_alloc(INITIAL_INDICES_SIZE,
+         &elements);
+   }
+
    for (int j = 0; j < NumOfElements; j++)
    {
       elements[j] = ReadElement(input, &Mesh::indices_alloc);
