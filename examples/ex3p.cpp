@@ -105,13 +105,7 @@ int main(int argc, char *argv[])
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
    //    and volume meshes with the same code.
-
-   Mesh *mesh;
-
-   // the nifstream is required for Cubit (NetCDF) files
-   nifstream imesh(mesh_file);
-   mesh = new Mesh(imesh, 1, 1);
-
+   Mesh *mesh = new Mesh(mesh_file, 1, 1);
    dim = mesh->Dimension();
    int sdim = mesh->SpaceDimension();
 
