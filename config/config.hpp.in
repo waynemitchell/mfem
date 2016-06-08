@@ -32,6 +32,18 @@
 // Enable experimental OpenMP support. Requires MFEM_THREAD_SAFE.
 // #define MFEM_USE_OPENMP
 
+// Internal MFEM option: enable group/batch allocation for some small objects.
+// #define MFEM_USE_MEMALLOC
+
+// Which library functions to use in class StopWatch for measuring time.
+// The available options are:
+//   0 - use std::clock from <ctime>
+//   1 - use times from <sys/times.h>
+//   2 - use high-resolution POSIX clocks
+//   3 - use QueryPerformanceCounter from <windows.h>
+// If not defined, an option is selected automatically.
+// #define MFEM_TIMER_TYPE @MFEM_TIMER_TYPE@
+
 // Enable MFEM functionality based on the Mesquite library.
 // #define MFEM_USE_MESQUITE
 
@@ -47,17 +59,11 @@
 // Enable functionality based on the Gecko library
 // #define MFEM_USE_GECKO
 
-// Enable using sidre datastore.
-// #define MFEM_USE_SIDRE
+// Enable secure socket streams based on the GNUTLS library
+// #define MFEM_USE_GNUTLS
 
-// Which library functions to use in class StopWatch for measuring time.
-// The available options are:
-//   0 - use std::clock from <ctime>
-//   1 - use times from <sys/times.h>
-//   2 - use high-resolution POSIX clocks
-//   3 - use QueryPerformanceCounter from <windows.h>
-// If not defined, an option is selected automatically.
-// #define MFEM_TIMER_TYPE @MFEM_TIMER_TYPE@
+// Enable sidre support
+// #define MFEM_USE_SIDRE
 
 // Windows specific options
 #ifdef _WIN32
