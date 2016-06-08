@@ -22,6 +22,36 @@
 #include "../fem/coefficient.hpp"
 #include <iostream>
 
+#define INITIAL_INDICES_SIZE 1000
+
+
+class allocator {
+   public:
+      typedef int *(*cbk)(size_t count);
+      static inline int *null_alloc(size_t) { return NULL; };
+   protected:
+      int *data;
+      size_t capacity;
+      size_t count;
+   public:
+      cbk alloc;
+      allocator(size_t = 0, cbk = allocator::null_alloc);
+      virtual ~allocator();
+      virtual int *default_alloc(size_t) { return NULL; };
+};
+
+
+class mfem_allocator : public allocator {
+   protected:
+      mfem::Array<mfem::Element*> *elements;
+   public:
+      cbk alloc;
+      virtual int *default_alloc(size_t);
+      mfem_allocator(size_t, mfem::Array<mfem::Element*>*, cbk);
+      virtual ~mfem_allocator() {};
+};
+
+
 namespace mfem
 {
 
@@ -65,6 +95,16 @@ protected:
    Array<Vertex> vertices;
    Array<Element *> boundary;
    Array<Element *> faces;
+
+   // we just allocated contiguously
+   mfem_allocator element_alloc;
+   typedef int*(Mesh::*int_alloc)(size_t count);
+   int *indices;
+   size_t indices_count;
+   size_t indices_capacity;
+
+   int *indices_alloc(size_t);
+   int *null_int_alloc(size_t) { return NULL; };
 
    struct FaceInfo
    {
@@ -141,10 +181,10 @@ protected:
 
    void DeleteTables();
 
-   Element *ReadElementWithoutAttr(std::istream &);
+   Element *ReadElementWithoutAttr(std::istream &, int_alloc = &Mesh::null_int_alloc);
    static void PrintElementWithoutAttr(const Element *, std::ostream &);
 
-   Element *ReadElement(std::istream &);
+   Element *ReadElement(std::istream &, int_alloc = &Mesh::null_int_alloc);
    static void PrintElement(const Element *, std::ostream &);
 
    // Readers for different mesh formats, used in the Load() method
@@ -364,7 +404,7 @@ public:
       InitMesh(_Dim, _spaceDim, NVert, NElem, NBdrElem);
    }
 
-   Element *NewElement(int geom);
+   Element *NewElement(int geom, int_alloc = &Mesh::null_int_alloc);
 
    void AddVertex(const double *);
    void AddTri(const int *vi, int attr = 1);

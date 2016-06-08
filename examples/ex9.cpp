@@ -229,7 +229,7 @@ int main(int argc, char *argv[])
    if (visualization)
    {
       char vishost[] = "localhost";
-      int  visport   = 19916;
+      int  visport   = 19915;
       sout.open(vishost, visport);
       if (!sout)
       {

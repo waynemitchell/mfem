@@ -18,8 +18,8 @@ namespace mfem
 const int Quadrilateral::edges[4][2] =
 {{0, 1}, {1, 2}, {2, 3}, {3, 0}};
 
-Quadrilateral::Quadrilateral( const int *ind, int attr )
-   : Element(Geometry::SQUARE)
+Quadrilateral::Quadrilateral( const int *ind, int attr, int *alloc )
+   : Element(Geometry::SQUARE, alloc, 4)
 {
    attribute = attr;
    for (int i=0; i<4; i++)
@@ -29,7 +29,8 @@ Quadrilateral::Quadrilateral( const int *ind, int attr )
 }
 
 Quadrilateral::Quadrilateral( int ind1, int ind2, int ind3, int ind4,
-                              int attr ) : Element(Geometry::SQUARE)
+                              int attr, int *alloc ) 
+   : Element(Geometry::SQUARE, alloc, 4)
 {
    attribute  = attr;
    indices[0] = ind1;

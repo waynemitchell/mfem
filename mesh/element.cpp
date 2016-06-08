@@ -27,4 +27,19 @@ void Element::SetVertices(const int *ind)
    }
 }
 
+void Element::init_indices(int *alloc, size_t count) {
+   self_alloc = false;
+   if (alloc) {
+      indices = alloc;
+   }
+   else if (count > 0) {
+      indices = new int[count];
+      //printf("new self alloc at %p\n", indices);
+      self_alloc = true;
+   }
+   else {
+      indices = NULL;
+   }
+}
+
 }

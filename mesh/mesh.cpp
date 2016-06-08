@@ -27,6 +27,76 @@
 #include "graph.h"
 #endif
 
+
+
+// allocation stuff
+allocator::allocator(size_t _capacity, cbk _alloc) {
+   if (_capacity == 0) {
+      throw "yah can't have this";
+   }
+   capacity = _capacity;
+   data = (int*)malloc(capacity * sizeof(int));
+   count = 0;
+   alloc = _alloc;
+}
+
+allocator::~allocator() {
+   if (!data) {
+      free(data);
+      data = NULL;
+   }
+}
+
+
+mfem_allocator::mfem_allocator(size_t _capacity, mfem::Array<mfem::Element*> *_elements, cbk _alloc) 
+   : allocator(_capacity, _alloc) {
+   elements = _elements;
+}
+
+
+int *mfem_allocator::default_alloc(size_t _count) {
+   if (!data) {
+      throw "no memory error";
+   }
+   if (count + _count > capacity) {
+      capacity *= 2;
+      {
+         printf("reallocating indices from size %zu to %zu\n", 
+               capacity / 2, capacity);
+      }
+      mfem::Array<mfem::Element*> &elms = *elements;
+      int *old_address = data;
+      data = (int*)realloc(data, capacity * sizeof(int));
+      size_t int_count = 0;
+      for (int i = 0; i < elms.Size() && 
+            int_count < count; i++) {
+         if (elms[i] == NULL || elms[i]->IsSelfAlloc()) {
+            continue;
+         }
+         int *temp = elms[i]->GetIndices();
+         size_t offset = elms[i]->GetIndices() - old_address;
+         elms[i]->SetIndices(data + offset);
+         int_count += elms[i]->GetNVertices();
+         {
+            printf("Moving %p (offset of %zu from %p)\n", temp,
+                  offset, old_address);
+            temp = elms[i]->GetIndices();
+            offset = temp - data;
+            printf("New location %p (offset of %zu from %p)\n",
+                  temp, offset, data);
+         } 
+         // TODO: check for breaks in the memory block and clean up?
+      }
+   }
+   count += _count;
+   // we have already incremented incides_count to include the
+   // new set of indices so add the total index count to the 
+   // base pointer and move back 'count' entires in indices
+   return data + (count - _count);
+}
+
+
+
 namespace mfem
 {
 
@@ -2194,33 +2264,84 @@ Mesh::Mesh(std::istream &input, int generate_edges, int refine,
    Load(input, generate_edges, refine, fix_orientation);
 }
 
-Element *Mesh::NewElement(int geom)
+
+
+// were going to try to provide 
+int *Mesh::indices_alloc(size_t count) {
+   if (!indices) {
+      indices_capacity = INITIAL_INDICES_SIZE; 
+      indices_count = 0;
+      indices = (int*)malloc(indices_capacity * sizeof(int));
+      if (!indices) {
+         throw "Memory Allocation Error";
+      }
+      else {
+         printf("allocated `indices` to size %zu (ints)\n", indices_capacity);
+      }
+   }
+   if (indices_count + count > indices_capacity) {
+      indices_capacity *= 2;
+      printf("reallocating indices from size %zu to %zu\n", 
+            indices_capacity / 2, indices_capacity);
+      int *old_address = indices;
+      indices = (int*)realloc(indices, indices_capacity * sizeof(int));
+      size_t index_count = 0;
+      for (int i = 0; i < elements.Size() && 
+            index_count < indices_count; i++) {
+         if (elements[i] == NULL || elements[i]->IsSelfAlloc()) {
+            continue;
+         }
+         int *temp = elements[i]->GetIndices();
+         size_t offset = elements[i]->GetIndices() - old_address;
+         elements[i]->SetIndices(indices + offset);
+         index_count += elements[i]->GetNVertices();
+         {
+            printf("Moving %p (offset of %zu from %p)\n", temp,
+                  offset, old_address);
+            temp = elements[i]->GetIndices();
+            offset = temp - indices;
+            printf("New location %p (offset of %zu from %p)\n",
+                  temp, offset, indices);
+         } 
+         // TODO: check for breaks in the memory block and clean up?
+      }
+   }
+   indices_count += count;
+   // we have already incremented incides_count to include the
+   // new set of indices so add the total index count to the 
+   // base pointer and move back 'count' entires in indices
+   return indices + (indices_count - count);
+}
+
+
+
+Element *Mesh::NewElement(int geom, int_alloc f)
 {
    switch (geom)
    {
-      case Geometry::POINT:     return (new Point);
-      case Geometry::SEGMENT:   return (new Segment);
-      case Geometry::TRIANGLE:  return (new Triangle);
-      case Geometry::SQUARE:    return (new Quadrilateral);
-      case Geometry::CUBE:      return (new Hexahedron);
+      case Geometry::POINT:     return (new Point((this->*f)(1)));
+      case Geometry::SEGMENT:   return (new Segment((this->*f)(2)));
+      case Geometry::TRIANGLE:  return (new Triangle((this->*f)(3)));
+      case Geometry::SQUARE:    return (new Quadrilateral((this->*f)(4)));
+      case Geometry::CUBE:      return (new Hexahedron((this->*f)(8)));
       case Geometry::TETRAHEDRON:
 #ifdef MFEM_USE_MEMALLOC
          return TetMemory.Alloc();
 #else
-         return (new Tetrahedron);
+         return (new Tetrahedron((this->*f)(6)));
 #endif
    }
 
    return NULL;
 }
 
-Element *Mesh::ReadElementWithoutAttr(std::istream &input)
+Element *Mesh::ReadElementWithoutAttr(std::istream &input, int_alloc f)
 {
    int geom, nv, *v;
    Element *el;
 
    input >> geom;
-   el = NewElement(geom);
+   el = NewElement(geom, f);
    nv = el->GetNVertices();
    v  = el->GetVertices();
    for (int i = 0; i < nv; i++)
@@ -2243,13 +2364,13 @@ void Mesh::PrintElementWithoutAttr(const Element *el, std::ostream &out)
    out << '\n';
 }
 
-Element *Mesh::ReadElement(std::istream &input)
+Element *Mesh::ReadElement(std::istream &input, int_alloc f)
 {
    int attr;
    Element *el;
 
    input >> attr;
-   el = ReadElementWithoutAttr(input);
+   el = ReadElementWithoutAttr(input, f);
    el->SetAttribute(attr);
 
    return el;
@@ -2322,9 +2443,15 @@ void Mesh::ReadMFEMMesh(std::istream &input, bool mfem_v11, int &curved)
    MFEM_VERIFY(ident == "elements", "invalid mesh file");
    input >> NumOfElements;
    elements.SetSize(NumOfElements);
+
+   {
+      mfem_allocator *element_alloc = new element_alloc(INITIAL_INDICES_SIZE,
+         &elements);
+   }
+
    for (int j = 0; j < NumOfElements; j++)
    {
-      elements[j] = ReadElement(input);
+      elements[j] = ReadElement(input, &Mesh::indices_alloc);
    }
 
    skip_comment_lines(input, '#');
@@ -3543,6 +3670,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
       for (i = 0; i < NumOfElements; i++)
       {
          FreeElement(elements[i]);
+
       }
       elements.DeleteAll();
       NumOfElements = 0;
@@ -6397,7 +6525,9 @@ void Mesh::UpdateNodes()
 
 void Mesh::QuadUniformRefinement()
 {
-   int i, j, *v, vv[2], attr;
+   //int i, j, *v, vv[2], attr;
+   int i, j, vv[2], attr;
+   int *v;
    const int *e;
 
    if (el_to_edge == NULL)
@@ -6429,21 +6559,39 @@ void Mesh::QuadUniformRefinement()
    for (i = 0; i < NumOfElements; i++)
    {
       attr = elements[i]->GetAttribute();
+      // this is not safe if one of the alloc calls remaps
       v = elements[i]->GetVertices();
       e = el_to_edge->GetRow(i);
       j = NumOfElements + 3 * i;
-
+      /*
+      int **__v = elements[0]->GetVerticesPtr();
+      int **&_v = __v;
+      printf("v[0] is %d _v[0] is %d\n", v[0], _v[0]);
+      */
+   
+      const int COUNT = 4; 
       elements[j+0] = new Quadrilateral(oedge+e[0], v[1], oedge+e[1],
-                                        oelem+i, attr);
+                                        oelem+i, attr, indices_alloc(COUNT));
+      if (elements[i]->GetVertices() != v) {
+         printf("WARNING!!!! v is now invalid\n");
+         v = elements[i]->GetVertices();
+      }
       elements[j+1] = new Quadrilateral(oelem+i, oedge+e[1], v[2],
-                                        oedge+e[2], attr);
+                                        oedge+e[2], attr, indices_alloc(COUNT));
+      if (elements[i]->GetVertices() != v) {
+         printf("WARNING!!!! v is now invalid\n");
+         v = elements[i]->GetVertices();
+      }
       elements[j+2] = new Quadrilateral(oedge+e[3], oelem+i, oedge+e[2],
-                                        v[3], attr);
+                                        v[3], attr, indices_alloc(COUNT));
+      
 
       v[1] = oedge+e[0];
       v[2] = oelem+i;
       v[3] = oedge+e[3];
    }
+
+
 
    boundary.SetSize(2 * NumOfBdrElements);
    for (i = 0; i < NumOfBdrElements; i++)
@@ -9407,6 +9555,7 @@ Mesh::~Mesh()
 {
    int i;
 
+
    if (own_nodes) { delete Nodes; }
 
    delete ncmesh;
@@ -9426,6 +9575,11 @@ Mesh::~Mesh()
    for (i = 0; i < faces.Size(); i++)
    {
       FreeElement(faces[i]);
+   }
+
+   if (indices) {
+      free(indices);
+      indices = NULL;
    }
 
    DeleteTables();
