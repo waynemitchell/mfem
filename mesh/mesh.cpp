@@ -2196,7 +2196,8 @@ Mesh::Mesh(const char *filename, int generate_edges, int refine,
    nifstream imesh(filename);
    if (!imesh) 
    {
-      mfem_error("Mesh file not found"); 
+      std::cout << "Mesh file not found:  " << filename << std::endl;
+      mfem_error(""); 
    }
    Init();
    InitTables();
