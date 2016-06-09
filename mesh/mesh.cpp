@@ -2202,6 +2202,7 @@ Mesh::Mesh(const char *filename, int generate_edges, int refine,
    Init();
    InitTables();
    Load(imesh, generate_edges, refine, fix_orientation);
+   imesh.close();
 }
 
 Mesh::Mesh(std::istream &input, int generate_edges, int refine,
