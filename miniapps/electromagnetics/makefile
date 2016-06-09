@@ -34,6 +34,8 @@ endif
 COMMON_HPP=../common/pfem_extras.hpp
 COMMON_O=$(COMMON_HPP:.hpp=.o)
 
+.PRECIOUS: %.o
+
 # Remove built-in rule
 %: %.cpp
 
