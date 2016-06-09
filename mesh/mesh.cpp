@@ -2194,7 +2194,7 @@ Mesh::Mesh(const char *filename, int generate_edges, int refine,
            bool fix_orientation)
 {
    nifstream imesh(filename);
-   if (!imesh) 
+   if (!imesh)
    {
       std::cout << "Mesh file not found:  " << filename << std::endl;
       mfem_error(""); 
@@ -2332,7 +2332,8 @@ void Mesh::ReadCubit(nifstream &input, int &curved, int &read_gf)
    // curved set to zero will chang if mesh is indeed curved
    curved = 0;
 
-   const int sideMapHex8[6][4] = {
+   const int sideMapHex8[6][4] =
+   {
       {1,2,6,5},
       {2,3,7,6},
       {4,3,7,8},
@@ -2341,7 +2342,8 @@ void Mesh::ReadCubit(nifstream &input, int &curved, int &read_gf)
       {5,8,7,6}
    };
 
-   const int sideMapTet4[4][3] = {
+   const int sideMapTet4[4][3] =
+   {
       {1,2,4},
       {2,3,4},
       {1,4,3},
@@ -2353,15 +2355,17 @@ void Mesh::ReadCubit(nifstream &input, int &curved, int &read_gf)
 
    //                                  1,2,3,4,5,6,7,8,9,10,11,
    const int mfemToGenesisHex27[27] = {1,2,3,4,5,6,7,8,9,10,11,
-                                    // 12,13,14,15,16,17,18,19
+                                       // 12,13,14,15,16,17,18,19
                                        12,17,18,19,20,13,14,15,
-                                    // 20,21,22,23,24,25,26,27
-                                       16,22,26,25,27,24,23,21};
+                                       // 20,21,22,23,24,25,26,27
+                                       16,22,26,25,27,24,23,21
+                                      };
 
    const int mfemToGenesisTri6[6]   = {1,2,3,4,5,6};
    const int mfemToGenesisQuad9[9]  = {1,2,3,4,5,6,7,8,9};
 
-   const int sideMapHex27[6][9] = {
+   const int sideMapHex27[6][9] =
+   {
       {1,2,6,5,9,14,17,13,26},
       {2,3,7,6,10,15,18,14,25},
       {4,3,7,8,11,15,19,16,27},
@@ -2370,7 +2374,8 @@ void Mesh::ReadCubit(nifstream &input, int &curved, int &read_gf)
       {5,8,7,6,20,19,18,17,23}
    };
 
-   const int sideMapTet10[4][6] = {
+   const int sideMapTet10[4][6] =
+   {
       {1,2,4,5,9,8},
       {2,3,4,6,10,9},
       {1,4,3,8,10,7},
@@ -4379,28 +4384,28 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    else if (mesh_type.size() > 2 &&
             mesh_type[0] == 'C' && mesh_type[1] == 'D' && mesh_type[2] == 'F')
    {
-     nifstream *mesh_input = dynamic_cast<nifstream *>(&input);
-     if (mesh_input)
-       {
+      nifstream *mesh_input = dynamic_cast<nifstream *>(&input);
+      if (mesh_input)
+      {
 #ifdef MFEM_USE_NETCDF
-	 ReadCubit(*mesh_input, curved, read_gf);
+         ReadCubit(*mesh_input, curved, read_gf);
 #else
-	 MFEM_ABORT("NetCDF support requires configuration with"
-		    " MFEM_USE_NETCDF=YES");
-	 return;
+         MFEM_ABORT("NetCDF support requires configuration with"
+                    " MFEM_USE_NETCDF=YES");
+         return;
 #endif
-       }
-     else
-       {
-	 MFEM_ABORT("Need to use mfem_ifstream with NetCDF");
-	 return;
-       }
+      }
+      else
+      {
+         MFEM_ABORT("Need to use mfem_ifstream with NetCDF");
+         return;
+      }
    }
    else
-     {
-       MFEM_ABORT("Unknown input mesh format: " << mesh_type);
-       return;
-     }
+   {
+      MFEM_ABORT("Unknown input mesh format: " << mesh_type);
+      return;
+   }
 
    // at this point the following should be defined:
    //  1) Dim
@@ -8763,6 +8768,7 @@ void Mesh::Print(std::ostream &out) const
          }
          out << '\n';
       }
+      out.flush();
    }
    else
    {
@@ -8983,6 +8989,7 @@ void Mesh::PrintVTK(std::ostream &out)
    {
       out << elements[i]->GetAttribute() << '\n';
    }
+   out.flush();
 }
 
 void Mesh::PrintVTK(std::ostream &out, int ref, int field_data)
@@ -9000,13 +9007,13 @@ void Mesh::PrintVTK(std::ostream &out, int ref, int field_data)
    // additional dataset information
    if (field_data)
    {
-      out << "FIELD FieldData 1" << endl
-          << "MaterialIds " << 1 << " " << attributes.Size() << " int" << endl;
+      out << "FIELD FieldData 1\n"
+          << "MaterialIds " << 1 << " " << attributes.Size() << " int\n";
       for (int i = 0; i < attributes.Size(); i++)
       {
-         out << attributes[i] << " ";
+         out << ' ' << attributes[i];
       }
-      out << endl;
+      out << '\n';
    }
 
    // count the points, cells, size
@@ -9130,7 +9137,7 @@ void Mesh::PrintVTK(std::ostream &out, int ref, int field_data)
       }
    }
    // prepare to write data
-   out << "POINT_DATA " << np << '\n';
+   out << "POINT_DATA " << np << '\n' << flush;
 }
 
 void Mesh::GetElementColoring(Array<int> &colors, int el0)
@@ -9310,6 +9317,7 @@ void Mesh::PrintWithPartitioning(int *partitioning, std::ostream &out,
          }
          out << '\n';
       }
+      out.flush();
    }
    else
    {
@@ -9748,6 +9756,7 @@ void Mesh::PrintSurfaces(const Table & Aface_face, std::ostream &out) const
          }
          out << '\n';
       }
+      out.flush();
    }
    else
    {
