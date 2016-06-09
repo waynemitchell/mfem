@@ -437,6 +437,7 @@ void ParGridFunction::SaveAsOne(std::ostream &out)
          values[p] -= nv[p];
          delete [] values[p];
       }
+      out.flush();
    }
    else
    {

@@ -145,6 +145,7 @@ HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
       Array<HYPRE_Int> glob_J(m->NumNonZeroElems());
       int *J = m->GetJ();
       for (int i = 0; i < glob_J.Size(); i++)
+      {
          if (J[i] < lvsize)
          {
             glob_J[i] = J[i] + ldof_offset;
@@ -153,6 +154,7 @@ HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
          {
             glob_J[i] = face_nbr_glob_ldof[J[i] - lvsize];
          }
+      }
 
       A = new HypreParMatrix(pfes->GetComm(), lvsize, pfes->GlobalVSize(),
                              pfes->GlobalVSize(), m->GetI(), glob_J,

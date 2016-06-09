@@ -32,20 +32,8 @@
 // Enable experimental OpenMP support. Requires MFEM_THREAD_SAFE.
 // #define MFEM_USE_OPENMP
 
-// Enable MFEM functionality based on the Mesquite library.
-// #define MFEM_USE_MESQUITE
-
-// Enable MFEM functionality based on the SuiteSparse library.
-// #define MFEM_USE_SUITESPARSE
-
-// Enable MFEM functionality based on the SuperLU library.
-// #define MFEM_USE_SUPERLU
-
 // Internal MFEM option: enable group/batch allocation for some small objects.
 // #define MFEM_USE_MEMALLOC
-
-// Enable functionality based on the Gecko library
-// #define MFEM_USE_GECKO
 
 // Which library functions to use in class StopWatch for measuring time.
 // The available options are:
@@ -55,6 +43,21 @@
 //   3 - use QueryPerformanceCounter from <windows.h>
 // If not defined, an option is selected automatically.
 // #define MFEM_TIMER_TYPE @MFEM_TIMER_TYPE@
+
+// Enable MFEM functionality based on the Mesquite library.
+// #define MFEM_USE_MESQUITE
+
+// Enable MFEM functionality based on the SuiteSparse library.
+// #define MFEM_USE_SUITESPARSE
+
+// Enable MFEM functionality based on the SuperLU library.
+// #define MFEM_USE_SUPERLU
+
+// Enable functionality based on the Gecko library
+// #define MFEM_USE_GECKO
+
+// Enable secure socket streams based on the GNUTLS library
+// #define MFEM_USE_GNUTLS
 
 // Windows specific options
 #ifdef _WIN32
