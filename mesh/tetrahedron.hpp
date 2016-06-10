@@ -38,6 +38,7 @@ protected:
    unsigned transform;
 
 public:
+   static const size_t NUM_INDICES = 4;
 
    /// Constants for different types of tetrahedrons.
    enum { TYPE_PU=0, TYPE_A=1, TYPE_PF=2, TYPE_O=3, TYPE_M=4 };

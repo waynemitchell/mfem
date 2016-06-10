@@ -30,6 +30,7 @@ protected:
    unsigned transform;
 
 public:
+   static const size_t NUM_INDICES = 3;
 
    Triangle(int *alloc = NULL) : Element(Geometry::TRIANGLE, alloc, 3) { transform = 0; }
 

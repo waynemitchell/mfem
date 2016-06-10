@@ -26,6 +26,7 @@ protected:
    //int *indices;
 
 public:
+   static const size_t NUM_INDICES = 1;
 
    Point(int *alloc = NULL) : Element(Geometry::POINT, alloc, 1) { }
 

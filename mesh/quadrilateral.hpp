@@ -27,6 +27,7 @@ protected:
    static const int edges[4][2];
 
 public:
+   static const size_t NUM_INDICES = 4;
 
    Quadrilateral(int *alloc = NULL) : Element(Geometry::SQUARE, alloc, 4) { }
 

@@ -22,28 +22,32 @@
 #include "../fem/coefficient.hpp"
 #include <iostream>
 
-class allocator {
+
+
+class Element_allocator {
    protected:
+      mfem::Array<mfem::Element*> *elements;
       int *data;
-      size_t capacity;
-      size_t count;
    public:
-      allocator(size_t capacity);
-      virtual ~allocator();
-      virtual void *resize(size_t);
-      virtual void *alloc(size_t);
-      void *operator()(size_t);
+      Element_allocator(mfem::Array<mfem::Element*> *_elements,
+            int *_data = NULL)
+         { elements = _elements; data = _data; };
+      virtual ~Element_allocator() {};
+      inline virtual int *alloc(size_t) { return NULL; };
+      inline int *get_data() { return data; };
+      inline int *operator()(size_t count) { return alloc(count); };
 };
 
 
-class mfem_allocator : public allocator {
+class mem_Element_allocator : public Element_allocator {
    protected:
-      mfem::Array<mfem::Element*> *elements;
+      size_t count;
+      size_t capacity;
    public:
-      mfem_allocator(size_t, mfem::Array<mfem::Element*>*, mfem_cbk = &mfem_allocator::default_alloc);
-      virtual ~mfem_allocator() {};
-      virtual int resize();
-      virtual void *alloc();
+      mem_Element_allocator(size_t _capacity, 
+            mfem::Array<mfem::Element*> *_elements);
+      ~mem_Element_allocator();
+      virtual int *alloc(size_t _count);
 };
 
 namespace mfem
@@ -92,7 +96,10 @@ protected:
    Array<Element *> faces;
 
    // we just allocated contiguously
-   mfem_allocator *element_alloc; //(15, &elements, mfem_allocator::default_allocator);
+   static Element_allocator null_allocator;
+   Element_allocator *element_allocator;
+   Element_allocator *boundary_allocator;
+   /*
    typedef int*(Mesh::*int_alloc)(size_t count);
    int *indices;
    size_t indices_count;
@@ -100,6 +107,7 @@ protected:
 
    int *indices_alloc(size_t);
    int *null_int_alloc(size_t) { return NULL; };
+   */
 
    struct FaceInfo
    {
@@ -176,10 +184,10 @@ protected:
 
    void DeleteTables();
 
-   Element *ReadElementWithoutAttr(std::istream &, int_alloc = &Mesh::null_int_alloc);
+   Element *ReadElementWithoutAttr(std::istream &, Element_allocator& = null_allocator); // TODO: int_alloc = &Mesh::null_int_alloc);
    static void PrintElementWithoutAttr(const Element *, std::ostream &);
 
-   Element *ReadElement(std::istream &, int_alloc = &Mesh::null_int_alloc);
+   Element *ReadElement(std::istream &, Element_allocator& = null_allocator); // TODO int_alloc = &Mesh::null_int_alloc);
    static void PrintElement(const Element *, std::ostream &);
 
    // Readers for different mesh formats, used in the Load() method
@@ -399,8 +407,8 @@ public:
       InitMesh(_Dim, _spaceDim, NVert, NElem, NBdrElem);
    }
 
-   //Element *NewElement(int geom, int_alloc = &Mesh::null_int_alloc);
-   Element *NewElement(int geom, mfem_allocator = &mfem_allocator::null_alloc);
+   // TODO Element *NewElement(int geom, int_alloc = &Mesh::null_int_alloc);
+   Element *NewElement(int geom, Element_allocator& = null_allocator);
 
    void AddVertex(const double *);
    void AddTri(const int *vi, int attr = 1);

@@ -26,6 +26,7 @@ protected:
    //int *indices;
 
 public:
+   static const size_t NUM_INDICES = 8;
    static const int edges[12][2];
    static const int faces[6][4];  // same as Mesh::hex_faces
 

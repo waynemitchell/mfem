@@ -27,52 +27,32 @@
 #include "graph.h"
 #endif
 
-// allocation stuff
-allocator::allocator(size_t _capacity) {
-   if (_capacity == 0) {
-      throw "yah can't have this";
-   }
+Element_allocator mfem::Mesh::null_allocator = Element_allocator(NULL);
+
+mem_Element_allocator::mem_Element_allocator(size_t _capacity, 
+      mfem::Array<mfem::Element*> *_elements) 
+   : Element_allocator(_elements) {
+   count = 0;
    capacity = _capacity;
    data = (int*)malloc(capacity * sizeof(int));
-   count = 0;
-}
-
-allocator::~allocator() {
-   free(data);
-   data = NULL;
-}
-
-void *allocator::alloc(size_t _count) {
-   count += _count;
-   // we have already incremented incides_count to include the
-   // new set of indices so add the total index count to the 
-   // base pointer and move back 'count' entires in indices
-   return data + (count - _count);
-
-}
-
-void *allocator::operator()(size_t _count) {
-   if (count + _count > capacity) {
-      resize(count + _count);
-   }
-   count += _count;
-   return data - _count;
-}
-
-
-
-
-
-mfem_allocator::mfem_allocator(size_t _capacity, mfem::Array<mfem::Element*> *_elements, cbk_type _alloc) 
-   : allocator(_capacity) {
-   elements = _elements;
-   alloc = _alloc;
-}
-
-int *mfem_allocator::default_alloc(size_t _count) {
    if (!data) {
-      throw "no memory error";
+      capacity = 0;
+      throw std::bad_alloc();
    }
+}
+
+
+mem_Element_allocator::~mem_Element_allocator() {
+   free(data);
+}
+
+
+int *mem_Element_allocator::alloc(size_t _count) {
+   // default return (nil)
+   if (!data) {
+      return NULL;
+   }
+   // resize step
    if (count + _count > capacity) {
       capacity *= 2;
       {
@@ -82,16 +62,20 @@ int *mfem_allocator::default_alloc(size_t _count) {
       mfem::Array<mfem::Element*> &elms = *elements;
       int *old_address = data;
       data = (int*)realloc(data, capacity * sizeof(int));
-      size_t int_count = 0;
+      if (!data) {
+         throw std::bad_alloc();
+      }
+      // the number of indi
+      size_t data_counter = 0;
       for (int i = 0; i < elms.Size() && 
-            int_count < count; i++) {
+            data_counter < count; i++) {
          if (elms[i] == NULL || elms[i]->IsSelfAlloc()) {
             continue;
          }
          int *temp = elms[i]->GetIndices();
          size_t offset = elms[i]->GetIndices() - old_address;
          elms[i]->SetIndices(data + offset);
-         int_count += elms[i]->GetNVertices();
+         data_counter += elms[i]->GetNVertices();
          {
             printf("Moving %p (offset of %zu from %p)\n", temp,
                   offset, old_address);
@@ -109,6 +93,7 @@ int *mfem_allocator::default_alloc(size_t _count) {
    // base pointer and move back 'count' entires in indices
    return data + (count - _count);
 }
+
 
 
 namespace mfem
@@ -2279,7 +2264,7 @@ Mesh::Mesh(std::istream &input, int generate_edges, int refine,
 }
 
 
-
+/*
 // were going to try to provide 
 int *Mesh::indices_alloc(size_t count) {
    if (!indices) {
@@ -2326,18 +2311,18 @@ int *Mesh::indices_alloc(size_t count) {
    // base pointer and move back 'count' entires in indices
    return indices + (indices_count - count);
 }
+*/
 
 
-
-Element *Mesh::NewElement(int geom, int_alloc f)
+Element *Mesh::NewElement(int geom, Element_allocator &f)
 {
    switch (geom)
    {
-      case Geometry::POINT:     return (new Point((this->*f)(1)));
-      case Geometry::SEGMENT:   return (new Segment((this->*f)(2)));
-      case Geometry::TRIANGLE:  return (new Triangle((this->*f)(3)));
-      case Geometry::SQUARE:    return (new Quadrilateral((this->*f)(4)));
-      case Geometry::CUBE:      return (new Hexahedron((this->*f)(8)));
+      case Geometry::POINT:     return (new Point(f(1)));
+      case Geometry::SEGMENT:   return (new Segment(f(2)));
+      case Geometry::TRIANGLE:  return (new Triangle(f(3)));
+      case Geometry::SQUARE:    return (new Quadrilateral(f(4)));
+      case Geometry::CUBE:      return (new Hexahedron(f(8)));
       case Geometry::TETRAHEDRON:
 #ifdef MFEM_USE_MEMALLOC
          return TetMemory.Alloc();
@@ -2349,7 +2334,7 @@ Element *Mesh::NewElement(int geom, int_alloc f)
    return NULL;
 }
 
-Element *Mesh::ReadElementWithoutAttr(std::istream &input, int_alloc f)
+Element *Mesh::ReadElementWithoutAttr(std::istream &input, Element_allocator &f)
 {
    int geom, nv, *v;
    Element *el;
@@ -2378,7 +2363,7 @@ void Mesh::PrintElementWithoutAttr(const Element *el, std::ostream &out)
    out << '\n';
 }
 
-Element *Mesh::ReadElement(std::istream &input, int_alloc f)
+Element *Mesh::ReadElement(std::istream &input, Element_allocator &f)
 {
    int attr;
    Element *el;
@@ -2460,13 +2445,14 @@ void Mesh::ReadMFEMMesh(std::istream &input, bool mfem_v11, int &curved)
    
    
    {
-      element_alloc = new mfem_allocator(10, &elements);
+      element_allocator = new mem_Element_allocator(10, &elements);
+      boundary_allocator = new mem_Element_allocator(10, &elements);
    }
    
 
    for (int j = 0; j < NumOfElements; j++)
    {
-      elements[j] = ReadElement(input, &Mesh::indices_alloc);
+      elements[j] = ReadElement(input, *element_allocator);
    }
 
    skip_comment_lines(input, '#');
@@ -6586,19 +6572,19 @@ void Mesh::QuadUniformRefinement()
    
       const int COUNT = 4; 
       elements[j+0] = new Quadrilateral(oedge+e[0], v[1], oedge+e[1],
-                                        oelem+i, attr, indices_alloc(COUNT));
+                                        oelem+i, attr, (*element_allocator)(Quadrilateral::NUM_INDICES));
       if (elements[i]->GetVertices() != v) {
          printf("WARNING!!!! v is now invalid\n");
          v = elements[i]->GetVertices();
       }
       elements[j+1] = new Quadrilateral(oelem+i, oedge+e[1], v[2],
-                                        oedge+e[2], attr, indices_alloc(COUNT));
+                                        oedge+e[2], attr, (*element_allocator)(Quadrilateral::NUM_INDICES));
       if (elements[i]->GetVertices() != v) {
          printf("WARNING!!!! v is now invalid\n");
          v = elements[i]->GetVertices();
       }
       elements[j+2] = new Quadrilateral(oedge+e[3], oelem+i, oedge+e[2],
-                                        v[3], attr, indices_alloc(COUNT));
+                                        v[3], attr, (*element_allocator)(Quadrilateral::NUM_INDICES));
       
 
       v[1] = oedge+e[0];
@@ -9592,10 +9578,8 @@ Mesh::~Mesh()
       FreeElement(faces[i]);
    }
 
-   if (indices) {
-      free(indices);
-      indices = NULL;
-   }
+   delete element_allocator;
+   delete boundary_allocator;
 
    DeleteTables();
 }
