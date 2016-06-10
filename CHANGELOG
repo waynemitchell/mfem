@@ -81,8 +81,8 @@ New and improved solvers
   If MFEM was configured with MFEM_USE_SUITESPARSE, one must now also link
   against the klu and btf libraries in SuiteSparse, see config/defaults.mk.
 
-New and updated examples
-------------------------
+New and updated examples and miniapps
+-------------------------------------
 - Four new serial and parallel example codes that demonstrate:
   * high-performance finite element operator assembly/evaluation (Example 1/1p
     in miniapps/performance)
@@ -92,6 +92,9 @@ New and updated examples
 - Examples 9p and 14p now work on non-conforming meshes.
 
 - Example 11p now has optional support for the SuperLU parallel direct solver.
+
+- Added several new options and example runs in the Volta and Tesla miniapps,
+  including support for Halbach arrays of permanent magnets.
 
 Miscellaneous
 -------------
