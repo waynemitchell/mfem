@@ -27,32 +27,47 @@
 #include "graph.h"
 #endif
 
-
-
 // allocation stuff
-allocator::allocator(size_t _capacity, cbk _alloc) {
+allocator::allocator(size_t _capacity) {
    if (_capacity == 0) {
       throw "yah can't have this";
    }
    capacity = _capacity;
    data = (int*)malloc(capacity * sizeof(int));
    count = 0;
-   alloc = _alloc;
 }
 
 allocator::~allocator() {
-   if (!data) {
-      free(data);
-      data = NULL;
+   free(data);
+   data = NULL;
+}
+
+void *allocator::alloc(size_t _count) {
+   count += _count;
+   // we have already incremented incides_count to include the
+   // new set of indices so add the total index count to the 
+   // base pointer and move back 'count' entires in indices
+   return data + (count - _count);
+
+}
+
+void *allocator::operator()(size_t _count) {
+   if (count + _count > capacity) {
+      resize(count + _count);
    }
+   count += _count;
+   return data - _count;
 }
 
 
-mfem_allocator::mfem_allocator(size_t _capacity, mfem::Array<mfem::Element*> *_elements, cbk _alloc) 
-   : allocator(_capacity, _alloc) {
+
+
+
+mfem_allocator::mfem_allocator(size_t _capacity, mfem::Array<mfem::Element*> *_elements, cbk_type _alloc) 
+   : allocator(_capacity) {
    elements = _elements;
+   alloc = _alloc;
 }
-
 
 int *mfem_allocator::default_alloc(size_t _count) {
    if (!data) {
@@ -94,7 +109,6 @@ int *mfem_allocator::default_alloc(size_t _count) {
    // base pointer and move back 'count' entires in indices
    return data + (count - _count);
 }
-
 
 
 namespace mfem
@@ -2269,7 +2283,7 @@ Mesh::Mesh(std::istream &input, int generate_edges, int refine,
 // were going to try to provide 
 int *Mesh::indices_alloc(size_t count) {
    if (!indices) {
-      indices_capacity = INITIAL_INDICES_SIZE; 
+      indices_capacity = Mesh::INITIAL_INDICES_SIZE; 
       indices_count = 0;
       indices = (int*)malloc(indices_capacity * sizeof(int));
       if (!indices) {
@@ -2443,11 +2457,12 @@ void Mesh::ReadMFEMMesh(std::istream &input, bool mfem_v11, int &curved)
    MFEM_VERIFY(ident == "elements", "invalid mesh file");
    input >> NumOfElements;
    elements.SetSize(NumOfElements);
-
+   
+   
    {
-      mfem_allocator *element_alloc = new element_alloc(INITIAL_INDICES_SIZE,
-         &elements);
+      element_alloc = new mfem_allocator(10, &elements);
    }
+   
 
    for (int j = 0; j < NumOfElements; j++)
    {

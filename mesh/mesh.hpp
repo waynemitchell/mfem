@@ -22,22 +22,17 @@
 #include "../fem/coefficient.hpp"
 #include <iostream>
 
-#define INITIAL_INDICES_SIZE 1000
-
-
 class allocator {
-   public:
-      typedef int *(*cbk)(size_t count);
-      static inline int *null_alloc(size_t) { return NULL; };
    protected:
       int *data;
       size_t capacity;
       size_t count;
    public:
-      cbk alloc;
-      allocator(size_t = 0, cbk = allocator::null_alloc);
+      allocator(size_t capacity);
       virtual ~allocator();
-      virtual int *default_alloc(size_t) { return NULL; };
+      virtual void *resize(size_t);
+      virtual void *alloc(size_t);
+      void *operator()(size_t);
 };
 
 
@@ -45,12 +40,11 @@ class mfem_allocator : public allocator {
    protected:
       mfem::Array<mfem::Element*> *elements;
    public:
-      cbk alloc;
-      virtual int *default_alloc(size_t);
-      mfem_allocator(size_t, mfem::Array<mfem::Element*>*, cbk);
+      mfem_allocator(size_t, mfem::Array<mfem::Element*>*, mfem_cbk = &mfem_allocator::default_alloc);
       virtual ~mfem_allocator() {};
+      virtual int resize();
+      virtual void *alloc();
 };
-
 
 namespace mfem
 {
@@ -77,6 +71,7 @@ class Mesh
    friend class NURBSExtension;
 
 protected:
+   static const size_t INITIAL_INDICES_SIZE = 1024;
    int Dim;
    int spaceDim;
 
@@ -97,7 +92,7 @@ protected:
    Array<Element *> faces;
 
    // we just allocated contiguously
-   mfem_allocator element_alloc;
+   mfem_allocator *element_alloc; //(15, &elements, mfem_allocator::default_allocator);
    typedef int*(Mesh::*int_alloc)(size_t count);
    int *indices;
    size_t indices_count;
@@ -404,7 +399,8 @@ public:
       InitMesh(_Dim, _spaceDim, NVert, NElem, NBdrElem);
    }
 
-   Element *NewElement(int geom, int_alloc = &Mesh::null_int_alloc);
+   //Element *NewElement(int geom, int_alloc = &Mesh::null_int_alloc);
+   Element *NewElement(int geom, mfem_allocator = &mfem_allocator::null_alloc);
 
    void AddVertex(const double *);
    void AddTri(const int *vi, int attr = 1);
