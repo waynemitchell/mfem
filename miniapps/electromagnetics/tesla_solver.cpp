@@ -28,7 +28,7 @@ namespace electromagnetics
 TeslaSolver::TeslaSolver(ParMesh & pmesh, int order,
                          Array<int> & kbcs,
                          Array<int> & vbcs, Vector & vbcv,
-                         double (*muInv)(const Vector&),
+                         Coefficient & muInvCoef,
                          void   (*a_bc )(const Vector&, Vector&),
                          void   (*j_src)(const Vector&, Vector&),
                          void   (*m_src)(const Vector&, Vector&))
@@ -54,11 +54,10 @@ TeslaSolver::TeslaSolver(ParMesh & pmesh, int order,
      m_(NULL),
      DivFreeProj_(NULL),
      SurfCur_(NULL),
-     muInvCoef_(NULL),
+     muInvCoef_(&muInvCoef),
      aBCCoef_(NULL),
      jCoef_(NULL),
      mCoef_(NULL),
-     muInv_(muInv),
      a_bc_(a_bc),
      j_src_(j_src),
      m_src_(m_src)
@@ -98,16 +97,6 @@ TeslaSolver::TeslaSolver(ParMesh & pmesh, int order,
    {
       aBCCoef_ = new VectorFunctionCoefficient(pmesh_->SpaceDimension(),
                                                *a_bc_);
-   }
-
-   // Inverse of the magnetic permeability
-   if ( muInv_ == NULL )
-   {
-      muInvCoef_ = new ConstantCoefficient(1.0/mu0_);
-   }
-   else
-   {
-      muInvCoef_ = new FunctionCoefficient(muInv_);
    }
 
    // Volume Current Density
@@ -186,7 +175,6 @@ TeslaSolver::TeslaSolver(ParMesh & pmesh, int order,
 
 TeslaSolver::~TeslaSolver()
 {
-   delete muInvCoef_;
    delete jCoef_;
    delete mCoef_;
    delete aBCCoef_;
