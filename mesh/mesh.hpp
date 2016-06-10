@@ -23,25 +23,36 @@
 #include <iostream>
 
 
-
+// Element allocator class.  Holds an array of ints and a pointer
+// to an mfem::Array of mfem::Element* so that we can update their
+// `indices` pointer on a reallocation
 class Element_allocator {
    protected:
       mfem::Array<mfem::Element*> *elements;
       int *data;
+      size_t count;
+      // needs to be called on a realloc (if the
+      // address of data moves) otherwise the Elements
+      // in elements are invalid (the indices pointer
+      // is not valid)
+      int update_elements(int *new_address);
    public:
       Element_allocator(mfem::Array<mfem::Element*> *_elements,
             int *_data = NULL)
-         { elements = _elements; data = _data; };
+         { elements = _elements; data = _data; count = 0; };
       virtual ~Element_allocator() {};
       inline virtual int *alloc(size_t) { return NULL; };
       inline int *get_data() { return data; };
+      // a nicety so we can call the object (functor fun)
       inline int *operator()(size_t count) { return alloc(count); };
 };
 
 
+// extension of Element_allocator that holds it's own data.
+//  It will realloc on the fly
 class mem_Element_allocator : public Element_allocator {
    protected:
-      size_t count;
+      // maybe this should be an Element_allocator entry?
       size_t capacity;
    public:
       mem_Element_allocator(size_t _capacity, 
@@ -99,15 +110,6 @@ protected:
    static Element_allocator null_allocator;
    Element_allocator *element_allocator;
    Element_allocator *boundary_allocator;
-   /*
-   typedef int*(Mesh::*int_alloc)(size_t count);
-   int *indices;
-   size_t indices_count;
-   size_t indices_capacity;
-
-   int *indices_alloc(size_t);
-   int *null_int_alloc(size_t) { return NULL; };
-   */
 
    struct FaceInfo
    {
@@ -184,10 +186,10 @@ protected:
 
    void DeleteTables();
 
-   Element *ReadElementWithoutAttr(std::istream &, Element_allocator& = null_allocator); // TODO: int_alloc = &Mesh::null_int_alloc);
+   Element *ReadElementWithoutAttr(std::istream &, Element_allocator& = null_allocator);
    static void PrintElementWithoutAttr(const Element *, std::ostream &);
 
-   Element *ReadElement(std::istream &, Element_allocator& = null_allocator); // TODO int_alloc = &Mesh::null_int_alloc);
+   Element *ReadElement(std::istream &, Element_allocator& = null_allocator);
    static void PrintElement(const Element *, std::ostream &);
 
    // Readers for different mesh formats, used in the Load() method
@@ -407,7 +409,6 @@ public:
       InitMesh(_Dim, _spaceDim, NVert, NElem, NBdrElem);
    }
 
-   // TODO Element *NewElement(int geom, int_alloc = &Mesh::null_int_alloc);
    Element *NewElement(int geom, Element_allocator& = null_allocator);
 
    void AddVertex(const double *);

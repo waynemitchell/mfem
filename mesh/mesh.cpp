@@ -29,16 +29,47 @@
 
 Element_allocator mfem::Mesh::null_allocator = Element_allocator(NULL);
 
+int Element_allocator::update_elements(int *old_address) {
+   mfem::Array<mfem::Element*> &elms = *elements;
+   // the number of allocated ints we have gone
+   // through. a good stopping condition since we know
+   // the capacity
+   size_t data_counter = 0;
+   for (int i = 0; i < elms.Size() && 
+         data_counter < count; i++) {
+      if (elms[i] == NULL || elms[i]->IsSelfAlloc()) {
+         continue;
+      }
+      int *temp = elms[i]->GetIndices();
+      size_t offset = elms[i]->GetIndices() - old_address;
+      elms[i]->SetIndices(data + offset);
+      data_counter += elms[i]->GetNVertices();
+#if 1 //ALLOCATOR_DEBUG
+      {
+         printf("Moving %p (offset of %zu from %p)\n", temp,
+               offset, old_address);
+         temp = elms[i]->GetIndices();
+         offset = temp - data;
+         printf("New location %p (offset of %zu from %p)\n",
+               temp, offset, data);
+      } 
+#endif
+   }
+   return 0;
+}
+
 mem_Element_allocator::mem_Element_allocator(size_t _capacity, 
       mfem::Array<mfem::Element*> *_elements) 
    : Element_allocator(_elements) {
-   count = 0;
    capacity = _capacity;
    data = (int*)malloc(capacity * sizeof(int));
    if (!data) {
       capacity = 0;
       throw std::bad_alloc();
    }
+#if 1 //ALLOCATOR_DEBUG
+   printf("allocated %zu ints\n", capacity);
+#endif
 }
 
 
@@ -55,37 +86,19 @@ int *mem_Element_allocator::alloc(size_t _count) {
    // resize step
    if (count + _count > capacity) {
       capacity *= 2;
+#if 1 //ALLOCATOR_DEBUG
       {
          printf("reallocating indices from size %zu to %zu\n", 
                capacity / 2, capacity);
       }
-      mfem::Array<mfem::Element*> &elms = *elements;
+#endif
       int *old_address = data;
       data = (int*)realloc(data, capacity * sizeof(int));
       if (!data) {
+         capacity = 0;
          throw std::bad_alloc();
       }
-      // the number of indi
-      size_t data_counter = 0;
-      for (int i = 0; i < elms.Size() && 
-            data_counter < count; i++) {
-         if (elms[i] == NULL || elms[i]->IsSelfAlloc()) {
-            continue;
-         }
-         int *temp = elms[i]->GetIndices();
-         size_t offset = elms[i]->GetIndices() - old_address;
-         elms[i]->SetIndices(data + offset);
-         data_counter += elms[i]->GetNVertices();
-         {
-            printf("Moving %p (offset of %zu from %p)\n", temp,
-                  offset, old_address);
-            temp = elms[i]->GetIndices();
-            offset = temp - data;
-            printf("New location %p (offset of %zu from %p)\n",
-                  temp, offset, data);
-         } 
-         // TODO: check for breaks in the memory block and clean up?
-      }
+      update_elements(old_address);
    }
    count += _count;
    // we have already incremented incides_count to include the
@@ -2150,6 +2163,8 @@ void Mesh::Make1D(int n, double sx)
 
 Mesh::Mesh(const Mesh &mesh, bool copy_nodes)
 {
+   element_allocator = NULL;
+   boundary_allocator = NULL;
    Dim = mesh.Dim;
    spaceDim = mesh.spaceDim;
 
@@ -2258,6 +2273,8 @@ Mesh::Mesh(const Mesh &mesh, bool copy_nodes)
 Mesh::Mesh(std::istream &input, int generate_edges, int refine,
            bool fix_orientation)
 {
+   element_allocator = NULL;
+   boundary_allocator = NULL;
    Init();
    InitTables();
    Load(input, generate_edges, refine, fix_orientation);
@@ -2443,10 +2460,10 @@ void Mesh::ReadMFEMMesh(std::istream &input, bool mfem_v11, int &curved)
    input >> NumOfElements;
    elements.SetSize(NumOfElements);
    
-   
+   // Element allocator lazy init for ex9 
    {
-      element_allocator = new mem_Element_allocator(10, &elements);
-      boundary_allocator = new mem_Element_allocator(10, &elements);
+      element_allocator = new mem_Element_allocator(INITIAL_INDICES_SIZE, &elements);
+      boundary_allocator = new mem_Element_allocator(INITIAL_INDICES_SIZE, &elements);
    }
    
 
@@ -3926,6 +3943,9 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
 
 Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
 {
+   element_allocator = NULL;
+   boundary_allocator = NULL;
+
    int      i, j, ie, ib, iv, *v, nv;
    Element *el;
    Mesh    *m;
@@ -7268,6 +7288,8 @@ void Mesh::InitFromNCMesh(const NCMesh &ncmesh)
 
 Mesh::Mesh(const NCMesh &ncmesh)
 {
+   element_allocator = NULL;
+   boundary_allocator = NULL;
    Init();
    InitTables();
    InitFromNCMesh(ncmesh);
