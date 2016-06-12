@@ -27,8 +27,8 @@ class Ordering
 {
 public:
    /** Ordering methods:
-       byNODES - loop first over the nodes then over the vector dimension,
-       byVDIM  - loop first over the vector dimension then over the nodes  */
+       byNODES - loop first over the nodes (inner loop) then over the vector dimension (outer loop),
+       byVDIM  - loop first over the vector dimension (inner loop) then over the nodes (outer loop)  */
    enum Type { byNODES, byVDIM };
 
    template <Type Ord>

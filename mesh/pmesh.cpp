@@ -2925,6 +2925,7 @@ void ParMesh::PrintXG(std::ostream &out) const
          out << '\n';
       }
    }
+   out.flush();
 }
 
 bool ParMesh::WantSkipSharedMaster(const NCMesh::Master &master) const
@@ -3047,6 +3048,7 @@ void ParMesh::Print(std::ostream &out) const
          }
          out << '\n';
       }
+      out.flush();
    }
    else
    {
@@ -3294,6 +3296,7 @@ void ParMesh::PrintAsOne(std::ostream &out)
                out << '\n';
             }
          }
+         out.flush();
       }
       else
       {

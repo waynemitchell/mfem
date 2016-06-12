@@ -26,7 +26,7 @@ namespace electromagnetics
 VoltaSolver::VoltaSolver(ParMesh & pmesh, int order,
                          Array<int> & dbcs, Vector & dbcv,
                          Array<int> & nbcs, Vector & nbcv,
-                         double (*eps    )(const Vector&),
+                         Coefficient & epsCoef,
                          double (*phi_bc )(const Vector&),
                          double (*rho_src)(const Vector&),
                          void   (*p_src  )(const Vector&, Vector&))
@@ -56,11 +56,10 @@ VoltaSolver::VoltaSolver(ParMesh & pmesh, int order,
      e_(NULL),
      d_(NULL),
      p_(NULL),
-     epsCoef_(NULL),
+     epsCoef_(&epsCoef),
      phiBCCoef_(NULL),
      rhoCoef_(NULL),
      pCoef_(NULL),
-     eps_(eps),
      phi_bc_(phi_bc),
      rho_src_(rho_src),
      p_src_(p_src)
@@ -90,16 +89,6 @@ VoltaSolver::VoltaSolver(ParMesh & pmesh, int order,
    if ( phi_bc_ != NULL )
    {
       phiBCCoef_ = new FunctionCoefficient(*phi_bc_);
-   }
-
-   // Permittivity Coefficient
-   if ( eps_ == NULL )
-   {
-      epsCoef_ = new ConstantCoefficient(epsilon0_);
-   }
-   else
-   {
-      epsCoef_ = new FunctionCoefficient(eps_);
    }
 
    // Volume Charge Density
@@ -181,7 +170,6 @@ VoltaSolver::VoltaSolver(ParMesh & pmesh, int order,
 
 VoltaSolver::~VoltaSolver()
 {
-   delete epsCoef_;
    delete phiBCCoef_;
    delete rhoCoef_;
    delete pCoef_;
