@@ -146,7 +146,8 @@ public:
    /** Get the FaceElementTransformations for the given shared face (edge 2D).
        In the returned object, 1 and 2 refer to the local and the neighbor
        elements, respectively. */
-   FaceElementTransformations *GetSharedFaceTransformations(int);
+   FaceElementTransformations *
+   GetSharedFaceTransformations(int sf, bool fill2 = true);
 
    /// Return the number of shared faces (3D), edges (2D), vertices (1D)
    int GetNSharedFaces() const;

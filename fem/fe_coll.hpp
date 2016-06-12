@@ -63,7 +63,13 @@ public:
 
    static FiniteElementCollection *New(const char *name);
 
-   // Inf = 64 * SubIndex + Orientation; 0 <= SDim <= Dim(Geom)
+   /** @brief Get the local dofs for a given sub-manifold.
+
+      Return the local dofs for a SDim-dimensional sub-manifold (0D - vertex,
+      1D - edge, 2D - face) including those on its boundary. The local index of
+      the sub-manifold (inside Geom) and its orientation are given by the
+      parameter Info = 64 * SubIndex + SubOrientation. Naturally, it is assumed
+      that 0 <= SDim <= Dim(Geom). */
    void SubDofOrder(int Geom, int SDim, int Info, Array<int> &dofs) const;
 };
 

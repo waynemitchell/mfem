@@ -4850,6 +4850,26 @@ int Mesh::GetBdrElementEdgeIndex(int i) const
    return -1;
 }
 
+void Mesh::GetBdrElementAdjacentElement(int bdr_el, int &el, int &info) const
+{
+   int fid = GetBdrElementEdgeIndex(bdr_el);
+   const FaceInfo &fi = faces_info[fid];
+   MFEM_ASSERT(fi.Elem1Inf%64 == 0, "internal error"); // orientation == 0
+   const int *fv = (Dim > 1) ? faces[fid]->GetVertices() : NULL;
+   const int *bv = boundary[bdr_el]->GetVertices();
+   int ori;
+   switch (GetBdrElementBaseGeometry(bdr_el))
+   {
+      case Geometry::POINT:    ori = 0; break;
+      case Geometry::SEGMENT:  ori = (fv[0] == bv[0]) ? 0 : 1; break;
+      case Geometry::TRIANGLE: ori = GetTriOrientation(fv, bv); break;
+      case Geometry::SQUARE:   ori = GetQuadOrientation(fv, bv); break;
+      default: MFEM_ABORT("boundary element type not implemented"); ori = 0;
+   }
+   el   = fi.Elem1No;
+   info = fi.Elem1Inf + ori;
+}
+
 int Mesh::GetElementType(int i) const
 {
    return elements[i]->GetType();

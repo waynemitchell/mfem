@@ -1458,7 +1458,8 @@ ElementTransformation* ParMesh::GetGhostFaceTransformation(
    return &FaceTransformation;
 }
 
-FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
+FaceElementTransformations *ParMesh::
+GetSharedFaceTransformations(int sf, bool fill2)
 {
    int FaceNo = GetSharedFace(sf);
 
@@ -1480,9 +1481,16 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
    FaceElemTr.Elem1 = &Transformation;
 
    // setup the transformation for the second (neighbor) element
-   FaceElemTr.Elem2No = -1 - face_info.Elem2No;
-   GetFaceNbrElementTransformation(FaceElemTr.Elem2No, &Transformation2);
-   FaceElemTr.Elem2 = &Transformation2;
+   if (fill2)
+   {
+      FaceElemTr.Elem2No = -1 - face_info.Elem2No;
+      GetFaceNbrElementTransformation(FaceElemTr.Elem2No, &Transformation2);
+      FaceElemTr.Elem2 = &Transformation2;
+   }
+   else
+   {
+      FaceElemTr.Elem2No = -1;
+   }
 
    // setup the face transformation if the face is not a ghost
    FaceElemTr.FaceGeom = face_geom;
@@ -1497,9 +1505,12 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
    GetLocalFaceTransformation(face_type, elem_type, FaceElemTr.Loc1.Transf,
                               face_info.Elem1Inf);
 
-   elem_type = face_nbr_elements[FaceElemTr.Elem2No]->GetType();
-   GetLocalFaceTransformation(face_type, elem_type, FaceElemTr.Loc2.Transf,
-                              face_info.Elem2Inf);
+   if (fill2)
+   {
+      elem_type = face_nbr_elements[FaceElemTr.Elem2No]->GetType();
+      GetLocalFaceTransformation(face_type, elem_type, FaceElemTr.Loc2.Transf,
+                                 face_info.Elem2Inf);
+   }
 
    // adjust Loc1 or Loc2 of the master face if this is a slave face
    if (is_slave)
@@ -1509,9 +1520,12 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
       IsoparametricTransformation &loctr =
          is_ghost ? FaceElemTr.Loc1.Transf : FaceElemTr.Loc2.Transf;
 
-      ApplyLocalSlaveTransformation(loctr, face_info);
+      if (is_ghost || fill2)
+      {
+         ApplyLocalSlaveTransformation(loctr, face_info);
+      }
 
-      if (face_type == Element::SEGMENT)
+      if (face_type == Element::SEGMENT && fill2)
       {
          // fix slave orientation in 2D: flip Loc2 to match Loc1 and Face
          DenseMatrix &pm = FaceElemTr.Loc2.Transf.GetPointMat();

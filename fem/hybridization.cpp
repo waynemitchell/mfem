@@ -79,18 +79,13 @@ void Hybridization::ConstructC()
             c_pfes->ExchangeFaceNbrData();
             c_num_face_nbr_dofs = c_pfes->GetFaceNbrVSize();
          }
+#ifdef MFEM_DEBUG
          MFEM_WARNING('[' << c_pfes->GetMyRank() <<
                       "] num_shared_slave_faces = " << num_shared_slave_faces
                       << ", glob_num_shared_slave_faces = "
-                      << glob_num_shared_slave_faces);
-#if 0
-         MPI_Barrier(c_pfes->GetComm());
-         std::cout << "[" << std::setw(2) << c_pfes->GetMyRank()
-                   << "]: num_face_nbr_dofs = " << c_num_face_nbr_dofs
-                   << ", num_shared_faces = " << pmesh->GetNSharedFaces()
-                   << std::endl;
-         MPI_Barrier(c_pfes->GetComm());
-         MFEM_ABORT("debug");
+                      << glob_num_shared_slave_faces
+                      << "\n   num_face_nbr_dofs = " << c_num_face_nbr_dofs
+                      << ", num_shared_faces = " << pmesh->GetNSharedFaces());
 #endif
       }
    }
@@ -152,9 +147,8 @@ void Hybridization::ConstructC()
             }
             else
             {
-               FTr = pmesh->GetSharedFaceTransformations(i);
-               // TODO: use a mask above to optimize what is computed
-               FTr->Elem2No = -1;
+               const int fill2 = false; // only need side "1" data
+               FTr = pmesh->GetSharedFaceTransformations(i, fill2);
                face_fe = c_pfes->GetFaceNbrFaceFE(face_no);
                c_pfes->GetFaceNbrFaceVDofs(face_no, c_vdofs);
                FiniteElementSpace::AdjustVDofs(c_vdofs);
@@ -410,6 +404,7 @@ void Hybridization::Init(const Array<int> &ess_tdof_list)
 void Hybridization::GetIBDofs(
    int el, Array<int> &i_dofs, Array<int> &b_dofs) const
 {
+   // returns local indices in i_dofs and b_dofs
    int h_start, h_end;
 
    h_start = hat_offsets[el];
@@ -428,6 +423,7 @@ void Hybridization::GetIBDofs(
 
 void Hybridization::GetBDofs(int el, int &num_idofs, Array<int> &b_dofs) const
 {
+   // returns global indices in b_dofs
    const int h_start = hat_offsets[el];
    const int h_end = hat_offsets[el+1];
    b_dofs.Reserve(h_end-h_start);
@@ -479,14 +475,81 @@ void Hybridization::AssembleMatrix(int el, const DenseMatrix &A)
          A_bb(i,j) = A(b_dofs[i],j_dof);
       }
    }
+}
 
-   LUFactors LU_ii(A_ii.Data(), Af_ipiv + Af_f_offsets[el]);
-   LUFactors LU_bb(A_bb.Data(), LU_ii.ipiv + i_dofs.Size());
+void Hybridization::AssembleBdrMatrix(int bdr_el, const DenseMatrix &A)
+{
+   // Not tested.
 
-   LU_ii.Factor(i_dofs.Size());
-   LU_ii.BlockFactor(i_dofs.Size(), b_dofs.Size(),
-                     A_ib.Data(), A_bi.Data(), A_bb.Data());
-   LU_bb.Factor(b_dofs.Size());
+   int el;
+   DenseMatrix B(A);
+   Array<int> i_dofs, b_dofs, e2f;
+
+   {
+      int info, vdim = fes->GetVDim();
+      Array<int> lvdofs;
+      Mesh *mesh = fes->GetMesh();
+      mesh->GetBdrElementAdjacentElement(bdr_el, el, info);
+      e2f.SetSize(hat_offsets[el+1]-hat_offsets[el], -1);
+      lvdofs.Reserve(A.Height());
+      fes->FEColl()->SubDofOrder(mesh->GetElementBaseGeometry(el),
+                                 mesh->Dimension()-1, info, lvdofs);
+      // Convert local element dofs to local element vdofs.
+      Ordering::DofsToVDofs<Ordering::byNODES>(e2f.Size()/vdim, vdim, lvdofs);
+      MFEM_ASSERT(lvdofs.Size() == A.Height(), "internal error");
+      B.AdjustDofDirection(lvdofs);
+      FiniteElementSpace::AdjustVDofs(lvdofs);
+      // Create a map from local element vdofs to local boundary (face) vdofs.
+      for (int i = 0; i < lvdofs.Size(); i++)
+      {
+         e2f[lvdofs[i]] = i;
+      }
+   }
+
+   GetIBDofs(el, i_dofs, b_dofs);
+
+   DenseMatrix A_ii(Af_data + Af_offsets[el], i_dofs.Size(), i_dofs.Size());
+   DenseMatrix A_ib(A_ii.Data() + i_dofs.Size()*i_dofs.Size(),
+                    i_dofs.Size(), b_dofs.Size());
+   DenseMatrix A_bi(A_ib.Data() + i_dofs.Size()*b_dofs.Size(),
+                    b_dofs.Size(), i_dofs.Size());
+   DenseMatrix A_bb(A_bi.Data() + b_dofs.Size()*i_dofs.Size(),
+                    b_dofs.Size(), b_dofs.Size());
+
+   for (int j = 0; j < i_dofs.Size(); j++)
+   {
+      int j_f = e2f[i_dofs[j]];
+      if (j_f == -1) { continue; }
+      for (int i = 0; i < i_dofs.Size(); i++)
+      {
+         int i_f = e2f[i_dofs[i]];
+         if (i_f == -1) { continue; }
+         A_ii(i,j) += B(i_f,j_f);
+      }
+      for (int i = 0; i < b_dofs.Size(); i++)
+      {
+         int i_f = e2f[b_dofs[i]];
+         if (i_f == -1) { continue; }
+         A_bi(i,j) += B(i_f,j_f);
+      }
+   }
+   for (int j = 0; j < b_dofs.Size(); j++)
+   {
+      int j_f = e2f[b_dofs[j]];
+      if (j_f == -1) { continue; }
+      for (int i = 0; i < i_dofs.Size(); i++)
+      {
+         int i_f = e2f[i_dofs[i]];
+         if (i_f == -1) { continue; }
+         A_ib(i,j) += B(i_f,j_f);
+      }
+      for (int i = 0; i < b_dofs.Size(); i++)
+      {
+         int i_f = e2f[b_dofs[i]];
+         if (i_f == -1) { continue; }
+         A_bb(i,j) += B(i_f,j_f);
+      }
+   }
 }
 
 void Hybridization::ComputeH()
@@ -508,12 +571,19 @@ void Hybridization::ComputeH()
    int c_mark_start = 0;
    for (int el = 0; el < NE; el++)
    {
-      int n_idofs;
-      GetBDofs(el, n_idofs, b_dofs);
+      int i_dofs_size;
+      GetBDofs(el, i_dofs_size, b_dofs);
 
-      LUFactors LU_bb(Af_data + Af_offsets[el] +
-                      n_idofs*(n_idofs + 2*b_dofs.Size()),
-                      Af_ipiv + Af_f_offsets[el] + n_idofs);
+      LUFactors LU_ii(Af_data + Af_offsets[el], Af_ipiv + Af_f_offsets[el]);
+      double *A_ib_data = LU_ii.data + i_dofs_size*i_dofs_size;
+      double *A_bi_data = A_ib_data + i_dofs_size*b_dofs.Size();
+      LUFactors LU_bb(A_bi_data + i_dofs_size*b_dofs.Size(),
+                      LU_ii.ipiv + i_dofs_size);
+
+      LU_ii.Factor(i_dofs_size);
+      LU_ii.BlockFactor(i_dofs_size, b_dofs.Size(),
+                        A_ib_data, A_bi_data, LU_bb.data);
+      LU_bb.Factor(b_dofs.Size());
 
       // Extract Cb_t from Ct, define c_dofs
       c_dofs.SetSize(0);
@@ -773,6 +843,16 @@ void Hybridization::ComputeSolution(const Vector &b, const Vector &sol_r,
    {
       R->Mult(s, sol); // assuming that Ref = 0
    }
+}
+
+void Hybridization::Reset()
+{
+   delete H;
+   H = NULL;
+#ifdef MFEM_USE_MPI
+   delete pH;
+   pH = NULL;
+#endif
 }
 
 }

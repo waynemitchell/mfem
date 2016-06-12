@@ -104,8 +104,8 @@ template <> struct Geometry::Constants<Geometry::TRIANGLE>
    static const int Dimension = 2;
    static const int NumVert = 3;
    static const int NumEdges = 3;
-   // The same as Triangle::edges.
    static const int Edges[NumEdges][2];
+   // Lower-triangular part of the local vertex-to-vertex graph.
    struct VertToVert
    {
       static const int I[NumVert];
@@ -120,7 +120,6 @@ template <> struct Geometry::Constants<Geometry::TRIANGLE>
    // permutation that maps the second argument 'test' to the first argument
    // 'base': test[Orient[j][i]]=base[i].
    static const int NumOrient = 6;
-   // The same as Mesh::tri_orientations.
    static const int Orient[NumOrient][NumVert];
    // The inverse of orientation 'j' is InvOrient[j].
    static const int InvOrient[NumOrient];
@@ -131,8 +130,8 @@ template <> struct Geometry::Constants<Geometry::SQUARE>
    static const int Dimension = 2;
    static const int NumVert = 4;
    static const int NumEdges = 4;
-   // The same as Quadrilateral::edges.
    static const int Edges[NumEdges][2];
+   // Lower-triangular part of the local vertex-to-vertex graph.
    struct VertToVert
    {
       static const int I[NumVert];
@@ -142,7 +141,6 @@ template <> struct Geometry::Constants<Geometry::SQUARE>
    static const int FaceVert[NumFaces][NumVert];
 
    static const int NumOrient = 8;
-   // The same as Mesh::quad_orientations.
    static const int Orient[NumOrient][NumVert];
    static const int InvOrient[NumOrient];
 };
@@ -152,13 +150,12 @@ template <> struct Geometry::Constants<Geometry::TETRAHEDRON>
    static const int Dimension = 3;
    static const int NumVert = 4;
    static const int NumEdges = 6;
-   // The same as Tetrahedron::edges.
    static const int Edges[NumEdges][2];
    static const int NumFaces = 4;
    static const int FaceTypes[NumFaces];
    static const int MaxFaceVert = 3;
-   // The same as Mesh::tet_faces
    static const int FaceVert[NumFaces][MaxFaceVert];
+   // Lower-triangular part of the local vertex-to-vertex graph.
    struct VertToVert
    {
       static const int I[NumVert];
@@ -171,13 +168,12 @@ template <> struct Geometry::Constants<Geometry::CUBE>
    static const int Dimension = 3;
    static const int NumVert = 8;
    static const int NumEdges = 12;
-   // The same as Hexahedron::edges.
    static const int Edges[NumEdges][2];
    static const int NumFaces = 6;
    static const int FaceTypes[NumFaces];
    static const int MaxFaceVert = 4;
-   // The same as Mesh::hex_faces and Hexahedron::faces.
    static const int FaceVert[NumFaces][MaxFaceVert];
+   // Lower-triangular part of the local vertex-to-vertex graph.
    struct VertToVert
    {
       static const int I[NumVert];

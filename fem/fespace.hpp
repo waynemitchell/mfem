@@ -30,7 +30,27 @@ public:
        byNODES - loop first over the nodes then over the vector dimension,
        byVDIM  - loop first over the vector dimension then over the nodes  */
    enum Type { byNODES, byVDIM };
+
+   template <Type Ord>
+   static inline int Map(int ndofs, int vdim, int dof, int vd);
+
+   template <Type Ord>
+   static void DofsToVDofs(int ndofs, int vdim, Array<int> &dofs);
 };
+
+template <> inline int
+Ordering::Map<Ordering::byNODES>(int ndofs, int vdim, int dof, int vd)
+{
+   MFEM_ASSERT(dof < ndofs && -1-dof < ndofs && 0 <= vd && vd < vdim, "");
+   return (dof >= 0) ? dof+ndofs*vd : dof-ndofs*vd;
+}
+
+template <> inline int
+Ordering::Map<Ordering::byVDIM>(int ndofs, int vdim, int dof, int vd)
+{
+   MFEM_ASSERT(dof < ndofs && -1-dof < ndofs && 0 <= vd && vd < vdim, "");
+   return (dof >= 0) ? vd+vdim*dof : -1-(vd+vdim*(-1-dof));
+}
 
 
 class NURBSExtension;

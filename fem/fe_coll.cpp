@@ -284,7 +284,7 @@ GetFace(int &nv, v_t &v, int &ne, e_t &e, eo_t &eo,
 void FiniteElementCollection::SubDofOrder(int Geom, int SDim, int Info,
                                           Array<int> &dofs) const
 {
-   // Info = 64 * SubIndex + Orientation
+   // Info = 64 * SubIndex + SubOrientation
    MFEM_ASSERT(0 <= Geom && Geom < Geometry::NumGeom,
                "invalid Geom = " << Geom);
    const int Dim = Geometry::Dimension[Geom];

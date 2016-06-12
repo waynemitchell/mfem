@@ -822,19 +822,10 @@ void ParFiniteElementSpace::GetFaceNbrFaceVDofs(int i, Array<int> &vdofs) const
    const int face_dim = Geometry::Dimension[geom]-1;
 
    fec->SubDofOrder(geom, face_dim, inf2, vdofs);
-   int size = vdofs.Size(), nsd = nd/vdim;
-   vdofs.SetSize(vdim*size);
-   for (int vd = 1; vd < vdim; vd++)
-   {
-      for (int j = 0; j < size; j++)
-      {
-         const int sdof = vdofs[j];
-         MFEM_ASSERT(sdof < nsd && -1-sdof < nsd, "");
-         vdofs[size*vd+j] = (sdof >= 0) ? nsd*vd+sdof : -1-(nsd*vd+(-1-sdof));
-      }
-   }
-   size *= vdim;
-   for (int j = 0; j < size; j++)
+   // Convert local dofs to local vdofs.
+   Ordering::DofsToVDofs<Ordering::byNODES>(nd/vdim, vdim, vdofs);
+   // Convert local vdofs to global vdofs.
+   for (int j = 0; j < vdofs.Size(); j++)
    {
       const int ldof = vdofs[j];
       vdofs[j] = (ldof >= 0) ? vol_vdofs[ldof] : -1-vol_vdofs[-1-ldof];

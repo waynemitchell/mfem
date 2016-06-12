@@ -57,7 +57,10 @@ protected:
 
    int meshgen; // see MeshGenerator()
 
-   long sequence; // counter for checking order of Space and GridFunction updates
+   // Counter for Mesh transformations: refinement, derefinement, rebalancing.
+   // Used for checking during Update operations on objects depending on the
+   // Mesh, such as FiniteElementSpace, GridFunction, etc.
+   long sequence;
 
    Array<Element *> elements;
    // Vertices are only at the corners of elements, where you would expect them
@@ -68,6 +71,7 @@ protected:
 
    struct FaceInfo
    {
+      // Inf = 64 * LocalFaceIndex + FaceOrientation
       int Elem1No, Elem2No, Elem1Inf, Elem2Inf;
       int NCFace; /* -1 if this is a regular conforming/boundary face;
                      index into 'nc_faces_info' if >= 0. */
@@ -556,6 +560,10 @@ public:
        Return the edge index of boundary element i. (2D)
        Return the face index of boundary element i. (3D) */
    int GetBdrElementEdgeIndex(int i) const;
+
+   /** @brief For the given boundary element, bdr_el, return its adjacent
+       element and its info, i.e. 64*local_bdr_index+bdr_orientation. */
+   void GetBdrElementAdjacentElement(int bdr_el, int &el, int &info) const;
 
    /// Returns the type of element i.
    int GetElementType(int i) const;

@@ -281,12 +281,12 @@ void NCMesh::Node::UnrefVertex(HashTable<Node> &nodes)
    if (!vertex && !edge) { nodes.Delete(this); }
 }
 
-void NCMesh::Node::UnrefEdge(HashTable<Node> &nodes)
+void NCMesh::Node::UnrefEdge(Node *node, HashTable<Node> &nodes)
 {
-   MFEM_ASSERT(this, "node not found.");
-   MFEM_ASSERT(edge, "cannot unref a nonexistent edge.");
-   if (!edge->Unref()) { edge = NULL; }
-   if (!vertex && !edge) { nodes.Delete(this); }
+   MFEM_ASSERT(node, "node not found.");
+   MFEM_ASSERT(node->edge, "cannot unref a nonexistent edge.");
+   if (!node->edge->Unref()) { node->edge = NULL; }
+   if (!node->vertex && !node->edge) { nodes.Delete(node); }
 }
 
 NCMesh::Node::Node(const Node& other)
@@ -351,7 +351,7 @@ void NCMesh::UnrefElementNodes(Element *elem)
    {
       const int* ev = gi.edges[i];
       //nodes.Peek(node[ev[0]], node[ev[1]])->UnrefEdge(nodes); -- pre-aniso
-      PeekAltParents(node[ev[0]], node[ev[1]])->UnrefEdge(nodes);
+      Node::UnrefEdge(PeekAltParents(node[ev[0]], node[ev[1]]), nodes);
    }
 
    // unref all vertices (possibly destroying them)
