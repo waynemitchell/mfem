@@ -87,6 +87,7 @@ class Mesh
    friend class ParNCMesh;
 #endif
    friend class NURBSExtension;
+   friend class SidreDataCollection;
 
 protected:
    static const size_t INITIAL_INDICES_SIZE = 1024;

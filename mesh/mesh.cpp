@@ -6577,7 +6577,6 @@ void Mesh::QuadUniformRefinement()
       printf("v[0] is %d _v[0] is %d\n", v[0], _v[0]);
       */
    
-      const int COUNT = 4; 
       elements[j+0] = new Quadrilateral(oedge+e[0], v[1], oedge+e[1],
                                         oelem+i, attr, (*element_allocator)(Quadrilateral::NUM_INDICES));
       if (elements[i]->GetVertices() != v) {

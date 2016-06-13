@@ -15,12 +15,28 @@
 namespace mfem
 {
 
+// TODO - This code can be refactored into a generic class with some static vectors,
+// one per element type, or better yet MFEM arrays.  If the datastore enhanced the
+// data buffer class to provide an attribute to denote a 'last used index' or similar
+// when filling up a data buffer, it would be similar in capability to an MFEM array.
+// DataBuffer already has the alloc and realloc capability.
+ 
+#ifdef MFEM_USE_ELEM_BUFFER
+std::vector<int> Quadrilateral::all_indices;
+#endif
+
 const int Quadrilateral::edges[4][2] =
 {{0, 1}, {1, 2}, {2, 3}, {3, 0}};
 
 Quadrilateral::Quadrilateral( const int *ind, int attr, int *alloc )
    : Element(Geometry::SQUARE, alloc, 4)
 {
+#ifdef MFEM_USE_ELEM_BUFFER
+   int size = all_indices.size();
+   all_indices.resize( size + 4 );
+   indices = &(all_indices[size]);
+#endif
+
    attribute = attr;
    for (int i=0; i<4; i++)
    {
@@ -32,6 +48,12 @@ Quadrilateral::Quadrilateral( int ind1, int ind2, int ind3, int ind4,
                               int attr, int *alloc ) 
    : Element(Geometry::SQUARE, alloc, 4)
 {
+#ifdef MFEM_USE_ELEM_BUFFER
+   int size = all_indices.size();
+   all_indices.resize( size + 4 );
+   indices = &(all_indices[size]);
+#endif
+
    attribute  = attr;
    indices[0] = ind1;
    indices[1] = ind2;

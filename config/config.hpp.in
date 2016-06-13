@@ -53,11 +53,17 @@
 // Enable MFEM functionality based on the SuperLU library.
 // #define MFEM_USE_SUPERLU
 
+// Internal MFEM option: enable group/batch allocation for some small objects.
+// #define MFEM_USE_MEMALLOC
+
 // Enable functionality based on the Gecko library
 // #define MFEM_USE_GECKO
 
 // Enable secure socket streams based on the GNUTLS library
 // #define MFEM_USE_GNUTLS
+
+// Enable sidre support
+// #define MFEM_USE_SIDRE
 
 // Windows specific options
 #ifdef _WIN32
