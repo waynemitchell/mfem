@@ -84,7 +84,9 @@ public:
 int main(int argc, char *argv[])
 {
 // TODO - Prototype only!  If number of elements exceeds the amount reserved, the vector will resize and invalidate all the pointers!
+#ifdef MFEM_USE_ELEM_BUFFER
   mfem::Quadrilateral::all_indices.reserve(1024);
+#endif
 
 
   // 1. Parse command-line options.
