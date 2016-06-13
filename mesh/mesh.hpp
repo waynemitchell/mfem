@@ -37,12 +37,15 @@ class Element_allocator {
       // is not valid)
       int update_elements(int *new_address);
    public:
-      Element_allocator(mfem::Array<mfem::Element*> *_elements,
+      Element_allocator(mfem::Array<mfem::Element*> *_elements = NULL,
             int *_data = NULL)
          { elements = _elements; data = _data; count = 0; };
       virtual ~Element_allocator() {};
       inline virtual int *alloc(size_t) { return NULL; };
       inline int *get_data() { return data; };
+      inline int get_count() { return count; };
+      inline int set_Element_array(mfem::Array<mfem::Element*> *_elements) 
+         { elements = _elements; return 0; };
       // a nicety so we can call the object (functor fun)
       inline int *operator()(size_t count) { return alloc(count); };
 };
@@ -56,7 +59,7 @@ class mem_Element_allocator : public Element_allocator {
       size_t capacity;
    public:
       mem_Element_allocator(size_t _capacity, 
-            mfem::Array<mfem::Element*> *_elements);
+            mfem::Array<mfem::Element*> *_elements = NULL);
       ~mem_Element_allocator();
       virtual int *alloc(size_t _count);
 };
@@ -110,6 +113,8 @@ protected:
    static Element_allocator null_allocator;
    Element_allocator *element_allocator;
    Element_allocator *boundary_allocator;
+   int init_Element_allocators(Element_allocator* = NULL, 
+                               Element_allocator* = NULL);
 
    struct FaceInfo
    {
@@ -481,6 +486,10 @@ public:
        generated. */
    Mesh(std::istream &input, int generate_edges = 0, int refine = 1,
         bool fix_orientation = true);
+
+   Mesh(std::istream &input, Element_allocator *elm_alloc,
+        Element_allocator *bdry_alloc, int generate_edges = 0, 
+        int refine = 1, bool fix_orientation = true);
 
    /// Create a disjoint mesh from the given mesh array
    Mesh(Mesh *mesh_array[], int num_pieces);

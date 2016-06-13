@@ -30,6 +30,9 @@
 Element_allocator mfem::Mesh::null_allocator = Element_allocator(NULL);
 
 int Element_allocator::update_elements(int *old_address) {
+   if (!elements) {
+      throw "Incorrectly initialized Element allocator";
+   }
    mfem::Array<mfem::Element*> &elms = *elements;
    // the number of allocated ints we have gone
    // through. a good stopping condition since we know
@@ -2273,62 +2276,44 @@ Mesh::Mesh(const Mesh &mesh, bool copy_nodes)
 Mesh::Mesh(std::istream &input, int generate_edges, int refine,
            bool fix_orientation)
 {
-   element_allocator = NULL;
-   boundary_allocator = NULL;
+   init_Element_allocators();
    Init();
    InitTables();
    Load(input, generate_edges, refine, fix_orientation);
 }
 
 
-/*
-// were going to try to provide 
-int *Mesh::indices_alloc(size_t count) {
-   if (!indices) {
-      indices_capacity = Mesh::INITIAL_INDICES_SIZE; 
-      indices_count = 0;
-      indices = (int*)malloc(indices_capacity * sizeof(int));
-      if (!indices) {
-         throw "Memory Allocation Error";
-      }
-      else {
-         printf("allocated `indices` to size %zu (ints)\n", indices_capacity);
-      }
+int Mesh::init_Element_allocators(Element_allocator *elm_alloc,
+                         Element_allocator * bndry_alloc) {
+   if (elm_alloc) {
+      element_allocator = elm_alloc;
+      elm_alloc->set_Element_array(&elements);
    }
-   if (indices_count + count > indices_capacity) {
-      indices_capacity *= 2;
-      printf("reallocating indices from size %zu to %zu\n", 
-            indices_capacity / 2, indices_capacity);
-      int *old_address = indices;
-      indices = (int*)realloc(indices, indices_capacity * sizeof(int));
-      size_t index_count = 0;
-      for (int i = 0; i < elements.Size() && 
-            index_count < indices_count; i++) {
-         if (elements[i] == NULL || elements[i]->IsSelfAlloc()) {
-            continue;
-         }
-         int *temp = elements[i]->GetIndices();
-         size_t offset = elements[i]->GetIndices() - old_address;
-         elements[i]->SetIndices(indices + offset);
-         index_count += elements[i]->GetNVertices();
-         {
-            printf("Moving %p (offset of %zu from %p)\n", temp,
-                  offset, old_address);
-            temp = elements[i]->GetIndices();
-            offset = temp - indices;
-            printf("New location %p (offset of %zu from %p)\n",
-                  temp, offset, indices);
-         } 
-         // TODO: check for breaks in the memory block and clean up?
-      }
+   else {
+      element_allocator = &null_allocator;
    }
-   indices_count += count;
-   // we have already incremented incides_count to include the
-   // new set of indices so add the total index count to the 
-   // base pointer and move back 'count' entires in indices
-   return indices + (indices_count - count);
+   if (bndry_alloc) {
+      boundary_allocator = bndry_alloc;
+      bndry_alloc->set_Element_array(&boundary);
+   }
+   else {
+      boundary_allocator = &null_allocator;
+   }
+   return 0;
 }
-*/
+
+
+Mesh::Mesh(std::istream &input, 
+           Element_allocator *elm_alloc,
+           Element_allocator *bndry_alloc,
+           int generate_edges, int refine,
+           bool fix_orientation)
+{
+   init_Element_allocators(elm_alloc, bndry_alloc);
+   Init();
+   InitTables();
+   Load(input, generate_edges, refine, fix_orientation);
+}
 
 
 Element *Mesh::NewElement(int geom, Element_allocator &f)
@@ -2461,10 +2446,12 @@ void Mesh::ReadMFEMMesh(std::istream &input, bool mfem_v11, int &curved)
    elements.SetSize(NumOfElements);
    
    // Element allocator lazy init for ex9 
+   /*
    {
       element_allocator = new mem_Element_allocator(INITIAL_INDICES_SIZE, &elements);
       boundary_allocator = new mem_Element_allocator(INITIAL_INDICES_SIZE, &elements);
    }
+   */
    
 
    for (int j = 0; j < NumOfElements; j++)
@@ -9600,8 +9587,8 @@ Mesh::~Mesh()
       FreeElement(faces[i]);
    }
 
-   delete element_allocator;
-   delete boundary_allocator;
+   //delete element_allocator;
+   //delete boundary_allocator;
 
    DeleteTables();
 }

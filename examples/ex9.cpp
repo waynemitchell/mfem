@@ -125,6 +125,13 @@ int main(int argc, char *argv[])
    }
    args.PrintOptions(cout);
 
+
+   // 1.7 Initialize the allocators for the elements in this example
+   size_t default_size = 1024;
+   mem_Element_allocator elm_alloc(default_size);
+   mem_Element_allocator bndry_alloc(default_size);
+
+
    // 2. Read the mesh from the given mesh file. We can handle geometrically
    //    periodic meshes in this code.
    Mesh *mesh;
@@ -134,7 +141,7 @@ int main(int argc, char *argv[])
       cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
       return 2;
    }
-   mesh = new Mesh(imesh, 1, 1);
+   mesh = new Mesh(imesh, &elm_alloc, &bndry_alloc, 1, 1);
    imesh.close();
    int dim = mesh->Dimension();
 
@@ -291,6 +298,20 @@ int main(int argc, char *argv[])
       osol.precision(precision);
       u.Save(osol);
    }
+
+   
+   int *data = elm_alloc.get_data();
+   cout << "printing element indices" << endl;
+   for (int i = 0; i < elm_alloc.get_count(); i++) {
+      cout << data[i] << endl;
+   }
+   cout << "done" << endl << endl;
+
+   cout << "printing boundary indices" << endl;
+   for (int i = 0; i < bndry_alloc.get_count(); i++) {
+      cout << data[i] << endl;
+   }
+   cout << "done" << endl << endl;
 
    // 10. Free the used memory.
    delete ode_solver;
