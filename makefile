@@ -129,7 +129,7 @@ ifeq ($(MFEM_USE_SIDRE),YES)
    HDF5_DIR ?= @MFEM_DIR@/../hdf5
 
    INCFLAGS += -I$(SIDRE_DIR)/include -I$(CONDUIT_DIR)/include -I$(HDF5_DIR)/include
-   ALL_LIBS += -L$(SIDRE_DIR)/lib -L$(CONDUIT_DIR)/lib -L$(HDF5_DIR)/lib -lsidre -lslic -lcommon -lconduit -lconduit_relay -llibb64 -lhdf5 -lz -ldl
+   ALL_LIBS += -L$(SIDRE_DIR)/lib -L$(CONDUIT_DIR)/lib -L$(HDF5_DIR)/lib -Wl,-rpath=$(HDF5_DIR)/lib -lsidre -lslic -lcommon -lconduit -lconduit_relay -llibb64 -lhdf5 -lz -ldl
 endif
 
 
