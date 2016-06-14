@@ -636,7 +636,7 @@ void SidreDataCollection::RegisterField(const char* name, GridFunction *gf)
 
 // Private helper functions
 //void SidreDataCollection::addElements( asctoolkit::sidre::DataGroup * group, Array<Element *>& elements )
-void SidreDataCollection::addElements( asctoolkit::sidre::DataGroup * group, Element_allocator &a)
+void SidreDataCollection::addElements( asctoolkit::sidre::DataGroup * group, Element_allocator *a)
 {
   // NOTE:
   // This is just a first pass at adding element data.
@@ -650,8 +650,9 @@ void SidreDataCollection::addElements( asctoolkit::sidre::DataGroup * group, Ele
 
   namespace sidre = asctoolkit::sidre;
   using sidre::detail::SidreTT;
+  const mfem::Array<Element*> *elements = a->get_elements();
 
-  group->createView("number")->setScalar( elements.Size() );
+  group->createView("number")->setScalar( elements->Size() );
   // TODO - Need a helper function to map element shape id to a string name.
   // For now put in the int value.
   // Assume all elements are same type ( for this prototype only ).
@@ -662,18 +663,19 @@ void SidreDataCollection::addElements( asctoolkit::sidre::DataGroup * group, Ele
 
   // This can easily be converted to use a data buffer prepared by the datastore instead of a stl vector in mfem.
   // TODO - Discuss refactoring material attributes as a field with MFEM team.
-  conn_view->setExternalDataPtr( a.get_data() );
-  conn_view-> apply( SidreTT<mfem_int_t>::id, a.get_count() );
+  // the argument here cannot be const
+  conn_view->setExternalDataPtr( a->get_data() );
+  conn_view-> apply( SidreTT<mfem_int_t>::id, a->get_count() );
 
   // Have to build array of material_attributes, unless we want # elems entries in datastore.
   // Unless, the data structure is changed in mfem.
   sidre::DataView * attributes_view = group->createView("material_attributes", SidreTT<mfem_int_t>::id,
-    elements.Size() ) -> allocate();
+    elements->Size() ) -> allocate();
   mfem_int_t * attributes_ptr = attributes_view->getArray();
 
-  for (int i = 0; i < elements.Size(); i++)
+  for (int i = 0; i < elements->Size(); i++)
   {
-    attributes_ptr[i] = elements[i]->GetAttribute();
+    attributes_ptr[i] = (*elements)[i]->GetAttribute();
   }
 }
 

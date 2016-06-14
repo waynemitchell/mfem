@@ -245,7 +245,8 @@ public:
 private:
    // Private helper functions
 
-   void addElements( asctoolkit::sidre::DataGroup * group, Array<Element *>& elements );
+   // why can't this be const? (the Element_allocator)
+   void addElements(asctoolkit::sidre::DataGroup * group, Element_allocator*);
 
    void addField(asctoolkit::sidre::DataGroup * grp, GridFunction* gf);
 

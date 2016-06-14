@@ -31,6 +31,7 @@ class Element_allocator {
       mfem::Array<mfem::Element*> *elements;
       int *data;
       size_t count;
+      int *attributes;
       // needs to be called on a realloc (if the
       // address of data moves) otherwise the Elements
       // in elements are invalid (the indices pointer
@@ -40,14 +41,30 @@ class Element_allocator {
       Element_allocator(mfem::Array<mfem::Element*> *_elements = NULL,
             int *_data = NULL)
          { elements = _elements; data = _data; count = 0; };
+      /*Element_allocator(mfem::Array<mfem::Element*> *_elements = NULL,
+                        int *_data = NULL, 
+                        int *_attributes = NULL, 
+                        int _count = 0)
+         { elements = _elements; 
+           data = _data; 
+           attributes = _attributes; 
+           count = _count; };*/
+
+
       virtual ~Element_allocator() {};
-      inline virtual int *alloc(size_t) { return NULL; };
-      inline int *get_data() { return data; };
-      inline int get_count() { return count; };
-      inline int set_Element_array(mfem::Array<mfem::Element*> *_elements) 
-         { elements = _elements; return 0; };
+
       // a nicety so we can call the object (functor fun)
       inline int *operator()(size_t count) { return alloc(count); };
+      inline virtual int *alloc(size_t) { return NULL; };
+
+      inline int *get_data() { return data; };
+     // inline int *get_attribute { return attributes; };
+      inline int get_count() { return count; };
+      inline const mfem::Array<mfem::Element*>* get_elements() const
+         { return elements; };
+
+      inline int set_Element_array(mfem::Array<mfem::Element*> *_elements) 
+         { elements = _elements; return 0; };
 };
 
 
@@ -60,6 +77,9 @@ class mem_Element_allocator : public Element_allocator {
    public:
       mem_Element_allocator(size_t _capacity, 
             mfem::Array<mfem::Element*> *_elements = NULL);
+      mem_Element_allocator(size_t _capacity, 
+            size_t element_size,
+            mfem::Array<mfem::Element*> *_elements = NULL);
       ~mem_Element_allocator();
       virtual int *alloc(size_t _count);
 };
@@ -68,6 +88,8 @@ class mem_Element_allocator : public Element_allocator {
 class passthru_allocator : public Element_allocator {
    public:
       passthru_allocator(int *data) : Element_allocator(NULL, data) {};
+      //passthru_allocator(int *data,
+       //                  int *attributes) : Element_allocator(NULL, data) {};
       ~passthru_allocator() {};
       int *alloc(size_t _count) { count += _count; return data + count - _count; };
 };
@@ -963,8 +985,9 @@ public:
    void MesquiteSmooth(const int mesquite_option = 0);
 
    /// Get the allocators for this mesh
-   inline const Element_allocator *get_element_allocator() const { return element_allocator; };
-   inline const Element_allocator *get_boundary_allocator() const { return element_allocator; };
+   /// It would be ni
+   inline Element_allocator *get_element_allocator() { return element_allocator; };
+   inline Element_allocator *get_boundary_allocator() { return element_allocator; };
 
    /// Destroys mesh.
    virtual ~Mesh();
