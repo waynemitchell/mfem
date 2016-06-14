@@ -64,6 +64,14 @@ class mem_Element_allocator : public Element_allocator {
       virtual int *alloc(size_t _count);
 };
 
+
+class passthru_allocator : public Element_allocator {
+   public:
+      passthru_allocator(int *data) : Element_allocator(NULL, data) {};
+      ~passthru_allocator() {};
+      int *alloc(size_t _count) { count += _count; return data + count - _count; };
+};
+
 namespace mfem
 {
 
@@ -116,6 +124,10 @@ protected:
    Element_allocator *boundary_allocator;
    int init_Element_allocators(Element_allocator* = NULL, 
                                Element_allocator* = NULL);
+   int reinit_Element_allocators(Element_allocator* elms,
+                               Geometry::Type elms_type,
+                               Element_allocator* bndry,
+                               Geometry::Type bndry_type);
 
    struct FaceInfo
    {
@@ -405,6 +417,14 @@ public:
        new mesh. If 'copy_nodes' is false, use a shallow (pointer) copy for the
        nodes, if present. */
    explicit Mesh(const Mesh &mesh, bool copy_nodes = true);
+
+
+   Mesh(double *_vertices,
+        Element_allocator *elms, Geometry::Type elems_type,
+        Element_allocator *bndry, Geometry::Type bndry_type,
+        int _Dim, int NVert, int NElem, int NBdrElem = 0, 
+        int _spaceDim= -1);
+
 
    Mesh(int _Dim, int NVert, int NElem, int NBdrElem = 0, int _spaceDim= -1)
    {

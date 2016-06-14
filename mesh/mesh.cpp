@@ -43,7 +43,7 @@ int Element_allocator::update_elements(int *old_address) {
       if (elms[i] == NULL || elms[i]->IsSelfAlloc()) {
          continue;
       }
-      int *temp = elms[i]->GetIndices();
+      const int *temp = elms[i]->GetIndices();
       size_t offset = elms[i]->GetIndices() - old_address;
       elms[i]->SetIndices(data + offset);
       data_counter += elms[i]->GetNVertices();
@@ -109,7 +109,6 @@ int *mem_Element_allocator::alloc(size_t _count) {
    // base pointer and move back 'count' entires in indices
    return data + (count - _count);
 }
-
 
 
 namespace mfem
@@ -2283,6 +2282,26 @@ Mesh::Mesh(std::istream &input, int generate_edges, int refine,
 }
 
 
+// TODO: use real error objects
+int Mesh::reinit_Element_allocators(Element_allocator *elems, Geometry::Type elems_type,
+      Element_allocator *bndry, Geometry::Type bndry_type) {
+   if (!elems || !bndry) {
+      throw "Can't do this, must be preallocated\n";
+   }
+   init_Element_allocators(elems, bndry);
+   for (int i = 0; i < elements.Size(); i++) {
+      elements[i] = NewElement(elems_type, *element_allocator);
+   }
+   NumOfElements = elements.Size();
+
+   for (int i = 0; i < boundary.Size(); i++) {
+      boundary[i] = NewElement(bndry_type, *boundary_allocator);
+   }
+   NumOfBdrElements = boundary.Size();
+
+   return 0;
+}
+
 int Mesh::init_Element_allocators(Element_allocator *elm_alloc,
                          Element_allocator * bndry_alloc) {
    if (elm_alloc) {
@@ -2316,20 +2335,41 @@ Mesh::Mesh(std::istream &input,
 }
 
 
+Mesh::Mesh(double *_vertices,
+      Element_allocator *elems, Geometry::Type elems_type,
+      Element_allocator *bndry, Geometry::Type bndry_type,
+      int _Dim, int NVert, int NElem, int NBdrElem, 
+      int _spaceDim) {
+   if (_spaceDim == -1)
+   {
+      _spaceDim = _Dim;
+   }
+   InitMesh(_Dim, _spaceDim, NVert, NElem, NBdrElem);
+   for (int i = 0; i < NVert; i++) {
+      // use Dim here??
+      for (int j = 0; j < Dim; j++) {
+         vertices[i](j) = _vertices[Dim * i + j];
+      }
+   }
+   NumOfVertices = NVert;
+   reinit_Element_allocators(elems, elems_type, bndry, bndry_type);
+}
+
+
 Element *Mesh::NewElement(int geom, Element_allocator &f)
 {
    switch (geom)
    {
-      case Geometry::POINT:     return (new Point(f(1)));
-      case Geometry::SEGMENT:   return (new Segment(f(2)));
-      case Geometry::TRIANGLE:  return (new Triangle(f(3)));
-      case Geometry::SQUARE:    return (new Quadrilateral(f(4)));
-      case Geometry::CUBE:      return (new Hexahedron(f(8)));
+      case Geometry::POINT:     return (new Point(f(Point::NUM_INDICES)));
+      case Geometry::SEGMENT:   return (new Segment(f(Segment::NUM_INDICES)));
+      case Geometry::TRIANGLE:  return (new Triangle(f(Triangle::NUM_INDICES)));
+      case Geometry::SQUARE:    return (new Quadrilateral(f(Quadrilateral::NUM_INDICES)));
+      case Geometry::CUBE:      return (new Hexahedron(f(Hexahedron::NUM_INDICES)));
       case Geometry::TETRAHEDRON:
 #ifdef MFEM_USE_MEMALLOC
          return TetMemory.Alloc();
 #else
-         return (new Tetrahedron((this->*f)(6)));
+         return (new Tetrahedron(f(Tetrahedron::NUM_INDICES)));
 #endif
    }
 

@@ -55,7 +55,7 @@ public:
    inline void SetIndices(int *p) { indices = p; };
 
    /// Returns the indices pointer
-   inline int *GetIndices() { return indices; };
+   inline const int *GetIndices() const { return indices; };
 
    /// Returns element's type
    virtual int GetType() const = 0;
