@@ -18,6 +18,8 @@
 #include "../linalg/densemat.hpp"
 #include "../fem/geom.hpp"
 
+#include <stdio.h>
+
 namespace mfem
 {
 
@@ -29,8 +31,13 @@ class Element
 protected:
 
    /// Element's attribute (specifying material property, etc).
-   int attribute, base_geom;
+   int attribute;
+   int base_geom;
+   int *indices;
+   bool self_alloc;
 
+   /// Assign or allocate storage for this element;s indices
+   void init_indices(int *alloc, size_t count);
 public:
 
    /// Constants for the classes derived from Element.
@@ -39,10 +46,22 @@ public:
              };
 
    /// Default element constructor.
-   explicit Element(int bg = Geometry::POINT) { attribute = -1; base_geom = bg; }
+   explicit Element(int bg = Geometry::POINT, int *alloc = NULL, size_t count = 0) { 
+      attribute = -1; base_geom = bg; init_indices(alloc, count); }
+
+   /// Set where the indices pointer is pointing.
+   /// Useful if the memory location of indices data
+   ///  has moved
+   inline void SetIndices(int *p) { indices = p; };
+
+   /// Returns the indices pointer
+   inline const int *GetIndices() const { return indices; };
 
    /// Returns element's type
    virtual int GetType() const = 0;
+
+   /// Does this element own it's indices allocation
+   inline bool IsSelfAlloc() { return self_alloc; };
 
    int GetGeometryType() const { return base_geom; }
 
@@ -59,6 +78,8 @@ public:
    virtual void GetVertices(Array<int> &v) const = 0;
 
    virtual int *GetVertices() = 0;
+
+   inline int **GetVerticesPtr() { return &indices; };
 
    const int *GetVertices() const
    { return const_cast<Element *>(this)->GetVertices(); }
@@ -96,7 +117,7 @@ public:
    virtual Element *Duplicate(Mesh *m) const = 0;
 
    /// Destroys element.
-   virtual ~Element() { }
+   virtual ~Element() { if (self_alloc)  delete indices;  }
 };
 
 }

@@ -22,6 +22,56 @@
 #include "../fem/coefficient.hpp"
 #include <iostream>
 
+
+// Element allocator class.  Holds an array of ints and a pointer
+// to an mfem::Array of mfem::Element* so that we can update their
+// `indices` pointer on a reallocation
+class Element_allocator {
+   protected:
+      mfem::Array<mfem::Element*> *elements;
+      int *data;
+      size_t count;
+      // needs to be called on a realloc (if the
+      // address of data moves) otherwise the Elements
+      // in elements are invalid (the indices pointer
+      // is not valid)
+      int update_elements(int *new_address);
+   public:
+      Element_allocator(mfem::Array<mfem::Element*> *_elements = NULL,
+            int *_data = NULL)
+         { elements = _elements; data = _data; count = 0; };
+      virtual ~Element_allocator() {};
+      inline virtual int *alloc(size_t) { return NULL; };
+      inline int *get_data() { return data; };
+      inline int get_count() { return count; };
+      inline int set_Element_array(mfem::Array<mfem::Element*> *_elements) 
+         { elements = _elements; return 0; };
+      // a nicety so we can call the object (functor fun)
+      inline int *operator()(size_t count) { return alloc(count); };
+};
+
+
+// extension of Element_allocator that holds it's own data.
+//  It will realloc on the fly
+class mem_Element_allocator : public Element_allocator {
+   protected:
+      // maybe this should be an Element_allocator entry?
+      size_t capacity;
+   public:
+      mem_Element_allocator(size_t _capacity, 
+            mfem::Array<mfem::Element*> *_elements = NULL);
+      ~mem_Element_allocator();
+      virtual int *alloc(size_t _count);
+};
+
+
+class passthru_allocator : public Element_allocator {
+   public:
+      passthru_allocator(int *data) : Element_allocator(NULL, data) {};
+      ~passthru_allocator() {};
+      int *alloc(size_t _count) { count += _count; return data + count - _count; };
+};
+
 namespace mfem
 {
 
@@ -48,6 +98,7 @@ class Mesh
    friend class SidreDataCollection;
 
 protected:
+   static const size_t INITIAL_INDICES_SIZE = 1024;
    int Dim;
    int spaceDim;
 
@@ -66,6 +117,17 @@ protected:
    Array<Vertex> vertices;
    Array<Element *> boundary;
    Array<Element *> faces;
+
+   // we just allocated contiguously
+   static Element_allocator null_allocator;
+   Element_allocator *element_allocator;
+   Element_allocator *boundary_allocator;
+   int init_Element_allocators(Element_allocator* = NULL, 
+                               Element_allocator* = NULL);
+   int reinit_Element_allocators(Element_allocator* elms,
+                               Geometry::Type elms_type,
+                               Element_allocator* bndry,
+                               Geometry::Type bndry_type);
 
    struct FaceInfo
    {
@@ -142,10 +204,10 @@ protected:
 
    void DeleteTables();
 
-   Element *ReadElementWithoutAttr(std::istream &);
+   Element *ReadElementWithoutAttr(std::istream &, Element_allocator& = null_allocator);
    static void PrintElementWithoutAttr(const Element *, std::ostream &);
 
-   Element *ReadElement(std::istream &);
+   Element *ReadElement(std::istream &, Element_allocator& = null_allocator);
    static void PrintElement(const Element *, std::ostream &);
 
    // Readers for different mesh formats, used in the Load() method
@@ -356,6 +418,14 @@ public:
        nodes, if present. */
    explicit Mesh(const Mesh &mesh, bool copy_nodes = true);
 
+
+   Mesh(double *_vertices,
+        Element_allocator *elms, Geometry::Type elems_type,
+        Element_allocator *bndry, Geometry::Type bndry_type,
+        int _Dim, int NVert, int NElem, int NBdrElem = 0, 
+        int _spaceDim= -1);
+
+
    Mesh(int _Dim, int NVert, int NElem, int NBdrElem = 0, int _spaceDim= -1)
    {
       if (_spaceDim == -1)
@@ -365,7 +435,7 @@ public:
       InitMesh(_Dim, _spaceDim, NVert, NElem, NBdrElem);
    }
 
-   Element *NewElement(int geom);
+   Element *NewElement(int geom, Element_allocator& = null_allocator);
 
    void AddVertex(const double *);
    void AddTri(const int *vi, int attr = 1);
@@ -437,6 +507,10 @@ public:
        generated. */
    Mesh(std::istream &input, int generate_edges = 0, int refine = 1,
         bool fix_orientation = true);
+
+   Mesh(std::istream &input, Element_allocator *elm_alloc,
+        Element_allocator *bdry_alloc, int generate_edges = 0, 
+        int refine = 1, bool fix_orientation = true);
 
    /// Create a disjoint mesh from the given mesh array
    Mesh(Mesh *mesh_array[], int num_pieces);

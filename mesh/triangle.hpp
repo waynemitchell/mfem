@@ -23,20 +23,22 @@ namespace mfem
 class Triangle : public Element
 {
 protected:
-   int indices[3];
+   //int indices[3];
+   //int *indices;
    static const int edges[3][2];
 
    unsigned transform;
 
 public:
+   static const size_t NUM_INDICES = 3;
 
-   Triangle() : Element(Geometry::TRIANGLE) { transform = 0; }
-
-   /// Constructs triangle by specifying the indices and the attribute.
-   Triangle(const int *ind, int attr = 1);
+   Triangle(int *alloc = NULL) : Element(Geometry::TRIANGLE, alloc, 3) { transform = 0; }
 
    /// Constructs triangle by specifying the indices and the attribute.
-   Triangle(int ind1, int ind2, int ind3, int attr = 1);
+   Triangle(const int *ind, int attr = 1, int *alloc = NULL);
+
+   /// Constructs triangle by specifying the indices and the attribute.
+   Triangle(int ind1, int ind2, int ind3, int attr = 1, int *alloc = NULL);
 
    /// Return element's type.
    virtual int GetType() const { return Element::TRIANGLE; }

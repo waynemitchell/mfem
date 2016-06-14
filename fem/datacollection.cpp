@@ -22,7 +22,7 @@
 #endif
 
 #ifdef MFEM_USE_SIDRE
-  #include "sidre/sidre.hpp"
+#include "sidre/sidre.hpp"
 #endif // MFEM_USE_SIDRE
 
 namespace mfem

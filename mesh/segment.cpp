@@ -15,7 +15,8 @@
 namespace mfem
 {
 
-Segment::Segment( const int *ind, int attr ) : Element(Geometry::SEGMENT)
+Segment::Segment( const int *ind, int attr, int *alloc ) 
+   : Element(Geometry::SEGMENT, alloc, 2)
 {
    attribute = attr;
    for (int i=0; i<2; i++)
@@ -24,7 +25,8 @@ Segment::Segment( const int *ind, int attr ) : Element(Geometry::SEGMENT)
    }
 }
 
-Segment::Segment( int ind1, int ind2, int attr ) : Element(Geometry::SEGMENT)
+Segment::Segment( int ind1, int ind2, int attr, int *alloc ) 
+   : Element(Geometry::SEGMENT, alloc, 2)
 {
    attribute  = attr;
    indices[0] = ind1;

@@ -22,14 +22,16 @@ namespace mfem
 class Point : public Element
 {
 protected:
-   int indices[1];
+   //int indices[1];
+   //int *indices;
 
 public:
+   static const size_t NUM_INDICES = 1;
 
-   Point() : Element(Geometry::POINT) {}
+   Point(int *alloc = NULL) : Element(Geometry::POINT, alloc, 1) { }
 
    /// Constructs triangle by specifying the indices and the attribute.
-   Point( const int *ind, int attr = -1 );
+   Point( const int *ind, int attr = -1, int *alloc = NULL );
 
    /// Return element's type.
    virtual int GetType() const { return Element::POINT; }

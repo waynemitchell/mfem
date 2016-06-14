@@ -22,7 +22,7 @@ namespace mfem
 class Tetrahedron : public Element
 {
 protected:
-   int indices[4];
+   //int indices[4];
    static const int edges[6][2];
 
    /** The refinement flag keeps (in order) :
@@ -38,6 +38,7 @@ protected:
    unsigned transform;
 
 public:
+   static const size_t NUM_INDICES = 4;
 
    /// Constants for different types of tetrahedrons.
    enum { TYPE_PU=0, TYPE_A=1, TYPE_PF=2, TYPE_O=3, TYPE_M=4 };
@@ -46,10 +47,11 @@ public:
    { refinement_flag = 0; transform = 0; }
 
    /// Constructs tetrahedron by specifying the indices and the attribute.
-   Tetrahedron(const int *ind, int attr = 1);
+   Tetrahedron(const int *ind, int attr = 1, int *alloc = NULL);
 
    /// Constructs tetrahedron by specifying the indices and the attribute.
-   Tetrahedron(int ind1, int ind2, int ind3, int ind4, int attr = 1);
+   Tetrahedron(int ind1, int ind2, int ind3, int ind4, int attr = 1, 
+         int *alloc = NULL);
 
    /// Return element's type.
    virtual int GetType() const { return Element::TETRAHEDRON; }

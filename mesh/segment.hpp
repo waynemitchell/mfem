@@ -22,17 +22,19 @@ namespace mfem
 class Segment : public Element
 {
 protected:
-   int indices[2];
+   //int indices[2];
+   //int *indices;
 
 public:
+   static const size_t NUM_INDICES = 2;
 
-   Segment() : Element(Geometry::SEGMENT) {}
-
-   /// Constructs triangle by specifying the indices and the attribute.
-   Segment(const int *ind, int attr = 1);
+   Segment(int *alloc = NULL) : Element(Geometry::SEGMENT, alloc, 2) { }
 
    /// Constructs triangle by specifying the indices and the attribute.
-   Segment(int ind1, int ind2, int attr = 1);
+   Segment(const int *ind, int attr = 1, int *alloc = NULL);
+
+   /// Constructs triangle by specifying the indices and the attribute.
+   Segment(int ind1, int ind2, int attr = 1, int *alloc = NULL);
 
    /// Set the indices the element according to the input.
    virtual void SetVertices(const int *ind);
