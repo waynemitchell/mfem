@@ -962,6 +962,10 @@ public:
 
    void MesquiteSmooth(const int mesquite_option = 0);
 
+   /// Get the allocators for this mesh
+   inline const Element_allocator *get_element_allocator() const { return element_allocator; };
+   inline const Element_allocator *get_boundary_allocator() const { return element_allocator; };
+
    /// Destroys mesh.
    virtual ~Mesh();
 };

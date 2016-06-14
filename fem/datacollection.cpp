@@ -601,7 +601,7 @@ SidreDataCollection::SidreDataCollection(const char *collection_name, Mesh * new
      // Create group for mesh elements, add material, shape, and vertex indices.
      sidre::DataGroup * mesh_elements_grp = mesh_grp->createGroup("mesh_elements");
      // Get the pointer to the internal elements array in Mesh.
-     addElements(mesh_elements_grp, mesh->elements);
+     addElements(mesh_elements_grp, mesh->get_element_allocator());
   }
 
   if ( mesh->boundary.Size() > 0)
@@ -609,7 +609,7 @@ SidreDataCollection::SidreDataCollection(const char *collection_name, Mesh * new
      // Create group for boundary elements, add material, shape, and vertex indices.
      sidre::DataGroup * boundary_elements_grp = mesh_grp->createGroup("boundary_elements");
      // Get the pointer to the internal boundary elements array in Mesh.
-     addElements(boundary_elements_grp, mesh->boundary);
+     addElements(boundary_elements_grp, mesh->get_element_allocator());
   }
 
   // Add mesh vertices
@@ -635,7 +635,8 @@ void SidreDataCollection::RegisterField(const char* name, GridFunction *gf)
 }
 
 // Private helper functions
-void SidreDataCollection::addElements( asctoolkit::sidre::DataGroup * group, Array<Element *>& elements )
+//void SidreDataCollection::addElements( asctoolkit::sidre::DataGroup * group, Array<Element *>& elements )
+void SidreDataCollection::addElements( asctoolkit::sidre::DataGroup * group, Element_allocator &a)
 {
   // NOTE:
   // This is just a first pass at adding element data.
@@ -661,8 +662,8 @@ void SidreDataCollection::addElements( asctoolkit::sidre::DataGroup * group, Arr
 
   // This can easily be converted to use a data buffer prepared by the datastore instead of a stl vector in mfem.
   // TODO - Discuss refactoring material attributes as a field with MFEM team.
-  conn_view->setExternalDataPtr( &Quadrilateral::all_indices[0] );
-  conn_view-> apply( SidreTT<mfem_int_t>::id, Quadrilateral::all_indices.size() );
+  conn_view->setExternalDataPtr( a.get_data() );
+  conn_view-> apply( SidreTT<mfem_int_t>::id, a.get_count() );
 
   // Have to build array of material_attributes, unless we want # elems entries in datastore.
   // Unless, the data structure is changed in mfem.
