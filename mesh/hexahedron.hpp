@@ -30,7 +30,8 @@ public:
    static const int edges[12][2];
    static const int faces[6][4];  // same as Mesh::hex_faces
 
-   Hexahedron(int *alloc = NULL) : Element(Geometry::CUBE, alloc, 8) { };
+   Hexahedron() : Element(Geometry::CUBE, NULL, 8) { };
+   Hexahedron(int *alloc, int *attri) : Element(Geometry::CUBE, alloc, 8) { };
 
    /// Constructs hexahedron by specifying the indices and the attribute.
    Hexahedron(const int *ind, int attr = 1, int *alloc = NULL);

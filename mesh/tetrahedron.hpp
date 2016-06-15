@@ -43,7 +43,10 @@ public:
    /// Constants for different types of tetrahedrons.
    enum { TYPE_PU=0, TYPE_A=1, TYPE_PF=2, TYPE_O=3, TYPE_M=4 };
 
-   Tetrahedron() : Element(Geometry::TETRAHEDRON)
+   Tetrahedron() : Element(Geometry::TETRAHEDRON, NULL, 4)
+   { refinement_flag = 0; transform = 0; }
+
+   Tetrahedron(int *alloc, int *attri) : Element(Geometry::TETRAHEDRON, alloc, 4)
    { refinement_flag = 0; transform = 0; }
 
    /// Constructs tetrahedron by specifying the indices and the attribute.

@@ -14,7 +14,6 @@
 
 #include "../config/config.hpp"
 #include "element.hpp"
-#include <vector>
 
 namespace mfem
 {
@@ -23,9 +22,6 @@ namespace mfem
 class Quadrilateral : public Element
 {
 protected:
-#ifdef MFEM_USE_ELEM_BUFFER
-   int * indices;
-#endif
 
    static const int edges[4][2];
 
@@ -33,26 +29,9 @@ protected:
 public:
    static const size_t NUM_INDICES = 4;
 
-   Quadrilateral(int *alloc = NULL) : Element(Geometry::SQUARE, alloc, 4) { }
-#ifdef MFEM_USE_ELEM_BUFFER
-   // Putting this in class until I verify it works.
-   // Creating elements is not thread safe!
-   // Can replace with a sidre databuffer if we know total # elems from
-   // beginning, else we need a resize capability in data buffer.
-   // -- Aaron
-   static std::vector<int> all_indices;
-#endif
+   Quadrilateral() : Element(Geometry::SQUARE, NULL, 4) { }
+   Quadrilateral(int *alloc, int *attri) : Element(Geometry::SQUARE, alloc, 4) { }
 
-
-#ifdef MFEM_USE_ELEM_BUFFER
-   Quadrilateral() : Element(Geometry::SQUARE)
-   {
-      int size = all_indices.size();
-      all_indices.resize( size + 4 );
-      indices = &(all_indices[size]);
-
-   }
-#endif
 
    /// Constructs quadrilateral by specifying the indices and the attribute.
    /// We also allow an external memory location for the indices to be

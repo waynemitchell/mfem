@@ -32,7 +32,9 @@ protected:
 public:
    static const size_t NUM_INDICES = 3;
 
-   Triangle(int *alloc = NULL) : Element(Geometry::TRIANGLE, alloc, 3) { transform = 0; }
+   Triangle() : Element(Geometry::TRIANGLE, NULL, 3) { transform = 0; }
+   // can't make this the default with NULL b/c the next could be called
+   Triangle(int *alloc, int *attri) : Element(Geometry::TRIANGLE, alloc, 3) { transform = 0; }
 
    /// Constructs triangle by specifying the indices and the attribute.
    Triangle(const int *ind, int attr = 1, int *alloc = NULL);

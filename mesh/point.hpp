@@ -28,7 +28,8 @@ protected:
 public:
    static const size_t NUM_INDICES = 1;
 
-   Point(int *alloc = NULL) : Element(Geometry::POINT, alloc, 1) { }
+   Point() : Element(Geometry::POINT, NULL, 1) { }
+   Point(int *alloc, int *attri) : Element(Geometry::POINT, alloc, 1) { }
 
    /// Constructs triangle by specifying the indices and the attribute.
    Point( const int *ind, int attr = -1, int *alloc = NULL );

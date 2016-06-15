@@ -2165,8 +2165,7 @@ void Mesh::Make1D(int n, double sx)
 
 Mesh::Mesh(const Mesh &mesh, bool copy_nodes)
 {
-   element_allocator = NULL;
-   boundary_allocator = NULL;
+   init_Element_allocators();
    Dim = mesh.Dim;
    spaceDim = mesh.spaceDim;
 
@@ -2303,7 +2302,7 @@ int Mesh::reinit_Element_allocators(Element_allocator *elems, Geometry::Type ele
 }
 
 int Mesh::init_Element_allocators(Element_allocator *elm_alloc,
-                         Element_allocator * bndry_alloc) {
+                         Element_allocator *bndry_alloc) {
    if (elm_alloc) {
       element_allocator = elm_alloc;
       elm_alloc->set_Element_array(&elements);
@@ -2360,11 +2359,11 @@ Element *Mesh::NewElement(int geom, Element_allocator &f)
 {
    switch (geom)
    {
-      case Geometry::POINT:     return (new Point(f(Point::NUM_INDICES)));
-      case Geometry::SEGMENT:   return (new Segment(f(Segment::NUM_INDICES)));
-      case Geometry::TRIANGLE:  return (new Triangle(f(Triangle::NUM_INDICES)));
-      case Geometry::SQUARE:    return (new Quadrilateral(f(Quadrilateral::NUM_INDICES)));
-      case Geometry::CUBE:      return (new Hexahedron(f(Hexahedron::NUM_INDICES)));
+      case Geometry::POINT:     return (new Point(f(Point::NUM_INDICES), NULL));
+      case Geometry::SEGMENT:   return (new Segment(f(Segment::NUM_INDICES), NULL));
+      case Geometry::TRIANGLE:  return (new Triangle(f(Triangle::NUM_INDICES), NULL));
+      case Geometry::SQUARE:    return (new Quadrilateral(f(Quadrilateral::NUM_INDICES), NULL));
+      case Geometry::CUBE:      return (new Hexahedron(f(Hexahedron::NUM_INDICES), NULL));
       case Geometry::TETRAHEDRON:
 #ifdef MFEM_USE_MEMALLOC
          return TetMemory.Alloc();
@@ -3970,8 +3969,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
 
 Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
 {
-   element_allocator = NULL;
-   boundary_allocator = NULL;
+   init_Element_allocators();
 
    int      i, j, ie, ib, iv, *v, nv;
    Element *el;
@@ -7314,8 +7312,7 @@ void Mesh::InitFromNCMesh(const NCMesh &ncmesh)
 
 Mesh::Mesh(const NCMesh &ncmesh)
 {
-   element_allocator = NULL;
-   boundary_allocator = NULL;
+   init_Element_allocators();
    Init();
    InitTables();
    InitFromNCMesh(ncmesh);

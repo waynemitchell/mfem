@@ -28,7 +28,8 @@ protected:
 public:
    static const size_t NUM_INDICES = 2;
 
-   Segment(int *alloc = NULL) : Element(Geometry::SEGMENT, alloc, 2) { }
+   Segment() : Element(Geometry::SEGMENT, NULL, 2) { }
+   Segment(int *alloc, int *attri) : Element(Geometry::SEGMENT, alloc, 2) { }
 
    /// Constructs triangle by specifying the indices and the attribute.
    Segment(const int *ind, int attr = 1, int *alloc = NULL);

@@ -420,7 +420,7 @@ protected:
 
 public:
 
-   Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
+   Mesh() { init_Element_allocators(); Init(); InitTables(); meshgen = 0; Dim = 0; }
 
    /** Copy constructor. Performs a deep copy of (almost) all data, so that the
        source mesh can be modified (e.g. deleted, refined) without affecting the
@@ -438,6 +438,7 @@ public:
 
    Mesh(int _Dim, int NVert, int NElem, int NBdrElem = 0, int _spaceDim= -1)
    {
+      init_Element_allocators();
       if (_spaceDim == -1)
       {
          _spaceDim = _Dim;
@@ -493,6 +494,7 @@ public:
    Mesh(int nx, int ny, int nz, Element::Type type, int generate_edges = 0,
         double sx = 1.0, double sy = 1.0, double sz = 1.0)
    {
+      init_Element_allocators();
       Make3D(nx, ny, nz, type, generate_edges, sx, sy, sz);
    }
 
@@ -503,12 +505,14 @@ public:
    Mesh(int nx, int ny, Element::Type type, int generate_edges = 0,
         double sx = 1.0, double sy = 1.0)
    {
+      init_Element_allocators();
       Make2D(nx, ny, type, generate_edges, sx, sy);
    }
 
    /** Creates 1D mesh , divided into n equal intervals. */
    explicit Mesh(int n, double sx = 1.0)
    {
+      init_Element_allocators();
       Make1D(n, sx);
    }
 
@@ -535,7 +539,7 @@ public:
    /** Return a bitmask:
        bit 0 - simplices are present in the mesh (triangles, tets),
        bit 1 - tensor product elements are present in the mesh (quads, hexes).*/
-   inline int MeshGenerator() { return meshgen; }
+   inline int MeshGenerator() { init_Element_allocators(); return meshgen; }
 
    /** Returns number of vertices.  Vertices are only at the corners of
        elements, where you would expect them in the lowest-order mesh. */
