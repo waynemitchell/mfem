@@ -41,16 +41,6 @@ class Element_allocator {
       Element_allocator(mfem::Array<mfem::Element*> *_elements = NULL,
             int *_data = NULL)
          { elements = _elements; data = _data; count = 0; };
-      /*Element_allocator(mfem::Array<mfem::Element*> *_elements = NULL,
-                        int *_data = NULL, 
-                        int *_attributes = NULL, 
-                        int _count = 0)
-         { elements = _elements; 
-           data = _data; 
-           attributes = _attributes; 
-           count = _count; };*/
-
-
       virtual ~Element_allocator() {};
 
       // a nicety so we can call the object (functor fun)
@@ -88,8 +78,6 @@ class mem_Element_allocator : public Element_allocator {
 class passthru_allocator : public Element_allocator {
    public:
       passthru_allocator(int *data) : Element_allocator(NULL, data) {};
-      //passthru_allocator(int *data,
-       //                  int *attributes) : Element_allocator(NULL, data) {};
       ~passthru_allocator() {};
       int *alloc(size_t _count) { count += _count; return data + count - _count; };
 };

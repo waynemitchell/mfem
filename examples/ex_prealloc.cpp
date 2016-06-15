@@ -30,6 +30,7 @@ int main(int argc, char *argv[])
    Mesh *mesh;
    double vertices[12] = {0,0,1,0,1,1,0,1,2,0,2,1};
    int elem_data[8] = {1,3,4,2,3,5,6,4};
+   int elem_attributes[2] = {0,1};
    passthru_allocator elems(elem_data);
    int bndry_data[12] = {1,2,1,3,3,4,5,6,6,4,4,2};
    passthru_allocator bndry(bndry_data);
