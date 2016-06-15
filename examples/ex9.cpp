@@ -260,29 +260,29 @@ int main(int argc, char *argv[])
 
       // Dump sidre to file
 
-      // std::string filename("Example9.hdf5");
-      std::string filename("Example9");
-
       // TODO: I can't use SPIO in a serial code yet.  Need MPI wrappers in SPIO first.
       // For now, just call datastore group save() directly.
       // asctoolkit::spio::IOManager writer(MPI_COMM_WORLD, &ds->getRoot(), num_root_groups, num_files);
       // writer.write("ex9-initial", 0, "conduit_hdf5");
 
-//      std::string protocol = "conduit";
-//      ds.save(filename, protocol);
-
-      // Test loading file back in.
-//      asctoolkit::sidre::DataStore new_ds1;
-//      new_ds1.load(filename, protocol);
-
+      std::string filename("Example9.hdf5");
       std::string protocol = "conduit_hdf5";
+
       ds.save(filename, protocol);
 
       asctoolkit::sidre::DataStore new_ds2;
       new_ds2.load(filename, protocol);
 
+      filename = "Example9_2.hdf";
+      new_ds2.save(filename, protocol);
+
       protocol = "text";
+      filename = "Example9.txt";
       ds.save(filename, protocol);
+
+      filename = "Example9_2.txt";
+      new_ds2.save(filename, protocol);
+
 /*
       if (ds.getRoot()->isEquivalentTo(new_ds1.getRoot()) )
       {
