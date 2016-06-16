@@ -21,8 +21,8 @@ const int Tetrahedron::edges[6][2] =
    {0, 1}, {0, 2}, {0, 3}, {1, 2}, {1, 3}, {2, 3}
 };
 
-Tetrahedron::Tetrahedron(const int *ind, int attr, int *alloc)
-   : Element(Geometry::TETRAHEDRON, alloc, 4)
+Tetrahedron::Tetrahedron(const int *ind, int attr, int_ptr_pair p)
+   : Element(Geometry::TETRAHEDRON, p.first, 4, p.second)
 {
    attribute = attr;
    for (int i = 0; i < 4; i++)
@@ -34,8 +34,8 @@ Tetrahedron::Tetrahedron(const int *ind, int attr, int *alloc)
 }
 
 Tetrahedron::Tetrahedron(int ind1, int ind2, int ind3, int ind4, int attr,
-      int *alloc)
-   : Element(Geometry::TETRAHEDRON, alloc, 4)
+      int_ptr_pair p)
+   : Element(Geometry::TETRAHEDRON, p.first, 4, p.second)
 {
    attribute  = attr;
    indices[0] = ind1;

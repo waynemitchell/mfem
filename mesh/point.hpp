@@ -14,6 +14,7 @@
 
 #include "../config/config.hpp"
 #include "element.hpp"
+#include "allocator.hpp"
 
 namespace mfem
 {
@@ -28,11 +29,11 @@ protected:
 public:
    static const size_t NUM_INDICES = 1;
 
-   Point() : Element(Geometry::POINT, NULL, 1) { }
-   Point(int *alloc, int *attri) : Element(Geometry::POINT, alloc, 1) { }
+   Point() : Element(Geometry::POINT, NULL, 1, NULL) { }
+   Point(int_ptr_pair p) : Element(Geometry::POINT, p.first, 1, p.second) { }
 
    /// Constructs triangle by specifying the indices and the attribute.
-   Point( const int *ind, int attr = -1, int *alloc = NULL );
+   Point( const int *ind, int attr = -1, int_ptr_pair = int_ptr_pair(NULL, NULL) );
 
    /// Return element's type.
    virtual int GetType() const { return Element::POINT; }

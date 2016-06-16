@@ -21,66 +21,7 @@
 #include "../fem/eltrans.hpp"
 #include "../fem/coefficient.hpp"
 #include <iostream>
-
-
-// Element allocator class.  Holds an array of ints and a pointer
-// to an mfem::Array of mfem::Element* so that we can update their
-// `indices` pointer on a reallocation
-class Element_allocator {
-   protected:
-      mfem::Array<mfem::Element*> *elements;
-      int *data;
-      size_t count;
-      int *attributes;
-      // needs to be called on a realloc (if the
-      // address of data moves) otherwise the Elements
-      // in elements are invalid (the indices pointer
-      // is not valid)
-      int update_elements(int *new_address);
-   public:
-      Element_allocator(mfem::Array<mfem::Element*> *_elements = NULL,
-            int *_data = NULL)
-         { elements = _elements; data = _data; count = 0; };
-      virtual ~Element_allocator() {};
-
-      // a nicety so we can call the object (functor fun)
-      inline int *operator()(size_t count) { return alloc(count); };
-      inline virtual int *alloc(size_t) { return NULL; };
-
-      inline int *get_data() { return data; };
-     // inline int *get_attribute { return attributes; };
-      inline int get_count() { return count; };
-      inline const mfem::Array<mfem::Element*>* get_elements() const
-         { return elements; };
-
-      inline int set_Element_array(mfem::Array<mfem::Element*> *_elements) 
-         { elements = _elements; return 0; };
-};
-
-
-// extension of Element_allocator that holds it's own data.
-//  It will realloc on the fly
-class mem_Element_allocator : public Element_allocator {
-   protected:
-      // maybe this should be an Element_allocator entry?
-      size_t capacity;
-   public:
-      mem_Element_allocator(size_t _capacity, 
-            mfem::Array<mfem::Element*> *_elements = NULL);
-      mem_Element_allocator(size_t _capacity, 
-            size_t element_size,
-            mfem::Array<mfem::Element*> *_elements = NULL);
-      ~mem_Element_allocator();
-      virtual int *alloc(size_t _count);
-};
-
-
-class passthru_allocator : public Element_allocator {
-   public:
-      passthru_allocator(int *data) : Element_allocator(NULL, data) {};
-      ~passthru_allocator() {};
-      int *alloc(size_t _count) { count += _count; return data + count - _count; };
-};
+#include "allocator.hpp"
 
 namespace mfem
 {
@@ -129,14 +70,15 @@ protected:
    Array<Element *> faces;
 
    // we just allocated contiguously
-   static Element_allocator null_allocator;
-   Element_allocator *element_allocator;
-   Element_allocator *boundary_allocator;
-   int init_Element_allocators(Element_allocator* = NULL, 
-                               Element_allocator* = NULL);
-   int reinit_Element_allocators(Element_allocator* elms,
-                               Geometry::Type elms_type,
-                               Element_allocator* bndry,
+   static ElementAllocator null_allocator;
+   ElementAllocator *element_allocator;
+   ElementAllocator *boundary_allocator;
+   bool own_allocators;
+
+   int initElementAllocators(ElementAllocator* = &null_allocator, 
+                               ElementAllocator* = &null_allocator);
+
+   int reinitFromElementAllocators(Geometry::Type elms_type,
                                Geometry::Type bndry_type);
 
    struct FaceInfo
@@ -214,10 +156,10 @@ protected:
 
    void DeleteTables();
 
-   Element *ReadElementWithoutAttr(std::istream &, Element_allocator& = null_allocator);
+   Element *ReadElementWithoutAttr(std::istream &, ElementAllocator& = null_allocator);
    static void PrintElementWithoutAttr(const Element *, std::ostream &);
 
-   Element *ReadElement(std::istream &, Element_allocator& = null_allocator);
+   Element *ReadElement(std::istream &, ElementAllocator& = null_allocator);
    static void PrintElement(const Element *, std::ostream &);
 
    // Readers for different mesh formats, used in the Load() method
@@ -420,7 +362,7 @@ protected:
 
 public:
 
-   Mesh() { init_Element_allocators(); Init(); InitTables(); meshgen = 0; Dim = 0; }
+   Mesh() { initElementAllocators(); Init(); InitTables(); meshgen = 0; Dim = 0; }
 
    /** Copy constructor. Performs a deep copy of (almost) all data, so that the
        source mesh can be modified (e.g. deleted, refined) without affecting the
@@ -429,16 +371,18 @@ public:
    explicit Mesh(const Mesh &mesh, bool copy_nodes = true);
 
 
-   Mesh(double *_vertices,
-        Element_allocator *elms, Geometry::Type elems_type,
-        Element_allocator *bndry, Geometry::Type bndry_type,
-        int _Dim, int NVert, int NElem, int NBdrElem = 0, 
-        int _spaceDim= -1);
+   /// The reinit constructor
+   Mesh(double *vertices, int num_vertices,
+        int *element_indices, Geometry::Type element_type, 
+        int *element_attributes, int num_elements,
+        int *boundary_indices, Geometry::Type boundary_type,
+        int *boundary_attributes, int num_boundary_elements,
+        int dimension, int space_dimension= -1);
 
 
    Mesh(int _Dim, int NVert, int NElem, int NBdrElem = 0, int _spaceDim= -1)
    {
-      init_Element_allocators();
+      initElementAllocators();
       if (_spaceDim == -1)
       {
          _spaceDim = _Dim;
@@ -446,7 +390,7 @@ public:
       InitMesh(_Dim, _spaceDim, NVert, NElem, NBdrElem);
    }
 
-   Element *NewElement(int geom, Element_allocator& = null_allocator);
+   Element *NewElement(int geom, ElementAllocator& = null_allocator);
 
    void AddVertex(const double *);
    void AddTri(const int *vi, int attr = 1);
@@ -494,7 +438,7 @@ public:
    Mesh(int nx, int ny, int nz, Element::Type type, int generate_edges = 0,
         double sx = 1.0, double sy = 1.0, double sz = 1.0)
    {
-      init_Element_allocators();
+      initElementAllocators();
       Make3D(nx, ny, nz, type, generate_edges, sx, sy, sz);
    }
 
@@ -505,14 +449,14 @@ public:
    Mesh(int nx, int ny, Element::Type type, int generate_edges = 0,
         double sx = 1.0, double sy = 1.0)
    {
-      init_Element_allocators();
+      initElementAllocators();
       Make2D(nx, ny, type, generate_edges, sx, sy);
    }
 
    /** Creates 1D mesh , divided into n equal intervals. */
    explicit Mesh(int n, double sx = 1.0)
    {
-      init_Element_allocators();
+      initElementAllocators();
       Make1D(n, sx);
    }
 
@@ -522,8 +466,8 @@ public:
    Mesh(std::istream &input, int generate_edges = 0, int refine = 1,
         bool fix_orientation = true);
 
-   Mesh(std::istream &input, Element_allocator *elm_alloc,
-        Element_allocator *bdry_alloc, int generate_edges = 0, 
+   Mesh(std::istream &input, ElementAllocator *elm_alloc,
+        ElementAllocator *bdry_alloc, int generate_edges = 0, 
         int refine = 1, bool fix_orientation = true);
 
    /// Create a disjoint mesh from the given mesh array
@@ -539,7 +483,7 @@ public:
    /** Return a bitmask:
        bit 0 - simplices are present in the mesh (triangles, tets),
        bit 1 - tensor product elements are present in the mesh (quads, hexes).*/
-   inline int MeshGenerator() { init_Element_allocators(); return meshgen; }
+   inline int MeshGenerator() { initElementAllocators(); return meshgen; }
 
    /** Returns number of vertices.  Vertices are only at the corners of
        elements, where you would expect them in the lowest-order mesh. */
@@ -978,8 +922,8 @@ public:
 
    /// Get the allocators for this mesh
    /// It would be ni
-   inline Element_allocator *get_element_allocator() { return element_allocator; };
-   inline Element_allocator *get_boundary_allocator() { return element_allocator; };
+   inline ElementAllocator *get_element_allocator() { return element_allocator; };
+   inline ElementAllocator *get_boundary_allocator() { return element_allocator; };
 
    /// Destroys mesh.
    virtual ~Mesh();

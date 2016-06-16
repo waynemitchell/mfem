@@ -18,6 +18,7 @@
 #include "../linalg/densemat.hpp"
 #include "../fem/geom.hpp"
 
+#include <stdexcept>
 #include <stdio.h>
 
 namespace mfem
@@ -28,16 +29,20 @@ class Mesh;
 /// Abstract data type element
 class Element
 {
+public:
+   static int NumOfIndices[6];
 protected:
-
    /// Element's attribute (specifying material property, etc).
-   int attribute;
+   union {
+      int attribute;
+      int *ptr_attribute;
+   };
    int base_geom;
    int *indices;
    bool self_alloc;
 
    /// Assign or allocate storage for this element;s indices
-   void init_indices(int *alloc, size_t count);
+   void init(int *indices, size_t indices_count, int *attribute);
 public:
 
    /// Constants for the classes derived from Element.
@@ -46,8 +51,8 @@ public:
              };
 
    /// Default element constructor.
-   explicit Element(int bg = Geometry::POINT, int *alloc = NULL, size_t count = 0) { 
-      attribute = -1; base_geom = bg; init_indices(alloc, count); }
+   explicit Element(int bg = Geometry::POINT, int *_indices = NULL, 
+         size_t indices_count = 0, int *_attribute = NULL);
 
    /// Set where the indices pointer is pointing.
    /// Useful if the memory location of indices data
@@ -56,6 +61,12 @@ public:
 
    /// Returns the indices pointer
    inline const int *GetIndices() const { return indices; };
+
+   /// Return the attribute pointer
+   inline const int *GetAttributePtr() const { return ptr_attribute; };
+
+   /// Set the attribute pointer
+   inline void SetAttributePtr(int *p) { ptr_attribute = p; };
 
    /// Returns element's type
    virtual int GetType() const = 0;
@@ -66,10 +77,18 @@ public:
    int GetGeometryType() const { return base_geom; }
 
    /// Return element's attribute.
-   inline int GetAttribute() const { return attribute; }
+   inline int GetAttribute() const 
+   { return self_alloc ? attribute : 
+      (ptr_attribute ? *ptr_attribute : 1); }
 
    /// Set element's attribute.
-   inline void SetAttribute(const int attr) { attribute = attr; }
+   /// You cannot set a NULL pointer attribute (always returned as 1)
+   // TODO: better exception
+   inline void SetAttribute(const int attr) 
+   { self_alloc ? attribute = attr : 
+      (ptr_attribute ? *ptr_attribute = attr : 
+       throw std::runtime_error("Cannot assign an attribute to an "
+          "externally allocated Element with NULL attribute pointer")); }
 
    /// Set the indices the element according to the input.
    virtual void SetVertices(const int *ind);
@@ -78,8 +97,6 @@ public:
    virtual void GetVertices(Array<int> &v) const = 0;
 
    virtual int *GetVertices() = 0;
-
-   inline int **GetVerticesPtr() { return &indices; };
 
    const int *GetVertices() const
    { return const_cast<Element *>(this)->GetVertices(); }

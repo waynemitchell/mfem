@@ -27,89 +27,7 @@
 #include "graph.h"
 #endif
 
-Element_allocator mfem::Mesh::null_allocator = Element_allocator(NULL);
-
-int Element_allocator::update_elements(int *old_address) {
-   if (!elements) {
-      throw "Incorrectly initialized Element allocator";
-   }
-   mfem::Array<mfem::Element*> &elms = *elements;
-   // the number of allocated ints we have gone
-   // through. a good stopping condition since we know
-   // the capacity
-   size_t data_counter = 0;
-   for (int i = 0; i < elms.Size() && 
-         data_counter < count; i++) {
-      if (elms[i] == NULL || elms[i]->IsSelfAlloc()) {
-         continue;
-      }
-      const int *temp = elms[i]->GetIndices();
-      size_t offset = elms[i]->GetIndices() - old_address;
-      elms[i]->SetIndices(data + offset);
-      data_counter += elms[i]->GetNVertices();
-#if 1 //ALLOCATOR_DEBUG
-      {
-         printf("Moving %p (offset of %zu from %p)\n", temp,
-               offset, old_address);
-         temp = elms[i]->GetIndices();
-         offset = temp - data;
-         printf("New location %p (offset of %zu from %p)\n",
-               temp, offset, data);
-      } 
-#endif
-   }
-   return 0;
-}
-
-mem_Element_allocator::mem_Element_allocator(size_t _capacity, 
-      mfem::Array<mfem::Element*> *_elements) 
-   : Element_allocator(_elements) {
-   capacity = _capacity;
-   data = (int*)malloc(capacity * sizeof(int));
-   if (!data) {
-      capacity = 0;
-      throw std::bad_alloc();
-   }
-#if 1 //ALLOCATOR_DEBUG
-   printf("allocated %zu ints\n", capacity);
-#endif
-}
-
-
-mem_Element_allocator::~mem_Element_allocator() {
-   free(data);
-}
-
-
-int *mem_Element_allocator::alloc(size_t _count) {
-   // default return (nil)
-   if (!data) {
-      return NULL;
-   }
-   // resize step
-   if (count + _count > capacity) {
-      capacity *= 2;
-#if 1 //ALLOCATOR_DEBUG
-      {
-         printf("reallocating indices from size %zu to %zu\n", 
-               capacity / 2, capacity);
-      }
-#endif
-      int *old_address = data;
-      data = (int*)realloc(data, capacity * sizeof(int));
-      if (!data) {
-         capacity = 0;
-         throw std::bad_alloc();
-      }
-      update_elements(old_address);
-   }
-   count += _count;
-   // we have already incremented incides_count to include the
-   // new set of indices so add the total index count to the 
-   // base pointer and move back 'count' entires in indices
-   return data + (count - _count);
-}
-
+ElementAllocator mfem::Mesh::null_allocator = ElementAllocator();
 
 namespace mfem
 {
@@ -2165,7 +2083,7 @@ void Mesh::Make1D(int n, double sx)
 
 Mesh::Mesh(const Mesh &mesh, bool copy_nodes)
 {
-   init_Element_allocators();
+   initElementAllocators();
    Dim = mesh.Dim;
    spaceDim = mesh.spaceDim;
 
@@ -2274,7 +2192,7 @@ Mesh::Mesh(const Mesh &mesh, bool copy_nodes)
 Mesh::Mesh(std::istream &input, int generate_edges, int refine,
            bool fix_orientation)
 {
-   init_Element_allocators();
+   initElementAllocators();
    Init();
    InitTables();
    Load(input, generate_edges, refine, fix_orientation);
@@ -2282,12 +2200,7 @@ Mesh::Mesh(std::istream &input, int generate_edges, int refine,
 
 
 // TODO: use real error objects
-int Mesh::reinit_Element_allocators(Element_allocator *elems, Geometry::Type elems_type,
-      Element_allocator *bndry, Geometry::Type bndry_type) {
-   if (!elems || !bndry) {
-      throw "Can't do this, must be preallocated\n";
-   }
-   init_Element_allocators(elems, bndry);
+int Mesh::reinitFromElementAllocators(Geometry::Type elems_type, Geometry::Type bndry_type) {
    for (int i = 0; i < elements.Size(); i++) {
       elements[i] = NewElement(elems_type, *element_allocator);
    }
@@ -2301,18 +2214,20 @@ int Mesh::reinit_Element_allocators(Element_allocator *elems, Geometry::Type ele
    return 0;
 }
 
-int Mesh::init_Element_allocators(Element_allocator *elm_alloc,
-                         Element_allocator *bndry_alloc) {
+int Mesh::initElementAllocators(ElementAllocator *elm_alloc,
+                         ElementAllocator *bndry_alloc) 
+{
+   own_allocators = false;
    if (elm_alloc) {
       element_allocator = elm_alloc;
-      elm_alloc->set_Element_array(&elements);
+      elm_alloc->set_elements(&elements);
    }
    else {
       element_allocator = &null_allocator;
    }
    if (bndry_alloc) {
       boundary_allocator = bndry_alloc;
-      bndry_alloc->set_Element_array(&boundary);
+      bndry_alloc->set_elements(&boundary);
    }
    else {
       boundary_allocator = &null_allocator;
@@ -2322,48 +2237,55 @@ int Mesh::init_Element_allocators(Element_allocator *elm_alloc,
 
 
 Mesh::Mesh(std::istream &input, 
-           Element_allocator *elm_alloc,
-           Element_allocator *bndry_alloc,
+           ElementAllocator *elm_alloc,
+           ElementAllocator *bndry_alloc,
            int generate_edges, int refine,
            bool fix_orientation)
 {
-   init_Element_allocators(elm_alloc, bndry_alloc);
+   initElementAllocators(elm_alloc, bndry_alloc);
    Init();
    InitTables();
    Load(input, generate_edges, refine, fix_orientation);
 }
 
-
-Mesh::Mesh(double *_vertices,
-      Element_allocator *elems, Geometry::Type elems_type,
-      Element_allocator *bndry, Geometry::Type bndry_type,
-      int _Dim, int NVert, int NElem, int NBdrElem, 
-      int _spaceDim) {
-   if (_spaceDim == -1)
+Mesh::Mesh(double *vertices, int num_vertices,
+      int *element_indices, Geometry::Type element_type, 
+      int *element_attributes, int num_elements,
+      int *boundary_indices, Geometry::Type boundary_type,
+      int *boundary_attributes, int num_boundary_elements,
+      int dimension, int space_dimension)
+{
+   if (space_dimension == -1)
    {
-      _spaceDim = _Dim;
+      space_dimension = dimension;
    }
-   InitMesh(_Dim, _spaceDim, NVert, NElem, NBdrElem);
-   for (int i = 0; i < NVert; i++) {
-      // use Dim here??
-      for (int j = 0; j < Dim; j++) {
-         vertices[i](j) = _vertices[Dim * i + j];
+   InitMesh(dimension, space_dimension, num_vertices, num_elements,
+         num_boundary_elements);
+   for (int i = 0; i < num_vertices; i++) {
+      for (int j = 0; j < dimension; j++) {
+         this->vertices[i](j) = vertices[dimension * i + j];
       }
    }
-   NumOfVertices = NVert;
-   reinit_Element_allocators(elems, elems_type, bndry, bndry_type);
+   NumOfVertices = num_vertices;
+   element_allocator = new AliasElementAllocator(element_indices, 
+         element_attributes);
+   boundary_allocator = new AliasElementAllocator(boundary_indices,
+         boundary_attributes);
+   initElementAllocators(element_allocator, boundary_allocator);
+   own_allocators = true;
+   reinitFromElementAllocators(element_type, boundary_type);
 }
 
 
-Element *Mesh::NewElement(int geom, Element_allocator &f)
+Element *Mesh::NewElement(int geom, ElementAllocator &f)
 {
    switch (geom)
    {
-      case Geometry::POINT:     return (new Point(f(Point::NUM_INDICES), NULL));
-      case Geometry::SEGMENT:   return (new Segment(f(Segment::NUM_INDICES), NULL));
-      case Geometry::TRIANGLE:  return (new Triangle(f(Triangle::NUM_INDICES), NULL));
-      case Geometry::SQUARE:    return (new Quadrilateral(f(Quadrilateral::NUM_INDICES), NULL));
-      case Geometry::CUBE:      return (new Hexahedron(f(Hexahedron::NUM_INDICES), NULL));
+      case Geometry::POINT:     return (new Point(f(Point::NUM_INDICES)));
+      case Geometry::SEGMENT:   return (new Segment(f(Segment::NUM_INDICES)));
+      case Geometry::TRIANGLE:  return (new Triangle(f(Triangle::NUM_INDICES)));
+      case Geometry::SQUARE:    return (new Quadrilateral(f(Quadrilateral::NUM_INDICES)));
+      case Geometry::CUBE:      return (new Hexahedron(f(Hexahedron::NUM_INDICES)));
       case Geometry::TETRAHEDRON:
 #ifdef MFEM_USE_MEMALLOC
          return TetMemory.Alloc();
@@ -2375,7 +2297,7 @@ Element *Mesh::NewElement(int geom, Element_allocator &f)
    return NULL;
 }
 
-Element *Mesh::ReadElementWithoutAttr(std::istream &input, Element_allocator &f)
+Element *Mesh::ReadElementWithoutAttr(std::istream &input, ElementAllocator &f)
 {
    int geom, nv, *v;
    Element *el;
@@ -2404,7 +2326,7 @@ void Mesh::PrintElementWithoutAttr(const Element *el, std::ostream &out)
    out << '\n';
 }
 
-Element *Mesh::ReadElement(std::istream &input, Element_allocator &f)
+Element *Mesh::ReadElement(std::istream &input, ElementAllocator &f)
 {
    int attr;
    Element *el;
@@ -2487,8 +2409,8 @@ void Mesh::ReadMFEMMesh(std::istream &input, bool mfem_v11, int &curved)
    // Element allocator lazy init for ex9 
    /*
    {
-      element_allocator = new mem_Element_allocator(INITIAL_INDICES_SIZE, &elements);
-      boundary_allocator = new mem_Element_allocator(INITIAL_INDICES_SIZE, &elements);
+      element_allocator = new mem_ElementAllocator(INITIAL_INDICES_SIZE, &elements);
+      boundary_allocator = new mem_ElementAllocator(INITIAL_INDICES_SIZE, &elements);
    }
    */
    
@@ -3969,7 +3891,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
 
 Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
 {
-   init_Element_allocators();
+   initElementAllocators();
 
    int      i, j, ie, ib, iv, *v, nv;
    Element *el;
@@ -7312,7 +7234,7 @@ void Mesh::InitFromNCMesh(const NCMesh &ncmesh)
 
 Mesh::Mesh(const NCMesh &ncmesh)
 {
-   init_Element_allocators();
+   initElementAllocators();
    Init();
    InitTables();
    InitFromNCMesh(ncmesh);
@@ -9623,8 +9545,10 @@ Mesh::~Mesh()
       FreeElement(faces[i]);
    }
 
-   //delete element_allocator;
-   //delete boundary_allocator;
+   if (own_allocators) {
+      delete element_allocator;
+      delete boundary_allocator;
+   }
 
    DeleteTables();
 }

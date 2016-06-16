@@ -15,6 +15,7 @@
 #include "../config/config.hpp"
 #include "../fem/fe.hpp"
 #include "element.hpp"
+#include "allocator.hpp"
 
 namespace mfem
 {
@@ -32,15 +33,15 @@ protected:
 public:
    static const size_t NUM_INDICES = 3;
 
-   Triangle() : Element(Geometry::TRIANGLE, NULL, 3) { transform = 0; }
+   Triangle() : Element(Geometry::TRIANGLE, NULL, 3, NULL) { transform = 0; }
    // can't make this the default with NULL b/c the next could be called
-   Triangle(int *alloc, int *attri) : Element(Geometry::TRIANGLE, alloc, 3) { transform = 0; }
+   Triangle(int_ptr_pair p) : Element(Geometry::TRIANGLE, p.first, 3, p.second) { transform = 0; }
 
    /// Constructs triangle by specifying the indices and the attribute.
-   Triangle(const int *ind, int attr = 1, int *alloc = NULL);
+   Triangle(const int *ind, int attr = 1, int_ptr_pair = int_ptr_pair(NULL, NULL));
 
    /// Constructs triangle by specifying the indices and the attribute.
-   Triangle(int ind1, int ind2, int ind3, int attr = 1, int *alloc = NULL);
+   Triangle(int ind1, int ind2, int ind3, int attr = 1, int_ptr_pair = int_ptr_pair(NULL, NULL));
 
    /// Return element's type.
    virtual int GetType() const { return Element::TRIANGLE; }

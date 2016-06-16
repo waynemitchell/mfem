@@ -14,6 +14,7 @@
 
 #include "../config/config.hpp"
 #include "element.hpp"
+#include "allocator.hpp"
 
 namespace mfem
 {
@@ -46,15 +47,15 @@ public:
    Tetrahedron() : Element(Geometry::TETRAHEDRON, NULL, 4)
    { refinement_flag = 0; transform = 0; }
 
-   Tetrahedron(int *alloc, int *attri) : Element(Geometry::TETRAHEDRON, alloc, 4)
+   Tetrahedron(int_ptr_pair p) : Element(Geometry::TETRAHEDRON, p.first, 4, p.second)
    { refinement_flag = 0; transform = 0; }
 
    /// Constructs tetrahedron by specifying the indices and the attribute.
-   Tetrahedron(const int *ind, int attr = 1, int *alloc = NULL);
+   Tetrahedron(const int *ind, int attr = 1, int_ptr_pair = int_ptr_pair(NULL, NULL));
 
    /// Constructs tetrahedron by specifying the indices and the attribute.
    Tetrahedron(int ind1, int ind2, int ind3, int ind4, int attr = 1, 
-         int *alloc = NULL);
+         int_ptr_pair = int_ptr_pair(NULL, NULL));
 
    /// Return element's type.
    virtual int GetType() const { return Element::TETRAHEDRON; }

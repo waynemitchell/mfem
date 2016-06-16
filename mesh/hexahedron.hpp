@@ -14,6 +14,7 @@
 
 #include "../config/config.hpp"
 #include "element.hpp"
+#include "allocator.hpp"
 
 namespace mfem
 {
@@ -30,16 +31,17 @@ public:
    static const int edges[12][2];
    static const int faces[6][4];  // same as Mesh::hex_faces
 
-   Hexahedron() : Element(Geometry::CUBE, NULL, 8) { };
-   Hexahedron(int *alloc, int *attri) : Element(Geometry::CUBE, alloc, 8) { };
+   Hexahedron() : Element(Geometry::CUBE, NULL, 8, NULL) { };
+   Hexahedron(int_ptr_pair p) 
+      : Element(Geometry::CUBE, p.first, 8, p.second) { };
 
    /// Constructs hexahedron by specifying the indices and the attribute.
-   Hexahedron(const int *ind, int attr = 1, int *alloc = NULL);
+   Hexahedron(const int *ind, int attr = 1, int_ptr_pair = int_ptr_pair(NULL, NULL));
 
    /// Constructs hexahedron by specifying the indices and the attribute.
    Hexahedron(int ind1, int ind2, int ind3, int ind4,
               int ind5, int ind6, int ind7, int ind8, int attr = 1,
-              int *alloc = NULL);
+              int_ptr_pair = int_ptr_pair(NULL, NULL));
 
    /// Return element's type
    int GetType() const { return Element::HEXAHEDRON; }
