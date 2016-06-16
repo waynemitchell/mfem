@@ -2193,16 +2193,22 @@ Mesh::Mesh(const Mesh &mesh, bool copy_nodes)
 Mesh::Mesh(const char *filename, int generate_edges, int refine,
            bool fix_orientation)
 {
+   // Initialization as in the default constructor
+   Init();
+   InitTables();
+   meshgen = 0;
+   Dim = 0;
+
    nifstream imesh(filename);
    if (!imesh)
    {
-      std::cout << "Mesh file not found:  " << filename << std::endl;
-      mfem_error("");
+      // Create an error message.
+      status.Write() << "Mesh file not found: " << filename << '\n';
    }
-   Init();
-   InitTables();
-   Load(imesh, generate_edges, refine, fix_orientation);
-   imesh.close();
+   else
+   {
+      Load(imesh, generate_edges, refine, fix_orientation);
+   }
 }
 
 Mesh::Mesh(std::istream &input, int generate_edges, int refine,
@@ -2402,7 +2408,7 @@ void Mesh::ReadCubit(nifstream &input, int &curved, int &read_gf)
    // read important dimensions
 
    int id;
-   size_t num_dim, num_nodes, num_elem, num_el_blk, num_side_sets;
+   size_t num_dim=0, num_nodes=0, num_elem=0, num_el_blk=0, num_side_sets=0;
 
    if ((retval = nc_inq_dimid(ncid, "num_dim", &id)) ||
        (retval = nc_inq_dim(ncid, id, str_dummy, &num_dim)) ||
@@ -2832,7 +2838,8 @@ void Mesh::ReadCubit(nifstream &input, int &curved, int &read_gf)
 
       // int nTotDofs = fes->GetNDofs();
       // int nTotVDofs = fes->GetVSize();
-      //    cout << endl << "nTotDofs = " << nTotDofs << "  nTotVDofs " << nTotVDofs << endl << endl;
+      //    cout << endl << "nTotDofs = " << nTotDofs << "  nTotVDofs "
+      //         << nTotVDofs << endl << endl;
 
       for (int i = 0; i < NumOfElements; i++)
       {
@@ -2859,28 +2866,28 @@ void Mesh::ReadCubit(nifstream &input, int &curved, int &read_gf)
    }
 
    // clean up all netcdf stuff
-   delete num_el_in_blk;
-   delete num_nod_per_el;
-   delete num_side_in_ss;
-   delete coordx;
-   delete coordy;
-   delete coordz;
+   delete [] num_el_in_blk;
+   delete [] num_nod_per_el;
+   delete [] num_side_in_ss;
+   delete [] coordx;
+   delete [] coordy;
+   delete [] coordz;
    for (int i = 0; i < (int) num_el_blk; i++)
    {
       delete elem_blk[i];
    }
-   delete elem_blk;
-   delete start_of_block;
+   delete [] elem_blk;
+   delete [] start_of_block;
    for (int i = 0; i < (int) num_side_sets; i++)
    {
-      delete ss_node_id[i];
+      delete [] ss_node_id[i];
    }
-   delete ss_node_id;
-   delete ebprop;
-   delete ssprop;
+   delete [] ss_node_id;
+   delete [] ebprop;
+   delete [] ssprop;
 
 }
-#endif
+#endif // #ifdef MFEM_USE_NETCDF
 
 
 void Mesh::ReadMFEMMesh(std::istream &input, bool mfem_v11, int &curved)
@@ -3208,6 +3215,15 @@ void Mesh::ReadTrueGridMesh(std::istream &input)
    }
 }
 
+// Check for, and remove, a trailing '\r'.
+inline void filter_dos(string &line)
+{
+   if (!line.empty() && *line.rbegin() == '\r')
+   {
+      line.resize(line.size()-1);
+   }
+}
+
 void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf)
 {
    int i, j, n, attr;
@@ -3215,14 +3231,14 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf)
    string buff;
    getline(input, buff); // comment line
    getline(input, buff);
-   if (!buff.empty() && buff[buff.size()-1] == '\r') { buff.erase(buff.size()-1); }
+   filter_dos(buff);
    if (buff != "ASCII")
    {
       MFEM_ABORT("VTK mesh is not in ASCII format!");
       return;
    }
    getline(input, buff);
-   if (!buff.empty() && buff[buff.size()-1] == '\r') { buff.erase(buff.size()-1); }
+   filter_dos(buff);
    if (buff != "DATASET UNSTRUCTURED_GRID")
    {
       MFEM_ABORT("VTK mesh is not UNSTRUCTURED_GRID!");
@@ -3342,7 +3358,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf)
    {
       input >> n >> ws;
       getline(input, buff);
-      if (!buff.empty() && buff[buff.size()-1] == '\r') { buff.erase(buff.size()-1); }
+      filter_dos(buff);
       // "SCALARS material dataType numComp"
       if (!strncmp(buff.c_str(), "SCALARS material", 16))
       {
@@ -4114,6 +4130,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
 {
    int i, j, curved = 0, read_gf = 1;
 
+   status.Clear();
    if (!input)
    {
       MFEM_ABORT("Input stream is not open");
@@ -4172,7 +4189,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    string mesh_type;
    input >> ws;
    getline(input, mesh_type);
-   if (!mesh_type.empty() && mesh_type[mesh_type.size()-1] == '\r') { mesh_type.erase(mesh_type.size()-1); }
+   filter_dos(mesh_type);
 
    bool mfem_v10 = (mesh_type == "MFEM mesh v1.0");
    bool mfem_v11 = (mesh_type == "MFEM mesh v1.1");

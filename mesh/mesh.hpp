@@ -13,6 +13,7 @@
 #define MFEM_MESH
 
 #include "../config/config.hpp"
+#include "../general/error.hpp"
 #include "../general/stable3d.hpp"
 #include "triangle.hpp"
 #include "tetrahedron.hpp"
@@ -134,6 +135,8 @@ protected:
    MemAlloc <Tetrahedron, 1024> TetMemory;
 #endif
 
+   mfem::Status status; ///< Error status
+
 public:
    enum Operation { NONE, REFINE, DEREFINE, REBALANCE };
 
@@ -168,6 +171,10 @@ protected:
    void ReadNURBSMesh(std::istream &input, int &curved, int &read_gf);
    void ReadInlineMesh(std::istream &input, int generate_edges = 0);
    void ReadGmshMesh(std::istream &input);
+   /* Note NetCDF (optional library) is used for reading cubit files */
+#ifdef MFEM_USE_NETCDF
+   void ReadCubit(nifstream &input, int &curved, int &read_gf);
+#endif
 
    void SetMeshGen(); // set 'meshgen'
 
@@ -464,10 +471,8 @@ public:
    void Load(std::istream &input, int generate_edges = 0, int refine = 1,
              bool fix_orientation = true);
 
-   /* Note NetCDF (optional library) is used for reading cubit files */
-#ifdef MFEM_USE_NETCDF
-   void ReadCubit(nifstream &input, int &curved, int &read_gf);
-#endif
+   /// Access the Mesh error Status.
+   const mfem::Status &Status() const { return status; }
 
    /** Return a bitmask:
        bit 0 - simplices are present in the mesh (triangles, tets),

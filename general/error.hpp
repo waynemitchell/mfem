@@ -23,6 +23,45 @@ void mfem_error(const char *msg = NULL);
 
 void mfem_warning(const char *msg = NULL);
 
+/** @brief A status object that, when set, holds a code (int) and a message
+    (std::stringstream).
+
+    This class can be used as a data member in other classes to hold, e.g. an
+    error status. In order to keep the size of Status small (one pointer, when
+    not set), we allocate its Data structure only when needed, i.e. when one of
+    the "set" methods Push() or Write() is called. */
+class Status
+{
+protected:
+   struct Data
+   {
+      int code;              // Status code
+      std::stringstream msg; // Status message
+      Data() : code(0) { }
+   };
+   Data *data;
+   void AllocData() { data || (data = new Data); }
+
+public:
+   /// Status constructor. The initial state is Good() == true.
+   Status() : data(NULL) { }
+   /// Check (return true) if no Status code or message has been set.
+   bool Good() const { return (data == NULL); }
+   /// Push/set the Status code. After this call Good() == false.
+   void Push(int code) { AllocData(); data->code = code; }
+   /** @brief Return an std::ostream where a Status message can be written.
+       After this call Good() == false. */
+   std::ostream &Write() { AllocData(); return data->msg; }
+   /// Clear the Status. After this call Good() == true.
+   void Clear() { delete data; data = NULL; }
+   /// Return the Status code. Can be used only when Good() == false.
+   int Code() const { return data->code; }
+   /** @brief Return a string with the Status message. Can be used only when
+       Good() == false. */
+   const std::string Message() const { return data->msg.str(); }
+   ~Status() { delete data; }
+};
+
 }
 
 #ifndef _MFEM_FUNC_NAME
@@ -37,17 +76,17 @@ void mfem_warning(const char *msg = NULL);
 #endif
 #endif
 
+#define MFEM_LOCATION \
+   "\n ... in function: " << _MFEM_FUNC_NAME << \
+   "\n ... at line " << __LINE__ << " of file: " << __FILE__ << '\n'
+
 // Common error message and abort macro
 #define _MFEM_MESSAGE(msg, warn)                                        \
    {                                                                    \
       std::ostringstream mfemMsgStream;                                 \
       mfemMsgStream << std::setprecision(16);                           \
       mfemMsgStream << std::setiosflags(std::ios_base::scientific);     \
-      mfemMsgStream << msg << '\n';                                     \
-      mfemMsgStream << " ... at line " << __LINE__;                     \
-      mfemMsgStream << " in " << _MFEM_FUNC_NAME << " of file ";        \
-      mfemMsgStream << __FILE__ << ".";                                 \
-      mfemMsgStream << std::ends;                                       \
+      mfemMsgStream << msg << MFEM_LOCATION;                            \
       if (!(warn))                                                      \
          mfem::mfem_error(mfemMsgStream.str().c_str());                 \
       else                                                              \

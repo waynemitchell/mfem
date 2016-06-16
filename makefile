@@ -63,7 +63,7 @@ make style
 endef
 
 # Path to the mfem directory relative to the compile directory:
-MFEM_DIR = ..
+MFEM_DIR = .
 # ... or simply an absolute path
 # MFEM_DIR = $(realpath .)
 
@@ -231,7 +231,7 @@ OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 
 .SUFFIXES: .cpp .o
 .cpp.o:
-	cd $(<D); $(MFEM_CXX) $(MFEM_FLAGS) -c $(<F)
+	$(MFEM_CXX) $(MFEM_FLAGS) -c $(<) -o $(@)
 
 
 lib: libmfem.a
@@ -263,7 +263,6 @@ debug:
 pdebug:
 	$(MAKE) config MFEM_USE_MPI=YES MFEM_DEBUG=YES && $(MAKE)
 
-deps: MFEM_DIR = .
 deps:
 	rm -f deps.mk
 	for i in $(SOURCE_FILES:.cpp=); do \
