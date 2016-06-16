@@ -71,7 +71,7 @@ public:
    virtual const int *GetFaceVertices(int fi) const { return NULL; }
 
    virtual Element *Duplicate(Mesh *m) const
-   { return new Quadrilateral(indices, attribute); }
+   { return new Quadrilateral(indices, GetAttribute()); }
 
    virtual ~Quadrilateral() { }
 };

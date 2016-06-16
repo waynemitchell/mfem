@@ -28,7 +28,7 @@ const int Quadrilateral::edges[4][2] =
 Quadrilateral::Quadrilateral( const int *ind, int attr, int_ptr_pair p )
    : Element(Geometry::SQUARE, p.first, 4, p.second)
 {
-   attribute = attr;
+   SetAttribute(attr);
    for (int i=0; i<4; i++)
    {
       indices[i] = ind[i];
@@ -39,7 +39,7 @@ Quadrilateral::Quadrilateral( int ind1, int ind2, int ind3, int ind4,
                               int attr, int_ptr_pair p )  
    : Element(Geometry::SQUARE, p.first, 4, p.second)
 {
-   attribute  = attr;
+   SetAttribute(attr);
    indices[0] = ind1;
    indices[1] = ind2;
    indices[2] = ind3;
