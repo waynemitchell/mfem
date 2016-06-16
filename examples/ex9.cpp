@@ -31,7 +31,6 @@
 #include <fstream>
 #include <iostream>
 #include <algorithm>
-//#include "quadrilateral.hpp"
 
 #ifdef MFEM_USE_SIDRE
   #include "sidre/sidre.hpp"
@@ -142,9 +141,9 @@ int main(int argc, char *argv[])
 
 
    // 1.7 Initialize the allocators for the elements in this example
-   size_t default_size = 1024;
-   mem_Element_allocator elm_alloc(default_size);
-   mem_Element_allocator bndry_alloc(default_size);
+   size_t num_elements = 128;
+   InternalElementAllocator elm_alloc(num_elements, Geometry::SQUARE);
+   InternalElementAllocator bndry_alloc(num_elements, Geometry::SQUARE);
 
 
    // 2. Read the mesh from the given mesh file. We can handle geometrically
@@ -382,20 +381,51 @@ int main(int argc, char *argv[])
       osol.precision(precision);
       u.Save(osol);
    }
-
    
-   int *data = elm_alloc.get_data();
-   cout << "printing element indices" << endl;
-   for (int i = 0; i < elm_alloc.get_count(); i++) {
-      cout << data[i] << endl;
-   }
-   cout << "done" << endl << endl;
+   // Print the elements
+   int count = elm_alloc.get_count();
+   if (count > 0) {
+      int *indices = elm_alloc.get_indices();
+      int *attributes = elm_alloc.get_attributes();
+      int elem_size = elm_alloc.get_indices_count() / count;
 
-   cout << "printing boundary indices" << endl;
-   for (int i = 0; i < bndry_alloc.get_count(); i++) {
-      cout << data[i] << endl;
+      cout << endl << "printing elements" << endl;
+      for (int i = 0; i < count; i++) {
+         printf("element %d - attribute %d - [", i, attributes[i]);
+         for (int j = 0; j < elem_size; j++) {
+            printf(j == elem_size - 1 ? "%d" : "%d,", 
+                  indices[i * elem_size + j]);
+         }
+         printf("]\n");
+      }
+      cout << "done" << endl << endl;
    }
-   cout << "done" << endl << endl;
+   else {
+      printf("no boundary elements (in this allocator)\n");
+   }
+
+
+   // print the boundary elements
+   count = bndry_alloc.get_count();
+   if (count > 0) {
+      int* indices = bndry_alloc.get_indices();
+      int* attributes = bndry_alloc.get_attributes();
+      int elem_size = bndry_alloc.get_indices_count() / count;
+
+      cout << "printing boundary elements" << endl;
+      for (int i = 0; i < count; i++) {
+         printf("boundary element %d - attribute %d - [", i, attributes[i]);
+         for (int j = 0; j < elem_size; j++) {
+            printf(j == elem_size - 1 ? "%d" : "%d,", 
+                  indices[i * elem_size + j]);
+         }
+         printf("]\n");
+      }
+      cout << "done" << endl << endl;
+   }
+   else {
+      printf("no boundary elements (in this allocator)\n");
+   }
 
 #ifdef MFEM_USE_SIDRE
    if (sidre)
