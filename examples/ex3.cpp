@@ -80,14 +80,13 @@ int main(int argc, char *argv[])
    //    quadrilateral, tetrahedral, hexahedral, surface and volume meshes with
    //    the same code.
    Mesh *mesh = new Mesh(mesh_file, 1, 1);
-   dim = mesh->Dimension();
    if (!mesh->Status().Good())
    {
       cout << '\n' << mesh->Status().Message() << endl;
       delete mesh;
       return 2;
    }
-
+   dim = mesh->Dimension();
    int sdim = mesh->SpaceDimension();
 
    // 3. Refine the mesh to increase the resolution. In this example we do
