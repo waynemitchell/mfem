@@ -130,6 +130,9 @@ protected:
    static const int tri_orientations[6][3];
    static const int quad_orientations[8][4];
 
+   static const int vtk_quadratic_tet[10];
+   static const int vtk_quadratic_hex[27];
+
 #ifdef MFEM_USE_MEMALLOC
    friend class Tetrahedron;
    MemAlloc <Tetrahedron, 1024> TetMemory;
