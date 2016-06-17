@@ -23,8 +23,6 @@ using namespace std;
 namespace mfem
 {
 
-extern void skip_comment_lines(std::istream &is, const char comment_char);
-
 void Mesh::ReadMFEMMesh(std::istream &input, bool mfem_v11, int &curved)
 {
    // Read MFEM mesh v1.0 format
@@ -347,15 +345,6 @@ void Mesh::ReadTrueGridMesh(std::istream &input)
          input.getline(buf, buflen);
          boundary[i] = new Quadrilateral(ints, attr);
       }
-   }
-}
-
-// Check for, and remove, a trailing '\r'.
-inline void filter_dos(string &line)
-{
-   if (!line.empty() && *line.rbegin() == '\r')
-   {
-      line.resize(line.size()-1);
    }
 }
 

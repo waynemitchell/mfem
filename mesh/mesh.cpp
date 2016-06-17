@@ -2301,21 +2301,6 @@ void Mesh::SetMeshGen()
    }
 }
 
-void skip_comment_lines(std::istream &is, const char comment_char)
-{
-   while (1)
-   {
-      is >> ws;
-      if (is.peek() != comment_char)
-      {
-         break;
-      }
-      is.ignore(numeric_limits<streamsize>::max(), '\n');
-   }
-}
-
-extern void filter_dos(string &line);
-
 void Mesh::Load(std::istream &input, int generate_edges, int refine,
                 bool fix_orientation)
 {
