@@ -8003,6 +8003,7 @@ void Mesh::Print(std::ostream &out) const
          }
          out << '\n';
       }
+      out.flush();
    }
    else
    {
@@ -8223,6 +8224,7 @@ void Mesh::PrintVTK(std::ostream &out)
    {
       out << elements[i]->GetAttribute() << '\n';
    }
+   out.flush();
 }
 
 void Mesh::PrintVTK(std::ostream &out, int ref, int field_data)
@@ -8240,13 +8242,13 @@ void Mesh::PrintVTK(std::ostream &out, int ref, int field_data)
    // additional dataset information
    if (field_data)
    {
-      out << "FIELD FieldData 1" << endl
-          << "MaterialIds " << 1 << " " << attributes.Size() << " int" << endl;
+      out << "FIELD FieldData 1\n"
+          << "MaterialIds " << 1 << " " << attributes.Size() << " int\n";
       for (int i = 0; i < attributes.Size(); i++)
       {
-         out << attributes[i] << " ";
+         out << ' ' << attributes[i];
       }
-      out << endl;
+      out << '\n';
    }
 
    // count the points, cells, size
@@ -8370,7 +8372,7 @@ void Mesh::PrintVTK(std::ostream &out, int ref, int field_data)
       }
    }
    // prepare to write data
-   out << "POINT_DATA " << np << '\n';
+   out << "POINT_DATA " << np << '\n' << flush;
 }
 
 void Mesh::GetElementColoring(Array<int> &colors, int el0)
@@ -8550,6 +8552,7 @@ void Mesh::PrintWithPartitioning(int *partitioning, std::ostream &out,
          }
          out << '\n';
       }
+      out.flush();
    }
    else
    {
@@ -8988,6 +8991,7 @@ void Mesh::PrintSurfaces(const Table & Aface_face, std::ostream &out) const
          }
          out << '\n';
       }
+      out.flush();
    }
    else
    {
