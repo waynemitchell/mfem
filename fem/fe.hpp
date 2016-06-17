@@ -1701,7 +1701,7 @@ class RT_QuadrilateralElement : public VectorFiniteElement
 private:
    static const double nk[8];
 
-   Poly_1D::Basis &cbasis1d, &obasis1d;
+   Poly_1D::Basis *cbasis1d, *obasis1d;
 #ifndef MFEM_THREAD_SAFE
    mutable Vector shape_cx, shape_ox, shape_cy, shape_oy;
    mutable Vector dshape_cx, dshape_cy;
@@ -1709,7 +1709,8 @@ private:
    Array<int> dof_map, dof2nk;
 
 public:
-   RT_QuadrilateralElement(const int p);
+   RT_QuadrilateralElement(const int p,
+                           const int op_type = -1 , const int cp_type = 1);
    virtual void CalcVShape(const IntegrationPoint &ip,
                            DenseMatrix &shape) const;
    virtual void CalcVShape(ElementTransformation &Trans,
@@ -1738,7 +1739,7 @@ class RT_HexahedronElement : public VectorFiniteElement
 {
    static const double nk[18];
 
-   Poly_1D::Basis &cbasis1d, &obasis1d;
+   Poly_1D::Basis *cbasis1d, *obasis1d;
 #ifndef MFEM_THREAD_SAFE
    mutable Vector shape_cx, shape_ox, shape_cy, shape_oy, shape_cz, shape_oz;
    mutable Vector dshape_cx, dshape_cy, dshape_cz;
@@ -1746,7 +1747,9 @@ class RT_HexahedronElement : public VectorFiniteElement
    Array<int> dof_map, dof2nk;
 
 public:
-   RT_HexahedronElement(const int p);
+   RT_HexahedronElement(const int p,
+                        const int op_type = -1 , const int cp_type = 1);
+
    virtual void CalcVShape(const IntegrationPoint &ip,
                            DenseMatrix &shape) const;
    virtual void CalcVShape(ElementTransformation &Trans,

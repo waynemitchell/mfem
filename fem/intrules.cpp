@@ -979,7 +979,7 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
          }
          case NumericalQuad1D::ClosedEquallySpaced:
          {
-            /// Closed Newton Cotes is exact for -1*( (np+1) %2)
+            /// Closed Newton Cotes is exact for np -( (np+1)%2 )
             n = Order + 1;
             quad_func.ClosedEquallySpaced(n, &tmp );
             break;

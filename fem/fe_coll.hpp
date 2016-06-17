@@ -172,8 +172,22 @@ protected:
                    const bool signs)
    { InitFaces(p, dim, map_type, signs); }
 
+
 public:
-   RT_FECollection(const int p, const int dim);
+   enum OpenBasisType
+   {
+      GaussLegendre = -1, // Nodal basis, with nodes at the Gauss-Legendre points
+      OpenEquallySpaced = -2 , // Nodal basis, nodes at open equally spaced points
+   };
+
+   enum ClosedBasisType
+   {
+      GaussLobatto  = 1, // Nodal basis, with nodes at the Gauss-Lobatto points
+      ClosedEquallySpaced = 2 // Nodal basis, nodes at closed equally spaced points
+   };
+
+   RT_FECollection(const int p, const int dim,
+                   const int op_type = -1 , const int cp_type = 1);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return RT_Elements[GeomType]; }
@@ -184,6 +198,9 @@ public:
    FiniteElementCollection *GetTraceCollection() const;
 
    virtual ~RT_FECollection();
+protected:
+   OpenBasisType ob_type;
+   ClosedBasisType cb_type;
 };
 
 /** Arbitrary order "H^{-1/2}-conforming" face finite elements defined on the

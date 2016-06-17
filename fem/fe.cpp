@@ -9157,14 +9157,48 @@ void L2Pos_TetrahedronElement::ProjectDelta(int vertex, Vector &dofs) const
 const double RT_QuadrilateralElement::nk[8] =
 { 0., -1.,  1., 0.,  0., 1.,  -1., 0. };
 
-RT_QuadrilateralElement::RT_QuadrilateralElement(const int p)
+RT_QuadrilateralElement::RT_QuadrilateralElement(const int p,
+                                                 const int op_type , const int cp_type)
    : VectorFiniteElement(2, Geometry::SQUARE, 2*(p + 1)*(p + 2), p + 1,
                          H_DIV, FunctionSpace::Qk),
-     cbasis1d(poly1d.ClosedBasis(p + 1)), obasis1d(poly1d.OpenBasis(p)),
      dof_map(Dof), dof2nk(Dof)
 {
-   const double *cp = poly1d.ClosedPoints(p + 1);
-   const double *op = poly1d.OpenPoints(p);
+   /// convert from the CloedBasisType and OpenBasisType of RT_FECollection
+   /// also do some error checking :-)
+   int translated_c_type = NumericalQuad1D::InvalidQuad;
+   int translated_o_type = NumericalQuad1D::InvalidQuad;
+
+   if ( cp_type == 1)
+   {
+      translated_c_type = NumericalQuad1D::GaussLobatto;
+   }
+   else if (cp_type == 2)
+   {
+      translated_c_type = NumericalQuad1D::ClosedEquallySpaced;
+   }
+
+   if ( op_type == -1)
+   {
+      translated_o_type = NumericalQuad1D::GaussLegendre;
+   }
+   else if (op_type == -2)
+   {
+      translated_o_type = NumericalQuad1D::OpenEquallySpaced;
+   }
+
+   if ( translated_c_type == NumericalQuad1D::InvalidQuad)
+      MFEM_ABORT( "Asking for an undefined closed basis type.  cp_type = "
+                  << cp_type);
+
+   if ( translated_o_type == NumericalQuad1D::InvalidQuad)
+      MFEM_ABORT( "Asking for an undefined open basis type.  op_type = "
+                  << op_type);
+
+   cbasis1d = &poly1d.ClosedBasis(p + 1, translated_c_type);
+   obasis1d = &poly1d.OpenBasis(p, translated_o_type);
+
+   const double *cp = poly1d.ClosedPoints(p + 1,translated_c_type);
+   const double *op = poly1d.OpenPoints(p,translated_o_type);
    const int dof2 = Dof/2;
 
 #ifndef MFEM_THREAD_SAFE
@@ -9277,10 +9311,10 @@ void RT_QuadrilateralElement::CalcVShape(const IntegrationPoint &ip,
    Vector shape_cx(pp1 + 1), shape_ox(pp1), shape_cy(pp1 + 1), shape_oy(pp1);
 #endif
 
-   cbasis1d.Eval(ip.x, shape_cx);
-   obasis1d.Eval(ip.x, shape_ox);
-   cbasis1d.Eval(ip.y, shape_cy);
-   obasis1d.Eval(ip.y, shape_oy);
+   cbasis1d->Eval(ip.x, shape_cx);
+   obasis1d->Eval(ip.x, shape_ox);
+   cbasis1d->Eval(ip.y, shape_cy);
+   obasis1d->Eval(ip.y, shape_oy);
 
    int o = 0;
    for (int j = 0; j < pp1; j++)
@@ -9325,10 +9359,10 @@ void RT_QuadrilateralElement::CalcDivShape(const IntegrationPoint &ip,
    Vector dshape_cx(pp1 + 1), dshape_cy(pp1 + 1);
 #endif
 
-   cbasis1d.Eval(ip.x, shape_cx, dshape_cx);
-   obasis1d.Eval(ip.x, shape_ox);
-   cbasis1d.Eval(ip.y, shape_cy, dshape_cy);
-   obasis1d.Eval(ip.y, shape_oy);
+   cbasis1d->Eval(ip.x, shape_cx, dshape_cx);
+   obasis1d->Eval(ip.x, shape_ox);
+   cbasis1d->Eval(ip.y, shape_cy, dshape_cy);
+   obasis1d->Eval(ip.y, shape_oy);
 
    int o = 0;
    for (int j = 0; j < pp1; j++)
@@ -9365,14 +9399,48 @@ void RT_QuadrilateralElement::CalcDivShape(const IntegrationPoint &ip,
 const double RT_HexahedronElement::nk[18] =
 { 0.,0.,-1.,  0.,-1.,0.,  1.,0.,0.,  0.,1.,0.,  -1.,0.,0.,  0.,0.,1. };
 
-RT_HexahedronElement::RT_HexahedronElement(const int p)
+RT_HexahedronElement::RT_HexahedronElement(const int p,
+                                           const int op_type, const int cp_type)
    : VectorFiniteElement(3, Geometry::CUBE, 3*(p + 1)*(p + 1)*(p + 2), p + 1,
                          H_DIV, FunctionSpace::Qk),
-     cbasis1d(poly1d.ClosedBasis(p + 1)), obasis1d(poly1d.OpenBasis(p)),
      dof_map(Dof), dof2nk(Dof)
 {
-   const double *cp = poly1d.ClosedPoints(p + 1);
-   const double *op = poly1d.OpenPoints(p);
+   /// convert from the CloedBasisType and OpenBasisType of RT_FECollection
+   /// also do some error checking :-)
+   int translated_c_type = NumericalQuad1D::InvalidQuad;
+   int translated_o_type = NumericalQuad1D::InvalidQuad;
+
+   if ( cp_type == 1)
+   {
+      translated_c_type = NumericalQuad1D::GaussLobatto;
+   }
+   else if (cp_type == 2)
+   {
+      translated_c_type = NumericalQuad1D::ClosedEquallySpaced;
+   }
+
+   if ( op_type == -1)
+   {
+      translated_o_type = NumericalQuad1D::GaussLegendre;
+   }
+   else if (op_type == -2)
+   {
+      translated_o_type = NumericalQuad1D::OpenEquallySpaced;
+   }
+
+   if ( translated_c_type == NumericalQuad1D::InvalidQuad)
+      MFEM_ABORT( "Asking for an undefined closed basis type.  cp_type = "
+                  << cp_type);
+
+   if ( translated_o_type == NumericalQuad1D::InvalidQuad)
+      MFEM_ABORT( "Asking for an undefined open basis type.  op_type = "
+                  << op_type);
+
+   cbasis1d = &poly1d.ClosedBasis(p + 1, translated_c_type);
+   obasis1d = &poly1d.OpenBasis(p , translated_o_type);
+
+   const double *cp = poly1d.ClosedPoints(p + 1,translated_c_type);
+   const double *op = poly1d.OpenPoints(p,translated_o_type);
    const int dof3 = Dof/3;
 
 #ifndef MFEM_THREAD_SAFE
@@ -9536,12 +9604,12 @@ void RT_HexahedronElement::CalcVShape(const IntegrationPoint &ip,
    Vector shape_cz(pp1 + 1), shape_oz(pp1);
 #endif
 
-   cbasis1d.Eval(ip.x, shape_cx);
-   obasis1d.Eval(ip.x, shape_ox);
-   cbasis1d.Eval(ip.y, shape_cy);
-   obasis1d.Eval(ip.y, shape_oy);
-   cbasis1d.Eval(ip.z, shape_cz);
-   obasis1d.Eval(ip.z, shape_oz);
+   cbasis1d->Eval(ip.x, shape_cx);
+   obasis1d->Eval(ip.x, shape_ox);
+   cbasis1d->Eval(ip.y, shape_cy);
+   obasis1d->Eval(ip.y, shape_oy);
+   cbasis1d->Eval(ip.z, shape_cz);
+   obasis1d->Eval(ip.z, shape_oz);
 
    int o = 0;
    // x-components
@@ -9611,12 +9679,12 @@ void RT_HexahedronElement::CalcDivShape(const IntegrationPoint &ip,
    Vector dshape_cx(pp1 + 1), dshape_cy(pp1 + 1), dshape_cz(pp1 + 1);
 #endif
 
-   cbasis1d.Eval(ip.x, shape_cx, dshape_cx);
-   obasis1d.Eval(ip.x, shape_ox);
-   cbasis1d.Eval(ip.y, shape_cy, dshape_cy);
-   obasis1d.Eval(ip.y, shape_oy);
-   cbasis1d.Eval(ip.z, shape_cz, dshape_cz);
-   obasis1d.Eval(ip.z, shape_oz);
+   cbasis1d->Eval(ip.x, shape_cx, dshape_cx);
+   obasis1d->Eval(ip.x, shape_ox);
+   cbasis1d->Eval(ip.y, shape_cy, dshape_cy);
+   obasis1d->Eval(ip.y, shape_oy);
+   cbasis1d->Eval(ip.z, shape_cz, dshape_cz);
+   obasis1d->Eval(ip.z, shape_oz);
 
    int o = 0;
    // x-components

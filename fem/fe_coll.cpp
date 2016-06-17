@@ -1495,8 +1495,33 @@ L2_FECollection::~L2_FECollection()
 }
 
 
-RT_FECollection::RT_FECollection(const int p, const int dim)
+RT_FECollection::RT_FECollection(const int p, const int dim,
+                                 const int _ob_type , const int _cb_type)
 {
+   if (_ob_type == -1)
+   {
+      ob_type = GaussLegendre;
+   }
+   else if (_ob_type == -2)
+   {
+      ob_type = OpenEquallySpaced;
+   }
+   else
+      MFEM_ABORT("Can't convert _ob_type to a known closed basis point type."
+                 << "_ob_type: " << _ob_type);
+
+   if (_cb_type == 1)
+   {
+      cb_type = GaussLobatto;
+   }
+   else if (_cb_type == 2)
+   {
+      cb_type = ClosedEquallySpaced;
+   }
+   else
+      MFEM_ABORT("Can't convert _cb_type to a known closed basis point type."
+                 << "_cb_type: " << _cb_type);
+
    InitFaces(p, dim, FiniteElement::INTEGRAL, true);
 
    snprintf(rt_name, 32, "RT_%dD_P%d", dim, p);
@@ -1507,7 +1532,9 @@ RT_FECollection::RT_FECollection(const int p, const int dim)
       RT_Elements[Geometry::TRIANGLE] = new RT_TriangleElement(p);
       RT_dof[Geometry::TRIANGLE] = p*pp1;
 
-      RT_Elements[Geometry::SQUARE] = new RT_QuadrilateralElement(p);
+      RT_Elements[Geometry::SQUARE] = new RT_QuadrilateralElement(p, ob_type,
+                                                                  cb_type);
+      // two vector components * n_unk_face *
       RT_dof[Geometry::SQUARE] = 2*p*pp1;
    }
    else if (dim == 3)
@@ -1515,13 +1542,12 @@ RT_FECollection::RT_FECollection(const int p, const int dim)
       RT_Elements[Geometry::TETRAHEDRON] = new RT_TetrahedronElement(p);
       RT_dof[Geometry::TETRAHEDRON] = p*pp1*(p + 2)/2;
 
-      RT_Elements[Geometry::CUBE] = new RT_HexahedronElement(p);
+      RT_Elements[Geometry::CUBE] = new RT_HexahedronElement(p, ob_type, cb_type);
       RT_dof[Geometry::CUBE] = 3*p*pp1*pp1;
    }
    else
    {
-      cerr << "RT_FECollection::RT_FECollection : dim = " << dim << endl;
-      mfem_error();
+      MFEM_ABORT( "RT_FECollection::RT_FECollection : dim = " << dim );
    }
 }
 
@@ -1535,6 +1561,7 @@ void RT_FECollection::InitFaces(const int p, const int dim, const int map_type,
       RT_Elements[g] = NULL;
       RT_dof[g] = 0;
    }
+   /// Degree of Freedom Orderings
    for (int i = 0; i < 2; i++)
    {
       SegDofOrd[i] = NULL;
