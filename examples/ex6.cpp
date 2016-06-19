@@ -101,7 +101,8 @@ int main(int argc, char *argv[])
    ConstantCoefficient one(1.0);
    ConstantCoefficient zero(0.0);
 
-   a.AddDomainIntegrator(new DiffusionIntegrator(one));
+   BilinearFormIntegrator *integ = new DiffusionIntegrator(one);
+   a.AddDomainIntegrator(integ);
    b.AddDomainIntegrator(new DomainLFIntegrator(one));
 
    // 6. The solution vector x and the associated finite element grid function
@@ -128,6 +129,13 @@ int main(int argc, char *argv[])
    //    current mesh, visualize the solution, estimate the error on all
    //    elements, refine the worst elements and update all objects to work
    //    with the new mesh.
+   FiniteElementSpace flux_fespace(&mesh, &fec, sdim);
+   ZienkiewiczZhuEstimator estimator(*integ, x, flux_fespace);
+   estimator.SetAnisotropic();
+   ThresholdAMRMarker marker(mesh, estimator);
+   marker.SetTotalErrorFraction(0.7);
+   RefinementControl refinement(marker);
+
    const int max_dofs = 50000;
    for (int it = 0; ; it++)
    {
@@ -184,36 +192,22 @@ int main(int argc, char *argv[])
 
       if (cdofs > max_dofs)
       {
+         cout << "Exceeded the maximum number of dofs. Stop." << endl;
          break;
       }
 
       // 16. Estimate element errors using the Zienkiewicz-Zhu error estimator.
       //     The bilinear form integrator must have the 'ComputeElementFlux'
       //     method defined.
-      Vector errors(mesh.GetNE());
-      Array<int> aniso_flags;
-      {
-         DiffusionIntegrator flux_integrator(one);
-         FiniteElementSpace flux_fespace(&mesh, &fec, sdim);
-         GridFunction flux(&flux_fespace);
-         ZZErrorEstimator(flux_integrator, x, flux, errors, &aniso_flags);
-      }
-
       // 17. Make a list of elements whose error is larger than a fraction of
       //     the maximum element error. These elements will be refined.
-      Array<Refinement> ref_list;
-      const double frac = 0.7;
-      double threshold = frac * errors.Max();
-      for (int i = 0; i < errors.Size(); i++)
-      {
-         if (errors[i] >= threshold)
-         {
-            ref_list.Append(Refinement(i, aniso_flags[i]));
-         }
-      }
-
       // 18. Refine the selected elements.
-      mesh.GeneralRefinement(ref_list);
+      refinement.Update(mesh);
+      if (refinement.Stop())
+      {
+         cout << "Stopping criterion satisfied. Stop." << endl;
+         break;
+      }
 
       // 19. Update the space to reflect the new state of the mesh. Also,
       //     interpolate the solution x so that it lies in the new space but

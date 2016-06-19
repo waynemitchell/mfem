@@ -42,24 +42,46 @@ public:
 };
 
 
+/** @brief The AnisotropicErrorEstimator class is the base class for all error
+    estimators that compute one non-negative real (double) number and
+    anisotropic flag for every element in the Mesh.
+ */
+class AnisotropicErrorEstimator : public IsotropicErrorEstimator
+{
+public:
+   /// @brief Get a Vector with all element errors.
+   virtual const Vector &GetLocalErrors() = 0;
+
+   /** @brief Get an Array<int> with anisotropic flags for all mesh elements.
+       Return an empty array when anisotropic estimates are not available or
+       enabled. */
+   virtual const Array<int> &GetAnisotropicFlags() = 0;
+
+   virtual ~AnisotropicErrorEstimator() { }
+};
+
+
 /** @brief The ZienkiewiczZhuEstimator class implements the Zienkiewicz-Zhu
     error estimation procedure.
 
     The required BilinearFormIntegrator must implement the methods
     ComputeElementFlux() and ComputeFluxEnergy().
  */
-class ZienkiewiczZhuEstimator : public IsotropicErrorEstimator
+class ZienkiewiczZhuEstimator : public AnisotropicErrorEstimator
 {
 protected:
    long current_sequence;
    Vector error_estimates;
    double total_error;
+   bool anisotropic;
+   Array<int> aniso_flags;
 
    BilinearFormIntegrator *integ; ///< Not owned.
    GridFunction *solution; ///< Not owned.
 
-   FiniteElementSpace *flux_space; /**< @brief
-      Owned. Its Update() method is called when needed. */
+   FiniteElementSpace *flux_space; /**< @brief Ownership based on own_flux_fes.
+      Its Update() method is called automatically by this class when needed. */
+   bool own_flux_fes; ///< Ownership flag for flux_space.
 
    /// @brief Check if the mesh of the solution was modified.
    bool MeshIsModified()
@@ -84,10 +106,35 @@ public:
                            FiniteElementSpace *flux_fes)
       : current_sequence(-1),
         total_error(),
+        anisotropic(false),
         integ(&integ),
         solution(&sol),
-        flux_space(flux_fes)
+        flux_space(flux_fes),
+        own_flux_fes(true)
    { }
+
+   /** @brief Construct a new ZienkiewiczZhuEstimator object.
+       @param integ    This BilinearFormIntegrator must implement the methods
+                       ComputeElementFlux() and ComputeFluxEnergy().
+       @param sol      The solution field whose error is to be estimated.
+       @param flux_fes The ZienkiewiczZhuEstimator does NOT assume ownership of
+                       this FiniteElementSpace; will call its Update() method
+                       when needed. */
+   ZienkiewiczZhuEstimator(BilinearFormIntegrator &integ, GridFunction &sol,
+                           FiniteElementSpace &flux_fes)
+      : current_sequence(-1),
+        total_error(),
+        anisotropic(false),
+        integ(&integ),
+        solution(&sol),
+        flux_space(&flux_fes),
+        own_flux_fes(false)
+   { }
+
+   /** @brief Enable/disable anisotropic estimates. To enable this option, the
+       BilinearFormIntegrator must support the 'd_energy' parameter in its
+       ComputeFluxEnergy() method. */
+   void SetAnisotropic(bool aniso = true) { anisotropic = aniso; }
 
    /// @brief Get a Vector with all element errors.
    virtual const Vector &GetLocalErrors()
@@ -96,11 +143,20 @@ public:
       return error_estimates;
    }
 
-   /** @brief Destroy a ZienkiewiczZhuEstimator object. Destroys the owned
+   /** @brief Get an Array<int> with anisotropic flags for all mesh elements.
+       Return an empty array when anisotropic estimates are not available or
+       enabled. */
+   virtual const Array<int> &GetAnisotropicFlags()
+   {
+      if (MeshIsModified()) { ComputeEstimates(); }
+      return aniso_flags;
+   }
+
+   /** @brief Destroy a ZienkiewiczZhuEstimator object. Destroys, if owned, the
        FiniteElementSpace, flux_space. */
    virtual ~ZienkiewiczZhuEstimator()
    {
-      delete flux_space;
+      if (own_flux_fes) { delete flux_space; }
    }
 };
 

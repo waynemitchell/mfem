@@ -22,6 +22,109 @@
 namespace mfem
 {
 
+class MeshMarker
+{
+ protected:
+   long num_marked_elements;
+
+public:
+   /// @brief Construct a MeshMarker.
+   MeshMarker() : num_marked_elements(0) { }
+
+   /// @brief Return a list with all marked elements.
+   virtual const Array<Refinement> &GetMarkedElements() = 0;
+
+   /// @brief Destroy a MeshMarker object.
+   virtual ~MeshMarker() { }
+
+   /// @brief Get the global number of marked elements.
+   long GetNumMarkedElements() const { return num_marked_elements; }
+};
+
+
+/** @brief MeshMarker based on IsotropicErrorEstimator using an error threshold.
+
+    This class uses the given IsotropicErrorEstimator to estimate the local
+    element errors and then marks for refinement all elements i such that
+    loc_err_i > threshold. The threshold is computed as
+    \code
+       threshold = max(total_err * total_fraction * pow(num_elements,-1.0/p),
+                       local_err_goal);
+    \endcode
+    where p (=total_norm_p), total_fraction, and local_err_goal are settable
+    parameters, total_err = (sum_i local_err_i^p)^{1/p}, when p < inf,
+    or total_err = max_i local_err_i, when p = inf. */
+class ThresholdAMRMarker : public MeshMarker
+{
+protected:
+   Mesh &mesh;
+   IsotropicErrorEstimator &estimator;
+   AnisotropicErrorEstimator *aniso_estimator;
+
+   double total_norm_p;
+   double total_err_goal;
+   double total_fraction;
+   double local_err_goal;
+   long   max_elements;
+
+   double threshold;
+   Array<Refinement> marked_elements;
+   long current_sequence;
+
+   double GetNorm(const Vector &local_err) const;
+
+   void MarkElements();
+
+public:
+   /** @brief Construct a ThresholdAMRMarker using the given
+       IsotropicErrorEstimator. */
+   ThresholdAMRMarker(Mesh &m, IsotropicErrorEstimator &est);
+
+   // default destructor (virtual)
+
+   /** @brief Set the exponent, p, of the discrete p-norm used to compute the
+       total error from the local element errors. */
+   void SetTotalErrorNormP(double norm_p =
+                              std::numeric_limits<double>::infinity())
+   { total_norm_p = norm_p; }
+
+   /** @brief Set the total error stopping criterion: stop when
+       total_err <= total_err_goal. The default value is zero. */
+   void SetTotalErrorGoal(double err_goal) { total_err_goal = err_goal; }
+
+   /** @brief Set the total fraction used in the computation of the threshold.
+       The default value is 1/2.
+       @note If fraction == 0, total_err is essentially ignored in the threshold
+       computation, i.e. threshold = local error goal. */
+   void SetTotalErrorFraction(double fraction) { total_fraction = fraction; }
+
+   /** @brief Set the local stopping criterion: stop when
+       local_err_i <= local_err_goal. The default value is zero.
+       @note If local_err_goal == 0, it is essentially ignored in the threshold
+       computation. */
+   void SetLocalErrorGoal(double err_goal) { local_err_goal = err_goal; }
+
+   /** @brief Set the maximum number of elements stoppin criterion: stop when
+       the input mesh has num_elements >= max_elem. The default value is
+       LONG_MAX. */
+   void SetMaxElements(long max_elem) { max_elements = max_elem; }
+
+   /// @brief Return a list with all marked elements.
+   virtual const Array<Refinement> &GetMarkedElements()
+   {
+      MFEM_ASSERT(current_sequence <= mesh.GetSequence(), "");
+      if (current_sequence < mesh.GetSequence()) { MarkElements(); }
+      return marked_elements;
+   }
+
+   /// @brief Get the global number of marked elements.
+   long GetNumMarkedElements() const { return num_marked_elements; }
+
+   /// @brief Get the last threshold used for marking.
+   double GetThreshold() const { return threshold; }
+};
+
+
 /** @brief The MeshControl class serves as base for Mesh manipulation classes.
 
     The main purpose of the class is to provide a common abstraction
@@ -142,40 +245,18 @@ public:
 };
 
 
-/** @brief AMR control using an error threshold.
+/** @brief Refinement control using a MeshMarker.
 
-    This class uses the given IsotropicErrorEstimator to estimate the local
-    element errors, marks for refinement all elements i such that
-    loc_err_i > threshold, and calls the mesh method GeneralRefinement() to
-    perform the refinements. The threshold is computed as
-    \code
-       threshold = max(total_err * total_fraction * pow(num_elements,-1.0/p),
-                       local_err_goal);
-    \endcode
-    where p (=total_norm_p), total_fraction, and local_err_goal are settable
-    parameters, total_err = (sum_i local_err_i^p)^{1/p}, when p < inf,
-    or total_err = max_i local_err_i, when p = inf. */
-class ThresholdAMRControl : public MeshControl
+    This class uses the given MeshMarker to mark elements and then calls the
+    mesh method GeneralRefinement() to perform the refinements. */
+class RefinementControl : public MeshControl
 {
 protected:
-   IsotropicErrorEstimator *estimator; ///< Not owned.
-
-   double total_norm_p;
-   double total_err_goal;
-   double total_fraction;
-   double local_err_goal;
-   long   max_elements;
-
-   double threshold;
-   long num_marked_elements;
-
-   Array<int> marked_elements;
+   MeshMarker &marker;
    int non_conforming;
    int nc_limit;
 
-   double GetNorm(const Vector &local_err, Mesh &mesh) const;
-
-   /** @brief Apply the ThresholdAMRControl.
+   /** @brief Apply the RefinementControl.
        @return STOP if a stopping criterion is satisfied or no elements were
        marked for refinement; REFINE + CONTINUE otherwise. */
    virtual int Apply(Mesh &mesh);
@@ -183,36 +264,9 @@ protected:
 public:
    /** @brief Construct a ThresholdAMRControl using the given
        IsotropicErrorEstimator. */
-   ThresholdAMRControl(IsotropicErrorEstimator *est);
+   RefinementControl(MeshMarker &mm);
 
    // default destructor (virtual)
-
-   /** @brief Set the exponent, p, of the discrete p-norm used to compute the
-       total error from the local element errors. */
-   void SetTotalErrorNormP(double norm_p =
-                              std::numeric_limits<double>::infinity())
-   { total_norm_p = norm_p; }
-
-   /** @brief Set the total error stopping criterion: stop when
-       total_err <= total_err_goal. The default value is zero. */
-   void SetTotalErrorGoal(double err_goal) { total_err_goal = err_goal; }
-
-   /** @brief Set the total fraction used in the computation of the threshold.
-       The default value is 1/2.
-       @note If fraction == 0, total_err is essentially ignored in the threshold
-       computation, i.e. threshold = local error goal. */
-   void SetTotalErrorFraction(double fraction) { total_fraction = fraction; }
-
-   /** @brief Set the local stopping criterion: stop when
-       local_err_i <= local_err_goal. The default value is zero.
-       @note If local_err_goal == 0, it is essentially ignored in the threshold
-       computation. */
-   void SetLocalErrorGoal(double err_goal) { local_err_goal = err_goal; }
-
-   /** @brief Set the maximum number of elements stoppin criterion: stop when
-       the input mesh has num_elements >= max_elem. The default value is
-       LONG_MAX. */
-   void SetMaxElements(long max_elem) { max_elements = max_elem; }
 
    /// @brief Use nonconforming refinement, if possible.
    void SetNonconformingRefinement(int nc_limit = 0)
@@ -227,12 +281,6 @@ public:
       non_conforming = -1;
       this->nc_limit = nc_limit;
    }
-
-   /// @brief Get the number of marked elements in the last Update() call.
-   long GetNumMarkedElements() const { return num_marked_elements; }
-
-   /// @brief Get the threshold used in the last Update() call.
-   double GetThreshold() const { return threshold; }
 };
 
 

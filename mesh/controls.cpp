@@ -15,6 +15,79 @@
 namespace mfem
 {
 
+ThresholdAMRMarker::ThresholdAMRMarker(Mesh &m, IsotropicErrorEstimator &est)
+   : mesh (m), estimator(est)
+{
+   aniso_estimator = dynamic_cast<AnisotropicErrorEstimator*>(&estimator);
+   total_norm_p = std::numeric_limits<double>::infinity();
+   total_err_goal = 0.0;
+   total_fraction = 0.5;
+   local_err_goal = 0.0;
+   max_elements = std::numeric_limits<long>::max();
+
+   threshold = 0.0;
+   num_marked_elements = 0L;
+   current_sequence = -1;
+}
+
+// protected method
+double ThresholdAMRMarker::GetNorm(const Vector &local_err) const
+{
+#ifndef MFEM_USE_MPI
+   return local_err.Normlp(total_norm_p);
+#else
+   ParMesh *pmesh = dynamic_cast<ParMesh*>(&mesh);
+   return pmesh ? local_err.ParNormlp(total_norm_p, pmesh->GetComm()) :
+          local_err.Normlp(total_norm_p);
+#endif
+}
+
+// protected method
+void ThresholdAMRMarker::MarkElements()
+{
+   threshold = 0.0;
+   num_marked_elements = 0;
+   marked_elements.SetSize(0);
+   current_sequence = mesh.GetSequence();
+
+   const long num_elements = mesh.GetGlobalNE();
+   if (num_elements >= max_elements) { return; }
+
+   const int NE = mesh.GetNE();
+   const Vector &local_err = estimator.GetLocalErrors();
+   MFEM_ASSERT(local_err.Size() == NE, "invalid size of local_err");
+
+   double total_err = GetNorm(local_err);
+   if (total_err <= total_err_goal) { return; }
+
+   threshold = std::max(total_err * total_fraction *
+                        std::pow(num_elements, -1.0/total_norm_p),
+                        local_err_goal);
+
+   for (int el = 0; el < NE; el++)
+   {
+      if (local_err(el) > threshold)
+      {
+         marked_elements.Append(Refinement(el));
+      }
+   }
+   if (aniso_estimator)
+   {
+      const Array<int> &aniso_flags = aniso_estimator->GetAnisotropicFlags();
+      if (aniso_flags.Size() > 0)
+      {
+         for (int i = 0; i < marked_elements.Size(); i++)
+         {
+            Refinement &ref = marked_elements[i];
+            ref.ref_type = aniso_flags[ref.index];
+         }
+      }
+   }
+
+   num_marked_elements = mesh.ReduceInt(marked_elements.Size());
+}
+
+
 MeshControlSequence::~MeshControlSequence()
 {
    // delete in reverse order
@@ -42,65 +115,20 @@ next_step:
 }
 
 
-ThresholdAMRControl::ThresholdAMRControl(IsotropicErrorEstimator *est)
-   : estimator(est)
+RefinementControl::RefinementControl(MeshMarker &mm)
+   : marker(mm)
 {
-   total_norm_p = std::numeric_limits<double>::infinity();
-   total_err_goal = 0.0;
-   total_fraction = 0.5;
-   local_err_goal = 0.0;
-   max_elements = std::numeric_limits<long>::max();
-
-   threshold = 0.0;
-   num_marked_elements = 0L;
-
    non_conforming = -1;
    nc_limit = 0;
 }
 
-double ThresholdAMRControl::GetNorm(const Vector &local_err, Mesh &mesh) const
+int RefinementControl::Apply(Mesh &mesh)
 {
-#ifndef MFEM_USE_MPI
-   return local_err.Normlp(total_norm_p);
-#else
-   ParMesh *pmesh = dynamic_cast<ParMesh*>(&mesh);
-   return pmesh ? local_err.ParNormlp(total_norm_p, pmesh->GetComm()) :
-          local_err.Normlp(total_norm_p);
-#endif
-}
+   const Array<Refinement> &marked_el = marker.GetMarkedElements();
 
-int ThresholdAMRControl::Apply(Mesh &mesh)
-{
-   threshold = 0.0;
-   num_marked_elements = 0;
+   if (marker.GetNumMarkedElements() == 0) { return STOP; }
 
-   const long num_elements = mesh.GetGlobalNE();
-   if (num_elements >= max_elements) { return STOP; }
-
-   const int NE = mesh.GetNE();
-   const Vector &local_err = estimator->GetLocalErrors();
-   MFEM_ASSERT(local_err.Size() == NE, "invalid size of local_err");
-
-   double total_err = GetNorm(local_err, mesh);
-   if (total_err <= total_err_goal) { return STOP; }
-
-   threshold = std::max(total_err * total_fraction *
-                        std::pow(num_elements, -1.0/total_norm_p),
-                        local_err_goal);
-
-   marked_elements.SetSize(0);
-   for (int el = 0; el < NE; el++)
-   {
-      if (local_err(el) > threshold)
-      {
-         marked_elements.Append(el);
-      }
-   }
-
-   num_marked_elements = mesh.ReduceInt(marked_elements.Size());
-   if (num_marked_elements == 0) { return STOP; }
-
-   mesh.GeneralRefinement(marked_elements, non_conforming, nc_limit);
+   mesh.GeneralRefinement(marked_el, non_conforming, nc_limit);
    return CONTINUE + REFINE;
 }
 
