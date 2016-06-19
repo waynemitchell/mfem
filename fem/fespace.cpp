@@ -557,7 +557,7 @@ void FiniteElementSpace::GetConformingInterpolation()
             GetEdgeFaceDofs(type, slave.index, slave_dofs);
             if (!slave_dofs.Size()) { continue; }
 
-            T.GetPointMat() = slave.point_matrix;
+            slave.OrientedPointMatrix(T.GetPointMat());
             fe->GetLocalInterpolation(T, I);
 
             // make each slave DOF dependent on all master DOFs
@@ -934,6 +934,7 @@ FiniteElementSpace::FiniteElementSpace(Mesh *mesh,
          UpdateNURBS();
          cP = cR = NULL;
          T = NULL;
+         own_T = true;
       }
    }
    else
@@ -999,6 +1000,7 @@ void FiniteElementSpace::Construct()
    cP = NULL;
    cR = NULL;
    T = NULL;
+   own_T = true;
 
    if (mesh->Dimension() == 3 && mesh->GetNE())
    {
@@ -1423,7 +1425,7 @@ void FiniteElementSpace::Destroy()
 {
    delete cR;
    delete cP;
-   delete T;
+   if (own_T) { delete T; }
 
    dof_elem_array.DeleteAll();
    dof_ldof_array.DeleteAll();
@@ -1473,7 +1475,7 @@ void FiniteElementSpace::Update(bool want_transform)
    }
 
    Destroy();
-   Construct();
+   Construct(); // sets T to NULL, own_T to true
    BuildElementToDofTable();
 
    if (want_transform)

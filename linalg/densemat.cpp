@@ -2206,7 +2206,7 @@ void DenseMatrix::GetRow(int r, Vector &row)
    }
 }
 
-void DenseMatrix::GetColumn(int c, Vector &col)
+void DenseMatrix::GetColumn(int c, Vector &col) const
 {
    int m = Height();
    col.SetSize(m);
@@ -2220,7 +2220,7 @@ void DenseMatrix::GetColumn(int c, Vector &col)
    }
 }
 
-void DenseMatrix::GetDiag(Vector &d)
+void DenseMatrix::GetDiag(Vector &d) const
 {
    if (height != width)
    {
@@ -2234,7 +2234,7 @@ void DenseMatrix::GetDiag(Vector &d)
    }
 }
 
-void DenseMatrix::Getl1Diag(Vector &l)
+void DenseMatrix::Getl1Diag(Vector &l) const
 {
    if (height != width)
    {
@@ -2443,8 +2443,8 @@ void DenseMatrix::CopyRows(const DenseMatrix &A, int row1, int row2)
 {
    SetSize(row2 - row1 + 1, A.Width());
 
-   for (int i = row1; i <= row2; i++)
-      for (int j = 0; j < Width(); j++)
+   for (int j = 0; j < Width(); j++)
+      for (int i = row1; i <= row2; i++)
       {
          (*this)(i-row1,j) = A(i,j);
       }
@@ -2454,8 +2454,8 @@ void DenseMatrix::CopyCols(const DenseMatrix &A, int col1, int col2)
 {
    SetSize(A.Height(), col2 - col1 + 1);
 
-   for (int i = 0; i < Height(); i++)
-      for (int j = col1; j <= col2; j++)
+   for (int j = col1; j <= col2; j++)
+      for (int i = 0; i < Height(); i++)
       {
          (*this)(i,j-col1) = A(i,j);
       }
@@ -2504,9 +2504,23 @@ void DenseMatrix::CopyMN(const DenseMatrix &A, int m, int n, int Aro, int Aco,
    int i, j;
 
    MFEM_VERIFY(row_offset+m <= this->Height() && col_offset+n <= this->Width(),
-               "this DenseMatrix is too small to accomodate the submatrix.");
+               "this DenseMatrix is too small to accomodate the submatrix.  "
+               << "row_offset = " << row_offset
+               << ", m = " << m
+               << ", this->Height() = " << this->Height()
+               << ", col_offset = " << col_offset
+               << ", n = " << n
+               << ", this->Width() = " << this->Width()
+              );
    MFEM_VERIFY(Aro+m <= A.Height() && Aco+n <= A.Width(),
-               "The A DenseMatrix is too small to accomodate the submatrix.");
+               "The A DenseMatrix is too small to accomodate the submatrix.  "
+               << "Aro = " << Aro
+               << ", m = " << m
+               << ", A.Height() = " << A.Height()
+               << ", Aco = " << Aco
+               << ", n = " << n
+               << ", A.Width() = " << A.Width()
+              );
 
    for (j = 0; j < n; j++)
       for (i = 0; i < m; i++)

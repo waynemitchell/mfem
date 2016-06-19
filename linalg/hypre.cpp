@@ -67,10 +67,13 @@ HypreParVector::HypreParVector(MPI_Comm comm, HYPRE_Int glob_size,
    hypre_ParVectorSetDataOwner(x,1); // owns the seq vector
    hypre_SeqVectorSetDataOwner(hypre_ParVectorLocalVector(x),0);
    hypre_ParVectorSetPartitioningOwner(x,0);
-   hypre_VectorData(hypre_ParVectorLocalVector(x)) = _data;
-   // If hypre_ParVectorLocalVector(x) is non-NULL, hypre_ParVectorInitialize(x)
-   // does not allocate memory!
+   double tmp = 0.0;
+   hypre_VectorData(hypre_ParVectorLocalVector(x)) = &tmp;
+   // If hypre_ParVectorLocalVector(x) and &tmp are non-NULL,
+   // hypre_ParVectorInitialize(x) does not allocate memory!
    hypre_ParVectorInitialize(x);
+   // Set the internal data array to the one passed in
+   hypre_VectorData(hypre_ParVectorLocalVector(x)) = _data;
    _SetDataAndSize_();
    own_ParVector = 1;
 }
@@ -3048,7 +3051,6 @@ HypreLOBPCG::SetOperator(Operator & A)
       MPI_Scan(&locSize, &part[1], 1, HYPRE_MPI_INT, MPI_SUM, comm);
 
       part[0] = part[1] - locSize;
-      part[1]++;
 
       MPI_Allreduce(&locSize, &glbSize, 1, HYPRE_MPI_INT, MPI_SUM, comm);
    }
@@ -3073,6 +3075,7 @@ HypreLOBPCG::SetOperator(Operator & A)
       delete x;
    }
 
+   // Create a distributed vector without a data array.
    x = new HypreParVector(comm,glbSize,NULL,part);
 
    matvec_fn.MatvecCreate  = this->OperatorMatvecCreate;

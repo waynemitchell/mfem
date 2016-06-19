@@ -2125,6 +2125,7 @@ void GridFunction::Save(std::ostream &out) const
    {
       Vector::Print(out, fes->GetVDim());
    }
+   out.flush();
 }
 
 void GridFunction::SaveVTK(std::ostream &out, const std::string &field_name,
@@ -2201,6 +2202,7 @@ void GridFunction::SaveVTK(std::ostream &out, const std::string &field_name,
          }
       }
    }
+   out.flush();
 }
 
 void GridFunction::SaveSTLTri(std::ostream &out, double p1[], double p2[],

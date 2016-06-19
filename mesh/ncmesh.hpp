@@ -153,9 +153,14 @@ public:
    struct Slave : public MeshId
    {
       int master; ///< master number (in Mesh numbering)
-      DenseMatrix point_matrix; ///< position within the master
+      int edge_flags; ///< edge orientation flags
+      DenseMatrix point_matrix; ///< position within the master edge/face
 
-      Slave(int index) : MeshId(index), master(-1) {}
+      Slave(int index, Element* element, int local)
+         : MeshId(index, element, local), master(-1), edge_flags(0) {}
+
+      /// Return the point matrix oriented according to the master and slave edges
+      void OrientedPointMatrix(DenseMatrix &oriented_matrix) const;
    };
 
    /// Lists all edges/faces in the nonconforming mesh.
@@ -165,6 +170,7 @@ public:
       std::vector<Master> masters;
       std::vector<Slave> slaves;
       // TODO: switch to Arrays when fixed for non-POD types
+      // TODO: make a list of unique slave matrices to save memory (+ time later)
 
       void Clear() { conforming.clear(); masters.clear(); slaves.clear(); }
       bool Empty() const { return !conforming.size() && !masters.size(); }
@@ -203,7 +209,7 @@ public:
        function so there is no MarkFineLevel(). */
    const CoarseFineTransformations& GetDerefinementTransforms();
 
-   /// Free all data created by the above functions.
+   /// Free all internal data created by the above three functions.
    void ClearTransforms();
 
 
@@ -371,7 +377,7 @@ protected: // implementation
       void RegisterElement(Element* e);
       void ForgetElement(Element* e);
 
-      // return one of elem[0] or elem[1] and make sure the other is NULL
+      /// Return one of elem[0] or elem[1] and make sure the other is NULL.
       Element* GetSingleElement() const;
 
       // overloaded Unref without auto-destruction
@@ -477,6 +483,8 @@ protected: // implementation
 
    Vertex* NewVertex(Node* v1, Node* v2);
 
+   mfem::Element* NewMeshElement(int geom) const;
+
    Node* GetMidEdgeVertex(Node* v1, Node* v2);
    Node* GetMidEdgeVertexSimple(Node* v1, Node* v2);
    Node* GetMidFaceVertex(Node* e1, Node* e2, Node* e3, Node* e4);
@@ -495,6 +503,7 @@ protected: // implementation
 
    void RefElementNodes(Element *elem);
    void UnrefElementNodes(Element *elem);
+   Face* GetFace(Element* elem, int face_no);
    void RegisterFaces(Element* elem, int *fattr = NULL);
 
    Node* PeekAltParents(Node* v1, Node* v2);
@@ -512,16 +521,18 @@ protected: // implementation
 
    static int find_node(Element* elem, Node* node);
    static int find_node(Element* elem, int node_id);
+   static int find_element_edge(Element* elem, int v0, int v1);
    static int find_hex_face(int a, int b, int c);
 
-   void ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
-                            Element* elem, DenseMatrix& mat) const;
+   int ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
+                           Element* elem, DenseMatrix& mat) const;
    struct PointMatrix;
 
    void TraverseFace(Node* v0, Node* v1, Node* v2, Node* v3,
                      const PointMatrix& pm, int level);
 
-   void TraverseEdge(Node* v0, Node* v1, double t0, double t1, int level);
+   void TraverseEdge(Node* v0, Node* v1, double t0, double t1, int flags,
+                     int level);
 
    virtual void BuildFaceList();
    virtual void BuildEdgeList();
@@ -703,7 +714,7 @@ public: // TODO: maybe make this part of mfem::Geometry?
 public:
    void DebugNeighbors(Array<char> &elem_set);
 
-   /// Print the space-filling curve formed by the leaf elements.
+   /// Print the space-filling curve formed by the sequence of leaf elements.
    void DebugLeafOrder() const;
 #endif
 
