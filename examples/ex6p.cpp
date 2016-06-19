@@ -126,7 +126,8 @@ int main(int argc, char *argv[])
 
    ConstantCoefficient one(1.0);
 
-   a.AddDomainIntegrator(new DiffusionIntegrator(one));
+   BilinearFormIntegrator *integ = new DiffusionIntegrator(one);
+   a.AddDomainIntegrator(integ);
    b.AddDomainIntegrator(new DomainLFIntegrator(one));
 
    // 8. The solution vector x and the associated finite element grid function
@@ -160,6 +161,25 @@ int main(int argc, char *argv[])
    //     current mesh, visualize the solution, estimate the error on all
    //     elements, refine the worst elements and update all objects to work
    //     with the new mesh.
+#if 0
+   // Works only for conforming meshes.
+   ParFiniteElementSpace flux_fes(&pmesh, &fec, sdim);
+   ZienkiewiczZhuEstimator estimator(*integ, x, flux_fespace);
+   estimator.SetAnisotropic();
+#else
+   L2_FECollection flux_fec(order, dim);
+   ParFiniteElementSpace flux_fes(&pmesh, &flux_fec, sdim);
+   RT_FECollection smooth_flux_fec(order-1, dim);
+   ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec);
+   // Another possible set of options for the smoothed flux space:
+   // H1_FECollection smooth_flux_fec(order, dim);
+   // ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec, dim);
+   L2ZienkiewiczZhuEstimator estimator(*integ, x, flux_fes, smooth_flux_fes);
+#endif
+   ThresholdAMRMarker marker(pmesh, estimator);
+   marker.SetTotalErrorFraction(0.7);
+   RefinementControl refinement(marker);
+
    const int max_dofs = 100000;
    for (int it = 0; ; it++)
    {
@@ -219,36 +239,13 @@ int main(int argc, char *argv[])
       // 16. Estimate element errors using the Zienkiewicz-Zhu error estimator.
       //     The bilinear form integrator must have the 'ComputeElementFlux'
       //     method defined.
-      Vector errors(pmesh.GetNE());
-      {
-         // Space for the discontinuous (original) flux
-         DiffusionIntegrator flux_integrator(one);
-         L2_FECollection flux_fec(order, dim);
-         ParFiniteElementSpace flux_fes(&pmesh, &flux_fec, sdim);
-
-         // Space for the smoothed (conforming) flux
-         double norm_p = 1;
-         RT_FECollection smooth_flux_fec(order-1, dim);
-         ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec);
-
-         // Another possible set of options for the smoothed flux space:
-         // norm_p = 1;
-         // H1_FECollection smooth_flux_fec(order, dim);
-         // ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec, dim);
-
-         L2ZZErrorEstimator(flux_integrator, x,
-                            smooth_flux_fes, flux_fes, errors, norm_p);
-      }
-      double local_max_err = errors.Max();
-      double global_max_err;
-      MPI_Allreduce(&local_max_err, &global_max_err, 1,
-                    MPI_DOUBLE, MPI_MAX, pmesh.GetComm());
-
       // 17. Refine elements whose error is larger than a fraction of the
       //     maximum element error.
-      const double frac = 0.7;
-      double threshold = frac * global_max_err;
-      pmesh.RefineByError(errors, threshold);
+      refinement.Update(pmesh);
+      if (refinement.Stop())
+      {
+         break;
+      }
 
       // 18. Update the finite element space (recalculate the number of DOFs,
       //     etc.) and create a grid function update matrix. Apply the matrix
