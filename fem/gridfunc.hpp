@@ -66,6 +66,9 @@ public:
    GridFunction(FiniteElementSpace *f) : Vector(f->GetVSize())
    { fes = f; fec = NULL; sequence = f->GetSequence(); }
 
+   GridFunction(FiniteElementSpace *f, double *data, int size) : Vector(data, size)
+   { fes = f; fec = NULL; sequence = f->GetSequence(); }
+
    GridFunction(Mesh *m, std::istream &input);
 
    GridFunction(Mesh *m, GridFunction *gf_array[], int num_pieces);

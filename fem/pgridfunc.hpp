@@ -39,6 +39,8 @@ public:
    ParGridFunction() { pfes = NULL; }
 
    ParGridFunction(ParFiniteElementSpace *pf) : GridFunction(pf), pfes(pf) { }
+   ParGridFunction(ParFiniteElementSpace *pf, double *data, int size) : 
+      GridFunction(pf, data, size), pfes(pf) { }
 
    /** Construct a ParGridFunction corresponding to *pf and the data from *gf
        which is a local GridFunction on each processor. */
