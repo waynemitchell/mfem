@@ -34,6 +34,9 @@ public:
    /// @brief Return a list with all marked elements.
    virtual const Array<Refinement> &GetMarkedElements() = 0;
 
+   /// @brief Reset the marked elements.
+   virtual void Reset() = 0;
+
    /// @brief Destroy a MeshMarker object.
    virtual ~MeshMarker() { }
 
@@ -117,11 +120,11 @@ public:
       return marked_elements;
    }
 
-   /// @brief Get the global number of marked elements.
-   long GetNumMarkedElements() const { return num_marked_elements; }
-
    /// @brief Get the last threshold used for marking.
    double GetThreshold() const { return threshold; }
+
+   /// @brief Reset the marked elements and the estimator.
+   void Reset();
 };
 
 
@@ -208,6 +211,9 @@ public:
        Update(). */
    int GetActionInfo() const { return mod; }
 
+   /// @brief Reset the MeshControl.
+   virtual void Reset() = 0;
+
    /// @brief The destructor is virtual.
    virtual ~MeshControl() { }
 };
@@ -242,6 +248,9 @@ public:
 
    /// @brief Access the underlying sequence.
    Array<MeshControl*> &GetSequence() { return sequence; }
+
+   /// @brief Reset all MeshControls in the sequence.
+   virtual void Reset();
 };
 
 
@@ -281,6 +290,9 @@ public:
       non_conforming = -1;
       this->nc_limit = nc_limit;
    }
+
+   /// @brief Reset the associated MeshMarker.
+   virtual void Reset() { marker.Reset(); }
 };
 
 
@@ -322,6 +334,9 @@ public:
    void SetThreshold(double thresh) { threshold = thresh; }
    void SetOp(int op) { this->op = op; }
    void SetNCLimit(int nc_lim) { nc_limit = nc_lim; }
+
+   /// @brief Reset the associated estimator.
+   virtual void Reset() { estimator->Reset(); }
 };
 
 
@@ -349,6 +364,9 @@ public:
    { }
 
    // default destructor (virtual)
+
+   /// @brief Reset the associated estimator.
+   virtual void Reset() { estimator->Reset(); stage = 0; }
 };
 
 
@@ -363,6 +381,10 @@ protected:
        supported).
        @return CONTINUE + REBALANCE on success, NONE otherwise. */
    virtual int Apply(Mesh &mesh);
+
+public:
+   /// @brief Empty.
+   virtual void Reset() { }
 };
 
 } // namespace mfem

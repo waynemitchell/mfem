@@ -158,7 +158,8 @@ int main(int argc, char *argv[])
    FunctionCoefficient bdr(bdr_func);
    FunctionCoefficient rhs(rhs_func);
 
-   a.AddDomainIntegrator(new DiffusionIntegrator(one));
+   BilinearFormIntegrator *integ = new DiffusionIntegrator(one);
+   a.AddDomainIntegrator(integ);
    b.AddDomainIntegrator(new DomainLFIntegrator(rhs));
 
    // 8. The solution vector x and the associated finite element grid function
@@ -192,6 +193,20 @@ int main(int argc, char *argv[])
    //     estimate the error on all elements, refine bad elements and update all
    //     objects to work with the new mesh.  Then we derefine any elements
    //     which have very small errors.
+   FiniteElementSpace flux_fespace(&mesh, &fec, sdim);
+   ZienkiewiczZhuEstimator estimator(*integ, x, flux_fespace);
+
+   ThresholdAMRMarker marker(mesh, estimator);
+   marker.SetTotalErrorFraction(0.0); // use purely local threshold
+   marker.SetLocalErrorGoal(max_elem_error);
+
+   RefinementControl refinement(marker);
+   refinement.SetConformingRefinement(nc_limit);
+
+   ThresholdDerefineControl derefinement(&estimator);
+   derefinement.SetThreshold(hysteresis * max_elem_error);
+   derefinement.SetNCLimit(nc_limit);
+
    for (double time = 0.0; time < 1.0 + 1e-10; time += 0.01)
    {
       cout << "\nTime " << time << "\n\nRefinement:" << endl;
@@ -200,7 +215,8 @@ int main(int argc, char *argv[])
       bdr.SetTime(time);
       rhs.SetTime(time);
 
-      Vector errors;
+      refinement.Reset();
+      derefinement.Reset();
 
       // 11. The inner refinement loop. At the end we want to have the current
       //     time step resolved to the prescribed tolerance in each element.
@@ -255,15 +271,10 @@ int main(int argc, char *argv[])
          // 11f. Estimate element errors using the Zienkiewicz-Zhu error
          //      estimator. The bilinear form integrator must have the
          //      'ComputeElementFlux' method defined.
-         {
-            DiffusionIntegrator flux_integrator(one);
-            FiniteElementSpace flux_fespace(&mesh, &fec, sdim);
-            GridFunction flux(&flux_fespace);
-            ZZErrorEstimator(flux_integrator, x, flux, errors);
-         }
+         refinement.Update(mesh);
 
          // 11g. Refine elements
-         if (!mesh.RefineByError(errors, max_elem_error, -1, nc_limit))
+         if (refinement.Stop())
          {
             break;
          }
@@ -274,16 +285,12 @@ int main(int argc, char *argv[])
 
       // 12. Use error estimates from the last iteration to check for possible
       //     derefinements.
-      if (mesh.Nonconforming())
+      if (derefinement.Update(mesh))
       {
-         double threshold = hysteresis * max_elem_error;
-         if (mesh.DerefineByError(errors, threshold, nc_limit))
-         {
-            cout << "\nDerefined elements." << endl;
+         cout << "\nDerefined elements." << endl;
 
-            // 12a. Update the space and interpolate the solution.
-            UpdateProblem(mesh, fespace, x, a, b);
-         }
+         // 12a. Update the space and interpolate the solution.
+         UpdateProblem(mesh, fespace, x, a, b);
       }
 
       a.Update();

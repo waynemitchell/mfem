@@ -41,6 +41,9 @@ public:
    /// @brief Get a Vector with all element errors.
    virtual const Vector &GetLocalErrors() = 0;
 
+   /// @brief Reset the error estimator.
+   virtual void Reset() = 0;
+
    virtual ~IsotropicErrorEstimator() { }
 };
 
@@ -52,15 +55,10 @@ public:
 class AnisotropicErrorEstimator : public IsotropicErrorEstimator
 {
 public:
-   /// @brief Get a Vector with all element errors.
-   virtual const Vector &GetLocalErrors() = 0;
-
    /** @brief Get an Array<int> with anisotropic flags for all mesh elements.
        Return an empty array when anisotropic estimates are not available or
        enabled. */
    virtual const Array<int> &GetAnisotropicFlags() = 0;
-
-   virtual ~AnisotropicErrorEstimator() { }
 };
 
 
@@ -154,6 +152,9 @@ public:
       if (MeshIsModified()) { ComputeEstimates(); }
       return aniso_flags;
    }
+
+   /// @brief Reset the error estimator.
+   virtual void Reset() { current_sequence = -1; }
 
    /** @brief Destroy a ZienkiewiczZhuEstimator object. Destroys, if owned, the
        FiniteElementSpace, flux_space. */
@@ -264,6 +265,9 @@ public:
       if (MeshIsModified()) { ComputeEstimates(); }
       return error_estimates;
    }
+
+   /// @brief Reset the error estimator.
+   virtual void Reset() { current_sequence = -1; }
 
    /** @brief Destroy a L2ZienkiewiczZhuEstimator object. Destroys, if owned,
        the FiniteElementSpace, flux_space. */

@@ -87,6 +87,14 @@ void ThresholdAMRMarker::MarkElements()
    num_marked_elements = mesh.ReduceInt(marked_elements.Size());
 }
 
+void ThresholdAMRMarker::Reset()
+{
+   estimator.Reset();
+   current_sequence = -1;
+   num_marked_elements = 0;
+   // marked_elements.SetSize(0); // not necessary
+}
+
 
 MeshControlSequence::~MeshControlSequence()
 {
@@ -112,6 +120,14 @@ next_step:
       case AGAIN:    --step; return mod;
    }
    return NONE;
+}
+
+void MeshControlSequence::Reset()
+{
+   for (int i = 0; i < sequence.Size(); i++)
+   {
+      sequence[i]->Reset();
+   }
 }
 
 
