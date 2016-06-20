@@ -137,6 +137,9 @@ public:
        ComputeFluxEnergy() method. */
    void SetAnisotropic(bool aniso = true) { anisotropic = aniso; }
 
+   /// @brief Return the total error from the last error estimate.
+   double GetTotalError() const { return total_error; }
+
    /// @brief Get a Vector with all element errors.
    virtual const Vector &GetLocalErrors()
    {
@@ -258,6 +261,9 @@ public:
    /** @brief Set the exponent, p, of the Lp norm used for computing the local
        element errors. Default value is 1. */
    void SetLocalErrorNormP(int p) { local_norm_p = p; }
+
+   /// @brief Return the total error from the last error estimate.
+   double GetTotalError() const { return total_error; }
 
    /// @brief Get a Vector with all element errors.
    virtual const Vector &GetLocalErrors()

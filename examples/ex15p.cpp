@@ -64,10 +64,6 @@ int nfeatures;
 double bdr_func(const Vector &pt, double t);
 double rhs_func(const Vector &pt, double t);
 
-// Estimate the solution errors with a simple (ZZ-type) error estimator.
-double EstimateErrors(int order, int dim, int sdim, ParMesh & pmesh,
-                      const ParGridFunction & x, Vector & errors);
-
 // Update the finite element space, interpolate the solution and perform
 // parallel load balancing.
 void UpdateAndRebalance(ParMesh &pmesh, ParFiniteElementSpace &fespace,
@@ -183,7 +179,8 @@ int main(int argc, char *argv[])
    FunctionCoefficient bdr(bdr_func);
    FunctionCoefficient rhs(rhs_func);
 
-   a.AddDomainIntegrator(new DiffusionIntegrator(one));
+   BilinearFormIntegrator *integ = new DiffusionIntegrator(one);
+   a.AddDomainIntegrator(integ);
    b.AddDomainIntegrator(new DomainLFIntegrator(rhs));
 
    // 8. The solution vector x and the associated finite element grid function
@@ -220,6 +217,23 @@ int main(int argc, char *argv[])
    //     estimate the error on all elements, refine bad elements and update all
    //     objects to work with the new mesh.  Then we derefine any elements
    //     which have very small errors.
+   L2_FECollection flux_fec(order, dim);
+   ParFiniteElementSpace flux_fes(&pmesh, &flux_fec, sdim);
+   RT_FECollection smooth_flux_fec(order-1, dim);
+   ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec);
+   L2ZienkiewiczZhuEstimator estimator(*integ, x, flux_fes, smooth_flux_fes);
+
+   ThresholdAMRMarker marker(pmesh, estimator);
+   marker.SetTotalErrorFraction(0.0); // use purely local threshold
+   marker.SetLocalErrorGoal(max_elem_error);
+
+   RefinementControl refinement(marker);
+   refinement.SetConformingRefinement(nc_limit);
+
+   ThresholdDerefineControl derefinement(&estimator);
+   derefinement.SetThreshold(hysteresis * max_elem_error);
+   derefinement.SetNCLimit(nc_limit);
+
    for (double time = 0.0; time < 1.0 + 1e-10; time += 0.01)
    {
       if (myid == 0)
@@ -231,7 +245,8 @@ int main(int argc, char *argv[])
       bdr.SetTime(time);
       rhs.SetTime(time);
 
-      Vector errors;
+      refinement.Reset();
+      derefinement.Reset();
 
       // 11. The inner refinement loop. At the end we want to have the current
       //     time step resolved to the prescribed tolerance in each element.
@@ -289,15 +304,14 @@ int main(int argc, char *argv[])
          // 11f. Estimate element errors using the Zienkiewicz-Zhu error
          //      estimator. The bilinear form integrator must have the
          //      'ComputeElementFlux' method defined.
-         double tot_error = EstimateErrors(order, dim, sdim, pmesh, x, errors);
-
+         refinement.Update(pmesh);
          if (myid == 0)
          {
-            cout << ", total error: " << tot_error << endl;
+            cout << ", total error: " << estimator.GetTotalError() << endl;
          }
 
          // 11g. Refine elements
-         if (!pmesh.RefineByError(errors, max_elem_error, -1, nc_limit))
+         if (refinement.Stop())
          {
             a.Update(); // Free the assembled data
             break;
@@ -309,48 +323,21 @@ int main(int argc, char *argv[])
 
       // 12. Use error estimates from the last iteration to check for possible
       //     derefinements.
-      if (pmesh.Nonconforming())
+      if (derefinement.Update(pmesh))
       {
-         double threshold = hysteresis * max_elem_error;
-         if (pmesh.DerefineByError(errors, threshold, nc_limit))
+         if (myid == 0)
          {
-            if (myid == 0)
-            {
-               cout << "\nDerefined elements." << endl;
-            }
-
-            // 12a. Update the space and the solution, rebalance the mesh.
-            UpdateAndRebalance(pmesh, fespace, x, a, b);
+            cout << "\nDerefined elements." << endl;
          }
+
+         // 12a. Update the space and the solution, rebalance the mesh.
+         UpdateAndRebalance(pmesh, fespace, x, a, b);
       }
    }
 
    // 13. Exit
    MPI_Finalize();
    return 0;
-}
-
-
-double EstimateErrors(int order, int dim, int sdim, ParMesh &pmesh,
-                      const ParGridFunction &x, Vector &errors)
-{
-   // Space for the discontinuous (original) flux
-   DiffusionIntegrator flux_integrator;
-   L2_FECollection flux_fec(order, dim);
-   ParFiniteElementSpace flux_fes(&pmesh, &flux_fec, sdim);
-
-   // Space for the smoothed (conforming) flux
-   double norm_p = 1;
-   RT_FECollection smooth_flux_fec(order-1, dim);
-   ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec);
-
-   // Another possible set of options for the smoothed flux space:
-   // norm_p = 1;
-   // H1_FECollection smooth_flux_fec(order, dim);
-   // ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec, dim);
-
-   return L2ZZErrorEstimator(flux_integrator, x,
-                             smooth_flux_fes, flux_fes, errors, norm_p);
 }
 
 
@@ -472,4 +459,3 @@ double rhs_func(const Vector &pt, double t)
 {
    return composite_func(pt, t, front_laplace, ball_laplace);
 }
-
