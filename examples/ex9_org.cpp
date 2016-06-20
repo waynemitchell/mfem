@@ -143,8 +143,7 @@ int main(int argc, char *argv[])
       cout << "loading sidre dump (" << protocol << ") '" << sidre_hdf5_restart << "'" << endl;
       ds.load(sidre_hdf5_restart, protocol);
       // runtime problem
-      //fec_type = ds.getRoot()->getGroup("gf_u")->getView("name")->getData();
-      fec_type = "L2_2D_P3";
+      fec_type = ds.getRoot()->getGroup("gf_u")->getView("name")->getString();
    }
    else {
       fec_type = "L2_2D_P3";
