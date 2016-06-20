@@ -35,6 +35,8 @@
 using namespace std;
 using namespace mfem;
 
+#include "sidre/sidre.hpp"
+
 // Choice for the problem setup. The fluid velocity, initial condition and
 // inflow boundary condition are chosen based on this parameter.
 int problem;
@@ -125,6 +127,10 @@ int main(int argc, char *argv[])
    }
    args.PrintOptions(cout);
 
+   // 1.7 Create datastore
+   asctoolkit::sidre::DataStore ds;
+   asctoolkit::sidre::DataGroup *root = ds.getRoot();
+
    // 2. Read the mesh from the given mesh file. We can handle geometrically
    //    periodic meshes in this code.
    Mesh *mesh;
@@ -210,10 +216,23 @@ int main(int argc, char *argv[])
    //    a file and (optionally) save data in the VisIt format and initialize
    //    GLVis visualization.
    int len = fes.GetVSize();
-   double *data = new double[len];
-   GridFunction u(&fes, data, len);
+   asctoolkit::sidre::DataGroup *gf_group = root->createGroup("gf_u");
+   asctoolkit::sidre::DataView *gf_vector = gf_group->createView("vector", 
+         asctoolkit::sidre::detail::SidreTT<double>::id, len)->allocate();
+   gf_group->createView("name")->setString(fec->Name());
+
+   GridFunction u(&fes, gf_vector->getArray(), len);
    //GridFunction u(&fes);
    u.ProjectCoefficient(u0);
+
+   {
+      std::string filename = "apple.hdf5";
+      std::string protocol = "conduit_hdf5";
+      ds.save(filename, protocol);
+      filename = "apple.txt";
+      protocol = "text";
+      ds.save(filename, protocol);
+   }
 
    {
       ofstream omesh("ex9.mesh");
@@ -300,18 +319,20 @@ int main(int argc, char *argv[])
       u.Save(osol);
    }
 
-   data = u.GetData();
+   /*
+   double *data = u.GetData();
    int u_len = u.Size();
    cout << "GridFunction u's data:" << endl;
    for (int i = 0; i < u_len; i++) {
       cout << data[i] << endl;
    }
    cout << "done" << endl;
+   */
 
 
    // 10. Free the used memory.
-   //delete[] data;
    delete ode_solver;
+   delete fec;
    delete mesh;
 
    return 0;
