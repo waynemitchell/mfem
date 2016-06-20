@@ -91,6 +91,8 @@ int main(int argc, char *argv[])
    bool visualization = true;
    bool visit = false;
    int vis_steps = 5;
+   const char *sidre_hdf5_restart = "\0";
+   bool sidre_use_restart = false;
 
    int precision = 8;
    cout.precision(precision);
@@ -119,6 +121,8 @@ int main(int argc, char *argv[])
                   "Save data files for VisIt (visit.llnl.gov) visualization.");
    args.AddOption(&vis_steps, "-vs", "--visualization-steps",
                   "Visualize every n-th timestep.");
+   args.AddOption(&sidre_hdf5_restart, "-sidre", "--sidre-dump",
+                  "Load a sidre dump.");
    args.Parse();
    if (!args.Good())
    {
@@ -127,8 +131,24 @@ int main(int argc, char *argv[])
    }
    args.PrintOptions(cout);
 
+
    // 1.7 Create datastore
+   const char *fec_type;
    asctoolkit::sidre::DataStore ds;
+   if (strcmp(sidre_hdf5_restart, "\0") != 0) {
+      sidre_use_restart = true;
+   }
+   if (sidre_use_restart) {
+      string protocol = "conduit_hdf5";
+      cout << "loading sidre dump (" << protocol << ") '" << sidre_hdf5_restart << "'" << endl;
+      ds.load(sidre_hdf5_restart, protocol);
+      // runtime problem
+      //fec_type = ds.getRoot()->getGroup("gf_u")->getView("name")->getData();
+      fec_type = "L2_2D_P3";
+   }
+   else {
+      fec_type = "L2_2D_P3";
+   }
    asctoolkit::sidre::DataGroup *root = ds.getRoot();
 
    // 2. Read the mesh from the given mesh file. We can handle geometrically
@@ -178,7 +198,7 @@ int main(int argc, char *argv[])
    // L2_2D_P3
    //DG_FECollection fec(order, dim);
    //FiniteElementSpace fes(mesh, &fec);
-   FiniteElementCollection *fec = FiniteElementCollection::New("L2_2D_P3");
+   FiniteElementCollection *fec = FiniteElementCollection::New(fec_type);
    FiniteElementSpace fes(mesh, fec);
 
    cout << "the finite element collection has name: '" << fec->Name() << "'" << endl;
@@ -215,23 +235,55 @@ int main(int argc, char *argv[])
    // 7. Define the initial conditions, save the corresponding grid function to
    //    a file and (optionally) save data in the VisIt format and initialize
    //    GLVis visualization.
-   int len = fes.GetVSize();
-   asctoolkit::sidre::DataGroup *gf_group = root->createGroup("gf_u");
-   asctoolkit::sidre::DataView *gf_vector = gf_group->createView("vector", 
-         asctoolkit::sidre::detail::SidreTT<double>::id, len)->allocate();
-   gf_group->createView("name")->setString(fec->Name());
+   asctoolkit::sidre::DataView *gf_vector;
+   int gf_vector_len = 0;
+   if (!sidre_use_restart) {
+      gf_vector_len = fes.GetVSize();
+      asctoolkit::sidre::DataGroup *gf_group = root->createGroup("gf_u");
+      gf_vector = gf_group->createView("vector", 
+            asctoolkit::sidre::detail::SidreTT<double>::id, gf_vector_len)->allocate();
+      gf_group->createView("name")->setString(fec->Name());
+   }
+   else {
+      cout << "recreating the gridfunction from '" << sidre_hdf5_restart << "'" << endl;
+      asctoolkit::sidre::DataGroup *gf_group = root->getGroup("gf_u");
+      gf_vector = gf_group->getView("vector");
+      gf_vector_len = gf_vector->getNumElements();
+   }
 
-   GridFunction u(&fes, gf_vector->getArray(), len);
-   //GridFunction u(&fes);
-   u.ProjectCoefficient(u0);
+   cout << "vector size if " << gf_vector_len << endl;
+   GridFunction u(&fes, gf_vector->getArray(), gf_vector_len);
 
+   if (!sidre_use_restart) {
+      u.ProjectCoefficient(u0);
+   }
+
+   // test dumping
+   if (0)
    {
-      std::string filename = "apple.hdf5";
-      std::string protocol = "conduit_hdf5";
+      string filename = "apple.txt";
+      string protocol = "text";
+      cout << "saving text version as '" << filename << "'" << endl;
       ds.save(filename, protocol);
-      filename = "apple.txt";
-      protocol = "text";
+
+      filename = "apple.hdf5";
+      protocol = "conduit_hdf5";
+      cout << "saving hdf5 version as '" << filename << "'" << endl;
       ds.save(filename, protocol);
+
+      cout << "trying to load '" << filename << "'" << endl;
+      asctoolkit::sidre::DataStore copy_ds;
+      copy_ds.load(filename, protocol);
+
+      if (ds.getRoot()->isEquivalentTo( copy_ds.getRoot() ) )
+      {
+        cout << "Datastore save/load with conduit hdf5 passed, they are equivalent." << endl;
+      }
+      else
+      {
+       cout << "Datastore conduit hdf5 instances don't match =[" << endl;
+       exit(-1);
+      }
    }
 
    {
