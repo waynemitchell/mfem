@@ -62,10 +62,6 @@ int nfeatures;
 double bdr_func(const Vector &pt, double t);
 double rhs_func(const Vector &pt, double t);
 
-// Estimate the solution errors with a simple (ZZ-type) error estimator.
-double EstimateErrors(int order, int dim, int sdim, Mesh & mesh,
-                      const GridFunction & x, Vector & errors);
-
 // Update the finite element space, interpolate the solution and perform
 // parallel load balancing.
 void UpdateProblem(Mesh &mesh, FiniteElementSpace &fespace,
@@ -188,11 +184,8 @@ int main(int argc, char *argv[])
    visit_dc.RegisterField("solution", &x);
    int vis_cycle = 0;
 
-   // 10. The outer time loop. In each iteration we update the right hand side,
-   //     solve the problem on the current mesh, visualize the solution,
-   //     estimate the error on all elements, refine bad elements and update all
-   //     objects to work with the new mesh.  Then we derefine any elements
-   //     which have very small errors.
+   // 10. TODO
+   //
    FiniteElementSpace flux_fespace(&mesh, &fec, sdim);
    ZienkiewiczZhuEstimator estimator(*integ, x, flux_fespace);
 
@@ -207,6 +200,11 @@ int main(int argc, char *argv[])
    derefinement.SetThreshold(hysteresis * max_elem_error);
    derefinement.SetNCLimit(nc_limit);
 
+   // 11. The outer time loop. In each iteration we update the right hand side,
+   //     solve the problem on the current mesh, visualize the solution,
+   //     estimate the error on all elements, refine bad elements and update all
+   //     objects to work with the new mesh.  Then we derefine any elements
+   //     which have very small errors.
    for (double time = 0.0; time < 1.0 + 1e-10; time += 0.01)
    {
       cout << "\nTime " << time << "\n\nRefinement:" << endl;
@@ -218,22 +216,22 @@ int main(int argc, char *argv[])
       refinement.Reset();
       derefinement.Reset();
 
-      // 11. The inner refinement loop. At the end we want to have the current
+      // 12. The inner refinement loop. At the end we want to have the current
       //     time step resolved to the prescribed tolerance in each element.
       for (int ref_it = 1; ; ref_it++)
       {
          cout << "Iteration: " << ref_it << ", number of unknowns: "
               << fespace.GetVSize() << endl;
 
-         // 11a. Recompute the field on the current mesh: assemble the stiffness
+         // 12a. Recompute the field on the current mesh: assemble the stiffness
          //      matrix and the right-hand side.
          a.Assemble();
          b.Assemble();
 
-         // 11b. Project the exact solution to the essential DOFs.
+         // 12b. Project the exact solution to the essential DOFs.
          x.ProjectBdrCoefficient(bdr, ess_bdr);
 
-         // 11c. Create and solve the linear system.
+         // 12c. Create and solve the linear system.
          Array<int> ess_tdof_list;
          fespace.GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 
@@ -251,10 +249,10 @@ int main(int argc, char *argv[])
          umf_solver.Mult(B, X);
 #endif
 
-         // 11d. Extract the local solution on each processor.
+         // 12d. Extract the local solution on each processor.
          a.RecoverFEMSolution(X, b, x);
 
-         // 11e. Send the solution by socket to a GLVis server and optionally
+         // 12e. Send the solution by socket to a GLVis server and optionally
          //      save it in VisIt format.
          if (visualization)
          {
@@ -268,12 +266,11 @@ int main(int argc, char *argv[])
             visit_dc.Save();
          }
 
-         // 11f. Estimate element errors using the Zienkiewicz-Zhu error
-         //      estimator. The bilinear form integrator must have the
-         //      'ComputeElementFlux' method defined.
-         refinement.Update(mesh);
+         // 12f. TODO
+         //
+         refinement.Apply(mesh);
 
-         // 11g. Refine elements
+         // 12g. Quit the AMR loop if the termination criterion has been met
          if (refinement.Stop())
          {
             break;
@@ -283,13 +280,13 @@ int main(int argc, char *argv[])
          UpdateProblem(mesh, fespace, x, a, b);
       }
 
-      // 12. Use error estimates from the last iteration to check for possible
+      // 13. Use error estimates from the last iteration to check for possible
       //     derefinements.
-      if (derefinement.Update(mesh))
+      if (derefinement.Apply(mesh))
       {
          cout << "\nDerefined elements." << endl;
 
-         // 12a. Update the space and interpolate the solution.
+         // 13a. Update the space and interpolate the solution.
          UpdateProblem(mesh, fespace, x, a, b);
       }
 

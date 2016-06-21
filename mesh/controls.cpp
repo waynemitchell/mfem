@@ -105,17 +105,17 @@ MeshControlSequence::~MeshControlSequence()
    }
 }
 
-int MeshControlSequence::Apply(Mesh &mesh)
+int MeshControlSequence::ApplyImpl(Mesh &mesh)
 {
    if (sequence.Size() == 0) { return NONE; }
 next_step:
    step = (step + 1) % sequence.Size();
    bool last = (step == sequence.Size() - 1);
-   int mod = sequence[step]->Apply(mesh);
-   switch (mod & ACTION)
+   int mod = sequence[step]->ApplyImpl(mesh);
+   switch (mod & MASK_ACTION)
    {
       case NONE:     if (last) { return NONE; } goto next_step;
-      case CONTINUE: return last ? mod : (AGAIN | (mod & INFO));
+      case CONTINUE: return last ? mod : (AGAIN | (mod & MASK_INFO));
       case STOP:     return STOP;
       case AGAIN:    --step; return mod;
    }
@@ -138,29 +138,29 @@ RefinementControl::RefinementControl(MeshMarker &mm)
    nc_limit = 0;
 }
 
-int RefinementControl::Apply(Mesh &mesh)
+int RefinementControl::ApplyImpl(Mesh &mesh)
 {
    const Array<Refinement> &marked_el = marker.GetMarkedElements();
 
    if (marker.GetNumMarkedElements() == 0) { return STOP; }
 
    mesh.GeneralRefinement(marked_el, non_conforming, nc_limit);
-   return CONTINUE + REFINE;
+   return CONTINUE + REFINED;
 }
 
 
-int ThresholdDerefineControl::Apply(Mesh &mesh)
+int ThresholdDerefineControl::ApplyImpl(Mesh &mesh)
 {
    if (mesh.Conforming()) { return NONE; }
 
    const Vector &local_err = estimator->GetLocalErrors();
    bool derefs = mesh.DerefineByError(local_err, threshold, nc_limit, op);
 
-   return derefs ? CONTINUE + DEREFINE : NONE;
+   return derefs ? CONTINUE + DEREFINED : NONE;
 }
 
 
-int ThresholdDerefineControl2::Apply(Mesh &mesh)
+int ThresholdDerefineControl2::ApplyImpl(Mesh &mesh)
 {
    if (mesh.Conforming()) { return NONE; }
 
@@ -171,7 +171,7 @@ int ThresholdDerefineControl2::Apply(Mesh &mesh)
       bool derefs = mesh.DerefineByError(local_err, threshold, 0, op);
 
       return derefs ?
-             (nc_limit > 0 ? (++stage, AGAIN) : CONTINUE) + DEREFINE : NONE;
+             (nc_limit > 0 ? (++stage, AGAIN) : CONTINUE) + DEREFINED : NONE;
    }
    else
    {
@@ -182,36 +182,21 @@ int ThresholdDerefineControl2::Apply(Mesh &mesh)
 
       long total_refined = 0; // TODO
       return total_refined ?
-             CONTINUE /* or AGAIN? */ + REFINE : (stage = 0, NONE);
+             CONTINUE /* or AGAIN? */ + REFINED : (stage = 0, NONE);
    }
 }
 
 
-int RebalanceControl::Apply(Mesh &mesh)
+int RebalanceControl::ApplyImpl(Mesh &mesh)
 {
 #ifdef MFEM_USE_MPI
    ParMesh *pmesh = dynamic_cast<ParMesh*>(&mesh);
    return (pmesh && pmesh->Nonconforming()) ?
-          (pmesh->Rebalance(), CONTINUE + REBALANCE) : NONE;
+          (pmesh->Rebalance(), CONTINUE + REBALANCED) : NONE;
 #else
    return NONE;
 #endif
 }
 
-
-// TODO: delete this
-void Test(MeshControl *control, Mesh &mesh)
-{
-   for (int i = 0; i < 100; i++)
-   {
-      // computations ...
-      while (control->Update(mesh))
-      {
-         // update FiniteElementSpaces and GridFunctions
-         if (control->Continue()) { break; }
-      }
-      if (control->Stop()) { break; }
-   }
-}
 
 } // namespace mfem

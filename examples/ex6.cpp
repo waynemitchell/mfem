@@ -202,7 +202,7 @@ int main(int argc, char *argv[])
       // 17. Make a list of elements whose error is larger than a fraction of
       //     the maximum element error. These elements will be refined.
       // 18. Refine the selected elements.
-      refinement.Update(mesh);
+      refinement.Apply(mesh);
       if (refinement.Stop())
       {
          cout << "Stopping criterion satisfied. Stop." << endl;

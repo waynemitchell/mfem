@@ -212,11 +212,8 @@ int main(int argc, char *argv[])
    visit_dc.RegisterField("solution", &x);
    int vis_cycle = 0;
 
-   // 10. The outer time loop. In each iteration we update the right hand side,
-   //     solve the problem on the current mesh, visualize the solution,
-   //     estimate the error on all elements, refine bad elements and update all
-   //     objects to work with the new mesh.  Then we derefine any elements
-   //     which have very small errors.
+   // 10. TODO
+   //
    L2_FECollection flux_fec(order, dim);
    ParFiniteElementSpace flux_fes(&pmesh, &flux_fec, sdim);
    RT_FECollection smooth_flux_fec(order-1, dim);
@@ -234,6 +231,11 @@ int main(int argc, char *argv[])
    derefinement.SetThreshold(hysteresis * max_elem_error);
    derefinement.SetNCLimit(nc_limit);
 
+   // 11. The outer time loop. In each iteration we update the right hand side,
+   //     solve the problem on the current mesh, visualize the solution,
+   //     estimate the error on all elements, refine bad elements and update all
+   //     objects to work with the new mesh.  Then we derefine any elements
+   //     which have very small errors.
    for (double time = 0.0; time < 1.0 + 1e-10; time += 0.01)
    {
       if (myid == 0)
@@ -248,7 +250,7 @@ int main(int argc, char *argv[])
       refinement.Reset();
       derefinement.Reset();
 
-      // 11. The inner refinement loop. At the end we want to have the current
+      // 12. The inner refinement loop. At the end we want to have the current
       //     time step resolved to the prescribed tolerance in each element.
       for (int ref_it = 1; ; ref_it++)
       {
@@ -259,15 +261,15 @@ int main(int argc, char *argv[])
                  << global_dofs << flush;
          }
 
-         // 11a. Recompute the field on the current mesh: assemble the stiffness
+         // 12a. Recompute the field on the current mesh: assemble the stiffness
          //      matrix and the right-hand side.
          a.Assemble();
          b.Assemble();
 
-         // 11b. Project the exact solution to the essential DOFs.
+         // 12b. Project the exact solution to the essential DOFs.
          x.ProjectBdrCoefficient(bdr, ess_bdr);
 
-         // 11c. Create and solve the parallel linear system.
+         // 12c. Create and solve the parallel linear system.
          Array<int> ess_tdof_list;
          fespace.GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 
@@ -284,10 +286,10 @@ int main(int argc, char *argv[])
          pcg.SetPreconditioner(amg);
          pcg.Mult(B, X);
 
-         // 11d. Extract the local solution on each processor.
+         // 12d. Extract the local solution on each processor.
          a.RecoverFEMSolution(X, b, x);
 
-         // 11e. Send the solution by socket to a GLVis server and optionally
+         // 12e. Send the solution by socket to a GLVis server and optionally
          //      save it in VisIt format.
          if (visualization)
          {
@@ -301,41 +303,40 @@ int main(int argc, char *argv[])
             visit_dc.Save();
          }
 
-         // 11f. Estimate element errors using the Zienkiewicz-Zhu error
-         //      estimator. The bilinear form integrator must have the
-         //      'ComputeElementFlux' method defined.
-         refinement.Update(pmesh);
+         // 12f. TODO
+         //
+         refinement.Apply(pmesh);
          if (myid == 0)
          {
             cout << ", total error: " << estimator.GetTotalError() << endl;
          }
 
-         // 11g. Refine elements
+         // 12g. Quit the AMR loop if the termination criterion has been met
          if (refinement.Stop())
          {
             a.Update(); // Free the assembled data
             break;
          }
 
-         // 11h. Update the space, interpolate the solution, rebalance the mesh.
+         // 12h. Update the space, interpolate the solution, rebalance the mesh.
          UpdateAndRebalance(pmesh, fespace, x, a, b);
       }
 
-      // 12. Use error estimates from the last iteration to check for possible
+      // 13. Use error estimates from the last iteration to check for possible
       //     derefinements.
-      if (derefinement.Update(pmesh))
+      if (derefinement.Apply(pmesh))
       {
          if (myid == 0)
          {
             cout << "\nDerefined elements." << endl;
          }
 
-         // 12a. Update the space and the solution, rebalance the mesh.
+         // 13a. Update the space and the solution, rebalance the mesh.
          UpdateAndRebalance(pmesh, fespace, x, a, b);
       }
    }
 
-   // 13. Exit
+   // 14. Exit
    MPI_Finalize();
    return 0;
 }

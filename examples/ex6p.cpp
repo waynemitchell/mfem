@@ -241,7 +241,7 @@ int main(int argc, char *argv[])
       //     method defined.
       // 17. Refine elements whose error is larger than a fraction of the
       //     maximum element error.
-      refinement.Update(pmesh);
+      refinement.Apply(pmesh);
       if (refinement.Stop())
       {
          break;
