@@ -16,6 +16,7 @@
 //               ex4 -m ../data/periodic-cube.mesh -no-bc
 //               ex4 -m ../data/amr-quad.mesh
 //               ex4 -m ../data/amr-hex.mesh
+//               ex4 -m ../data/amr-hex.mesh -o 2 -hb
 //               ex4 -m ../data/fichera-amr.mesh -o 2 -sc
 //               ex4 -m ../data/star-surf.mesh -o 1
 //

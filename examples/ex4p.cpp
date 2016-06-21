@@ -16,6 +16,7 @@
 //               mpirun -np 4 ex4p -m ../data/periodic-cube.mesh -no-bc
 //               mpirun -np 4 ex4p -m ../data/amr-quad.mesh
 //               mpirun -np 4 ex4p -m ../data/amr-hex.mesh -o 2 -sc
+//               mpirun -np 4 ex4p -m ../data/amr-hex.mesh -o 2 -hb
 //               mpirun -np 4 ex4p -m ../data/star-surf.mesh -o 3 -hb
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
