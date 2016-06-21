@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
 
 
    // 1.7 Initialize the allocators for the elements in this example
-   size_t num_elements = 128;
+   size_t num_elements = 15;
    InternalElementAllocator elm_alloc(num_elements, Geometry::SQUARE);
    InternalElementAllocator bndry_alloc(num_elements, Geometry::SQUARE);
 
