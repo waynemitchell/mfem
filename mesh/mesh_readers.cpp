@@ -1261,21 +1261,12 @@ void Mesh::ReadGmshMesh(std::istream &input)
 }
 
 
-
-
-
-
-
-
-
-
-
 #ifdef MFEM_USE_NETCDF
 void Mesh::ReadCubit(nifstream &input, int &curved, int &read_gf)
 {
    read_gf = 0;
 
-   // curved set to zero will chang if mesh is indeed curved
+   // curved set to zero will change if mesh is indeed curved
    curved = 0;
 
    const int sideMapHex8[6][4] =
@@ -1370,8 +1361,8 @@ void Mesh::ReadCubit(nifstream &input, int &curved, int &read_gf)
 
    Dim = num_dim;
 
-   // create arrays for the next set of dimensions, i.e. element blocks and side sets
-
+   // create arrays for the next set of dimensions,
+   // i.e. element blocks and side sets
    size_t *num_el_in_blk   = new size_t[num_el_blk];
    size_t *num_nod_per_el  = new size_t[num_el_blk];
    size_t *num_side_in_ss  = new size_t[num_side_sets];
@@ -1430,8 +1421,7 @@ void Mesh::ReadCubit(nifstream &input, int &curved, int &read_gf)
       }
    }
 
-   // read the cordinates
-
+   // read the coordinates
    double *coordx = new double[num_nodes];
    double *coordy = new double[num_nodes];
    double *coordz = new double[num_nodes];
@@ -1454,7 +1444,6 @@ void Mesh::ReadCubit(nifstream &input, int &curved, int &read_gf)
    }
 
    // read the element blocks
-
    int **elem_blk = new int*[num_el_blk];
    for (int i = 0; i < (int) num_el_blk; i++)
    {
@@ -1473,8 +1462,7 @@ void Mesh::ReadCubit(nifstream &input, int &curved, int &read_gf)
       MFEM_ABORT("Fatal NetCDF error: " << nc_strerror(retval));
    }
 
-   // read the side sets
-   // a side is is given by (element, face) pairs
+   // read the side sets, a side is is given by (element, face) pairs
 
    int **elem_ss = new int*[num_side_sets];
    int **side_ss = new int*[num_side_sets];
@@ -1596,7 +1584,7 @@ void Mesh::ReadCubit(nifstream &input, int &curved, int &read_gf)
       }
    }
 
-   // we need another node ID mapping since MFEM needs contiguous vertex ID's
+   // we need another node ID mapping since MFEM needs contiguous vertex IDs
 
    std::vector<int> uniqueVertexID;
    for (int iblk = 0; iblk < (int) num_el_blk; iblk++)
@@ -1764,11 +1752,10 @@ void Mesh::ReadCubit(nifstream &input, int &curved, int &read_gf)
       NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
       if (Dim == 2)
       {
-         GenerateFaces();   // 'Faces' in 2D refers to the edges
+         GenerateFaces(); // 'Faces' in 2D refers to the edges
       }
 
       // Define quadratic FE space
-      //FiniteElementCollection *fec = new QuadraticFECollection;
       FiniteElementCollection *fec = new H1_FECollection(2,3);
       FiniteElementSpace *fes = new FiniteElementSpace(this, fec, Dim,
                                                        Ordering::byVDIM);

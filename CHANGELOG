@@ -103,7 +103,7 @@ Miscellaneous
   in ASCII and binary formats.
 
 - Added support for reading Cubit mesh files in the Genesis (NetCDF) format.
-  Supports tets and hexes, linear or quadratic.
+  Currently supported are linear and quadratic tets and hexes.
 
 - Added support for secure socket communications in class socketstream based on
   the GnuTLS library, see INSTALL for more details.
