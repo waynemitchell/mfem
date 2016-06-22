@@ -6536,21 +6536,28 @@ void Mesh::QuadUniformRefinement()
       int **&_v = __v;
       printf("v[0] is %d _v[0] is %d\n", v[0], _v[0]);
       */
-   
-      elements[j+0] = new Quadrilateral(oedge+e[0], v[1], oedge+e[1],
+
+      int v1 = v[1];
+      int v2 = v[2];
+      int v3 = v[3];
+      elements[j+0] = new Quadrilateral(oedge+e[0], v1/*v[1]*/, oedge+e[1],
                                         oelem+i, attr, (*element_allocator)(Quadrilateral::NUM_INDICES));
       if (elements[i]->GetVertices() != v) {
          printf("WARNING!!!! v is now invalid\n");
          v = elements[i]->GetVertices();
       }
-      elements[j+1] = new Quadrilateral(oelem+i, oedge+e[1], v[2],
+      elements[j+1] = new Quadrilateral(oelem+i, oedge+e[1], v2/*v[2]*/,
                                         oedge+e[2], attr, (*element_allocator)(Quadrilateral::NUM_INDICES));
       if (elements[i]->GetVertices() != v) {
          printf("WARNING!!!! v is now invalid\n");
          v = elements[i]->GetVertices();
       }
       elements[j+2] = new Quadrilateral(oedge+e[3], oelem+i, oedge+e[2],
-                                        v[3], attr, (*element_allocator)(Quadrilateral::NUM_INDICES));
+                                        v3/*v[3]*/, attr, (*element_allocator)(Quadrilateral::NUM_INDICES));
+      if (elements[i]->GetVertices() != v) {
+         printf("WARNING!!!! v is now invalid\n");
+         v = elements[i]->GetVertices();
+      }
       
 
       v[1] = oedge+e[0];

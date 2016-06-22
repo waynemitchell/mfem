@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
 
 
    // 1.7 Initialize the allocators for the elements in this example
-   size_t num_elements = 15;
+   size_t num_elements = 4;
    InternalElementAllocator elm_alloc(num_elements, Geometry::SQUARE);
    InternalElementAllocator bndry_alloc(num_elements, Geometry::SQUARE);
 
@@ -165,6 +165,7 @@ int main(int argc, char *argv[])
       cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
       return 2;
    }
+   //mesh = new Mesh(imesh, 1, 1);
    mesh = new Mesh(imesh, &elm_alloc, &bndry_alloc, 1, 1);
    imesh.close();
 
