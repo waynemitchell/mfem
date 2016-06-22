@@ -32,14 +32,16 @@ class ElementAllocator {
       virtual ~ElementAllocator() {};
 
       // a nicety so we can call the object (functor fun)
-      inline int_ptr_pair operator()(size_t _indices_count) { return alloc(_indices_count); };
-      inline virtual int_ptr_pair alloc(size_t) { return int_ptr_pair(NULL, NULL); };
+      inline int_ptr_pair operator()(size_t _indices_count) 
+      { return alloc(_indices_count); };
+      inline virtual int_ptr_pair alloc(size_t) 
+      { return int_ptr_pair(NULL, NULL); };
 
       inline int *get_indices() { return indices; };
       inline int *get_attributes() { return attributes; };
       inline int get_indices_count() { return indices_count; };
       inline int get_count() { return count; };
-      virtual int setsize(size_t _capacity, size_t _shape = 0) {};
+      virtual int setsize(size_t _capacity, size_t _shape = 0) { return -1; };
 
       inline const mfem::Array<mfem::Element*>* get_elements() const
          { return elements; };

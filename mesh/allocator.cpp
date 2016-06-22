@@ -139,6 +139,7 @@ SidreElementAllocator::SidreElementAllocator(size_t _shape,
 
 int SidreElementAllocator::setsize(size_t _capacity, size_t _shape) {
    if (_shape == 0) _shape = shape;
+   // set initial size
    if (indices == NULL && attributes == NULL) {
       if (count == 0 && indices_count == 0) {
          capacity = _capacity;
@@ -158,14 +159,18 @@ int SidreElementAllocator::setsize(size_t _capacity, size_t _shape) {
          throw std::runtime_error("Can't have > 0 count with no storage!");
       }
    }
+   // this is a resize, we must call update_elements
    else if (indices_capacity < _shape * _capacity ||
          capacity < _capacity) {
+      int *old_indices = indices;
+      int *old_attributes = attributes;
       capacity = _capacity;
       indices_capacity = _capacity * _shape;
       attributes_view->reallocate(capacity);
       attributes = attributes_view->getArray();
       indices_view->reallocate(indices_capacity);
       indices = indices_view->getArray();
+      update_elements(old_indices, old_attributes);
       printf("capacity is now %zu\n", capacity);
       return 1;
    }
@@ -180,10 +185,7 @@ int_ptr_pair SidreElementAllocator::alloc(size_t _indices_count) {
    }
    else if (indices_count + _indices_count > indices_capacity ||
          count == capacity) {
-      int *old_indices = indices;
-      int *old_attributes = attributes;
       setsize(capacity * scale);
-      update_elements(old_indices, old_attributes);
    }
    count += 1;
    indices_count += _indices_count;

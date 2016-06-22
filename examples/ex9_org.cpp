@@ -194,21 +194,23 @@ int main(int argc, char *argv[])
       fec_type = "L2_2D_P3";
    }
 
-   // 1.8 Initialize the allocators for the elements in this example
-   /*
-   size_t num_elements = 8;
-   InternalElementAllocator elm_alloc(num_elements, Geometry::SQUARE);
-   */
-   SidreElementAllocator elm_alloc(4, elements_connectivity,
-         material_attribute_values);
-   InternalElementAllocator bndry_alloc(8, 4);
 
-   // 2. Read the mesh from the given mesh file. We can handle geometrically
-   //    periodic meshes in this code.
+   // 2. Populate the Mesh. Either from the mesh file or from a restart
    Mesh *mesh;
    if (sidre_use_restart) {
    }
    else {
+   int element_size = 4;
+      // Initialize the allocators for the elements in this example
+      /*
+      size_t num_elements = 8;
+      InternalElementAllocator elm_alloc(num_elements, Geometry::SQUARE);
+      */
+      SidreElementAllocator elm_alloc(element_size, elements_connectivity,
+            material_attribute_values);
+      InternalElementAllocator bndry_alloc(8, element_size);
+      // 2. Read the mesh from the given mesh file. We can handle geometrically
+      //    periodic meshes in this code.
       ifstream imesh(mesh_file);
       if (!imesh)
       {
@@ -218,6 +220,24 @@ int main(int argc, char *argv[])
       //mesh = new Mesh(imesh, 1, 1);
       mesh = new Mesh(imesh, &elm_alloc, &bndry_alloc, 1, 1);
       imesh.close();
+
+
+      // 4. Refine the mesh to increase the resolution. In this example we do
+      //    'ref_levels' of uniform refinement, where 'ref_levels' is a
+      //    command-line parameter. If the mesh is of NURBS type, we convert it to
+      //    a (piecewise-polynomial) high-order mesh.
+      for (int lev = 0; lev < ref_levels; lev++)
+      {
+         mesh->UniformRefinement();
+      }
+      if (mesh->NURBSext)
+      {
+         mesh->SetCurvature(max(order, 1));
+      }
+
+      int num_elements = mesh->GetNE();
+      elements_connectivity->apply(num_elements, 0, element_size);
+      material_attribute_values->apply(num_elements, 0, 1);
    }
    int dim = mesh->Dimension();
 
@@ -236,18 +256,10 @@ int main(int argc, char *argv[])
          return 3;
    }
 
-   // 4. Refine the mesh to increase the resolution. In this example we do
+   // 4. OLD: Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement, where 'ref_levels' is a
    //    command-line parameter. If the mesh is of NURBS type, we convert it to
    //    a (piecewise-polynomial) high-order mesh.
-   for (int lev = 0; lev < ref_levels; lev++)
-   {
-      mesh->UniformRefinement();
-   }
-   if (mesh->NURBSext)
-   {
-      mesh->SetCurvature(max(order, 1));
-   }
    mesh->GetBoundingBox(bb_min, bb_max, max(order, 1));
 
    // 5. Define the discontinuous DG finite element space of the given
@@ -383,6 +395,8 @@ int main(int argc, char *argv[])
               << " Press space (in the GLVis window) to resume it.\n";
       }
    }
+
+   cout << "number of boundary elements: " << mesh->GetNBE() << endl;
 
    // 8. Define the time-dependent evolution operator describing the ODE
    //    right-hand side, and perform time-integration (looping over the time

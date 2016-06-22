@@ -2405,15 +2405,7 @@ void Mesh::ReadMFEMMesh(std::istream &input, bool mfem_v11, int &curved)
    MFEM_VERIFY(ident == "elements", "invalid mesh file");
    input >> NumOfElements;
    elements.SetSize(NumOfElements);
-   
-   // Element allocator lazy init for ex9 
-   /*
-   {
-      element_allocator = new mem_ElementAllocator(INITIAL_INDICES_SIZE, &elements);
-      boundary_allocator = new mem_ElementAllocator(INITIAL_INDICES_SIZE, &elements);
-   }
-   */
-   
+   element_allocator->setsize(NumOfElements);
 
    for (int j = 0; j < NumOfElements; j++)
    {
@@ -6524,6 +6516,7 @@ void Mesh::QuadUniformRefinement()
    }
 
    elements.SetSize(4 * NumOfElements);
+   element_allocator->setsize(4 * NumOfElements);
    for (i = 0; i < NumOfElements; i++)
    {
       attr = elements[i]->GetAttribute();
