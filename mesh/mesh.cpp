@@ -6527,38 +6527,17 @@ void Mesh::QuadUniformRefinement()
    for (i = 0; i < NumOfElements; i++)
    {
       attr = elements[i]->GetAttribute();
-      // this is not safe if one of the alloc calls remaps
-      v = elements[i]->GetVertices();
+      //v = elements[i]->GetVertices();
+      int *&v = elements[i]->GetIndicesRef();
       e = el_to_edge->GetRow(i);
       j = NumOfElements + 3 * i;
-      /*
-      int **__v = elements[0]->GetVerticesPtr();
-      int **&_v = __v;
-      printf("v[0] is %d _v[0] is %d\n", v[0], _v[0]);
-      */
-
-      int v1 = v[1];
-      int v2 = v[2];
-      int v3 = v[3];
-      elements[j+0] = new Quadrilateral(oedge+e[0], v1/*v[1]*/, oedge+e[1],
-                                        oelem+i, attr, (*element_allocator)(Quadrilateral::NUM_INDICES));
-      if (elements[i]->GetVertices() != v) {
-         printf("WARNING!!!! v is now invalid\n");
-         v = elements[i]->GetVertices();
-      }
-      elements[j+1] = new Quadrilateral(oelem+i, oedge+e[1], v2/*v[2]*/,
-                                        oedge+e[2], attr, (*element_allocator)(Quadrilateral::NUM_INDICES));
-      if (elements[i]->GetVertices() != v) {
-         printf("WARNING!!!! v is now invalid\n");
-         v = elements[i]->GetVertices();
-      }
-      elements[j+2] = new Quadrilateral(oedge+e[3], oelem+i, oedge+e[2],
-                                        v3/*v[3]*/, attr, (*element_allocator)(Quadrilateral::NUM_INDICES));
-      if (elements[i]->GetVertices() != v) {
-         printf("WARNING!!!! v is now invalid\n");
-         v = elements[i]->GetVertices();
-      }
       
+      elements[j+0] = new Quadrilateral(oedge+e[0], v[1], oedge+e[1],
+                                        oelem+i, attr, (*element_allocator)(Quadrilateral::NUM_INDICES));
+      elements[j+1] = new Quadrilateral(oelem+i, oedge+e[1], v[2],
+                                        oedge+e[2], attr, (*element_allocator)(Quadrilateral::NUM_INDICES));
+      elements[j+2] = new Quadrilateral(oedge+e[3], oelem+i, oedge+e[2],
+                                        v[3], attr, (*element_allocator)(Quadrilateral::NUM_INDICES));
 
       v[1] = oedge+e[0];
       v[2] = oelem+i;
@@ -6571,7 +6550,8 @@ void Mesh::QuadUniformRefinement()
    for (i = 0; i < NumOfBdrElements; i++)
    {
       attr = boundary[i]->GetAttribute();
-      v = boundary[i]->GetVertices();
+      //v = boundary[i]->GetVertices();
+      int *&v = boundary[i]->GetIndicesRef();
       j = NumOfBdrElements + i;
 
       boundary[j] = new Segment(oedge+be_to_edge[i], v[1], attr);
@@ -6677,7 +6657,8 @@ void Mesh::HexUniformRefinement()
    for (i = 0; i < NumOfElements; i++)
    {
       attr = elements[i]->GetAttribute();
-      v = elements[i]->GetVertices();
+      //v = elements[i]->GetVertices();
+      int *&v = elements[i]->GetIndicesRef();
       e = el_to_edge->GetRow(i);
       f = el_to_face->GetRow(i);
       j = NumOfElements + 7 * i;
@@ -6719,7 +6700,8 @@ void Mesh::HexUniformRefinement()
       MFEM_ASSERT(boundary[i]->GetType() == Element::QUADRILATERAL,
                   "boundary Element is not a quad!");
       attr = boundary[i]->GetAttribute();
-      v = boundary[i]->GetVertices();
+      //v = boundary[i]->GetVertices();
+      int *&v = boundary[i]->GetIndicesRef();
       e = bel_to_edge->GetRow(i);
       f = & be_to_face[i];
       j = NumOfBdrElements + 3 * i;

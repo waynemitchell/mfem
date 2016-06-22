@@ -62,6 +62,9 @@ public:
    /// Returns the indices pointer
    inline const int *GetIndices() const { return indices; };
 
+   /// Returns the indices pointer
+   inline int *&GetIndicesRef() { return indices; };
+
    /// Return the attribute pointer
    inline const int *GetAttributePtr() const { return ptr_attribute; };
 
