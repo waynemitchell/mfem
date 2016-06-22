@@ -1,7 +1,7 @@
 //                       J O U L E
 //
 // Usage:
-//    srun -n 8 -p pdebug Joule -m rod_hex.mesh -o 2 -rs 1 -dt 0.5 -s 22 -tf 200.0
+//    srun -n 8 -p pdebug joule -m rod2eb3sshex8.gen -o 2 -dt 0.5 -s 22 -tf 200.0
 //
 // Options:
 // -m [string]   the mesh file name
@@ -19,7 +19,7 @@
 // -k [string]   base file name for output file
 // -print [int]  print solution (gridfunctions) to disk  0 = no, 1 = yes
 // -amr [int]    0 = no amr, 1 = amr
-// -sc [int]     0 = no static condensation, 1 = use static condesntation
+// -sc [int]     0 = no static condensation, 1 = use static condensation
 // -p [string]   specify the problem to run, "rod", "coil", etc.
 //
 // Description:  This examples solves a time dependent eddy current
@@ -55,7 +55,7 @@
 //               on  atribute 1 (front) and 2 (rear) given by function edot_bc at bottom of this file.
 //               The E-field can be set on attribute 3 also.
 //
-//               The thermal boundary condition for the flux F is the natuarl BC on  atribute 1 (front) and 2 (rear) 
+//               The thermal boundary condition for the flux F is the natural BC on  atribute 1 (front) and 2 (rear) 
 //               This means that dT/dt = 0 on the boundaries, and the initial T = 0.
 //
 //               See section 2.5 for how the material propertied are assigned to mesh attribiutes, this
@@ -64,7 +64,11 @@
 //               See section 8.0 for how the boundary conditions are assigned to mesh attributes, this
 //               needs to be changed for different applications. 
 //
-//
+// NOTE:         This code is set up to solve two example problems, 1) a straight metal rod surrounded by air,
+//               2) a metal rod surrounded by a metal coil all surrounded by air. To specify prioblem (1) use the command
+//               line options "-p rod -m rod2eb3sshex8.gen", to specify problem (2) use the command line options
+//               "-p coil -m coil_centered_tet10.gen". problem (1) has two materials and problem (2) has three materials,
+//               and the BC's are different.
 //
 //
 //
