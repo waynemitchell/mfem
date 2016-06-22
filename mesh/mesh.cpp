@@ -2195,7 +2195,7 @@ Mesh::Mesh(const char *filename, int generate_edges, int refine,
    meshgen = 0;
    Dim = 0;
 
-   nifstream imesh(filename);
+   named_ifstream imesh(filename);
    if (!imesh)
    {
       // Create an error message.
@@ -2415,7 +2415,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    else if (mesh_type.size() > 2 &&
             mesh_type[0] == 'C' && mesh_type[1] == 'D' && mesh_type[2] == 'F')
    {
-      nifstream *mesh_input = dynamic_cast<nifstream *>(&input);
+      named_ifstream *mesh_input = dynamic_cast<named_ifstream *>(&input);
       if (mesh_input)
       {
 #ifdef MFEM_USE_NETCDF

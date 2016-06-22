@@ -35,21 +35,13 @@ class NURBSExtension;
 class FiniteElementSpace;
 class GridFunction;
 struct Refinement;
+class named_ifstream;
 
 #ifdef MFEM_USE_MPI
 class ParMesh;
 class ParNCMesh;
 #endif
 
-/// Input file stream that remembers the input file name (useful for reading
-/// NetCDF meshes).
-class nifstream : public std::ifstream
-{
-public:
-   const char *filename;
-   nifstream(const char *mesh_name) :
-      std::ifstream(mesh_name), filename(mesh_name) {}
-};
 
 class Mesh
 {
@@ -177,7 +169,7 @@ protected:
    void ReadGmshMesh(std::istream &input);
    /* Note NetCDF (optional library) is used for reading cubit files */
 #ifdef MFEM_USE_NETCDF
-   void ReadCubit(nifstream &input, int &curved, int &read_gf);
+   void ReadCubit(named_ifstream &input, int &curved, int &read_gf);
 #endif
 
    static void skip_comment_lines(std::istream &is, const char comment_char)
@@ -963,6 +955,17 @@ public:
 /// Extrude a 1D mesh
 Mesh *Extrude1D(Mesh *mesh, const int ny, const double sy,
                 const bool closed = false);
+
+
+/// Input file stream that remembers the input file name (used for reading
+/// NetCDF meshes).
+class named_ifstream : public std::ifstream
+{
+public:
+   const char *filename;
+   named_ifstream(const char *mesh_name) :
+      std::ifstream(mesh_name), filename(mesh_name) {}
+};
 
 
 // inline functions

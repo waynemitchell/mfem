@@ -1262,7 +1262,7 @@ void Mesh::ReadGmshMesh(std::istream &input)
 
 
 #ifdef MFEM_USE_NETCDF
-void Mesh::ReadCubit(nifstream &input, int &curved, int &read_gf)
+void Mesh::ReadCubit(named_ifstream &input, int &curved, int &read_gf)
 {
    read_gf = 0;
 
