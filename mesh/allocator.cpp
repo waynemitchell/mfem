@@ -77,8 +77,9 @@ int_ptr_pair InternalElementAllocator::alloc(size_t _indices_count) {
    // realloc if either array is full
    if (indices_count + _indices_count > indices_capacity ||
          count == capacity) {
-      indices_capacity *= 2;
-      capacity *= 2;
+      int scale = 100;
+      indices_capacity *= scale;
+      capacity *= scale;
       printf("reallocating indices from size %zu to %zu\n", 
             capacity / 2, capacity);
       int *old_indices = indices;
@@ -124,3 +125,72 @@ int_ptr_pair AliasElementAllocator::alloc(size_t _indices_count) {
          attributes + count - 1); 
 };
 
+#ifdef MFEM_USE_SIDRE
+SidreElementAllocator::SidreElementAllocator(size_t _shape,
+      asctoolkit::sidre::DataView *_indices_view,
+      asctoolkit::sidre::DataView *_attribute_view)
+   : ElementAllocator(), indices_view(_indices_view), 
+   attributes_view(_attribute_view), shape(_shape) {
+   capacity = 0; 
+   indices_capacity = 0;
+   scale = 2;
+}
+
+
+int SidreElementAllocator::setsize(size_t _capacity, size_t _shape) {
+   if (_shape == 0) _shape = shape;
+   if (indices == NULL && attributes == NULL) {
+      if (count == 0 && indices_count == 0) {
+         capacity = _capacity;
+         indices_capacity = _shape * _capacity;
+         attributes_view->allocate(
+               asctoolkit::sidre::detail::SidreTT<int>::id,
+               capacity);
+         attributes = attributes_view->getArray();
+         indices_view->allocate(
+               asctoolkit::sidre::detail::SidreTT<int>::id,
+               indices_capacity);
+         indices = indices_view->getArray();
+         printf("capacity is now %zu\n", capacity);
+         return 1;
+      }
+      else {
+         throw std::runtime_error("Can't have > 0 count with no storage!");
+      }
+   }
+   else if (indices_capacity < _shape * _capacity ||
+         capacity < _capacity) {
+      capacity = _capacity;
+      indices_capacity = _capacity * _shape;
+      attributes_view->reallocate(capacity);
+      attributes = attributes_view->getArray();
+      indices_view->reallocate(indices_capacity);
+      indices = indices_view->getArray();
+      printf("capacity is now %zu\n", capacity);
+      return 1;
+   }
+   return 0;
+}
+
+
+int_ptr_pair SidreElementAllocator::alloc(size_t _indices_count) {
+   // this is super inefficient
+   if (!indices && !attributes) {
+      setsize(1, _indices_count);
+   }
+   else if (indices_count + _indices_count > indices_capacity ||
+         count == capacity) {
+      int *old_indices = indices;
+      int *old_attributes = attributes;
+      setsize(capacity * scale);
+      update_elements(old_indices, old_attributes);
+   }
+   count += 1;
+   indices_count += _indices_count;
+   return int_ptr_pair(indices + indices_count - _indices_count,
+         attributes + count - 1);
+}
+
+
+
+#endif

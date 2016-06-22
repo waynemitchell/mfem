@@ -4,6 +4,10 @@
 #include <stdexcept>
 #include "element.hpp"
 
+#ifdef MFEM_USE_SIDRE
+#include "sidre/sidre.hpp"
+#endif
+
 // packed type for returning a index and attribute pointer
 typedef std::pair<int*, int*> int_ptr_pair; 
 
@@ -35,6 +39,7 @@ class ElementAllocator {
       inline int *get_attributes() { return attributes; };
       inline int get_indices_count() { return indices_count; };
       inline int get_count() { return count; };
+      virtual int setsize(size_t _capacity, size_t _shape = 0) {};
 
       inline const mfem::Array<mfem::Element*>* get_elements() const
          { return elements; };
@@ -63,5 +68,25 @@ class AliasElementAllocator : public ElementAllocator {
       ~AliasElementAllocator() {};
       int_ptr_pair alloc(size_t _indices_count);
 };
+
+#ifdef MFEM_USE_SIDRE
+class SidreElementAllocator : public ElementAllocator {
+   private:
+      asctoolkit::sidre::DataView *indices_view;
+      asctoolkit::sidre::DataView *attributes_view;
+      size_t shape;
+      size_t capacity;
+      size_t indices_capacity;
+      size_t scale;
+
+   public:
+      SidreElementAllocator(size_t _shape,
+            asctoolkit::sidre::DataView *indices_view,
+            asctoolkit::sidre::DataView *attribute_view);
+      ~SidreElementAllocator() {};
+      int_ptr_pair alloc(size_t _indices_count);
+      int setsize(size_t _capacity, size_t _shape = 0);
+};
+#endif
 
 #endif
