@@ -220,12 +220,12 @@ int main(int argc, char *argv[])
    ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec);
    L2ZienkiewiczZhuEstimator estimator(*integ, x, flux_fes, smooth_flux_fes);
 
-   RefinementControl refinement(estimator);
+   ThresholdRefiner refinement(estimator);
    refinement.SetTotalErrorFraction(0.0); // use purely local threshold
    refinement.SetLocalErrorGoal(max_elem_error);
    refinement.SetConformingRefinement(nc_limit);
 
-   ThresholdDerefineControl derefinement(&estimator);
+   ThresholdDerefiner derefinement(&estimator);
    derefinement.SetThreshold(hysteresis * max_elem_error);
    derefinement.SetNCLimit(nc_limit);
 

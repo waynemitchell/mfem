@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
    ZienkiewiczZhuEstimator estimator(*integ, x, flux_fespace);
    estimator.SetAnisotropic();
 
-   RefinementControl refinement(estimator);
+   ThresholdRefiner refinement(estimator);
    refinement.SetTotalErrorFraction(0.7);
 
    // 9. The main AMR loop. In each iteration we solve the problem on the

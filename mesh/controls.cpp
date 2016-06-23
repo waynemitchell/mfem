@@ -15,7 +15,7 @@
 namespace mfem
 {
 
-MeshControlSequence::~MeshControlSequence()
+MeshOperatorSequence::~MeshOperatorSequence()
 {
    // delete in reverse order
    for (int i = sequence.Size()-1; i >= 0; i--)
@@ -24,7 +24,7 @@ MeshControlSequence::~MeshControlSequence()
    }
 }
 
-int MeshControlSequence::ApplyImpl(Mesh &mesh)
+int MeshOperatorSequence::ApplyImpl(Mesh &mesh)
 {
    if (sequence.Size() == 0) { return NONE; }
 next_step:
@@ -41,7 +41,7 @@ next_step:
    return NONE;
 }
 
-void MeshControlSequence::Reset()
+void MeshOperatorSequence::Reset()
 {
    for (int i = 0; i < sequence.Size(); i++)
    {
@@ -50,7 +50,7 @@ void MeshControlSequence::Reset()
 }
 
 
-RefinementControl::RefinementControl(IsotropicErrorEstimator &est)
+ThresholdRefiner::ThresholdRefiner(ErrorEstimator &est)
    : estimator(est)
 {
    aniso_estimator = dynamic_cast<AnisotropicErrorEstimator*>(&estimator);
@@ -68,7 +68,7 @@ RefinementControl::RefinementControl(IsotropicErrorEstimator &est)
    nc_limit = 0;
 }
 
-double RefinementControl::GetNorm(const Vector &local_err, Mesh &mesh) const
+double ThresholdRefiner::GetNorm(const Vector &local_err, Mesh &mesh) const
 {
 #ifdef MFEM_USE_MPI
    ParMesh *pmesh = dynamic_cast<ParMesh*>(&mesh);
@@ -80,7 +80,7 @@ double RefinementControl::GetNorm(const Vector &local_err, Mesh &mesh) const
    return local_err.Normlp(total_norm_p);
 }
 
-int RefinementControl::ApplyImpl(Mesh &mesh)
+int ThresholdRefiner::ApplyImpl(Mesh &mesh)
 {
    threshold = 0.0;
    num_marked_elements = 0;
@@ -129,7 +129,7 @@ int RefinementControl::ApplyImpl(Mesh &mesh)
    return CONTINUE + REFINED;
 }
 
-void RefinementControl::Reset()
+void ThresholdRefiner::Reset()
 {
    estimator.Reset();
    current_sequence = -1;
@@ -138,7 +138,7 @@ void RefinementControl::Reset()
 }
 
 
-int ThresholdDerefineControl::ApplyImpl(Mesh &mesh)
+int ThresholdDerefiner::ApplyImpl(Mesh &mesh)
 {
    if (mesh.Conforming()) { return NONE; }
 
@@ -149,7 +149,7 @@ int ThresholdDerefineControl::ApplyImpl(Mesh &mesh)
 }
 
 
-int RebalanceControl::ApplyImpl(Mesh &mesh)
+int Rebalancer::ApplyImpl(Mesh &mesh)
 {
 #ifdef MFEM_USE_MPI
    ParMesh *pmesh = dynamic_cast<ParMesh*>(&mesh);

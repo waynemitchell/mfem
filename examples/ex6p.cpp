@@ -176,7 +176,7 @@ int main(int argc, char *argv[])
    // ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec, dim);
    L2ZienkiewiczZhuEstimator estimator(*integ, x, flux_fes, smooth_flux_fes);
 #endif
-   RefinementControl refinement(estimator);
+   ThresholdRefiner refinement(estimator);
    refinement.SetTotalErrorFraction(0.7);
 
    const int max_dofs = 100000;

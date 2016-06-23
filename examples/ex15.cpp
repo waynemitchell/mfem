@@ -189,12 +189,12 @@ int main(int argc, char *argv[])
    FiniteElementSpace flux_fespace(&mesh, &fec, sdim);
    ZienkiewiczZhuEstimator estimator(*integ, x, flux_fespace);
 
-   RefinementControl refinement(estimator);
+   ThresholdRefiner refinement(estimator);
    refinement.SetTotalErrorFraction(0.0); // use purely local threshold
    refinement.SetLocalErrorGoal(max_elem_error);
    refinement.SetConformingRefinement(nc_limit);
 
-   ThresholdDerefineControl derefinement(&estimator);
+   ThresholdDerefiner derefinement(&estimator);
    derefinement.SetThreshold(hysteresis * max_elem_error);
    derefinement.SetNCLimit(nc_limit);
 

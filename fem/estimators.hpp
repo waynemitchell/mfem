@@ -23,19 +23,10 @@ namespace mfem
 {
 
 /** @brief The ErrorEstimator class is the base class for all error estimators.
+    At the minimum, an estimators must be able compute one non-negative real
+    (double) number for each element in the Mesh.
  */
 class ErrorEstimator
-{
-public:
-   virtual ~ErrorEstimator() { }
-};
-
-
-/** @brief The IsotropicErrorEstimator class is the base class for all error
-    estimators that compute one non-negative real (double) number for every
-    element in the Mesh.
- */
-class IsotropicErrorEstimator : public ErrorEstimator
 {
 public:
    /// @brief Get a Vector with all element errors.
@@ -44,15 +35,15 @@ public:
    /// @brief Reset the error estimator.
    virtual void Reset() = 0;
 
-   virtual ~IsotropicErrorEstimator() { }
+   virtual ~ErrorEstimator() { }
 };
 
 
 /** @brief The AnisotropicErrorEstimator class is the base class for all error
-    estimators that compute one non-negative real (double) number and
+    estimators that compute one non-negative real (double) number and an
     anisotropic flag for every element in the Mesh.
  */
-class AnisotropicErrorEstimator : public IsotropicErrorEstimator
+class AnisotropicErrorEstimator : public ErrorEstimator
 {
 public:
    /** @brief Get an Array<int> with anisotropic flags for all mesh elements.
@@ -179,7 +170,7 @@ public:
 
     Implemented for the parallel case only.
  */
-class L2ZienkiewiczZhuEstimator : public IsotropicErrorEstimator
+class L2ZienkiewiczZhuEstimator : public ErrorEstimator
 {
 protected:
    long current_sequence;
