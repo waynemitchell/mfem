@@ -55,7 +55,6 @@ double inflow_function(const Vector &x);
 // Mesh bounding box
 Vector bb_min, bb_max;
 
-
 /** A time-dependent operator for the right-hand side of the ODE. The DG weak
     form of du/dt = -v.grad(u) is M du/dt = K u + b, where M and K are the mass
     and advection matrices, and b describes the flow on the boundary. This can
@@ -82,22 +81,17 @@ public:
 
 int main(int argc, char *argv[])
 {
-// TODO - Prototype only!  If number of elements exceeds the amount reserved, the vector will resize and invalidate all the pointers!
-#ifdef MFEM_USE_ELEM_BUFFER
-  mfem::Quadrilateral::all_indices.reserve(1024);
-#endif
 
-
-  // 1. Parse command-line options.
+   // 1. Parse command-line options.
    problem = 0;
    const char *mesh_file = "../data/periodic-hexagon.mesh";
+   char *restart_file = NULL;
    int ref_levels = 2;
    int order = 3;
    int ode_solver_type = 4;
    double t_final = 10.0;
    double dt = 0.01;
    bool visualization = true;
-   bool sidre = true;
    bool visit = false;
    int vis_steps = 5;
 
@@ -107,6 +101,8 @@ int main(int argc, char *argv[])
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
+   args.AddOption(&restart_file, "-r", "--restart",
+                  "Restart file to use.");
    args.AddOption(&problem, "-p", "--problem",
                   "Problem setup to use. See options in velocity_function().");
    args.AddOption(&ref_levels, "-r", "--refine",
@@ -126,9 +122,6 @@ int main(int argc, char *argv[])
    args.AddOption(&visit, "-visit", "--visit-datafiles", "-no-visit",
                   "--no-visit-datafiles",
                   "Save data files for VisIt (visit.llnl.gov) visualization.");
-   args.AddOption(&sidre, "-sidre", "--sidre-datafiles", "-no-sidre",
-                  "--no-sidre-datafiles",
-                  "Save sidre contents to conduit file.");
    args.AddOption(&vis_steps, "-vs", "--visualization-steps",
                   "Visualize every n-th timestep.");
    args.Parse();
@@ -139,35 +132,54 @@ int main(int argc, char *argv[])
    }
    args.PrintOptions(cout);
 
+   DataCollection * dc = NULL;
 
-   // 1.7 Initialize the allocators for the elements in this example
+#ifdef MFEM_USE_SIDRE
+   // Stop on any sidre warnings.
+   asctoolkit::slic::debug::checksAreErrors = true;
+   dc = new SidreDataCollection("Example9");
+#else
+   dc = new DataCollection("Example9");
+#endif
+
+   if (restart_file)
+   {
+	   dc.Load();
+	   // TODO - for a restart load case, the datastore should be loaded in from a file ( via SPIO ).
+	   // If sidre isn't compiled in, this will do nothing.
+   }
+
+   // TODO - This should be moved into sidre data collection class or mesh class ( if no sidre ).
    size_t num_elements = 4;
    InternalElementAllocator elm_alloc(num_elements, Geometry::SQUARE);
    InternalElementAllocator bndry_alloc(num_elements, Geometry::SQUARE);
 
 
-   // 2. Read the mesh from the given mesh file. We can handle geometrically
-#ifdef MFEM_USE_SIDRE
-   // Stop on any sidre warnings.
-   asctoolkit::slic::debug::checksAreErrors = true;
-
-   // 2. Create a sidre datastore instance.
-   asctoolkit::sidre::DataStore ds;
-
-#endif // MFEM_USE_SIDRE
-
    // 3. Read the mesh from the given mesh file. We can handle geometrically
    //    periodic meshes in this code.
-   Mesh *mesh;
-   ifstream imesh(mesh_file);
-   if (!imesh)
+
+   if (restart)
    {
-      cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
-      return 2;
+	   mesh = new Mesh(dc);
+	   // data collection will retrieve mesh data from data store and create sidre allocators, and call mesh constructor.
+	   // note - this will be the course level original mesh.
+	   // move this into data collection
+	   // mesh = new Mesh(imesh, &elm_alloc, &bndry_alloc, 1, 1);
    }
-   //mesh = new Mesh(imesh, 1, 1);
-   mesh = new Mesh(imesh, &elm_alloc, &bndry_alloc, 1, 1);
-   imesh.close();
+   else
+   {
+      Mesh *mesh;
+      ifstream imesh(mesh_file);
+      if (!imesh)
+      {
+         std::cerr << "\nCan not open mesh file: " << mesh_file << '\n' << std::endl;
+         return 2;
+      }
+      // This constructor will create a new mesh and register it in data collection.
+      // If a sidre data collection, it will also add the raw ifstream object for restarts ( will later be re-factored to use parallel refined mesh ).
+      mesh = new Mesh(imesh, 1, 1, dc);
+      imesh.close();
+   }
 
    int dim = mesh->Dimension();
 
@@ -234,12 +246,12 @@ int main(int argc, char *argv[])
    k.Finalize(skip_zeros);
    b.Assemble();
 
-   // 7. Define the initial conditions, save the corresponding grid function to
-   //    a file and (optionally) save data in the VisIt format and initialize
-   //    GLVis visualization.
-   GridFunction u(&fes);
+   // 7. Define the initial conditions, and register in data collection.
+   GridFunction u("solution", dc, &fes);
    u.ProjectCoefficient(u0);
 
+   // Save to a file and (optionally) save data in the VisIt format and
+   // initialize GLVis visualization.
    {
       ofstream omesh("ex9.mesh");
       omesh.precision(precision);
@@ -249,63 +261,8 @@ int main(int argc, char *argv[])
       u.Save(osol);
    }
 
-#ifdef MFEM_USE_SIDRE
-   if (sidre)
-   {
-      // Create Sidre data collection, add mesh
-      asctoolkit::sidre::DataGroup * root = ds.getRoot();
-      SidreDataCollection sidre_dc("Example9", mesh, root );
-      // Add grid function
-      sidre_dc.RegisterField("solution", &u);
-
-      // Dump sidre to file
-
-      // TODO: I can't use SPIO in a serial code yet.  Need MPI wrappers in SPIO first.
-      // For now, just call datastore group save() directly.
-      // asctoolkit::spio::IOManager writer(MPI_COMM_WORLD, &ds->getRoot(), num_root_groups, num_files);
-      // writer.write("ex9-initial", 0, "conduit_hdf5");
-
-      std::string filename("Example9.hdf5");
-      std::string protocol = "conduit_hdf5";
-
-      ds.save(filename, protocol);
-
-      asctoolkit::sidre::DataStore new_ds2;
-      new_ds2.load(filename, protocol);
-
-      filename = "Example9_2.hdf";
-      new_ds2.save(filename, protocol);
-
-      protocol = "text";
-      filename = "Example9.txt";
-      ds.save(filename, protocol);
-
-      filename = "Example9_2.txt";
-      new_ds2.save(filename, protocol);
-
-/*
-      if (ds.getRoot()->isEquivalentTo(new_ds1.getRoot()) )
-      {
-        std::cout << "Datastore save/load with conduit binary passed, they are equivalent." << std::endl;
-      }
-      else
-      {
-       std::cout << "Datastore conduit binary instances don't match, crap, need to troubleshoot." << std::endl;
-       exit(-1);
-      }
-*/
-      if (ds.getRoot()->isEquivalentTo( new_ds2.getRoot() ) )
-      {
-        std::cout << "Datastore save/load with conduit hdf5 passed, they are equivalent." << std::endl;
-      }
-      else
-      {
-       std::cout << "Datastore conduit hdf5 instances don't match, crap, need to troubleshoot." << std::endl;
-       exit(-1);
-      }
-
-   }
-#endif // MFEM_USE_SIDRE
+   // Save the initial data collection to file.
+   dc.Save();
 
    VisItDataCollection visit_dc("Example9", mesh);
    visit_dc.RegisterField("solution", &u);
@@ -382,7 +339,10 @@ int main(int argc, char *argv[])
       osol.precision(precision);
       u.Save(osol);
    }
-   
+
+   // Save the final data collection to file.
+   ds.Save();
+
    // Print the elements
    int count = elm_alloc.get_count();
    if (count > 0) {
@@ -428,16 +388,11 @@ int main(int argc, char *argv[])
       printf("no boundary elements (in this allocator)\n");
    }
 
-#ifdef MFEM_USE_SIDRE
-   if (sidre)
-   {
-      // writer.write("ex9-final", 0, "conduit_hdf5");
-   }
-#endif // MFEM_USE_SIDRE
-
    // 10. Free the used memory.
    delete ode_solver;
    delete mesh;
+   delete ds;
+   delete dc;
 
    return 0;
 }
