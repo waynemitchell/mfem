@@ -18,18 +18,6 @@
 //               mpirun -np 4 ex3p -m ../data/mobius-strip.mesh -o 2 -f 0.1
 //               mpirun -np 4 ex3p -m ../data/klein-bottle.mesh -o 2 -f 0.1
 //
-// for reading a cubit quadratic tetrahedral mesh
-//               mpirun -np 4 ex3p -m ../data/rod-tet10.gen
-//
-// for reading a cubit linear tetrahedral mesh
-//               mpirun -np 4 ex3p -m ../data/rod-tet4.gen
-//
-// for reading a cubit quadratic hexhedral mesh
-//               mpirun -np 4 ex3p -m ../data/rod-hex27.gen
-//
-// for reading a cubit linear hexhedral mesh
-//               mpirun -np 4 ex3p -m ../data/rod-hex8.gen
-//
 // Description:  This example code solves a simple electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell
 //               equation curl curl E + E = f with boundary condition
