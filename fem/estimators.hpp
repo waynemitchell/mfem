@@ -23,16 +23,17 @@ namespace mfem
 {
 
 /** @brief The ErrorEstimator class is the base class for all error estimators.
-    At the minimum, an estimators must be able compute one non-negative real
+
+    At a minimum, an estimators must be able compute one non-negative real
     (double) number for each element in the Mesh.
  */
 class ErrorEstimator
 {
 public:
-   /// @brief Get a Vector with all element errors.
+   /// Get a Vector with all element errors.
    virtual const Vector &GetLocalErrors() = 0;
 
-   /// @brief Reset the error estimator.
+   /// Reset the error estimator.
    virtual void Reset() = 0;
 
    virtual ~ErrorEstimator() { }
@@ -47,7 +48,7 @@ class AnisotropicErrorEstimator : public ErrorEstimator
 {
 public:
    /** @brief Get an Array<int> with anisotropic flags for all mesh elements.
-       Return an empty array when anisotropic estimates are not available or
+       @return An empty array when anisotropic estimates are not available or
        enabled. */
    virtual const Array<int> &GetAnisotropicFlags() = 0;
 };
@@ -75,7 +76,7 @@ protected:
       Its Update() method is called automatically by this class when needed. */
    bool own_flux_fes; ///< Ownership flag for flux_space.
 
-   /// @brief Check if the mesh of the solution was modified.
+   /// Check if the mesh of the solution was modified.
    bool MeshIsModified()
    {
       long mesh_sequence = solution->FESpace()->GetMesh()->GetSequence();
@@ -83,7 +84,7 @@ protected:
       return (mesh_sequence > current_sequence);
    }
 
-   /// @brief Compute the element error estimates.
+   /// Compute the element error estimates.
    void ComputeEstimates();
 
 public:
@@ -128,10 +129,10 @@ public:
        ComputeFluxEnergy() method. */
    void SetAnisotropic(bool aniso = true) { anisotropic = aniso; }
 
-   /// @brief Return the total error from the last error estimate.
+   /// Return the total error from the last error estimate.
    double GetTotalError() const { return total_error; }
 
-   /// @brief Get a Vector with all element errors.
+   /// Get a Vector with all element errors.
    virtual const Vector &GetLocalErrors()
    {
       if (MeshIsModified()) { ComputeEstimates(); }
@@ -147,7 +148,7 @@ public:
       return aniso_flags;
    }
 
-   /// @brief Reset the error estimator.
+   /// Reset the error estimator.
    virtual void Reset() { current_sequence = -1; }
 
    /** @brief Destroy a ZienkiewiczZhuEstimator object. Destroys, if owned, the
@@ -203,7 +204,7 @@ protected:
       smooth_flux_space = smooth_flux_fes;
    }
 
-   /// @brief Check if the mesh of the solution was modified.
+   /// Check if the mesh of the solution was modified.
    bool MeshIsModified()
    {
       long mesh_sequence = solution->FESpace()->GetMesh()->GetSequence();
@@ -211,7 +212,7 @@ protected:
       return (mesh_sequence > current_sequence);
    }
 
-   /// @brief Compute the element error estimates.
+   /// Compute the element error estimates.
    void ComputeEstimates();
 
 public:
@@ -253,17 +254,17 @@ public:
        element errors. Default value is 1. */
    void SetLocalErrorNormP(int p) { local_norm_p = p; }
 
-   /// @brief Return the total error from the last error estimate.
+   /// Return the total error from the last error estimate.
    double GetTotalError() const { return total_error; }
 
-   /// @brief Get a Vector with all element errors.
+   /// Get a Vector with all element errors.
    virtual const Vector &GetLocalErrors()
    {
       if (MeshIsModified()) { ComputeEstimates(); }
       return error_estimates;
    }
 
-   /// @brief Reset the error estimator.
+   /// Reset the error estimator.
    virtual void Reset() { current_sequence = -1; }
 
    /** @brief Destroy a L2ZienkiewiczZhuEstimator object. Destroys, if owned,
