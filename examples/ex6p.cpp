@@ -176,9 +176,8 @@ int main(int argc, char *argv[])
    // ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec, dim);
    L2ZienkiewiczZhuEstimator estimator(*integ, x, flux_fes, smooth_flux_fes);
 #endif
-   ThresholdAMRMarker marker(pmesh, estimator);
-   marker.SetTotalErrorFraction(0.7);
-   RefinementControl refinement(marker);
+   RefinementControl refinement(estimator);
+   refinement.SetTotalErrorFraction(0.7);
 
    const int max_dofs = 100000;
    for (int it = 0; ; it++)

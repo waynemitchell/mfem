@@ -15,87 +15,6 @@
 namespace mfem
 {
 
-ThresholdAMRMarker::ThresholdAMRMarker(Mesh &m, IsotropicErrorEstimator &est)
-   : mesh (m), estimator(est)
-{
-   aniso_estimator = dynamic_cast<AnisotropicErrorEstimator*>(&estimator);
-   total_norm_p = std::numeric_limits<double>::infinity();
-   total_err_goal = 0.0;
-   total_fraction = 0.5;
-   local_err_goal = 0.0;
-   max_elements = std::numeric_limits<long>::max();
-
-   threshold = 0.0;
-   num_marked_elements = 0L;
-   current_sequence = -1;
-}
-
-// protected method
-double ThresholdAMRMarker::GetNorm(const Vector &local_err) const
-{
-#ifndef MFEM_USE_MPI
-   return local_err.Normlp(total_norm_p);
-#else
-   ParMesh *pmesh = dynamic_cast<ParMesh*>(&mesh);
-   return pmesh ? local_err.ParNormlp(total_norm_p, pmesh->GetComm()) :
-          local_err.Normlp(total_norm_p);
-#endif
-}
-
-// protected method
-void ThresholdAMRMarker::MarkElements()
-{
-   threshold = 0.0;
-   num_marked_elements = 0;
-   marked_elements.SetSize(0);
-   current_sequence = mesh.GetSequence();
-
-   const long num_elements = mesh.GetGlobalNE();
-   if (num_elements >= max_elements) { return; }
-
-   const int NE = mesh.GetNE();
-   const Vector &local_err = estimator.GetLocalErrors();
-   MFEM_ASSERT(local_err.Size() == NE, "invalid size of local_err");
-
-   double total_err = GetNorm(local_err);
-   if (total_err <= total_err_goal) { return; }
-
-   threshold = std::max(total_err * total_fraction *
-                        std::pow(num_elements, -1.0/total_norm_p),
-                        local_err_goal);
-
-   for (int el = 0; el < NE; el++)
-   {
-      if (local_err(el) > threshold)
-      {
-         marked_elements.Append(Refinement(el));
-      }
-   }
-   if (aniso_estimator)
-   {
-      const Array<int> &aniso_flags = aniso_estimator->GetAnisotropicFlags();
-      if (aniso_flags.Size() > 0)
-      {
-         for (int i = 0; i < marked_elements.Size(); i++)
-         {
-            Refinement &ref = marked_elements[i];
-            ref.ref_type = aniso_flags[ref.index];
-         }
-      }
-   }
-
-   num_marked_elements = mesh.ReduceInt(marked_elements.Size());
-}
-
-void ThresholdAMRMarker::Reset()
-{
-   estimator.Reset();
-   current_sequence = -1;
-   num_marked_elements = 0;
-   // marked_elements.SetSize(0); // not necessary
-}
-
-
 MeshControlSequence::~MeshControlSequence()
 {
    // delete in reverse order
@@ -131,21 +50,91 @@ void MeshControlSequence::Reset()
 }
 
 
-RefinementControl::RefinementControl(MeshMarker &mm)
-   : marker(mm)
+RefinementControl::RefinementControl(IsotropicErrorEstimator &est)
+   : estimator(est)
 {
+   aniso_estimator = dynamic_cast<AnisotropicErrorEstimator*>(&estimator);
+   total_norm_p = std::numeric_limits<double>::infinity();
+   total_err_goal = 0.0;
+   total_fraction = 0.5;
+   local_err_goal = 0.0;
+   max_elements = std::numeric_limits<long>::max();
+
+   threshold = 0.0;
+   num_marked_elements = 0L;
+   current_sequence = -1;
+
    non_conforming = -1;
    nc_limit = 0;
 }
 
+double RefinementControl::GetNorm(const Vector &local_err, Mesh &mesh) const
+{
+#ifdef MFEM_USE_MPI
+   ParMesh *pmesh = dynamic_cast<ParMesh*>(&mesh);
+   if (pmesh)
+   {
+      return local_err.ParNormlp(total_norm_p, pmesh->GetComm());
+   }
+#endif
+   return local_err.Normlp(total_norm_p);
+}
+
 int RefinementControl::ApplyImpl(Mesh &mesh)
 {
-   const Array<Refinement> &marked_el = marker.GetMarkedElements();
+   threshold = 0.0;
+   num_marked_elements = 0;
+   marked_elements.SetSize(0);
+   current_sequence = mesh.GetSequence();
 
-   if (marker.GetNumMarkedElements() == 0) { return STOP; }
+   const long num_elements = mesh.GetGlobalNE();
+   if (num_elements >= max_elements) { return STOP; }
 
-   mesh.GeneralRefinement(marked_el, non_conforming, nc_limit);
+   const int NE = mesh.GetNE();
+   const Vector &local_err = estimator.GetLocalErrors();
+   MFEM_ASSERT(local_err.Size() == NE, "invalid size of local_err");
+
+   double total_err = GetNorm(local_err, mesh);
+   if (total_err <= total_err_goal) { return STOP; }
+
+   threshold = std::max(total_err * total_fraction *
+                        std::pow(num_elements, -1.0/total_norm_p),
+                        local_err_goal);
+
+   for (int el = 0; el < NE; el++)
+   {
+      if (local_err(el) > threshold)
+      {
+         marked_elements.Append(Refinement(el));
+      }
+   }
+
+   if (aniso_estimator)
+   {
+      const Array<int> &aniso_flags = aniso_estimator->GetAnisotropicFlags();
+      if (aniso_flags.Size() > 0)
+      {
+         for (int i = 0; i < marked_elements.Size(); i++)
+         {
+            Refinement &ref = marked_elements[i];
+            ref.ref_type = aniso_flags[ref.index];
+         }
+      }
+   }
+
+   num_marked_elements = mesh.ReduceInt(marked_elements.Size());
+   if (num_marked_elements == 0) { return STOP; }
+
+   mesh.GeneralRefinement(marked_elements, non_conforming, nc_limit);
    return CONTINUE + REFINED;
+}
+
+void RefinementControl::Reset()
+{
+   estimator.Reset();
+   current_sequence = -1;
+   num_marked_elements = 0;
+   // marked_elements.SetSize(0); // not necessary
 }
 
 
@@ -160,42 +149,17 @@ int ThresholdDerefineControl::ApplyImpl(Mesh &mesh)
 }
 
 
-int ThresholdDerefineControl2::ApplyImpl(Mesh &mesh)
-{
-   if (mesh.Conforming()) { return NONE; }
-
-   if (stage == 0)
-   {
-      const Vector &local_err = estimator->GetLocalErrors();
-      // use nc_limit = 0
-      bool derefs = mesh.DerefineByError(local_err, threshold, 0, op);
-
-      return derefs ?
-             (nc_limit > 0 ? (++stage, AGAIN) : CONTINUE) + DEREFINED : NONE;
-   }
-   else
-   {
-      // TODO: this needs to be done through the Mesh class to make sure Mesh
-      //       generates the information for Update(). Is one Update() call
-      //       sufficeint here?
-      // mesh.ncmesh->LimitNCLevel(nc_limit);
-
-      long total_refined = 0; // TODO
-      return total_refined ?
-             CONTINUE /* or AGAIN? */ + REFINED : (stage = 0, NONE);
-   }
-}
-
-
 int RebalanceControl::ApplyImpl(Mesh &mesh)
 {
 #ifdef MFEM_USE_MPI
    ParMesh *pmesh = dynamic_cast<ParMesh*>(&mesh);
-   return (pmesh && pmesh->Nonconforming()) ?
-          (pmesh->Rebalance(), CONTINUE + REBALANCED) : NONE;
-#else
-   return NONE;
+   if (pmesh && pmesh->Nonconforming())
+   {
+      pmesh->Rebalance();
+      return CONTINUE + REBALANCED;
+   }
 #endif
+   return NONE;
 }
 
 

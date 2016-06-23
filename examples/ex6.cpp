@@ -125,17 +125,19 @@ int main(int argc, char *argv[])
       sol_sock.open(vishost, visport);
    }
 
+   // X. TODO
+   //
+   FiniteElementSpace flux_fespace(&mesh, &fec, sdim);
+   ZienkiewiczZhuEstimator estimator(*integ, x, flux_fespace);
+   estimator.SetAnisotropic();
+
+   RefinementControl refinement(estimator);
+   refinement.SetTotalErrorFraction(0.7);
+
    // 9. The main AMR loop. In each iteration we solve the problem on the
    //    current mesh, visualize the solution, estimate the error on all
    //    elements, refine the worst elements and update all objects to work
    //    with the new mesh.
-   FiniteElementSpace flux_fespace(&mesh, &fec, sdim);
-   ZienkiewiczZhuEstimator estimator(*integ, x, flux_fespace);
-   estimator.SetAnisotropic();
-   ThresholdAMRMarker marker(mesh, estimator);
-   marker.SetTotalErrorFraction(0.7);
-   RefinementControl refinement(marker);
-
    const int max_dofs = 50000;
    for (int it = 0; ; it++)
    {

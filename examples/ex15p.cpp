@@ -220,11 +220,9 @@ int main(int argc, char *argv[])
    ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec);
    L2ZienkiewiczZhuEstimator estimator(*integ, x, flux_fes, smooth_flux_fes);
 
-   ThresholdAMRMarker marker(pmesh, estimator);
-   marker.SetTotalErrorFraction(0.0); // use purely local threshold
-   marker.SetLocalErrorGoal(max_elem_error);
-
-   RefinementControl refinement(marker);
+   RefinementControl refinement(estimator);
+   refinement.SetTotalErrorFraction(0.0); // use purely local threshold
+   refinement.SetLocalErrorGoal(max_elem_error);
    refinement.SetConformingRefinement(nc_limit);
 
    ThresholdDerefineControl derefinement(&estimator);
