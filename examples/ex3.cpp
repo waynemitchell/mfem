@@ -80,12 +80,6 @@ int main(int argc, char *argv[])
    //    quadrilateral, tetrahedral, hexahedral, surface and volume meshes with
    //    the same code.
    Mesh *mesh = new Mesh(mesh_file, 1, 1);
-   if (!mesh->Status().Good())
-   {
-      cout << '\n' << mesh->Status().Message() << endl;
-      delete mesh;
-      return 2;
-   }
    dim = mesh->Dimension();
    int sdim = mesh->SpaceDimension();
 

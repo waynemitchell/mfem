@@ -131,8 +131,6 @@ protected:
    MemAlloc <Tetrahedron, 1024> TetMemory;
 #endif
 
-   mfem::Status status; ///< Error status
-
 public:
    enum Operation { NONE, REFINE, DEREFINE, REBALANCE };
 
@@ -482,9 +480,6 @@ public:
       (default) edges are not generated, if 1 edges are generated. */
    void Load(std::istream &input, int generate_edges = 0, int refine = 1,
              bool fix_orientation = true);
-
-   /// Access the Mesh error Status.
-   const mfem::Status &Status() const { return status; }
 
    /** Return a bitmask:
        bit 0 - simplices are present in the mesh (triangles, tets),

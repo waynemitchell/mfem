@@ -2198,8 +2198,8 @@ Mesh::Mesh(const char *filename, int generate_edges, int refine,
    named_ifstream imesh(filename);
    if (!imesh)
    {
-      // Create an error message.
-      status.Write() << "Mesh file not found: " << filename << '\n';
+      // Abort with an error message.
+      MFEM_ABORT("Mesh file not found: " << filename << '\n');
    }
    else
    {
@@ -2306,7 +2306,6 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
 {
    int i, j, curved = 0, read_gf = 1;
 
-   status.Clear();
    if (!input)
    {
       MFEM_ABORT("Input stream is not open");

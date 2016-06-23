@@ -105,16 +105,6 @@ int main(int argc, char *argv[])
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
    //    and volume meshes with the same code.
    Mesh *mesh = new Mesh(mesh_file, 1, 1);
-   if (!mesh->Status().Good())
-   {
-      if (myid == 0)
-      {
-         cout << '\n' << mesh->Status().Message() << endl;
-      }
-      delete mesh;
-      MPI_Finalize();
-      return 2;
-   }
    dim = mesh->Dimension();
    int sdim = mesh->SpaceDimension();
 

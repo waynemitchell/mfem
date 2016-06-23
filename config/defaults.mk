@@ -120,9 +120,9 @@ GNUTLS_OPT =
 GNUTLS_LIB = -lgnutls
 
 # NetCDF library configuration
-NETCDF_DIR  = @MFEM_DIR@/../NetCDF
-HDF5_DIR    = @MFEM_DIR@/../hdf5-1.8.16
-ZLIB_DIR    = @MFEM_DIR@/../zlib-1.2.8
+NETCDF_DIR  = $(HOME)/local
+HDF5_DIR    = $(HOME)/local
+ZLIB_DIR    = $(HOME)/local
 NETCDF_OPT  = -I$(NETCDF_DIR)/include
 NETCDF_LIB  = -L$(NETCDF_DIR)/lib -lnetcdf -L$(HDF5_DIR)/lib -lhdf5_hl -lhdf5\
  -L$(ZLIB_DIR)/lib -lz
