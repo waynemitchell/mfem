@@ -25,7 +25,7 @@ protected:
    int indices[2];
 
 public:
-   typedef typename Geometry::Constants<Geometry::SEGMENT> geom_t;
+   typedef /*typename*/ Geometry::Constants<Geometry::SEGMENT> geom_t;
 
    Segment() : Element(Geometry::SEGMENT) {}
 

@@ -28,7 +28,7 @@ protected:
    unsigned transform;
 
 public:
-   typedef typename Geometry::Constants<Geometry::TRIANGLE> geom_t;
+   typedef /*typename*/ Geometry::Constants<Geometry::TRIANGLE> geom_t;
 
    Triangle() : Element(Geometry::TRIANGLE) { transform = 0; }
 

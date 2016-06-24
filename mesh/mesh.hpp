@@ -122,11 +122,11 @@ protected:
 #endif
 
 public:
-   typedef typename Geometry::Constants<Geometry::SEGMENT>     seg_t;
-   typedef typename Geometry::Constants<Geometry::TRIANGLE>    tri_t;
-   typedef typename Geometry::Constants<Geometry::SQUARE>      quad_t;
-   typedef typename Geometry::Constants<Geometry::TETRAHEDRON> tet_t;
-   typedef typename Geometry::Constants<Geometry::CUBE>        hex_t;
+   typedef /*typename*/ Geometry::Constants<Geometry::SEGMENT>     seg_t;
+   typedef /*typename*/ Geometry::Constants<Geometry::TRIANGLE>    tri_t;
+   typedef /*typename*/ Geometry::Constants<Geometry::SQUARE>      quad_t;
+   typedef /*typename*/ Geometry::Constants<Geometry::TETRAHEDRON> tet_t;
+   typedef /*typename*/ Geometry::Constants<Geometry::CUBE>        hex_t;
 
    enum Operation { NONE, REFINE, DEREFINE, REBALANCE };
 
