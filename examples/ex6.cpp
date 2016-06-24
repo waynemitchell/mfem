@@ -131,8 +131,8 @@ int main(int argc, char *argv[])
    ZienkiewiczZhuEstimator estimator(*integ, x, flux_fespace);
    estimator.SetAnisotropic();
 
-   ThresholdRefiner refinement(estimator);
-   refinement.SetTotalErrorFraction(0.7);
+   ThresholdRefiner refiner(estimator);
+   refiner.SetTotalErrorFraction(0.7);
 
    // 9. The main AMR loop. In each iteration we solve the problem on the
    //    current mesh, visualize the solution, estimate the error on all
@@ -204,8 +204,8 @@ int main(int argc, char *argv[])
       // 17. Make a list of elements whose error is larger than a fraction of
       //     the maximum element error. These elements will be refined.
       // 18. Refine the selected elements.
-      refinement.Apply(mesh);
-      if (refinement.Stop())
+      refiner.Apply(mesh);
+      if (refiner.Stop())
       {
          cout << "Stopping criterion satisfied. Stop." << endl;
          break;

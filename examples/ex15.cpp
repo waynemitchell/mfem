@@ -189,14 +189,14 @@ int main(int argc, char *argv[])
    FiniteElementSpace flux_fespace(&mesh, &fec, sdim);
    ZienkiewiczZhuEstimator estimator(*integ, x, flux_fespace);
 
-   ThresholdRefiner refinement(estimator);
-   refinement.SetTotalErrorFraction(0.0); // use purely local threshold
-   refinement.SetLocalErrorGoal(max_elem_error);
-   refinement.SetConformingRefinement(nc_limit);
+   ThresholdRefiner refiner(estimator);
+   refiner.SetTotalErrorFraction(0.0); // use purely local threshold
+   refiner.SetLocalErrorGoal(max_elem_error);
+   refiner.SetConformingRefinement(nc_limit);
 
-   ThresholdDerefiner derefinement(&estimator);
-   derefinement.SetThreshold(hysteresis * max_elem_error);
-   derefinement.SetNCLimit(nc_limit);
+   ThresholdDerefiner derefiner(&estimator);
+   derefiner.SetThreshold(hysteresis * max_elem_error);
+   derefiner.SetNCLimit(nc_limit);
 
    // 11. The outer time loop. In each iteration we update the right hand side,
    //     solve the problem on the current mesh, visualize the solution,
@@ -211,8 +211,8 @@ int main(int argc, char *argv[])
       bdr.SetTime(time);
       rhs.SetTime(time);
 
-      refinement.Reset();
-      derefinement.Reset();
+      refiner.Reset();
+      derefiner.Reset();
 
       // 12. The inner refinement loop. At the end we want to have the current
       //     time step resolved to the prescribed tolerance in each element.
@@ -266,10 +266,10 @@ int main(int argc, char *argv[])
 
          // 12f. TODO
          //
-         refinement.Apply(mesh);
+         refiner.Apply(mesh);
 
          // 12g. Quit the AMR loop if the termination criterion has been met
-         if (refinement.Stop())
+         if (refiner.Stop())
          {
             break;
          }
@@ -280,7 +280,7 @@ int main(int argc, char *argv[])
 
       // 13. Use error estimates from the last iteration to check for possible
       //     derefinements.
-      if (derefinement.Apply(mesh))
+      if (derefiner.Apply(mesh))
       {
          cout << "\nDerefined elements." << endl;
 

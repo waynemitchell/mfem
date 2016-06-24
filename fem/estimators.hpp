@@ -33,7 +33,7 @@ public:
    /// Get a Vector with all element errors.
    virtual const Vector &GetLocalErrors() = 0;
 
-   /// Reset the error estimator.
+   /// Force recomputation of the estimates on the next call to GetLocalErrors.
    virtual void Reset() = 0;
 
    virtual ~ErrorEstimator() { }
