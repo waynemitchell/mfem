@@ -37,7 +37,7 @@ protected:
    unsigned transform;
 
 public:
-   typedef /*typename*/ Geometry::Constants<Geometry::TETRAHEDRON> geom_t;
+   typedef Geometry::Constants<Geometry::TETRAHEDRON> geom_t;
 
    /// Constants for different types of tetrahedrons.
    enum { TYPE_PU=0, TYPE_A=1, TYPE_PF=2, TYPE_O=3, TYPE_M=4 };

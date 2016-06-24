@@ -25,7 +25,7 @@ protected:
    int indices[8];
 
 public:
-   typedef /*typename*/ Geometry::Constants<Geometry::CUBE> geom_t;
+   typedef Geometry::Constants<Geometry::CUBE> geom_t;
 
    Hexahedron() : Element(Geometry::CUBE) { }
 

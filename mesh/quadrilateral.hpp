@@ -25,7 +25,7 @@ protected:
    int indices[4];
 
 public:
-   typedef /*typename*/ Geometry::Constants<Geometry::SQUARE> geom_t;
+   typedef Geometry::Constants<Geometry::SQUARE> geom_t;
 
    Quadrilateral() : Element(Geometry::SQUARE) {}
 
