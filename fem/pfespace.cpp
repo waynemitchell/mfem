@@ -1350,10 +1350,10 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
    // create the local part (local rows) of the P matrix
 #ifdef HYPRE_BIGINT
    MFEM_VERIFY(glob_true_dofs >= 0 && glob_true_dofs < (1ll << 31),
-               "64bit matrix size not supported yet in non-conforming P.")
+               "64bit matrix size not supported yet in non-conforming P.");
 #else
    MFEM_VERIFY(glob_true_dofs >= 0,
-               "overflow of non-conforming P matrix columns.")
+               "overflow of non-conforming P matrix columns.");
 #endif
    SparseMatrix localP(num_dofs, glob_true_dofs); // TODO bigint
 
@@ -1502,6 +1502,9 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
 
 HypreParMatrix *ParFiniteElementSpace::GetPartialConformingInterpolation()
 {
+   // TODO: we should refactor the code to remove duplication in this
+   // and the previous function
+
    if (Conforming()) { return NULL; }
 
    ParNCMesh* pncmesh = pmesh->pncmesh;
