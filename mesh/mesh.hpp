@@ -21,6 +21,8 @@
 #include "../fem/eltrans.hpp"
 #include "../fem/coefficient.hpp"
 #include <iostream>
+#include <fstream>
+#include <limits>
 
 namespace mfem
 {
@@ -32,11 +34,13 @@ class NURBSExtension;
 class FiniteElementSpace;
 class GridFunction;
 struct Refinement;
+class named_ifstream;
 
 #ifdef MFEM_USE_MPI
 class ParMesh;
 class ParNCMesh;
 #endif
+
 
 class Mesh
 {
@@ -118,6 +122,9 @@ protected:
    static const int tri_orientations[6][3];
    static const int quad_orientations[8][4];
 
+   static const int vtk_quadratic_tet[10];
+   static const int vtk_quadratic_hex[27];
+
 #ifdef MFEM_USE_MEMALLOC
    friend class Tetrahedron;
    MemAlloc <Tetrahedron, 1024> TetMemory;
@@ -147,7 +154,8 @@ protected:
    Element *ReadElement(std::istream &);
    static void PrintElement(const Element *, std::ostream &);
 
-   // Readers for different mesh formats, used in the Load() method
+   // Readers for different mesh formats, used in the Load() method.
+   // The implementations of these methods are in mesh_readers.cpp.
    void ReadMFEMMesh(std::istream &input, bool mfem_v11, int &curved);
    void ReadLineMesh(std::istream &input);
    void ReadNetgen2DMesh(std::istream &input, int &curved);
@@ -157,6 +165,26 @@ protected:
    void ReadNURBSMesh(std::istream &input, int &curved, int &read_gf);
    void ReadInlineMesh(std::istream &input, int generate_edges = 0);
    void ReadGmshMesh(std::istream &input);
+   /* Note NetCDF (optional library) is used for reading cubit files */
+#ifdef MFEM_USE_NETCDF
+   void ReadCubit(named_ifstream &input, int &curved, int &read_gf);
+#endif
+
+   static void skip_comment_lines(std::istream &is, const char comment_char)
+   {
+      while (1)
+      {
+         is >> std::ws;
+         if (is.peek() != comment_char) { break; }
+         is.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+      }
+   }
+   // Check for, and remove, a trailing '\r'.
+   static void filter_dos(std::string &line)
+   {
+      if (!line.empty() && *line.rbegin() == '\r')
+      { line.resize(line.size()-1); }
+   }
 
    void SetMeshGen(); // set 'meshgen'
 
@@ -430,6 +458,12 @@ public:
    {
       Make1D(n, sx);
    }
+
+   /** Creates mesh by reading a file in MFEM, netgen, or VTK format. If
+       generate_edges = 0 (default) edges are not generated, if 1 edges are
+       generated. */
+   Mesh(const char *filename, int generate_edges = 0, int refine = 1,
+        bool fix_orientation = true);
 
    /** Creates mesh by reading data stream in MFEM, netgen, or VTK format. If
        generate_edges = 0 (default) edges are not generated, if 1 edges are
@@ -916,6 +950,17 @@ public:
 /// Extrude a 1D mesh
 Mesh *Extrude1D(Mesh *mesh, const int ny, const double sy,
                 const bool closed = false);
+
+
+/// Input file stream that remembers the input file name (used for reading
+/// NetCDF meshes).
+class named_ifstream : public std::ifstream
+{
+public:
+   const char *filename;
+   named_ifstream(const char *mesh_name) :
+      std::ifstream(mesh_name), filename(mesh_name) {}
+};
 
 
 // inline functions
