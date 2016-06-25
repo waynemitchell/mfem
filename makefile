@@ -63,7 +63,7 @@ make style
 endef
 
 # Path to the mfem directory relative to the compile directory:
-MFEM_DIR = ..
+MFEM_DIR = .
 # ... or simply an absolute path
 # MFEM_DIR = $(realpath .)
 
@@ -169,11 +169,17 @@ ifeq ($(MFEM_USE_GNUTLS),YES)
    ALL_LIBS += $(GNUTLS_LIB)
 endif
 
+# NetCDF library configuration
+ifeq ($(MFEM_USE_NETCDF),YES)
+   INCFLAGS += $(NETCDF_OPT)
+   ALL_LIBS += $(NETCDF_LIB)
+endif
+
 # List of all defines that may be enabled in config.hpp and config.mk:
 MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_USE_LAPACK\
  MFEM_THREAD_SAFE MFEM_USE_OPENMP MFEM_USE_MEMALLOC MFEM_TIMER_TYPE\
  MFEM_USE_MESQUITE MFEM_USE_SUITESPARSE MFEM_USE_GECKO MFEM_USE_SUPERLU\
- MFEM_USE_GNUTLS
+ MFEM_USE_GNUTLS MFEM_USE_NETCDF
 
 # List of makefile variables that will be written to config.mk:
 MFEM_CONFIG_VARS = MFEM_CXX MFEM_CPPFLAGS MFEM_CXXFLAGS MFEM_INC_DIR\
@@ -225,7 +231,7 @@ OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 
 .SUFFIXES: .cpp .o
 .cpp.o:
-	cd $(<D); $(MFEM_CXX) $(MFEM_FLAGS) -c $(<F)
+	$(MFEM_CXX) $(MFEM_FLAGS) -c $(<) -o $(@)
 
 
 lib: libmfem.a
@@ -257,7 +263,6 @@ debug:
 pdebug:
 	$(MAKE) config MFEM_USE_MPI=YES MFEM_DEBUG=YES && $(MAKE)
 
-deps: MFEM_DIR = .
 deps:
 	rm -f deps.mk
 	for i in $(SOURCE_FILES:.cpp=); do \
@@ -343,6 +348,7 @@ status info:
 	$(info MFEM_USE_SUPERLU     = $(MFEM_USE_SUPERLU))
 	$(info MFEM_USE_GECKO       = $(MFEM_USE_GECKO))
 	$(info MFEM_USE_GNUTLS      = $(MFEM_USE_GNUTLS))
+	$(info MFEM_USE_NETCDF      = $(MFEM_USE_NETCDF))
 	$(info MFEM_CXX             = $(value MFEM_CXX))
 	$(info MFEM_CPPFLAGS        = $(value MFEM_CPPFLAGS))
 	$(info MFEM_CXXFLAGS        = $(value MFEM_CXXFLAGS))

@@ -115,6 +115,9 @@ Miscellaneous
 - Moved all reference element connectivity descriptions, such as element-edge,
   element-face, etc. to the template class Geometry::Constants<Geometry::Type>.
 
+- Added support for reading Cubit mesh files in the Genesis (NetCDF) format.
+  Currently supported are linear and quadratic tets and hexes.
+
 - Added support for secure socket communications in class socketstream based on
   the GnuTLS library, see INSTALL for more details.
 
