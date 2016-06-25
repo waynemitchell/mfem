@@ -151,6 +151,8 @@ int main(int argc, char *argv[])
 
    asctoolkit::sidre::DataGroup *state;
    asctoolkit::sidre::DataGroup *coordset;
+   asctoolkit::sidre::DataView *coordset_values;
+
 
    if (strcmp(sidre_restart, "\0") != 0) {
       sidre_use_restart = true;
@@ -190,6 +192,7 @@ int main(int argc, char *argv[])
 
       state = root->createGroup("state");
       coordset = root->createGroup("coordset");
+      coordset_values = coordset->createView("values");
 
       fec_type = "L2_2D_P3";
    }
@@ -197,6 +200,9 @@ int main(int argc, char *argv[])
 
    // 2. Populate the Mesh. Either from the mesh file or from a restart
    Mesh *mesh;
+   ElementAllocator *elm_alloc = NULL;
+   ElementAllocator *bndry_alloc = NULL;
+   Allocator *vertices_alloc = NULL;
    if (sidre_use_restart) {
    }
    else {
@@ -206,9 +212,10 @@ int main(int argc, char *argv[])
       size_t num_elements = 8;
       InternalElementAllocator elm_alloc(num_elements, Geometry::SQUARE);
       */
-      SidreElementAllocator elm_alloc(element_size, elements_connectivity,
+      elm_alloc = new SidreElementAllocator(element_size, elements_connectivity,
             material_attribute_values);
-      InternalElementAllocator bndry_alloc(8, element_size);
+      bndry_alloc = new InternalElementAllocator(8, element_size);
+      vertices_alloc = new SidreAllocator<double>(coordset_values);
       // 2. Read the mesh from the given mesh file. We can handle geometrically
       //    periodic meshes in this code.
       ifstream imesh(mesh_file);
@@ -218,7 +225,7 @@ int main(int argc, char *argv[])
          return 2;
       }
       //mesh = new Mesh(imesh, 1, 1);
-      mesh = new Mesh(imesh, &elm_alloc, &bndry_alloc, 1, 1);
+      mesh = new Mesh(imesh, elm_alloc, bndry_alloc, vertices_alloc, 1, 1);
       imesh.close();
 
 
@@ -238,6 +245,17 @@ int main(int argc, char *argv[])
       int num_elements = mesh->GetNE();
       elements_connectivity->apply(num_elements, 0, element_size);
       material_attribute_values->apply(num_elements, 0, 1);
+   
+      {
+         Vertex *data = (Vertex*)vertices_alloc->getdata();
+         printf("data is %p\n", data);
+         int len = vertices_alloc->getcapacity();
+         printf ("we own %d vertices\n", len);
+         for (int i = 0; i < len; i++) {
+            cout << "Vertex " << i << " : " << data[i](1) << " " << data[i](2) << endl;
+         }
+      }
+
    }
    int dim = mesh->Dimension();
 
@@ -456,6 +474,9 @@ int main(int argc, char *argv[])
    delete ode_solver;
    delete fec;
    delete mesh;
+   delete elm_alloc;
+   delete bndry_alloc;
+   delete vertices_alloc;
 
    return 0;
 }

@@ -49,7 +49,6 @@ class Mesh
    friend class SidreDataCollection;
 
 protected:
-   static const size_t INITIAL_INDICES_SIZE = 1024;
    int Dim;
    int spaceDim;
 
@@ -74,9 +73,11 @@ protected:
    ElementAllocator *element_allocator;
    ElementAllocator *boundary_allocator;
    bool own_allocators;
+   Allocator *vertices_allocator;
 
    int initElementAllocators(ElementAllocator* = &null_allocator, 
-                               ElementAllocator* = &null_allocator);
+         ElementAllocator* = &null_allocator,
+         Allocator* = NULL);
 
    int reinitFromElementAllocators(Geometry::Type elms_type,
                                Geometry::Type bndry_type);
@@ -466,9 +467,12 @@ public:
    Mesh(std::istream &input, int generate_edges = 0, int refine = 1,
         bool fix_orientation = true);
 
-   Mesh(std::istream &input, ElementAllocator *elm_alloc,
-        ElementAllocator *bdry_alloc, int generate_edges = 0, 
-        int refine = 1, bool fix_orientation = true);
+   Mesh(std::istream &input, 
+         ElementAllocator *element_allocator,
+         ElementAllocator *boundary_element_allocator, 
+         Allocator *vertices_allocator,
+         int generate_edges = 0, int refine = 1, 
+         bool fix_orientation = true);
 
    /// Create a disjoint mesh from the given mesh array
    Mesh(Mesh *mesh_array[], int num_pieces);

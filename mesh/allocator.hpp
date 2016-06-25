@@ -8,6 +8,65 @@
 #include "sidre/sidre.hpp"
 #endif
 
+class Allocator {
+   protected:
+      size_t count;
+      size_t capacity;
+      void *data;
+
+   public:
+      Allocator() { count = 0; capacity = 0; };
+      virtual ~Allocator() {};
+      virtual void *operator()(size_t _count) { return alloc(_count); }
+      virtual void *getdata() { return data; }
+      size_t getcapacity() { return capacity; }
+      virtual void *alloc(size_t _count) { return NULL; }
+      virtual int setsize(size_t _capacity) { return 0; }
+};
+
+#ifdef MFEM_USE_SIDRE
+template <class T>
+class SidreAllocator : public Allocator {
+   private:
+      asctoolkit::sidre::DataView *view;
+      T *data;
+      size_t scale;
+   public:
+      SidreAllocator(asctoolkit::sidre::DataView *_view,
+            size_t _capacity = 0, size_t _scale = 2) 
+         : view(_view), scale(_scale) {
+            capacity = 0;
+            setsize(_capacity);
+         }
+      ~SidreAllocator() {};
+      void *alloc(size_t _count) {
+         if (count + _count > capacity ) {
+            setsize(count + _count);
+         }
+         count += _count;
+         return data + count - _count;
+      }
+      int setsize(size_t _capacity) {
+         if (_capacity == 0 || _capacity < capacity) {
+            return 1;
+         }
+         if (capacity == 0) {
+            view->allocate(
+                  asctoolkit::sidre::detail::SidreTT<T>::id,
+                  _capacity);
+         }
+         else {
+            view->reallocate(_capacity);
+         }
+         data = view->getArray();
+         capacity = _capacity;
+         return 0;
+      }
+
+};
+#endif
+
+
 // packed type for returning a index and attribute pointer
 typedef std::pair<int*, int*> int_ptr_pair; 
 

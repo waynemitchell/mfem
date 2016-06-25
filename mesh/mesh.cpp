@@ -2215,7 +2215,8 @@ int Mesh::reinitFromElementAllocators(Geometry::Type elems_type, Geometry::Type 
 }
 
 int Mesh::initElementAllocators(ElementAllocator *elm_alloc,
-                         ElementAllocator *bndry_alloc) 
+                         ElementAllocator *bndry_alloc,
+                         Allocator *_vertices_allocator) 
 {
    own_allocators = false;
    if (elm_alloc) {
@@ -2232,6 +2233,7 @@ int Mesh::initElementAllocators(ElementAllocator *elm_alloc,
    else {
       boundary_allocator = &null_allocator;
    }
+   vertices_allocator = _vertices_allocator;
    return 0;
 }
 
@@ -2239,10 +2241,11 @@ int Mesh::initElementAllocators(ElementAllocator *elm_alloc,
 Mesh::Mesh(std::istream &input, 
            ElementAllocator *elm_alloc,
            ElementAllocator *bndry_alloc,
+           Allocator *_vertices_allocator,
            int generate_edges, int refine,
            bool fix_orientation)
 {
-   initElementAllocators(elm_alloc, bndry_alloc);
+   initElementAllocators(elm_alloc, bndry_alloc, _vertices_allocator);
    Init();
    InitTables();
    Load(input, generate_edges, refine, fix_orientation);
@@ -2445,7 +2448,14 @@ void Mesh::ReadMFEMMesh(std::istream &input, bool mfem_v11, int &curved)
 
    MFEM_VERIFY(ident == "vertices", "invalid mesh file");
    input >> NumOfVertices;
-   vertices.SetSize(NumOfVertices);
+   if (false && vertices_allocator) {
+      vertices_allocator->setsize(NumOfVertices);
+      vertices.ChangeData(static_cast<Vertex*>(vertices_allocator->getdata()), 
+            vertices_allocator->getcapacity());
+   }
+   else {
+      vertices.SetSize(NumOfVertices);
+   }
 
    input >> ws >> ident;
    if (ident != "nodes")
@@ -6499,7 +6509,14 @@ void Mesh::QuadUniformRefinement()
    int oedge = NumOfVertices;
    int oelem = oedge + NumOfEdges;
 
-   vertices.SetSize(oelem + NumOfElements);
+   if (false && vertices_allocator) {
+      vertices_allocator->setsize(oelem + NumOfElements);
+      vertices.ChangeData(static_cast<Vertex*>(vertices_allocator->getdata()), 
+            vertices_allocator->getcapacity());
+   }
+   else {
+      vertices.SetSize(oelem + NumOfElements);
+   }
 
    for (i = 0; i < NumOfElements; i++)
    {
