@@ -100,7 +100,6 @@ int main(int argc, char *argv[])
    Mesh *mesh = new Mesh(mesh_file, 1, 1);
    int dim = mesh->Dimension();
    int sdim = mesh->SpaceDimension();
-   mesh->EnsureNCMesh();
 
    // 4. Refine the serial mesh on all processors to increase the resolution. In
    //    this example we do 'ref_levels' of uniform refinement. We choose
@@ -114,11 +113,6 @@ int main(int argc, char *argv[])
          mesh->UniformRefinement();
       }
    }
-   if (myid == 0)
-   {
-      cout << "Number of elements after serial refinement: " << mesh->GetNE()
-           << endl;
-   }
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
@@ -127,13 +121,11 @@ int main(int argc, char *argv[])
    //    spaces on them (this is needed in the ADS solver below).
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
-   srand(2399653);
    {
       int par_ref_levels = 2;
       for (int l = 0; l < par_ref_levels; l++)
       {
-         // pmesh->UniformRefinement();
-         pmesh->RandomRefinement(0.5);
+         pmesh->UniformRefinement();
       }
    }
    pmesh->ReorientTetMesh();
