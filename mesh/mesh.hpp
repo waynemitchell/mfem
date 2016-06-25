@@ -61,7 +61,10 @@ protected:
 
    int meshgen; // see MeshGenerator()
 
-   long sequence; // counter for checking order of Space and GridFunction updates
+   // Counter for Mesh transformations: refinement, derefinement, rebalancing.
+   // Used for checking during Update operations on objects depending on the
+   // Mesh, such as FiniteElementSpace, GridFunction, etc.
+   long sequence;
 
    Array<Element *> elements;
    // Vertices are only at the corners of elements, where you would expect them
@@ -72,6 +75,7 @@ protected:
 
    struct FaceInfo
    {
+      // Inf = 64 * LocalFaceIndex + FaceOrientation
       int Elem1No, Elem2No, Elem1Inf, Elem2Inf;
       int NCFace; /* -1 if this is a regular conforming/boundary face;
                      index into 'nc_faces_info' if >= 0. */
@@ -116,12 +120,6 @@ protected:
    GridFunction *Nodes;
    int own_nodes;
 
-   static const int tet_faces[4][3];
-   static const int hex_faces[6][4]; // same as Hexahedron::faces
-
-   static const int tri_orientations[6][3];
-   static const int quad_orientations[8][4];
-
    static const int vtk_quadratic_tet[10];
    static const int vtk_quadratic_hex[27];
 
@@ -131,6 +129,12 @@ protected:
 #endif
 
 public:
+   typedef Geometry::Constants<Geometry::SEGMENT>     seg_t;
+   typedef Geometry::Constants<Geometry::TRIANGLE>    tri_t;
+   typedef Geometry::Constants<Geometry::SQUARE>      quad_t;
+   typedef Geometry::Constants<Geometry::TETRAHEDRON> tet_t;
+   typedef Geometry::Constants<Geometry::CUBE>        hex_t;
+
    enum Operation { NONE, REFINE, DEREFINE, REBALANCE };
 
    Array<int> attributes;
@@ -590,6 +594,10 @@ public:
        Return the edge index of boundary element i. (2D)
        Return the face index of boundary element i. (3D) */
    int GetBdrElementEdgeIndex(int i) const;
+
+   /** @brief For the given boundary element, bdr_el, return its adjacent
+       element and its info, i.e. 64*local_bdr_index+bdr_orientation. */
+   void GetBdrElementAdjacentElement(int bdr_el, int &el, int &info) const;
 
    /// Returns the type of element i.
    int GetElementType(int i) const;

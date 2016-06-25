@@ -778,6 +778,49 @@ int ParMesh::GetFaceSplittings(Element *face, const DSTable &v_to_v,
    return number_of_splittings;
 }
 
+void ParMesh::GenerateOffsets(int N, HYPRE_Int loc_sizes[],
+                              Array<HYPRE_Int> *offsets[]) const
+{
+   if (HYPRE_AssumedPartitionCheck())
+   {
+      Array<HYPRE_Int> temp(N);
+      MPI_Scan(loc_sizes, temp.GetData(), N, HYPRE_MPI_INT, MPI_SUM, MyComm);
+      for (int i = 0; i < N; i++)
+      {
+         offsets[i]->SetSize(3);
+         (*offsets[i])[0] = temp[i] - loc_sizes[i];
+         (*offsets[i])[1] = temp[i];
+      }
+      MPI_Bcast(temp.GetData(), N, HYPRE_MPI_INT, NRanks-1, MyComm);
+      for (int i = 0; i < N; i++)
+      {
+         (*offsets[i])[2] = temp[i];
+         // check for overflow
+         MFEM_VERIFY((*offsets[i])[0] >= 0 && (*offsets[i])[1] >= 0,
+                     "overflow in offsets");
+      }
+   }
+   else
+   {
+      Array<HYPRE_Int> temp(N*NRanks);
+      MPI_Allgather(loc_sizes, N, HYPRE_MPI_INT, temp.GetData(), N,
+                    HYPRE_MPI_INT, MyComm);
+      for (int i = 0; i < N; i++)
+      {
+         Array<HYPRE_Int> &offs = *offsets[i];
+         offs.SetSize(NRanks+1);
+         offs[0] = 0;
+         for (int j = 0; j < NRanks; j++)
+         {
+            offs[j+1] = offs[j] + temp[i+N*j];
+         }
+         // Check for overflow
+         MFEM_VERIFY(offs[MyRank] >= 0 && offs[MyRank+1] >= 0,
+                     "overflow in offsets");
+      }
+   }
+}
+
 void ParMesh::GetFaceNbrElementTransformation(
    int i, IsoparametricTransformation *ElTr)
 {
@@ -1212,7 +1255,7 @@ void ParMesh::ExchangeFaceNbrData()
             if  (lf->GetGeometryType() == Geometry::TRIANGLE)
             {
                // apply the nbr_ori to sf_v to get nbr_v
-               const int *perm = tri_orientations[nbr_ori];
+               const int *perm = tri_t::Orient[nbr_ori];
                for (int j = 0; j < 3; j++)
                {
                   nbr_v[perm[j]] = sf_v[j];
@@ -1223,7 +1266,7 @@ void ParMesh::ExchangeFaceNbrData()
             else
             {
                // apply the nbr_ori to sf_v to get nbr_v
-               const int *perm = quad_orientations[nbr_ori];
+               const int *perm = quad_t::Orient[nbr_ori];
                for (int j = 0; j < 4; j++)
                {
                   nbr_v[perm[j]] = sf_v[j];
@@ -1401,7 +1444,7 @@ ElementTransformation* ParMesh::GetGhostFaceTransformation(
       const FiniteElement* face_el =
          Nodes->FESpace()->GetTraceElement(FETr->Elem1No, face_geom);
 
-#if 0 // TODO: handle the case of non-nodal Nodes
+#if 0 // TODO: handle the case of non-interpolatory Nodes
       DenseMatrix I;
       face_el->Project(Transformation.GetFE(), FETr->Loc1.Transf, I);
       MultABt(Transformation.GetPointMat(), I, pm_face);
@@ -1415,7 +1458,8 @@ ElementTransformation* ParMesh::GetGhostFaceTransformation(
    return &FaceTransformation;
 }
 
-FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
+FaceElementTransformations *ParMesh::
+GetSharedFaceTransformations(int sf, bool fill2)
 {
    int FaceNo = GetSharedFace(sf);
 
@@ -1437,16 +1481,23 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
    FaceElemTr.Elem1 = &Transformation;
 
    // setup the transformation for the second (neighbor) element
-   FaceElemTr.Elem2No = -1 - face_info.Elem2No;
-   GetFaceNbrElementTransformation(FaceElemTr.Elem2No, &Transformation2);
-   FaceElemTr.Elem2 = &Transformation2;
+   if (fill2)
+   {
+      FaceElemTr.Elem2No = -1 - face_info.Elem2No;
+      GetFaceNbrElementTransformation(FaceElemTr.Elem2No, &Transformation2);
+      FaceElemTr.Elem2 = &Transformation2;
+   }
+   else
+   {
+      FaceElemTr.Elem2No = -1;
+   }
 
    // setup the face transformation if the face is not a ghost
    FaceElemTr.FaceGeom = face_geom;
    if (!is_ghost)
    {
       FaceElemTr.Face = GetFaceTransformation(FaceNo);
-      // NOTE: GetFaceElementTransformation destroys FaceElemTr.Loc1
+      // NOTE: The above call overwrites FaceElemTr.Loc1
    }
 
    // setup Loc1 & Loc2
@@ -1454,9 +1505,12 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
    GetLocalFaceTransformation(face_type, elem_type, FaceElemTr.Loc1.Transf,
                               face_info.Elem1Inf);
 
-   elem_type = face_nbr_elements[FaceElemTr.Elem2No]->GetType();
-   GetLocalFaceTransformation(face_type, elem_type, FaceElemTr.Loc2.Transf,
-                              face_info.Elem2Inf);
+   if (fill2)
+   {
+      elem_type = face_nbr_elements[FaceElemTr.Elem2No]->GetType();
+      GetLocalFaceTransformation(face_type, elem_type, FaceElemTr.Loc2.Transf,
+                                 face_info.Elem2Inf);
+   }
 
    // adjust Loc1 or Loc2 of the master face if this is a slave face
    if (is_slave)
@@ -1466,9 +1520,12 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
       IsoparametricTransformation &loctr =
          is_ghost ? FaceElemTr.Loc1.Transf : FaceElemTr.Loc2.Transf;
 
-      ApplyLocalSlaveTransformation(loctr, face_info);
+      if (is_ghost || fill2)
+      {
+         ApplyLocalSlaveTransformation(loctr, face_info);
+      }
 
-      if (face_type == Element::SEGMENT)
+      if (face_type == Element::SEGMENT && fill2)
       {
          // fix slave orientation in 2D: flip Loc2 to match Loc1 and Face
          DenseMatrix &pm = FaceElemTr.Loc2.Transf.GetPointMat();

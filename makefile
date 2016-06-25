@@ -248,8 +248,8 @@ all: lib
 $(OBJECT_FILES): $(CONFIG_MK)
 
 libmfem.a: $(OBJECT_FILES)
-	ar cruv libmfem.a $(OBJECT_FILES)
-	ranlib libmfem.a
+	$(AR) $(ARFLAGS) libmfem.a $(OBJECT_FILES)
+	$(RANLIB) libmfem.a
 
 serial:
 	$(MAKE) config MFEM_USE_MPI=NO MFEM_DEBUG=NO && $(MAKE)
