@@ -62,7 +62,7 @@ void Hybridization::ConstructC()
 #ifdef MFEM_USE_MPI
    ParFiniteElementSpace *c_pfes = dynamic_cast<ParFiniteElementSpace*>(c_fes);
    ParMesh *pmesh = c_pfes ? c_pfes->GetParMesh() : NULL;
-   HYPRE_Int num_shared_slave_faces = 0, glob_num_shared_slave_faces;
+   HYPRE_Int num_shared_slave_faces = 0, glob_num_shared_slave_faces = 0;
    if (c_pfes)
    {
       if (pmesh->Nonconforming())

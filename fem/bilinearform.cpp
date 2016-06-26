@@ -472,7 +472,8 @@ void BilinearForm::FormLinearSystem(Array<int> &ess_tdof_list,
    {
       if (P) { ConformingAssemble(); }
       EliminateVDofs(ess_tdof_list, keep_diag);
-      Finalize();
+      const int remove_zeros = 0;
+      Finalize(remove_zeros);
    }
 
    // Transform the system and perform the elimination in B, based on the
@@ -774,7 +775,10 @@ void BilinearForm::Update(FiniteElementSpace *nfes)
    }
    else
    {
-      full_update = (sequence < fes->GetSequence());
+      // Check for different size (e.g. assembled form on non-conforming space)
+      // or different sequence number.
+      full_update = (fes->GetVSize() != Height() ||
+                     sequence < fes->GetSequence());
    }
 
    delete mat_e;

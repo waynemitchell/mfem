@@ -490,6 +490,9 @@ void FiniteElementSpace::GetConformingInterpolation()
    MFEM_VERIFY(dynamic_cast<ParFiniteElementSpace*>(this) == NULL,
                "This method should not be used with a ParFiniteElementSpace!");
 #endif
+   if (cP_is_set) { return; }
+   cP_is_set = true;
+
    // For each slave DOF, the dependency matrix will contain a row that
    // expresses the slave DOF as a linear combination of its immediate master
    // DOFs. Rows of independent DOFs will remain empty.
@@ -666,14 +669,14 @@ void FiniteElementSpace::MakeVDimMatrix(SparseMatrix &mat) const
 const SparseMatrix* FiniteElementSpace::GetConformingProlongation()
 {
    if (Conforming()) { return NULL; }
-   if (!cP) { GetConformingInterpolation(); }
+   if (!cP_is_set) { GetConformingInterpolation(); }
    return cP;
 }
 
 const SparseMatrix* FiniteElementSpace::GetConformingRestriction()
 {
    if (Conforming()) { return NULL; }
-   if (!cR) { GetConformingInterpolation(); }
+   if (!cP_is_set) { GetConformingInterpolation(); }
    return cR;
 }
 
@@ -902,6 +905,7 @@ FiniteElementSpace::FiniteElementSpace(Mesh *mesh,
          }
          UpdateNURBS();
          cP = cR = NULL;
+         cP_is_set = false;
          T = NULL;
          own_T = true;
       }
@@ -968,6 +972,7 @@ void FiniteElementSpace::Construct()
    fdofs = NULL;
    cP = NULL;
    cR = NULL;
+   cP_is_set = false;
    T = NULL;
    own_T = true;
 

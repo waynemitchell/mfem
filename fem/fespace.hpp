@@ -93,6 +93,7 @@ protected:
    SparseMatrix *cP;
    /// Conforming restriction matrix such that cR.cP=I.
    SparseMatrix *cR;
+   bool cP_is_set;
 
    /// Transformation to apply to GridFunctions after space Update().
    Operator *T;
