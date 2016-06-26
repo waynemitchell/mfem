@@ -185,6 +185,7 @@ int main(int argc, char *argv[])
    //     estimate the error on all elements, refine bad elements and update all
    //     objects to work with the new mesh.  Then we derefine any elements
    //     which have very small errors.
+   x = 0.0;
    for (double time = 0.0; time < 1.0 + 1e-10; time += 0.01)
    {
       cout << "\nTime " << time << "\n\nRefinement:" << endl;
