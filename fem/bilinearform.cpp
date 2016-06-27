@@ -66,6 +66,7 @@ BilinearForm::BilinearForm (FiniteElementSpace * f)
    : Matrix (f->GetVSize())
 {
    fes = f;
+   sequence = f->GetSequence();
    mat = mat_e = NULL;
    extern_bfs = 0;
    element_matrices = NULL;
@@ -81,6 +82,7 @@ BilinearForm::BilinearForm (FiniteElementSpace * f, BilinearForm * bf, int ps)
    Array<BilinearFormIntegrator*> *bfi;
 
    fes = f;
+   sequence = f->GetSequence();
    mat_e = NULL;
    extern_bfs = 1;
    element_matrices = NULL;
@@ -244,6 +246,28 @@ void BilinearForm::AssembleElementMatrix(
    }
 }
 
+void BilinearForm::AssembleBdrElementMatrix(
+   int i, const DenseMatrix &elmat, Array<int> &vdofs, int skip_zeros)
+{
+   fes->GetBdrElementVDofs(i, vdofs);
+   if (static_cond)
+   {
+      static_cond->AssembleBdrMatrix(i, elmat);
+   }
+   else
+   {
+      if (mat == NULL)
+      {
+         AllocMat();
+      }
+      mat->AddSubMatrix(vdofs, vdofs, elmat, skip_zeros);
+      if (hybridization)
+      {
+         hybridization->AssembleBdrMatrix(i, elmat);
+      }
+   }
+}
+
 void BilinearForm::Assemble (int skip_zeros)
 {
    ElementTransformation *eltrans;
@@ -318,6 +342,10 @@ void BilinearForm::Assemble (int skip_zeros)
          if (!static_cond)
          {
             mat->AddSubMatrix(vdofs, vdofs, elmat, skip_zeros);
+            if (hybridization)
+            {
+               hybridization->AssembleBdrMatrix(i, elmat);
+            }
          }
          else
          {
@@ -444,7 +472,8 @@ void BilinearForm::FormLinearSystem(Array<int> &ess_tdof_list,
    {
       if (P) { ConformingAssemble(); }
       EliminateVDofs(ess_tdof_list, keep_diag);
-      Finalize();
+      const int remove_zeros = 0;
+      Finalize(remove_zeros);
    }
 
    // Transform the system and perform the elimination in B, based on the
@@ -735,21 +764,44 @@ void BilinearForm::EliminateVDofsInRHS(
    mat->PartMult(vdofs, x, b);
 }
 
-void BilinearForm::Update (FiniteElementSpace *nfes)
+void BilinearForm::Update(FiniteElementSpace *nfes)
 {
-   if (nfes) { fes = nfes; }
+   bool full_update;
+
+   if (nfes && nfes != fes)
+   {
+      full_update = true;
+      fes = nfes;
+   }
+   else
+   {
+      // Check for different size (e.g. assembled form on non-conforming space)
+      // or different sequence number.
+      full_update = (fes->GetVSize() != Height() ||
+                     sequence < fes->GetSequence());
+   }
 
    delete mat_e;
-   delete mat;
+   mat_e = NULL;
    FreeElementMatrices();
    delete static_cond;
    static_cond = NULL;
-   delete hybridization;
-   hybridization = NULL;
+
+   if (full_update)
+   {
+      delete mat;
+      mat = NULL;
+      delete hybridization;
+      hybridization = NULL;
+      sequence = fes->GetSequence();
+   }
+   else
+   {
+      if (mat) { *mat = 0.0; }
+      if (hybridization) { hybridization->Reset(); }
+   }
 
    height = width = fes->GetVSize();
-
-   mat = mat_e = NULL;
 }
 
 BilinearForm::~BilinearForm()

@@ -25,6 +25,20 @@ namespace mfem
     element to its boundary. */
 class FiniteElementCollection
 {
+protected:
+   template <Geometry::Type geom>
+   static inline void GetNVE(int &nv, int &ne);
+
+   template <Geometry::Type geom, typename v_t>
+   static inline void GetEdge(int &nv, v_t &v, int &ne, int &e, int &eo,
+                              const int edge_info);
+
+   template <Geometry::Type geom, Geometry::Type f_geom,
+             typename v_t, typename e_t, typename eo_t>
+   static inline void GetFace(int &nv, v_t &v, int &ne, e_t &e, eo_t &eo,
+                              int &nf, int &f, int &fg, int &fo,
+                              const int face_info);
+
 public:
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const = 0;
@@ -48,6 +62,15 @@ public:
    virtual ~FiniteElementCollection() { }
 
    static FiniteElementCollection *New(const char *name);
+
+   /** @brief Get the local dofs for a given sub-manifold.
+
+      Return the local dofs for a SDim-dimensional sub-manifold (0D - vertex,
+      1D - edge, 2D - face) including those on its boundary. The local index of
+      the sub-manifold (inside Geom) and its orientation are given by the
+      parameter Info = 64 * SubIndex + SubOrientation. Naturally, it is assumed
+      that 0 <= SDim <= Dim(Geom). */
+   void SubDofOrder(int Geom, int SDim, int Info, Array<int> &dofs) const;
 };
 
 /// Arbitrary order H1-conforming (continuous) finite elements.
