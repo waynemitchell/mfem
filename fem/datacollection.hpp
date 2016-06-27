@@ -17,20 +17,6 @@
 #include <string>
 #include <map>
 
-#ifdef MFEM_USE_SIDRE
-// Forward declare needed datastore classes so we don't need to #include sidre headers in this header.
-namespace asctoolkit
-{
-  namespace sidre
-  {
-    class DataGroup;
-    class DataStore;
-  }
-}
-
-
-#endif // MFEM_USE_SIDRE
-
 namespace mfem
 {
 
@@ -213,51 +199,6 @@ public:
 
    /// We will delete the mesh and fields if we own them
    virtual ~VisItDataCollection() {}
-};
-
-/// Data collection with Sidre routines
-class SidreDataCollection : public DataCollection
-{
-#ifdef MFEM_USE_SIDRE
-
-protected:
-
-public:
-
-  // Adding some typedefs here for the variables types in MFEM that we will be putting in Sidre
-  // This is to avoid hard coding a bunch of SIDRE::ENUM types in the sidre calls, in case MFEM ever
-  // wants to change some of it's data types.
-  // TODO - ask MFEM team if they have any interest in adding a few typedefs in their classes, or
-  // if just hard-coding the type is better.  For now, I'll just put the typedef's here.
-
-  typedef int mfem_int_t;
-  typedef double mfem_double_t;
-
-   SidreDataCollection(const char *collection_name, Mesh * new_mesh, asctoolkit::sidre::DataGroup * dg);
-
-   void RegisterField(const char* name, GridFunction *gf);
-
-   void setMeshStream(std::istream &input) {}
-   /// Verify we will delete the mesh and fields if we own them
-   virtual ~SidreDataCollection() {}
-
-private:
-   // Private helper functions
-
-   // why can't this be const? (the ElementAllocator)
-   void addElements(asctoolkit::sidre::DataGroup * group, ElementAllocator*);
-
-   void addField(asctoolkit::sidre::DataGroup * grp, GridFunction* gf);
-
-   void addMesh( asctoolkit::sidre::DataGroup * grp);
-
-   void addVertices(asctoolkit::sidre::DataGroup * grp);
-
-
-   asctoolkit::sidre::DataGroup * sidre_dc_group;
-
-#endif // MFEM_USE_SIDRE
-
 };
 
 }

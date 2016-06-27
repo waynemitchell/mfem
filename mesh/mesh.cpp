@@ -16,6 +16,11 @@
 #include "../general/sort_pairs.hpp"
 #include "../fem/datacollection.hpp"
 
+// TODO - Remove this when we can restart from refined mesh.
+#ifdef MFEM_USE_SIDRE
+#include "../external/sidredatacollection.hpp"
+#endif
+
 #include <iostream>
 #include <sstream>
 #include <fstream>
@@ -2202,10 +2207,8 @@ Mesh::Mesh(std::istream &input, int generate_edges, int refine,
 Mesh::Mesh(std::istream &input, DataCollection * dc, int generate_edges, int refine,
            bool fix_orientation)
 {
-#ifdef MFEM_USE_SIDRE
-	SidreDataCollection * sidre_dc = dynamic_cast<SidreDataCollection*>(dc);
-#endif
 
+// when reading the mesh back from data store, grab it as string and make a istringstream over it, then we can pass it back to this constructor.
    // TODO - load
    // if mesh found in data store, use that memory and data.
    // else make block of memory in datastore, provide that to mesh element and boundary element allocators.
@@ -2216,8 +2219,9 @@ Mesh::Mesh(std::istream &input, DataCollection * dc, int generate_edges, int ref
    Load(input, generate_edges, refine, fix_orientation);
    dc->SetMesh(this);
 
-   // Remove this when we can restart from refined mesh.
+   // TODO - Remove this when we can restart from refined mesh.
 #ifdef MFEM_USE_SIDRE
+   asctoolkit::sidre::SidreDataCollection * sidre_dc = dynamic_cast<asctoolkit::sidre::SidreDataCollection*>(dc);
    if (sidre_dc != NULL)
    {
 	   sidre_dc->setMeshStream(input);
