@@ -415,12 +415,10 @@ MatrixInverse *DenseMatrix::Inverse() const
 
 double DenseMatrix::Det() const
 {
-#ifdef MFEM_DEBUG
-   if (Height() != Width() || Height() < 1 || Height() > 3)
-   {
-      mfem_error("DenseMatrix::Det");
-   }
-#endif
+   MFEM_ASSERT(Height() == Width() && Height() > 0 && Height() < 4,
+               "The matrix must be square and sized 1, 2, or 3 to compute the determinate."
+               << "  Height() = " << Height()
+               << ", Width() = " << Width());
 
    switch (Height())
    {
@@ -1653,12 +1651,10 @@ inline void GetScalingFactor(const double &d_max, double &mult)
 
 double DenseMatrix::CalcSingularvalue(const int i) const
 {
-#ifdef MFEM_DEBUG
-   if (Height() != Width() || Height() < 1 || Height() > 3)
-   {
-      mfem_error("DenseMatrix::CalcSingularvalue");
-   }
-#endif
+   MFEM_ASSERT(Height() == Width() && Height() > 0 && Height() < 4,
+               "The matrix must be square and sized 1, 2, or 3 to compute the singular values."
+               << "  Height() = " << Height()
+               << ", Width() = " << Width());
 
    const int n = Height();
    const double *d = data;
@@ -3137,13 +3133,14 @@ void CalcInverseTranspose(const DenseMatrix &a, DenseMatrix &inva)
 
 void CalcOrtho(const DenseMatrix &J, Vector &n)
 {
-#ifdef MFEM_DEBUG
-   if (((J.Height() != 2 || J.Width() != 1) &&
-        (J.Height() != 3 || J.Width() != 2)) || (J.Height() != n.Size()))
-   {
-      mfem_error("CalcOrtho(...)");
-   }
-#endif
+   MFEM_ASSERT((J.Height() == 2 && J.Width() == 1)
+        && (J.Height() == 3 && J.Width() == 2)
+        || (J.Height() == n.Size()),
+        "Matrix must be 3x2 or 2x1, and the Vector must be sized with the rows. "
+        << " J.Height() = " << J.Height()
+        << ", J.Width() = " << J.Width()
+        << ", n.Size() = " << n.Size()
+        );
 
    const double *d = J.Data();
    if (J.Height() == 2)
