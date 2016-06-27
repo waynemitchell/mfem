@@ -262,12 +262,7 @@ int main(int argc, char *argv[])
    //    handle triangular, quadrilateral, tetrahedral and hexahedral meshes
    //    with the same code.
    Mesh *mesh;
-
-   // make the change below for cubit-dev
-   //nifstream imesh(mesh_file);
-   ifstream imesh(mesh_file);
-   mesh = new Mesh(imesh, 1, 1);
-
+   mesh = new Mesh(mesh_file, 1, 1);
    int dim = mesh->Dimension();
 
    //
