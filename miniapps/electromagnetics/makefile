@@ -72,8 +72,8 @@ $(MFEM_LIB_FILE):
 clean: clean-build clean-exec
 
 clean-build:
-	rm -f *.o *~ volta tesla
+	rm -f *.o *~ $(SEQ_MINIAPPS) $(PAR_MINIAPPS)
 	rm -rf *.dSYM *.TVD.*breakpoints
 
 clean-exec:
-	@rm -rf Volta-AMR* Tesla-AMR*
+	@rm -rf Volta-AMR* Tesla-AMR* Joule_*

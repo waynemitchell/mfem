@@ -106,13 +106,11 @@ static double dtj_ = 0.0;
 int main(int argc, char *argv[])
 {
    // 1. Initialize MPI.
-   int num_procs, myid;
-   MPI_Init(&argc, &argv);
-   MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
-   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+   MPI_Session mpi(argc, argv);
+   int myid = mpi.WorldRank();
 
    // print the cool banner
-   print_banner();
+   if (mpi.Root()) { print_banner(); }
 
    // 2. Parse command-line options.
    const char *mesh_file = "CylinderHex.mesh";
@@ -187,14 +185,13 @@ int main(int argc, char *argv[])
    args.Parse();
    if (!args.Good())
    {
-      if (myid == 0)
+      if (mpi.Root())
       {
          args.PrintUsage(cout);
       }
-      MPI_Finalize();
       return 1;
    }
-   if (myid == 0)
+   if (mpi.Root())
    {
       args.PrintOptions(cout);
    }
@@ -207,7 +204,7 @@ int main(int argc, char *argv[])
    hj_  = alpha;
    dtj_ = dt;
 
-   if (myid == 0)
+   if (mpi.Root())
    {
       printf("\n");
       printf("Skin depth sqrt(2.0/(wj*mj*sj)) = %g\n",sqrt(2.0/(wj_*mj_*sj_)));
@@ -252,7 +249,7 @@ int main(int argc, char *argv[])
    }
    else
    {
-      cerr << "Problem" << problem << " not recognized\n";
+      cerr << "Problem " << problem << " not recognized\n";
       mfem_error();
    }
 
@@ -328,7 +325,7 @@ int main(int argc, char *argv[])
    }
    else
    {
-      cerr << "Problem" << problem << " not recognized\n";
+      cerr << "Problem " << problem << " not recognized\n";
       mfem_error();
    }
 
@@ -351,11 +348,11 @@ int main(int argc, char *argv[])
       case 23: ode_solver = new SDIRK23Solver; break;
       case 24: ode_solver = new SDIRK34Solver; break;
       default:
-         if (myid == 0)
+         if (mpi.Root())
          {
             cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
          }
-         MPI_Finalize();
+         delete mesh;
          return 3;
    }
 
@@ -452,7 +449,7 @@ int main(int argc, char *argv[])
    HYPRE_Int glob_size_rt =    HDivFESpace.GlobalTrueVSize();
    HYPRE_Int glob_size_h1 =    HGradFESpace.GlobalTrueVSize();
 
-   if (myid == 0)
+   if (mpi.Root())
    {
       cout << "Number of Temperature Flux unknowns:    " << glob_size_rt << endl;
       cout << "Number of Temperature unknowns:         " << glob_size_l2 << endl;
@@ -589,7 +586,7 @@ int main(int argc, char *argv[])
    //double me0 = oper.MagneticEnergy(B_gf);
    double el0 = oper.ElectricLosses(E_gf);
 
-   if (myid == 0)
+   if (mpi.Root())
    {
       cout << scientific  << setprecision(3) << "initial electric L2 error    = " <<
            err_E0/(eng_E0+1.0e-20) << endl;
@@ -698,7 +695,7 @@ int main(int argc, char *argv[])
          //double me = oper.MagneticEnergy(B_gf);
          double el = oper.ElectricLosses(E_gf);
 
-         if (myid == 0)
+         if (mpi.Root())
          {
             cout << fixed;
             cout << "step " << setw(6) << ti << " t = " << setw(6) << setprecision(3) << t
@@ -746,8 +743,6 @@ int main(int argc, char *argv[])
    // 10. Free the used memory.
    delete ode_solver;
    delete pmesh;
-
-   MPI_Finalize();
 
    return 0;
 }
@@ -846,7 +841,7 @@ double p_bc(const Vector &x, double t)
 void print_banner()
 {
 
-   char banner[218] =
+   char banner[219] =
    {
       32,
       32,
@@ -1065,7 +1060,8 @@ void print_banner()
       32,
       10,
       10,
-      10
+      10,
+      0
    };
 
    printf("%s",banner);
