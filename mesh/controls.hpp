@@ -25,14 +25,18 @@ namespace mfem
 /** @brief The MeshOperator class serves as base for mesh manipulation classes.
 
     The purpose of the class is to provide a common abstraction for various
-    AMR mesh control schemes. The typical use in an AMR loop is:
+    AMR mesh control schemes. The typical use in an AMR loop is illustrated
+    in examples 6/6p and 15/15p.
+
+    A more general loop that also supports sequences of mesh operators with
+    multiple updates looks like this:
     \code
        for (...)
        {
-          // computations ...
+          // computations on the current mesh ...
           while (mesh_operator->Apply(mesh))
           {
-             // update FiniteElementSpaces and GridFunctions
+             // update FiniteElementSpaces and interpolate GridFunctions ...
              if (mesh_operator->Continue()) { break; }
           }
           if (mesh_operator->Stop()) { break; }

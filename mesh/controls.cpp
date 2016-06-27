@@ -47,6 +47,7 @@ void MeshOperatorSequence::Reset()
    {
       sequence[i]->Reset();
    }
+   step = 0;
 }
 
 
