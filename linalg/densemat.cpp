@@ -3133,14 +3133,15 @@ void CalcInverseTranspose(const DenseMatrix &a, DenseMatrix &inva)
 
 void CalcOrtho(const DenseMatrix &J, Vector &n)
 {
-   MFEM_ASSERT((J.Height() == 2 && J.Width() == 1)
-        && (J.Height() == 3 && J.Width() == 2)
-        || (J.Height() == n.Size()),
-        "Matrix must be 3x2 or 2x1, and the Vector must be sized with the rows. "
-        << " J.Height() = " << J.Height()
-        << ", J.Width() = " << J.Width()
-        << ", n.Size() = " << n.Size()
-        );
+   MFEM_ASSERT( ((J.Height() == 2 && J.Width() == 1)
+                 || (J.Height() == 3 && J.Width() == 2))
+                && (J.Height() == n.Size()),
+                "Matrix must be 3x2 or 2x1, "
+                << "and the Vector must be sized with the rows. "
+                << " J.Height() = " << J.Height()
+                << ", J.Width() = " << J.Width()
+                << ", n.Size() = " << n.Size()
+              );
 
    const double *d = J.Data();
    if (J.Height() == 2)
