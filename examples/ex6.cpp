@@ -118,19 +118,26 @@ int main(int argc, char *argv[])
       sol_sock.open(vishost, visport);
    }
 
-   // X. TODO
-   //
+   // 9. Set up an error estimator. Here we use a basic ZZ-type estimator
+   //    that uses the ComputeElementFlux method of the DiffusionIntegrator to
+   //    recover a smoothed flux (gradient) that is subtracted from the element
+   //    flux to get an error indicator. We need to supply the space for the
+   //    smoothed flux: an (H1)^sdim (i.e., vector-valued) space is used here.
    FiniteElementSpace flux_fespace(&mesh, &fec, sdim);
    ZienkiewiczZhuEstimator estimator(*integ, x, flux_fespace);
    estimator.SetAnisotropic();
 
+   // 10. A refiner selects and refines elements based on a refinement strategy.
+   //     The strategy here is to refine elements with errors larger than a
+   //     fraction of the maximum element error. Other strategies are possible.
+   //     The refiner needs to be linked to the error estimator.
    ThresholdRefiner refiner(estimator);
    refiner.SetTotalErrorFraction(0.7);
 
-   // 9. The main AMR loop. In each iteration we solve the problem on the
-   //    current mesh, visualize the solution, estimate the error on all
-   //    elements, refine the worst elements and update all objects to work
-   //    with the new mesh.
+   // 11. The main AMR loop. In each iteration we solve the problem on the
+   //     current mesh, visualize the solution, estimate the error on all
+   //     elements, refine the worst elements and update all objects to work
+   //     with the new mesh.
    const int max_dofs = 50000;
    for (int it = 0; ; it++)
    {
@@ -138,20 +145,20 @@ int main(int argc, char *argv[])
       cout << "\nAMR iteration " << it << endl;
       cout << "Number of unknowns: " << cdofs << endl;
 
-      // 10. Assemble the stiffness matrix and the right-hand side. Note that
+      // 12. Assemble the stiffness matrix and the right-hand side. Note that
       //     MFEM doesn't care at this point if the mesh is nonconforming (i.e.,
       //     contains hanging nodes). The FE space is considered 'cut' along
       //     hanging edges/faces.
       a.Assemble();
       b.Assemble();
 
-      // 11. Set Dirichlet boundary values in the GridFunction x.
+      // 13. Set Dirichlet boundary values in the GridFunction x.
       //     Determine the list of Dirichlet true DOFs in the linear system.
       Array<int> ess_tdof_list;
       x.ProjectBdrCoefficient(zero, ess_bdr);
       fespace.GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 
-      // 12. Create the linear system: eliminate boundary conditions, constrain
+      // 14. Create the linear system: eliminate boundary conditions, constrain
       //     hanging nodes and possibly apply other transformations. The system
       //     will be solved for true (unconstrained) DOFs only.
       SparseMatrix A;
@@ -160,12 +167,12 @@ int main(int argc, char *argv[])
       a.FormLinearSystem(ess_tdof_list, x, b, A, X, B, copy_interior);
 
 #ifndef MFEM_USE_SUITESPARSE
-      // 13. Define a simple symmetric Gauss-Seidel preconditioner and use it to
+      // 15. Define a simple symmetric Gauss-Seidel preconditioner and use it to
       //     solve the linear system with PCG.
       GSSmoother M(A);
       PCG(A, M, B, X, 3, 200, 1e-12, 0.0);
 #else
-      // 13. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the
+      // 15. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the
       //     the linear system.
       UMFPackSolver umf_solver;
       umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
@@ -173,12 +180,12 @@ int main(int argc, char *argv[])
       umf_solver.Mult(B, X);
 #endif
 
-      // 14. After solving the linear system, reconstruct the solution as a finite
+      // 16. After solving the linear system, reconstruct the solution as a finite
       //     element grid function. Constrained nodes are interpolated from true
       //     DOFs (it may therefore happen that dim(x) >= dim(X)).
       a.RecoverFEMSolution(X, b, x);
 
-      // 15. Send solution by socket to the GLVis server.
+      // 17. Send solution by socket to the GLVis server.
       if (visualization && sol_sock.good())
       {
          sol_sock.precision(8);
@@ -191,12 +198,9 @@ int main(int argc, char *argv[])
          break;
       }
 
-      // 16. Estimate element errors using the Zienkiewicz-Zhu error estimator.
-      //     The bilinear form integrator must have the 'ComputeElementFlux'
-      //     method defined.
-      // 17. Make a list of elements whose error is larger than a fraction of
-      //     the maximum element error. These elements will be refined.
-      // 18. Refine the selected elements.
+      // 18. Call the refiner to obtain element errors from the error estimator,
+      //     select elements to be refined and to modify the mesh. The Stop()
+      //     method determines if the termination criterion has been met.
       refiner.Apply(mesh);
       if (refiner.Stop())
       {
