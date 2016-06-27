@@ -24,11 +24,11 @@ class Triangle : public Element
 {
 protected:
    int indices[3];
-   static const int edges[3][2];
 
    unsigned transform;
 
 public:
+   typedef Geometry::Constants<Geometry::TRIANGLE> geom_t;
 
    Triangle() : Element(Geometry::TRIANGLE) { transform = 0; }
 
@@ -74,7 +74,8 @@ public:
 
    virtual int GetNEdges() const { return (3); }
 
-   virtual const int *GetEdgeVertices(int ei) const { return (edges[ei]); }
+   virtual const int *GetEdgeVertices(int ei) const
+   { return geom_t::Edges[ei]; }
 
    virtual int GetNFaces(int &nFaceVertices) const
    { nFaceVertices = 0; return 0; }
@@ -83,6 +84,7 @@ public:
    { MFEM_ABORT("not implemented"); return NULL; }
 
    virtual Element *Duplicate(Mesh *m) const
+   // TODO: copy 'transform'?
    { return new Triangle(indices, attribute); }
 
    virtual ~Triangle() { }

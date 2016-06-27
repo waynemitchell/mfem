@@ -945,6 +945,11 @@ HYPRE_Int HypreParMatrix::Mult(HypreParVector &x, HypreParVector &y,
 
 void HypreParMatrix::Mult(double a, const Vector &x, double b, Vector &y) const
 {
+   MFEM_ASSERT(x.Size() == Width(), "invalid x.Size() = " << x.Size()
+               << ", expected size = " << Width());
+   MFEM_ASSERT(y.Size() == Height(), "invalid y.Size() = " << y.Size()
+               << ", expected size = " << Height());
+
    if (X == NULL)
    {
       X = new HypreParVector(A->comm,
@@ -968,6 +973,11 @@ void HypreParMatrix::Mult(double a, const Vector &x, double b, Vector &y) const
 void HypreParMatrix::MultTranspose(double a, const Vector &x,
                                    double b, Vector &y) const
 {
+   MFEM_ASSERT(x.Size() == Height(), "invalid x.Size() = " << x.Size()
+               << ", expected size = " << Height());
+   MFEM_ASSERT(y.Size() == Width(), "invalid y.Size() = " << y.Size()
+               << ", expected size = " << Width());
+
    // Note: x has the dimensions of Y (height), and
    //       y has the dimensions of X (width)
    if (X == NULL)
@@ -2514,7 +2524,7 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    const FiniteElementCollection *edge_fec = edge_fespace->FEColl();
 
    bool trace_space, rt_trace_space;
-   ND_Trace_FECollection *nd_tr_fec;
+   ND_Trace_FECollection *nd_tr_fec = NULL;
    trace_space = dynamic_cast<const ND_Trace_FECollection*>(edge_fec);
    rt_trace_space = dynamic_cast<const RT_Trace_FECollection*>(edge_fec);
    trace_space = trace_space || rt_trace_space;

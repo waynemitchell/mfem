@@ -16,11 +16,6 @@
 namespace mfem
 {
 
-const int Tetrahedron::edges[6][2] =
-{
-   {0, 1}, {0, 2}, {0, 3}, {1, 2}, {1, 3}, {2, 3}
-};
-
 Tetrahedron::Tetrahedron(const int *ind, int attr)
    : Element(Geometry::TETRAHEDRON)
 {
@@ -312,6 +307,7 @@ Element *Tetrahedron::Duplicate(Mesh *m) const
    tet->SetVertices(indices);
    tet->SetAttribute(attribute);
    tet->SetRefinementFlag(refinement_flag);
+   // TODO: copy 'transform'?
    return tet;
 }
 
