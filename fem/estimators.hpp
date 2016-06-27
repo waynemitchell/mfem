@@ -22,12 +22,21 @@
 namespace mfem
 {
 
-/** @brief The ErrorEstimator class is the base class for all error estimators.
+/** @brief Base class for all error estimators.
+ */
+class AbstractErrorEstimator
+{
+public:
+   ~AbstractErrorEstimator() {}
+};
 
-    At a minimum, an estimators must be able compute one non-negative real
+
+/** @brief Base class for all element based error estimators.
+
+    At a minimum, an ErrorEstimator must be able compute one non-negative real
     (double) number for each element in the Mesh.
  */
-class ErrorEstimator
+class ErrorEstimator : AbstractErrorEstimator
 {
 public:
    /// Get a Vector with all element errors.
