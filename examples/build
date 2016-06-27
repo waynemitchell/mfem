@@ -1,0 +1,2 @@
+make -C ../ sidre -j && \
+/usr/apps/gnu/4.9.3/bin/mpig++  -g -Wall -I.. -I../../asctoolkit/include -I../../conduit/include -I../../hdf5/include ex9_sidre.cpp -o ex9_sidre -L.. -lmfem -L../../asctoolkit/lib -L../../conduit/lib -L../../hdf5/lib -Wl,-rpath=../../hdf5/lib -lsidre -lslic -lcommon -lconduit -lconduit_relay -llibb64 -lhdf5 -lz -ldl -lrt

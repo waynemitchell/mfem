@@ -49,7 +49,6 @@ class Mesh
    friend class NURBSExtension;
 
 protected:
-   static const size_t INITIAL_INDICES_SIZE = 1024;
    int Dim;
    int spaceDim;
 
@@ -74,9 +73,11 @@ protected:
    ElementAllocator *element_allocator;
    ElementAllocator *boundary_allocator;
    bool own_allocators;
+   Allocator *vertices_allocator;
 
    int initElementAllocators(ElementAllocator* = &null_allocator, 
-                               ElementAllocator* = &null_allocator);
+         ElementAllocator* = &null_allocator,
+         Allocator* = NULL);
 
    int reinitFromElementAllocators(Geometry::Type elms_type,
                                Geometry::Type bndry_type);
@@ -466,12 +467,21 @@ public:
    Mesh(std::istream &input, int generate_edges = 0, int refine = 1,
         bool fix_orientation = true);
 
+<<<<<<< HEAD
    Mesh(std::istream &input, DataCollection * dc, int generate_edges = 0, int refine = 1,
         bool fix_orientation = true);
 
    Mesh(std::istream &input, ElementAllocator *elm_alloc,
         ElementAllocator *bdry_alloc, int generate_edges = 0, 
         int refine = 1, bool fix_orientation = true);
+=======
+   Mesh(std::istream &input, 
+         ElementAllocator *element_allocator,
+         ElementAllocator *boundary_element_allocator, 
+         Allocator *vertices_allocator,
+         int generate_edges = 0, int refine = 1, 
+         bool fix_orientation = true);
+>>>>>>> 128831bc3986bcc4f91baa812dfb450ba0490b8f
 
    /// Create a disjoint mesh from the given mesh array
    Mesh(Mesh *mesh_array[], int num_pieces);
