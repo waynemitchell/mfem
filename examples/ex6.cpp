@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
    // 6. The solution vector x and the associated finite element grid function
    //    will be maintained over the AMR iterations. We initialize it to zero.
    GridFunction x(&fespace);
-   x = 0;
+   x = 0.0;
 
    // 7. All boundary attributes will be used for essential (Dirichlet) BC.
    MFEM_VERIFY(mesh.bdr_attributes.Size() > 0,
@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
       sol_sock.open(vishost, visport);
    }
 
-   // 9. Set up an error estimator. Here we use a basic ZZ-type estimator
+   // 9. Set up an error estimator. Here we use the Zienkiewicz-Zhu estimator
    //    that uses the ComputeElementFlux method of the DiffusionIntegrator to
    //    recover a smoothed flux (gradient) that is subtracted from the element
    //    flux to get an error indicator. We need to supply the space for the
@@ -130,14 +130,12 @@ int main(int argc, char *argv[])
    // 10. A refiner selects and refines elements based on a refinement strategy.
    //     The strategy here is to refine elements with errors larger than a
    //     fraction of the maximum element error. Other strategies are possible.
-   //     The refiner needs to be linked to the error estimator.
+   //     The refiner will call the given error estimator.
    ThresholdRefiner refiner(estimator);
    refiner.SetTotalErrorFraction(0.7);
 
    // 11. The main AMR loop. In each iteration we solve the problem on the
-   //     current mesh, visualize the solution, estimate the error on all
-   //     elements, refine the worst elements and update all objects to work
-   //     with the new mesh.
+   //     current mesh, visualize the solution, and refine the mesh.
    const int max_dofs = 50000;
    for (int it = 0; ; it++)
    {
@@ -145,10 +143,7 @@ int main(int argc, char *argv[])
       cout << "\nAMR iteration " << it << endl;
       cout << "Number of unknowns: " << cdofs << endl;
 
-      // 12. Assemble the stiffness matrix and the right-hand side. Note that
-      //     MFEM doesn't care at this point if the mesh is nonconforming (i.e.,
-      //     contains hanging nodes). The FE space is considered 'cut' along
-      //     hanging edges/faces.
+      // 12. Assemble the stiffness matrix and the right-hand side.
       a.Assemble();
       b.Assemble();
 
@@ -180,9 +175,9 @@ int main(int argc, char *argv[])
       umf_solver.Mult(B, X);
 #endif
 
-      // 16. After solving the linear system, reconstruct the solution as a finite
-      //     element grid function. Constrained nodes are interpolated from true
-      //     DOFs (it may therefore happen that dim(x) >= dim(X)).
+      // 16. After solving the linear system, reconstruct the solution as a
+      //     finite element GridFunction. Constrained nodes are interpolated
+      //     from true DOFs (it may therefore happen that x.Size() >= X.Size()).
       a.RecoverFEMSolution(X, b, x);
 
       // 17. Send solution by socket to the GLVis server.
@@ -194,13 +189,14 @@ int main(int argc, char *argv[])
 
       if (cdofs > max_dofs)
       {
-         cout << "Exceeded the maximum number of dofs. Stop." << endl;
+         cout << "Reached the maximum number of dofs. Stop." << endl;
          break;
       }
 
-      // 18. Call the refiner to obtain element errors from the error estimator,
-      //     select elements to be refined and to modify the mesh. The Stop()
-      //     method determines if the termination criterion has been met.
+      // 18. Call the refiner to modify the mesh. The refiner calls the error
+      //     estimator to obtain element errors, then it selects elements to be
+      //     refined and finally it modifies the mesh. The Stop() method can be
+      //     used to determine if a stopping criterion was met.
       refiner.Apply(mesh);
       if (refiner.Stop())
       {
@@ -210,10 +206,10 @@ int main(int argc, char *argv[])
 
       // 19. Update the space to reflect the new state of the mesh. Also,
       //     interpolate the solution x so that it lies in the new space but
-      //     represents the same function. This saves solver iterations since
-      //     we'll have a good initial guess of x in the next step. Internally,
-      //     FiniteElementSpace::Update() calculates an interpolation matrix
-      //     which is then used by GridFunction::Update().
+      //     represents the same function. This saves solver iterations later
+      //     since we'll have a good initial guess of x in the next step.
+      //     Internally, FiniteElementSpace::Update() calculates an
+      //     interpolation matrix which is then used by GridFunction::Update().
       fespace.Update();
       x.Update();
 
