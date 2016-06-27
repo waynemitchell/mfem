@@ -27,7 +27,7 @@ namespace mfem
 class AbstractErrorEstimator
 {
 public:
-   ~AbstractErrorEstimator() {}
+   virtual ~AbstractErrorEstimator() {}
 };
 
 
