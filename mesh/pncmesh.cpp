@@ -765,7 +765,7 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
          fi.NCFace = -1;
       }
 
-      // fill in FaceInfo for slave faces
+      // fill in FaceInfo for shared slave faces
       for (unsigned i = 0; i < shared.masters.size(); i++)
       {
          const Master &mf = shared.masters[i];

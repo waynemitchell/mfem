@@ -74,7 +74,7 @@ double ThresholdRefiner::GetNorm(const Vector &local_err, Mesh &mesh) const
    ParMesh *pmesh = dynamic_cast<ParMesh*>(&mesh);
    if (pmesh)
    {
-      return local_err.ParNormlp(total_norm_p, pmesh->GetComm());
+      return ParNormlp(local_err, total_norm_p, pmesh->GetComm());
    }
 #endif
    return local_err.Normlp(total_norm_p);
