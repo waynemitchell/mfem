@@ -2261,11 +2261,9 @@ int Mesh::initElementAllocators(ElementAllocator *elm_alloc,
       element_allocator = elm_alloc;
       elm_alloc->set_elements(&elements);
    }
-<<<<<<< HEAD
-=======
+
    vertices_allocator = _vertices_allocator;
    return 0;
->>>>>>> 128831bc3986bcc4f91baa812dfb450ba0490b8f
 }
 
 Mesh::Mesh(std::istream &input, 
