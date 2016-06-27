@@ -37,7 +37,7 @@ double ThresholdAMRMarker::GetNorm(const Vector &local_err) const
    return local_err.Normlp(total_norm_p);
 #else
    ParMesh *pmesh = dynamic_cast<ParMesh*>(&mesh);
-   return pmesh ? local_err.ParNormlp(total_norm_p, pmesh->GetComm()) :
+   return pmesh ? ParNormlp(local_err, total_norm_p, pmesh->GetComm()) :
           local_err.Normlp(total_norm_p);
 #endif
 }

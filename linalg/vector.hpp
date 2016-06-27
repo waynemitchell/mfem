@@ -22,10 +22,6 @@
 #define isfinite _finite
 #endif
 
-#ifdef MFEM_USE_MPI
-#include <mpi.h>
-#endif
-
 namespace mfem
 {
 
@@ -207,11 +203,6 @@ public:
    double Norml1() const;
    /// Returns the l_p norm of the vector.
    double Normlp(double p) const;
-#ifdef MFEM_USE_MPI
-   /** @brief Returns the l_p norm of the vector which is split without overlap
-       accross the given communicator. */
-   double ParNormlp(double p, MPI_Comm comm) const;
-#endif
    /// Returns the maximal element of the vector.
    double Max() const;
    /// Returns the minimal element of the vector.
