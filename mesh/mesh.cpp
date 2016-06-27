@@ -14,6 +14,7 @@
 #include "mesh_headers.hpp"
 #include "../fem/fem.hpp"
 #include "../general/sort_pairs.hpp"
+#include "../fem/datacollection.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -2198,6 +2199,32 @@ Mesh::Mesh(std::istream &input, int generate_edges, int refine,
    Load(input, generate_edges, refine, fix_orientation);
 }
 
+Mesh::Mesh(std::istream &input, DataCollection * dc, int generate_edges, int refine,
+           bool fix_orientation)
+{
+#ifdef MFEM_USE_SIDRE
+	SidreDataCollection * sidre_dc = dynamic_cast<SidreDataCollection*>(dc);
+#endif
+
+   // TODO - load
+   // if mesh found in data store, use that memory and data.
+   // else make block of memory in datastore, provide that to mesh element and boundary element allocators.
+   initElementAllocators();
+//   initElementAllocators( element_allocator, boundary_allocator);
+   Init();
+   InitTables();
+   Load(input, generate_edges, refine, fix_orientation);
+   dc->SetMesh(this);
+
+   // Remove this when we can restart from refined mesh.
+#ifdef MFEM_USE_SIDRE
+   if (sidre_dc != NULL)
+   {
+	   sidre_dc->setMeshStream(input);
+   }
+#endif
+
+}
 
 // TODO: use real error objects
 int Mesh::reinitFromElementAllocators(Geometry::Type elems_type, Geometry::Type bndry_type) {
@@ -2217,24 +2244,23 @@ int Mesh::reinitFromElementAllocators(Geometry::Type elems_type, Geometry::Type 
 int Mesh::initElementAllocators(ElementAllocator *elm_alloc,
                          ElementAllocator *bndry_alloc) 
 {
-   own_allocators = false;
-   if (elm_alloc) {
+    element_allocator = elm_alloc;
+    boundary_allocator = bndry_alloc;
+
+   if (elm_alloc == &null_allocator && bndry_alloc == &null_allocator)
+   {
+	  own_allocators = true;
+
+   }
+   else
+   {
+	  own_allocators = false;
+      boundary_allocator = bndry_alloc;
+	  bndry_alloc->set_elements(&boundary);
       element_allocator = elm_alloc;
       elm_alloc->set_elements(&elements);
    }
-   else {
-      element_allocator = &null_allocator;
-   }
-   if (bndry_alloc) {
-      boundary_allocator = bndry_alloc;
-      bndry_alloc->set_elements(&boundary);
-   }
-   else {
-      boundary_allocator = &null_allocator;
-   }
-   return 0;
 }
-
 
 Mesh::Mesh(std::istream &input, 
            ElementAllocator *elm_alloc,

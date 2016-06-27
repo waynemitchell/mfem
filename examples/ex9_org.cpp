@@ -194,7 +194,6 @@ int main(int argc, char *argv[])
       fec_type = "L2_2D_P3";
    }
 
-
    // 2. Populate the Mesh. Either from the mesh file or from a restart
    Mesh *mesh;
    if (sidre_use_restart) {

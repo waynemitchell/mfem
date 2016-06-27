@@ -12,7 +12,7 @@
 // Implementation of GridFunction
 
 #include "fem.hpp"
-
+#include "datacollection.hpp"
 #include <limits>
 #include <cstring>
 #include <string>
@@ -28,6 +28,7 @@ using namespace std;
 /// Creates grid function associated with a finite element space.  Registers the grid function in the
 /// provided data collection.  If the data collection is contains data for a grid
 /// function with this name, it will populate the grid function data values.
+
 GridFunction::GridFunction(std::string& name, DataCollection * dc, FiniteElementSpace *f)
 {
    fes = f;

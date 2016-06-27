@@ -596,7 +596,7 @@ SidreDataCollection::SidreDataCollection(const char *collection_name, Mesh * new
   sidre::DataGroup * mesh_grp = sidre_dc_group->createGroup("topology");
   addMesh(mesh_grp);
 
-  if ( mesh->elements.Size() > 0)
+  if ( mesh->GetNE() > 0)
   {
      // Create group for mesh elements, add material, shape, and vertex indices.
      sidre::DataGroup * mesh_elements_grp = mesh_grp->createGroup("mesh_elements");
@@ -604,7 +604,7 @@ SidreDataCollection::SidreDataCollection(const char *collection_name, Mesh * new
      addElements(mesh_elements_grp, mesh->get_element_allocator());
   }
 
-  if ( mesh->boundary.Size() > 0)
+  if ( mesh->GetNBE() > 0)
   {
      // Create group for boundary elements, add material, shape, and vertex indices.
      sidre::DataGroup * boundary_elements_grp = mesh_grp->createGroup("boundary_elements");
@@ -614,7 +614,7 @@ SidreDataCollection::SidreDataCollection(const char *collection_name, Mesh * new
 
   // Add mesh vertices
   sidre::DataGroup * grp = mesh_grp->createGroup("coords");
-  if (mesh->vertices.Size() > 0)
+  if (mesh->GetNV() > 0)
   {
      addVertices(grp);
   }
@@ -696,7 +696,7 @@ void SidreDataCollection::addField(asctoolkit::sidre::DataGroup * grp, GridFunct
   grp->createView("name")->setString( gf->FESpace()->FEColl()->Name() );
 // the grid function save goes a bit different route on the vector dim.  It grabs it from the finite element space.  Ask Rob or Tzanio about this.
 // calling the frunction on the grid function looks correct.
-  grp->createView("dimension")->setScalar( gf->VectorDim() );
+//  grp->createView("dimension")->setScalar( gf->VectorDim() );
 
   sidre::DataView * ordering_view = grp->createView("ordering");
 
@@ -723,7 +723,7 @@ void SidreDataCollection::addMesh(asctoolkit::sidre::DataGroup * grp)
 // should consider adding version members for mesh  in mfem
 //  grp->createView("version")->setScalar( ncmesh ? 1.1 : 1.0 );
   grp->createView("type")->setString("unstructured");
-  grp->createView("dimension")->setScalar(mesh->Dim);
+//  grp->createView("dimension")->setScalar(mesh->Dim);
 }
 
 void SidreDataCollection::addVertices(asctoolkit::sidre::DataGroup * grp)
@@ -734,7 +734,7 @@ void SidreDataCollection::addVertices(asctoolkit::sidre::DataGroup * grp)
   // TODO: Rework this to be one view with a stride, if we can verify the vertices are contiguous in memory.
   namespace sidre = asctoolkit::sidre;
 
-  MFEM_VERIFY( mesh->Dim == 2 || mesh->Dim == 3, "Expected two or three dimensions." );
+  //MFEM_VERIFY( mesh->Dim == 2 || mesh->Dim == 3, "Expected two or three dimensions." );
 
   grp->createView("type")->setString( "explicit" );
 
@@ -742,11 +742,13 @@ void SidreDataCollection::addVertices(asctoolkit::sidre::DataGroup * grp)
   //   * size of vertex class ( 3 doubles ) is sufficient.
   // This will break if the number of vertices EVER changes in mfem - so check with Tzanio...
   // will need to rethink this for AMR
-  size_t total_length = mesh->vertices.Size() * 3;
+  size_t total_length = mesh->GetNV() * 3;
 
   // apply args are 'type, num_elements, offset, stride'
   // Note - the 'z' value might be empty if this is 2D.
-  grp->createView("xyz", mesh->vertices[0]())->apply(sidre::DOUBLE_ID, total_length );
+//  grp->createView("xyz", mesh->vertices[0]())->apply(sidre::DOUBLE_ID, total_length );
+
+  grp->createView("xyz", mesh->GetVertex(0) )->apply(sidre::DOUBLE_ID, total_length );
 
   // For restarts we really don't need these separate x, y, z arrays... but the mesh blueprint
   // would like them...

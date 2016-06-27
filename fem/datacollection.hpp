@@ -28,6 +28,7 @@ namespace asctoolkit
   }
 }
 
+
 #endif // MFEM_USE_SIDRE
 
 namespace mfem
@@ -79,8 +80,6 @@ protected:
    /// Error state
    int error;
 
-   /// Create an empty collection with the given name.
-   DataCollection(const char *collection_name);
    /// Delete data owned by the DataCollection keeping field information
    void DeleteData();
    /// Delete data owned by the DataCollection including field information
@@ -90,6 +89,9 @@ protected:
    void SaveOneField(const std::map<std::string,GridFunction*>::iterator &it);
 
 public:
+   /// Create an empty collection with the given name.
+   DataCollection(const char *collection_name);
+
    /// Initialize the collection with its name and Mesh.
    DataCollection(const char *collection_name, Mesh *_mesh);
 
@@ -213,11 +215,11 @@ public:
    virtual ~VisItDataCollection() {}
 };
 
-#ifdef MFEM_USE_SIDRE
-
 /// Data collection with Sidre routines
 class SidreDataCollection : public DataCollection
 {
+#ifdef MFEM_USE_SIDRE
+
 protected:
 
 public:
@@ -231,14 +233,11 @@ public:
   typedef int mfem_int_t;
   typedef double mfem_double_t;
 
-
-  // TODO
-//   SidreDataCollection( DataCollection& collection ) {}
-
    SidreDataCollection(const char *collection_name, Mesh * new_mesh, asctoolkit::sidre::DataGroup * dg);
 
    void RegisterField(const char* name, GridFunction *gf);
 
+   void setMeshStream(std::istream &input) {}
    /// Verify we will delete the mesh and fields if we own them
    virtual ~SidreDataCollection() {}
 
@@ -256,9 +255,10 @@ private:
 
 
    asctoolkit::sidre::DataGroup * sidre_dc_group;
-};
 
 #endif // MFEM_USE_SIDRE
+
+};
 
 }
 
