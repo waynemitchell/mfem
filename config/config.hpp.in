@@ -59,6 +59,9 @@
 // Enable secure socket streams based on the GNUTLS library
 // #define MFEM_USE_GNUTLS
 
+// Enable functionality based on the NetCDF library (reading CUBIT files)
+// #define MFEM_USE_NETCDF
+
 // Windows specific options
 #ifdef _WIN32
 // Macro needed to get defines like M_PI from <cmath>. (Visual Studio C++ only?)

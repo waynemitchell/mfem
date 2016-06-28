@@ -355,7 +355,8 @@ protected: // implementation
       // anymore. The vertex, edge or the whole Node can autodestruct.
       // (The hash-table pointer needs to be known then to remove the node.)
       void UnrefVertex(HashTable<Node>& nodes);
-      void UnrefEdge(HashTable<Node>& nodes);
+      // Implement as a static method since we check if node == NULL.
+      static void UnrefEdge(Node *node, HashTable<Node>& nodes);
    };
 
    /** Similarly to nodes, faces can be accessed by hashing their four vertex

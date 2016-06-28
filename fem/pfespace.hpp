@@ -186,6 +186,11 @@ public:
    /// The true dof-to-dof interpolation matrix
    HypreParMatrix *Dof_TrueDof_Matrix();
 
+   /** @brief For a non-conforming mesh, construct and return the interpolation
+       matrix from the partially conforming true dofs to the local dofs. The
+       returned pointer must be deleted by the caller. */
+   HypreParMatrix *GetPartialConformingInterpolation();
+
    /** Create and return a new HypreParVector on the true dofs, which is
        owned by (i.e. it must be destroyed by) the calling function. */
    HypreParVector *NewTrueDofVector()
@@ -234,7 +239,9 @@ public:
    void ExchangeFaceNbrData();
    int GetFaceNbrVSize() const { return num_face_nbr_dofs; }
    void GetFaceNbrElementVDofs(int i, Array<int> &vdofs) const;
+   void GetFaceNbrFaceVDofs(int i, Array<int> &vdofs) const;
    const FiniteElement *GetFaceNbrFE(int i) const;
+   const FiniteElement *GetFaceNbrFaceFE(int i) const;
    const HYPRE_Int *GetFaceNbrGlobalDofMap() { return face_nbr_glob_dof_map; }
 
    void Lose_Dof_TrueDof_Matrix();

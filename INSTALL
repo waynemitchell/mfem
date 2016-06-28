@@ -214,6 +214,11 @@ MFEM_USE_GNUTLS = YES/NO
    When MFEM_USE_GNUTLS is enabled, the additional build options, GNUTLS_*, are
    also used, see below.
 
+MFEM_USE_NETCDF = YES/NO
+   NetCDF is the library that is used by the SNL Cubit mesh generator to create
+   Genesis mesh files. This option enables a reader for these files, which
+   requires that NetCDF be installed, see the NETCDF_* build options below.
+
 MFEM_BUILD_TAG = (any value)
    An optional tag to characterize the build. Exported to config/config.mk.
    Can be used to identify the MFEM build from other makefiles.
@@ -274,6 +279,13 @@ The specific libraries and their options are:
   one can get the library through the Homebrew package manager (http://brew.sh).
   URL: http://gnutls.org
   Options: GNUTLS_OPT, GNUTLS_LIB.
+
+- NetCDF (optional), used when MFEM_USE_NETCDF = YES, required for reading Cubit
+  mesh files. Also requires installation of HDF5 and ZLIB, as explained at the
+  NetCDF web site. Note that we use the plain vanilla "C" version of NetCDF, you
+  don't need the C++ or parallel versions.
+  URL: www.unidata.ucar.edu/software/netcdf
+  Options: NETCDF_OPT, NETCDF_LIB.
 
 
 Building without GNU make
