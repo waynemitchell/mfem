@@ -537,7 +537,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
                case Element::TRIANGLE:
                   sface_lface[sface_counter] = (*faces_tbl)(v[0], v[1], v[2]);
                   // mark the shared face for refinement by reorienting
-                  // it according to the refinement flag in the tetradron
+                  // it according to the refinement flag in the tetrahedron
                   // to which this shared face belongs to.
                   {
                      int lface = sface_lface[sface_counter];
@@ -902,7 +902,7 @@ void ParMesh::ExchangeFaceNbrData()
 
    if (Nonconforming())
    {
-      // with ParNCMesh we can set up face neigbors without communication
+      // with ParNCMesh we can set up face neighbors without communication
       pncmesh->GetFaceNeighbors(*this);
       have_face_nbr_data = true;
 

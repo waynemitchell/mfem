@@ -203,29 +203,29 @@ int main(int argc, char *argv[])
    // 10. As in Example 6p, we set up a Zienkiewicz-Zhu estimator that will be
    //     used to obtain element error indicators. The integrator needs to
    //     provide the method ComputeElementFlux. We supply an L2 space for the
-   //     discontinous flux and an H(div) space for the smoothed flux.
+   //     discontinuous flux and an H(div) space for the smoothed flux.
    L2_FECollection flux_fec(order, dim);
    ParFiniteElementSpace flux_fes(&pmesh, &flux_fec, sdim);
    RT_FECollection smooth_flux_fec(order-1, dim);
    ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec);
    L2ZienkiewiczZhuEstimator estimator(*integ, x, flux_fes, smooth_flux_fes);
 
-   // 11. We again need a refiner. This time the refinement strategy is based
-   //     on a fixed threshold that is applied locally to each element. The
-   //     global threshold is turned off by setting the total error fraction to
-   //     zero. We also enforce a maximum refinement ratio between adjacent
-   //     elements.
-   ThresholdRefiner refinement(estimator);
-   refinement.SetTotalErrorFraction(0.0); // use purely local threshold
-   refinement.SetLocalErrorGoal(max_elem_error);
-   refinement.SetConformingRefinement(nc_limit);
+   // 11. As in Example 6p, we also need a refiner. This time the refinement
+   //     strategy is based on a fixed threshold that is applied locally to each
+   //     element. The global threshold is turned off by setting the total error
+   //     fraction to zero. We also enforce a maximum refinement ratio between
+   //     adjacent elements.
+   ThresholdRefiner refiner(estimator);
+   refiner.SetTotalErrorFraction(0.0); // use purely local threshold
+   refiner.SetLocalErrorGoal(max_elem_error);
+   refiner.SetConformingRefinement(nc_limit);
 
    // 12. A derefiner selects groups of elements that can be coarsened to form
    //     a larger element. A conservative enough threshold needs to be set to
    //     prevent derefining elements that would immediately be refined again.
-   ThresholdDerefiner derefinement(&estimator);
-   derefinement.SetThreshold(hysteresis * max_elem_error);
-   derefinement.SetNCLimit(nc_limit);
+   ThresholdDerefiner derefiner(&estimator);
+   derefiner.SetThreshold(hysteresis * max_elem_error);
+   derefiner.SetNCLimit(nc_limit);
 
    // 13. The outer time loop. In each iteration we update the right hand side,
    //     solve the problem on the current mesh, visualize the solution and
@@ -243,8 +243,8 @@ int main(int argc, char *argv[])
       rhs.SetTime(time);
 
       // Make sure errors will be recomputed in the following.
-      refinement.Reset();
-      derefinement.Reset();
+      refiner.Reset();
+      derefiner.Reset();
 
       // 14. The inner refinement loop. At the end we want to have the current
       //     time step resolved to the prescribed tolerance in each element.
@@ -303,14 +303,14 @@ int main(int argc, char *argv[])
          //     estimator to obtain element errors, then it selects elements to
          //     be refined and finally it modifies the mesh. The Stop() method
          //     determines if all elements satisfy the local threshold.
-         refinement.Apply(pmesh);
+         refiner.Apply(pmesh);
          if (myid == 0)
          {
             cout << ", total error: " << estimator.GetTotalError() << endl;
          }
 
          // 21. Quit the AMR loop if the termination criterion has been met
-         if (refinement.Stop())
+         if (refiner.Stop())
          {
             a.Update(); // Free the assembled data
             break;
@@ -320,11 +320,11 @@ int main(int argc, char *argv[])
          UpdateAndRebalance(pmesh, fespace, x, a, b);
       }
 
-      // 22. Use error estimates from the last inner iteration to check for
+      // 23. Use error estimates from the last inner iteration to check for
       //     possible derefinements. The derefiner works similarly as the
       //     refiner. The errors are not recomputed because the mesh did not
       //     change (and also the estimator was not Reset() at this time).
-      if (derefinement.Apply(pmesh))
+      if (derefiner.Apply(pmesh))
       {
          if (myid == 0)
          {
@@ -336,7 +336,7 @@ int main(int argc, char *argv[])
       }
    }
 
-   // 14. Exit
+   // 25. Exit
    MPI_Finalize();
    return 0;
 }

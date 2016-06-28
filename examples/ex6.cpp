@@ -6,7 +6,7 @@
 //               ex6 -m ../data/square-disc.mesh -o 2
 //               ex6 -m ../data/square-disc-nurbs.mesh -o 2
 //               ex6 -m ../data/star.mesh -o 3
-//               ex6 -m ../data/escher.mesh -o 1
+//               ex6 -m ../data/escher.mesh -o 2
 //               ex6 -m ../data/fichera.mesh -o 2
 //               ex6 -m ../data/disc-nurbs.mesh -o 2
 //               ex6 -m ../data/ball-nurbs.mesh

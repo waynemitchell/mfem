@@ -225,7 +225,7 @@ public:
        computation. */
    void SetLocalErrorGoal(double err_goal) { local_err_goal = err_goal; }
 
-   /** @brief Set the maximum number of elements stoppin criterion: stop when
+   /** @brief Set the maximum number of elements stopping criterion: stop when
        the input mesh has num_elements >= max_elem. The default value is
        LONG_MAX. */
    void SetMaxElements(long max_elem) { max_elements = max_elem; }
@@ -254,7 +254,7 @@ public:
    virtual void Reset();
 };
 
-// TODO: BulkRefiner to refine a portion of the gobal error
+// TODO: BulkRefiner to refine a portion of the global error
 
 
 /** @brief De-refinement operator using an error threshold.

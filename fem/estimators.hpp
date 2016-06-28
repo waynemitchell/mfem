@@ -172,8 +172,8 @@ public:
 #ifdef MFEM_USE_MPI
 
 /** @brief The L2ZienkiewiczZhuEstimator class implements the Zienkiewicz-Zhu
-    error estimation procedure where the flux averaging is replaced by an L2
-    projection.
+    error estimation procedure where the flux averaging is replaced by a global
+    L2 projection (requiring a mass matrix solve).
 
     The required BilinearFormIntegrator must implement the methods
     ComputeElementFlux() and ComputeFluxEnergy().
