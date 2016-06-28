@@ -307,7 +307,6 @@ Element *Tetrahedron::Duplicate(Mesh *m) const
    tet->SetVertices(indices);
    tet->SetAttribute(attribute);
    tet->SetRefinementFlag(refinement_flag);
-   // TODO: copy 'transform'?
    return tet;
 }
 
