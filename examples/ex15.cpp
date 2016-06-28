@@ -225,15 +225,15 @@ int main(int argc, char *argv[])
          cout << "Iteration: " << ref_it << ", number of unknowns: "
               << fespace.GetVSize() << endl;
 
-         // 15a. Recompute the field on the current mesh: assemble the stiffness
-         //      matrix and the right-hand side.
+         // 15. Recompute the field on the current mesh: assemble the stiffness
+         //     matrix and the right-hand side.
          a.Assemble();
          b.Assemble();
 
-         // 15b. Project the exact solution to the essential boundary DOFs.
+         // 16. Project the exact solution to the essential boundary DOFs.
          x.ProjectBdrCoefficient(bdr, ess_bdr);
 
-         // 15c. Create and solve the linear system.
+         // 17. Create and solve the linear system.
          Array<int> ess_tdof_list;
          fespace.GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 
@@ -251,11 +251,11 @@ int main(int argc, char *argv[])
          umf_solver.Mult(B, X);
 #endif
 
-         // 15d. Extract the local solution on each processor.
+         // 18. Extract the local solution on each processor.
          a.RecoverFEMSolution(X, b, x);
 
-         // 15e. Send the solution by socket to a GLVis server and optionally
-         //      save it in VisIt format.
+         // 19. Send the solution by socket to a GLVis server and optionally
+         //     save it in VisIt format.
          if (visualization)
          {
             sout.precision(8);
@@ -268,21 +268,21 @@ int main(int argc, char *argv[])
             visit_dc.Save();
          }
 
-         // 15f. Apply the refiner on the mesh. The refiner calls the error
-         //      estimator to obtain element errors, then it selects elements to
-         //      be refined and finally it modifies the mesh. The Stop() method
-         //      determines if all elements satisfy the local threshold.
+         // 20. Apply the refiner on the mesh. The refiner calls the error
+         //     estimator to obtain element errors, then it selects elements to
+         //     be refined and finally it modifies the mesh. The Stop() method
+         //     determines if all elements satisfy the local threshold.
          refiner.Apply(mesh);
          if (refiner.Stop())
          {
             break;
          }
 
-         // 15g. Update the space and interpolate the solution.
+         // 21. Update the space and interpolate the solution.
          UpdateProblem(mesh, fespace, x, a, b);
       }
 
-      // 16. Use error estimates from the last inner iteration to check for
+      // 22. Use error estimates from the last inner iteration to check for
       //     possible derefinements. The derefiner works similarly as the
       //     refiner. The errors are not recomputed because the mesh did not
       //     change (and also the estimator was not Reset() at this time).
@@ -290,7 +290,7 @@ int main(int argc, char *argv[])
       {
          cout << "\nDerefined elements." << endl;
 
-         // 16a. Update the space and interpolate the solution.
+         // 23. Update the space and interpolate the solution.
          UpdateProblem(mesh, fespace, x, a, b);
       }
 
