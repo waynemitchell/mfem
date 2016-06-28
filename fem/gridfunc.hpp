@@ -71,7 +71,7 @@ public:
    // Creates a grid function associated with a finite element space.
    // If the data collection contains data for this grid function, it will be used to populate the grid function values.
    // The grid function will be registered with the data collection, if not already so.
-   GridFunction(std::string& name, DataCollection * dc, FiniteElementSpace *f);
+   GridFunction(const std::string& name, DataCollection * dc, FiniteElementSpace *f);
 
    GridFunction(FiniteElementSpace *f, double *data, int size) : Vector(data, size)
    { fes = f; fec = NULL; sequence = f->GetSequence(); }

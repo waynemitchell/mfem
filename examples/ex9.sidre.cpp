@@ -32,11 +32,6 @@
 #include <iostream>
 #include <algorithm>
 
-#ifdef MFEM_USE_SIDRE
-  #include "sidre/sidre.hpp"
-  #include "external/sidredatacollection.hpp"
-#endif // MFEM_USE_SIDRE
-
 using namespace std;
 using namespace mfem;
 
@@ -136,7 +131,7 @@ int main(int argc, char *argv[])
    if (sidre)
    {
 #ifdef MFEM_USE_SIDRE
-	   dc = new asctoolkit::sidre::SidreDataCollection("Example9");
+	   dc = new SidreDataCollection("Example9");
 #endif
    }
    else
@@ -262,9 +257,9 @@ int main(int argc, char *argv[])
    // Save the initial data collection to file.
 
    // Add ability to specify a base name.  Add to parent data collection.
-   dc.SetCycle(0);
-   dc.SetTime(0.0);
-   dc.Save();
+   dc->SetCycle(0);
+   dc->SetTime(0.0);
+   dc->Save();
 
    socketstream sout;
    if (visualization)
@@ -316,12 +311,9 @@ int main(int argc, char *argv[])
             sout << "solution\n" << *mesh << u << flush;
          }
 
-         if (visit)
-         {
-            visit_dc.SetCycle(ti);
-            visit_dc.SetTime(t);
-            visit_dc.Save();
-         }
+         dc->SetCycle(ti);
+         dc->SetTime(t);
+         dc->Save();
       }
    }
 
@@ -334,57 +326,11 @@ int main(int argc, char *argv[])
    }
 
    // Save the final data collection to file.
-   ds.Save();
-
-   // Print the elements
-   int count = elm_alloc.get_count();
-   if (count > 0) {
-      int *indices = elm_alloc.get_indices();
-      int *attributes = elm_alloc.get_attributes();
-      int elem_size = elm_alloc.get_indices_count() / count;
-
-      cout << endl << "printing elements" << endl;
-      for (int i = 0; i < count; i++) {
-         printf("element %d - attribute %d - [", i, attributes[i]);
-         for (int j = 0; j < elem_size; j++) {
-            printf(j == elem_size - 1 ? "%d" : "%d,", 
-                  indices[i * elem_size + j]);
-         }
-         printf("]\n");
-      }
-      cout << "done" << endl << endl;
-   }
-   else {
-      printf("no boundary elements (in this allocator)\n");
-   }
-
-
-   // print the boundary elements
-   count = bndry_alloc.get_count();
-   if (count > 0) {
-      int* indices = bndry_alloc.get_indices();
-      int* attributes = bndry_alloc.get_attributes();
-      int elem_size = bndry_alloc.get_indices_count() / count;
-
-      cout << "printing boundary elements" << endl;
-      for (int i = 0; i < count; i++) {
-         printf("boundary element %d - attribute %d - [", i, attributes[i]);
-         for (int j = 0; j < elem_size; j++) {
-            printf(j == elem_size - 1 ? "%d" : "%d,", 
-                  indices[i * elem_size + j]);
-         }
-         printf("]\n");
-      }
-      cout << "done" << endl << endl;
-   }
-   else {
-      printf("no boundary elements (in this allocator)\n");
-   }
+   dc->Save();
 
    // 10. Free the used memory.
    delete ode_solver;
    delete mesh;
-   delete ds;
    delete dc;
 
    return 0;

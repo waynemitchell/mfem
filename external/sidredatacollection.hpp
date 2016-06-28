@@ -13,25 +13,15 @@
 #define MFEM_SIDREDATACOLLECTION
 
 #include "../fem/datacollection.hpp"
-/*
-namespace mfem
-{
-  class DataCollection;
-  class Mesh;
-  class GridFunction;
-}
-*/
-namespace asctoolkit
-{
 
-namespace sidre
+namespace mfem
 {
 
 // Forward declare needed datastore class so we don't need to #include sidre headers in this header.
 class DataGroup;
 
 /// Data collection with Sidre routines
-class SidreDataCollection : public mfem::DataCollection
+class SidreDataCollection : public DataCollection
 {
 
 protected:
@@ -47,14 +37,15 @@ public:
   typedef int mfem_int_t;
   typedef double mfem_double_t;
 
-  SidreDataCollection(const char *collection_name);
+  SidreDataCollection(const std::string& collection_name);
 
-  SidreDataCollection(const char *collection_name, mfem::Mesh * new_mesh, asctoolkit::sidre::DataGroup * dg);
+  SidreDataCollection(const std::string& collection_name, asctoolkit::sidre::DataGroup * dg);
 
-  void RegisterField(const char* name, mfem::GridFunction *gf);
+  void RegisterField(const std::string& name, GridFunction *gf);
 
   void setMeshStream(std::istream &input) {}
-   /// Verify we will delete the mesh and fields if we own them
+
+  /// Verify we will delete the mesh and fields if we own them
   virtual ~SidreDataCollection() {}
 
 private:
@@ -73,8 +64,6 @@ private:
 
 };
 
-} // end namespace sidre
-
-} // end namespace asctoolkit
+} // end namespace mfem
 
 #endif

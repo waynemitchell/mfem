@@ -10,27 +10,32 @@
 // Software Foundation) version 2.1 dated February 1999.
 
 #include "sidredatacollection.hpp"
-//#include "../fem/datacollection.hpp"
-
+#include "../mesh/mesh.hpp"
+#include "../fem/gridfunc.hpp"
 #include "sidre/sidre.hpp"
 
-namespace asctoolkit
+namespace mfem
 {
-namespace sidre
+
+SidreDataCollection::SidreDataCollection(const std::string& collection_name)
+  : mfem::DataCollection(collection_name.c_str())
 {
+  asctoolkit::sidre::DataStore ds;
+  sidre_dc_group = ds.getRoot()->createGroup( collection_name );
+}
 
 // class SidreDataCollection implementation
 // This version is a prototype of adding needed MFEM data to Sidre as mostly 'external' data.
 // There are some exceptions - individual scalars are copied into Sidre, as long as we know the
 // data does not change during a run.  There are some drawbacks to trying to do most data as 'external'
 // to Sidre. (For future discussion)
-SidreDataCollection::SidreDataCollection(const char *collection_name, Mesh * new_mesh, asctoolkit::sidre::DataGroup* dg)
-  : mfem::DataCollection(collection_name, new_mesh)
+SidreDataCollection::SidreDataCollection(const std::string& collection_name, asctoolkit::sidre::DataGroup* dg)
+  : mfem::DataCollection(collection_name.c_str())
 {
   namespace sidre = asctoolkit::sidre;
 
-  sidre_dc_group = dg->createGroup( std::string(collection_name) );
-
+  sidre_dc_group = dg->createGroup( collection_name );
+/*
   // Create group for mesh
   sidre::DataGroup * mesh_grp = sidre_dc_group->createGroup("topology");
   addMesh(mesh_grp);
@@ -64,12 +69,12 @@ SidreDataCollection::SidreDataCollection(const char *collection_name, Mesh * new
     sidre::DataGroup * grp = mesh_grp->createGroup("nodes");
     addField(grp, mesh->GetNodes() );
   }
-
+*/
 }
 
-void SidreDataCollection::RegisterField(const char* name, GridFunction *gf)
+void SidreDataCollection::RegisterField(const std::string& name, GridFunction *gf)
 {
-  DataCollection::RegisterField(name, gf);
+//  DataCollection::RegisterField(name.c_str(), gf);
   addField(sidre_dc_group->createGroup(name), gf);
 }
 
@@ -202,6 +207,4 @@ void SidreDataCollection::addVertices(asctoolkit::sidre::DataGroup * grp)
   //}
 }
 
-} // end namespace sidre
-
-} // end namespace asctoolkit
+} // end namespace mfem

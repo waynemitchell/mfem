@@ -29,7 +29,7 @@ using namespace std;
 /// provided data collection.  If the data collection is contains data for a grid
 /// function with this name, it will populate the grid function data values.
 
-GridFunction::GridFunction(std::string& name, DataCollection * dc, FiniteElementSpace *f)
+GridFunction::GridFunction(const std::string& name, DataCollection * dc, FiniteElementSpace *f)
 {
    fes = f;
    fec = NULL;

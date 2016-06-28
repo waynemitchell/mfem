@@ -151,6 +151,11 @@ void DataCollection::SetPrefixPath(const char *prefix)
    }
 }
 
+void DataCollection::Load(int cycle)
+{
+
+}
+
 void DataCollection::Save()
 {
    SaveMesh();
