@@ -2137,6 +2137,7 @@ void ParFiniteElementSpace::Destroy()
    dof_offsets.DeleteAll();
    tdof_offsets.DeleteAll();
    tdof_nb_offsets.DeleteAll();
+   // preserve old_dof_offsets
    ldof_sign.DeleteAll();
 
    delete P; P = NULL;
@@ -2181,9 +2182,6 @@ void ParFiniteElementSpace::Update(bool want_transform)
       old_ndofs = ndofs;
       Swap(dof_offsets, old_dof_offsets);
    }
-
-   // Should this be inside the above "if"?
-   // dof_offsets.Copy(old_dof_offsets);
 
    Destroy();
    FiniteElementSpace::Destroy();
