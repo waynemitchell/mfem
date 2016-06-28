@@ -142,19 +142,7 @@ int main(int argc, char *argv[])
 
    // 3. Read the serial mesh from the given mesh file on all processors. We can
    //    handle geometrically periodic meshes in this code.
-   Mesh *mesh;
-   ifstream imesh(mesh_file);
-   if (!imesh)
-   {
-      if (myid == 0)
-      {
-         cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
-      }
-      MPI_Finalize();
-      return 2;
-   }
-   mesh = new Mesh(imesh, 1, 1);
-   imesh.close();
+   Mesh *mesh = new Mesh(mesh_file, 1, 1);
    int dim = mesh->Dimension();
 
    // 4. Define the ODE solver used for time integration. Several explicit
