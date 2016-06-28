@@ -230,14 +230,22 @@ public:
        LONG_MAX. */
    void SetMaxElements(long max_elem) { max_elements = max_elem; }
 
-   /// Use nonconforming refinement, if possible.
+   /** Use nonconforming refinement, if possible.
+       This method only makes a suggestion.  Conforming refinement might still
+       be performed in some cases.  The default value of 0 for nc_limit
+       indicates that no limit is specified.
+    */
    void SetNonconformingRefinement(int nc_limit = 0)
    {
       non_conforming = 1;
       this->nc_limit = nc_limit;
    }
 
-   /// Use conforming refinement, if possible (this is the default).
+   /** Use conforming refinement, if possible (this is the default).
+       This method only makes a suggestion.  Nonconforming refinement might
+       still be performed in some cases.  The default value of 0 for nc_limit
+       indicates that no limit is specified.
+    */
    void SetConformingRefinement(int nc_limit = 0)
    {
       non_conforming = -1;
