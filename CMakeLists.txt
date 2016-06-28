@@ -28,6 +28,28 @@ else()
     set(AUX_CXX_FLAGS "-Wall")
   endif()
 endif()
+
+#-------------------------------------------------------------------------------
+# MFEM options
+#-------------------------------------------------------------------------------
+option(MFEM_USE_LAPACK "Enable LAPACK usage"                                OFF)
+option(MFEM_USE_OPENMP "Enable OpenMP usage"                                OFF)
+option(MFEM_USE_MESQUITE "Enable MESQUITE usage"                            OFF)
+option(MFEM_USE_SUITESPARSE "Enable SuiteSparse usage"                      OFF)
+option(MFEM_USE_MEMALLOC "Enable MEMALLOC usage"                             ON)
+option(MFEM_USE_GECKO "Enable GECKO usage"                                  OFF)
+
+#-------------------------------------------------------------------------------
+# LAPACK
+#-------------------------------------------------------------------------------
+if(MFEM_USE_LAPACK)
+  enable_language(C)
+  find_package(LAPACK REQUIRED)
+endif()
+
+#-------------------------------------------------------------------------------
+# OpenMP
+#-------------------------------------------------------------------------------
 if(MFEM_USE_OPENMP)
   if(WIN32)
     set(AUX_CXX_FLAGS "${AUX_CXX_FLAGS} /openmp")
@@ -103,17 +125,22 @@ else()
 endif()
 
 #-------------------------------------------------------------------------------
-# LAPACK
+# MESQUITE
 #-------------------------------------------------------------------------------
-if(MFEM_USE_LAPACK)
-  enable_language(C)
-  find_package(LAPACK REQUIRED)
+if(MFEM_USE_MESQUITE)
 endif()
 
 #-------------------------------------------------------------------------------
-# MFEM_USE_MEMALLOC
+# SuiteSparse
 #-------------------------------------------------------------------------------
-set(MFEM_USE_MEMALLOC ON)
+if(MFEM_USE_SUITESPARSE)
+endif()
+
+#-------------------------------------------------------------------------------
+# GECKO
+#-------------------------------------------------------------------------------
+if(MFEM_USE_GECKO)
+endif()
 
 #-------------------------------------------------------------------------------
 # MFEM_TIMER_TYPE
@@ -189,9 +216,11 @@ endif()
 #-------------------------------------------------------------------------------
 # Installation
 #-------------------------------------------------------------------------------
-install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/${BUILD_TYPE}/lib)
-install(FILES ${PROJECT_SOURCE_DIR}/mfem.hpp DESTINATION ${CMAKE_INSTALL_PREFIX}/${BUILD_TYPE}/include)
+string(TOLOWER ${BUILD_TYPE} INSTALL_DIR)
+set(INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/${INSTALL_DIR})
+install(TARGETS ${PROJECT_NAME} DESTINATION ${INSTALL_DIR}/lib)
+install(FILES ${PROJECT_SOURCE_DIR}/mfem.hpp DESTINATION ${INSTALL_DIR}/include)
 foreach(dir IN LISTS DIRS)
   file(GLOB HDR "${PROJECT_SOURCE_DIR}/${dir}/*.hpp")
-  install(FILES ${HDR} DESTINATION ${CMAKE_INSTALL_PREFIX}/${BUILD_TYPE}/include/${dir})
+  install(FILES ${HDR} DESTINATION ${INSTALL_DIR}/include/${dir})
 endforeach()
