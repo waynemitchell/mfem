@@ -135,22 +135,25 @@ int main(int argc, char *argv[])
    DataCollection * dc = NULL;
    if (sidre)
    {
-      dc = new SidreDataCollection("Example9");
+#ifdef MFEM_USE_SIDRE
+	   dc = new asctoolkit::sidre::SidreDataCollection("Example9");
+#endif
    }
    else
    {
-      dc = new VisitDataCollection("Example9");
+	  dc = new VisItDataCollection("Example9");
    }
 
    // 3. Read the mesh from the given mesh file. We can handle geometrically
    //    periodic meshes in this code.
 
+   Mesh * mesh = NULL;
    if (restart_cycle && sidre)
    {
 	   // TODO - for a restart load case, the datastore should be loaded in from a file ( via SPIO ).
 	   // If sidre isn't compiled in, this will do nothing.
 // add in string for file name
-	   dc.Load(restart_cycle);
+	   dc->Load(restart_cycle);
 	   mesh = new Mesh(dc);
 	   // data collection will retrieve mesh data from data store and create sidre allocators, and call mesh constructor.
 	   // note - this will be the course level original mesh.
@@ -159,7 +162,6 @@ int main(int argc, char *argv[])
    }
    else
    {
-      Mesh *mesh;
       ifstream imesh(mesh_file);
       if (!imesh)
       {
