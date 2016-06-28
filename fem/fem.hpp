@@ -42,4 +42,9 @@
 #include "pnonlinearform.hpp"
 #endif
 
+
+#ifdef MFEM_USE_SIDRE
+#include "../external/sidredatacollection.hpp"
+#endif
+
 #endif

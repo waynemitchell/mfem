@@ -2226,7 +2226,7 @@ Mesh::Mesh(std::istream &input, DataCollection * dc, int generate_edges, int ref
 
    // TODO - Remove this when we can restart from refined mesh.
 #ifdef MFEM_USE_SIDRE
-   asctoolkit::sidre::SidreDataCollection * sidre_dc = dynamic_cast<asctoolkit::sidre::SidreDataCollection*>(dc);
+   SidreDataCollection * sidre_dc = dynamic_cast<SidreDataCollection*>(dc);
    if (sidre_dc != NULL)
    {
 	   sidre_dc->setMeshStream(input);
