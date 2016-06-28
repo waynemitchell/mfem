@@ -524,8 +524,16 @@ public:
    int SpaceDimension() const { return spaceDim; }
 
    /// Return pointer to vertex i's coordinates
-   const double *GetVertex(int i) const { return vertices[i](); }
-   double *GetVertex(int i) { return vertices[i](); }
+   const double *GetVertex(int i) const
+   {
+      MFEM_ASSERT(Nodes == NULL, "Not supported on higher order meshes");
+      return vertices[i]();
+   }
+   double *GetVertex(int i)
+   {
+      MFEM_ASSERT(Nodes == NULL, "Not supported on higher order meshes");
+      return vertices[i]();
+   }
 
    const Element* const *GetElementsArray() const
    { return elements.GetData(); }
@@ -873,7 +881,7 @@ public:
    /// Print the mesh in VTK format (linear and quadratic meshes only).
    void PrintVTK(std::ostream &out);
 
-   /** Print the mesh in VTK format. The parameter ref specifies an element
+   /** Print the mesh in VTK format. The parameter ref > 0 specifies an element
        subdivision number (useful for high order fields and curved meshes).
        If the optional field_data is set, we also add a FIELD section in the
        beginning of the file with additional dataset information. */

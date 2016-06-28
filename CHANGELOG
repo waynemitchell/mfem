@@ -116,6 +116,8 @@ Miscellaneous
 
 - Added support for boundary bilinear form integrators when using hybridization.
 
+- Added support for Robin boundary conditions for DG in BoundaryMassIntegrator.
+
 - Moved all reference element connectivity descriptions, such as element-edge,
   element-face, etc. to the template class Geometry::Constants<Geometry::Type>.
 
