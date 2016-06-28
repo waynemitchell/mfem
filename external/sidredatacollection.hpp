@@ -47,6 +47,8 @@ public:
   typedef int mfem_int_t;
   typedef double mfem_double_t;
 
+  SidreDataCollection(const char *collection_name);
+
   SidreDataCollection(const char *collection_name, mfem::Mesh * new_mesh, asctoolkit::sidre::DataGroup * dg);
 
   void RegisterField(const char* name, mfem::GridFunction *gf);

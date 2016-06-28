@@ -371,7 +371,6 @@ public:
        nodes, if present. */
    explicit Mesh(const Mesh &mesh, bool copy_nodes = true);
 
-
    /// The reinit constructor
    Mesh(double *vertices, int num_vertices,
         int *element_indices, Geometry::Type element_type, 
@@ -466,6 +465,9 @@ public:
        generated. */
    Mesh(std::istream &input, int generate_edges = 0, int refine = 1,
         bool fix_orientation = true);
+
+   /// Creates mesh from mesh data in data collection.
+   Mesh(DataCollection * dc);
 
    Mesh(std::istream &input, DataCollection * dc, int generate_edges = 0, int refine = 1,
         bool fix_orientation = true);

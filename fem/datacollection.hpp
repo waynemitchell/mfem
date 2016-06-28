@@ -124,6 +124,9 @@ public:
    /// Save one field, assuming the collection directory already exists.
    virtual void SaveField(const char *field_name);
 
+   /// Load the collection
+   virtual void Load(int cycle);
+
    /// Delete the mesh and fields if owned by the collection
    virtual ~DataCollection();
 

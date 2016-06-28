@@ -2204,6 +2204,11 @@ Mesh::Mesh(std::istream &input, int generate_edges, int refine,
    Load(input, generate_edges, refine, fix_orientation);
 }
 
+Mesh(DataCollection * dc);
+{
+	// todo - restore mesh from data collection
+}
+
 Mesh::Mesh(std::istream &input, DataCollection * dc, int generate_edges, int refine,
            bool fix_orientation)
 {
