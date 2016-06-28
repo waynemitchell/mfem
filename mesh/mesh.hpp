@@ -520,8 +520,16 @@ public:
    int SpaceDimension() const { return spaceDim; }
 
    /// Return pointer to vertex i's coordinates
-   const double *GetVertex(int i) const { MFEM_ASSERT(Nodes == NULL, "Not supported on higher order meshes"); return vertices[i](); }
-   double *GetVertex(int i) { MFEM_ASSERT(Nodes == NULL, "Not supported on higher order meshes"); return vertices[i](); }
+   const double *GetVertex(int i) const
+   {
+      MFEM_ASSERT(Nodes == NULL, "Not supported on higher order meshes");
+      return vertices[i]();
+   }
+   double *GetVertex(int i)
+   {
+      MFEM_ASSERT(Nodes == NULL, "Not supported on higher order meshes");
+      return vertices[i]();
+   }
 
    const Element* const *GetElementsArray() const
    { return elements.GetData(); }
