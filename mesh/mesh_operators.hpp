@@ -230,25 +230,18 @@ public:
        LONG_MAX. */
    void SetMaxElements(long max_elem) { max_elements = max_elem; }
 
-   /** Use nonconforming refinement, if possible.
-       This method only makes a suggestion.  Conforming refinement might still
-       be performed in some cases.  The default value of 0 for nc_limit
-       indicates that no limit is specified.
-    */
-   void SetNonconformingRefinement(int nc_limit = 0)
-   {
-      non_conforming = 1;
-      this->nc_limit = nc_limit;
-   }
+   /// Use nonconforming refinement, if possible (triangles, quads, hexes).
+   void PreferNonconformingRefinement() { non_conforming = 1; }
 
-   /** Use conforming refinement, if possible (this is the default).
-       This method only makes a suggestion.  Nonconforming refinement might
-       still be performed in some cases.  The default value of 0 for nc_limit
-       indicates that no limit is specified.
-    */
-   void SetConformingRefinement(int nc_limit = 0)
+   /** @brief Use conforming refinement, if possible (triangles, tetrahedra)
+       -- this is the default. */
+   void PreferConformingRefinement() { non_conforming = -1; }
+
+   /** @brief Set the maximum ratio of refinement levels of adjacent elements
+       (0 = unlimited). */
+   void SetNCLimit(int nc_limit)
    {
-      non_conforming = -1;
+      MFEM_ASSERT(nc_limit >= 0, "Invalid NC limit");
       this->nc_limit = nc_limit;
    }
 
@@ -300,8 +293,16 @@ public:
 
    /// Set the de-refinement threshold. The default value is zero.
    void SetThreshold(double thresh) { threshold = thresh; }
+
    void SetOp(int op) { this->op = op; }
-   void SetNCLimit(int nc_lim) { nc_limit = nc_lim; }
+
+   /** @brief Set the maximum ratio of refinement levels of adjacent elements
+       (0 = unlimited). */
+   void SetNCLimit(int nc_limit)
+   {
+      MFEM_ASSERT(nc_limit >= 0, "Invalid NC limit");
+      this->nc_limit = nc_limit;
+   }
 
    /// Reset the associated estimator.
    virtual void Reset() { estimator.Reset(); }

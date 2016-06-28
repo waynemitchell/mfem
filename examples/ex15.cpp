@@ -192,7 +192,8 @@ int main(int argc, char *argv[])
    ThresholdRefiner refiner(estimator);
    refiner.SetTotalErrorFraction(0.0); // use purely local threshold
    refiner.SetLocalErrorGoal(max_elem_error);
-   refiner.SetConformingRefinement(nc_limit);
+   refiner.PreferConformingRefinement();
+   refiner.SetNCLimit(nc_limit);
 
    // 11. A derefiner selects groups of elements that can be coarsened to form
    //     a larger element. A conservative enough threshold needs to be set to
