@@ -34,9 +34,9 @@ next_step:
    switch (mod & MASK_ACTION)
    {
       case NONE:     if (last) { return NONE; } goto next_step;
-      case CONTINUE: return last ? mod : (AGAIN | (mod & MASK_INFO));
+      case CONTINUE: return last ? mod : (REPEAT | (mod & MASK_INFO));
       case STOP:     return STOP;
-      case AGAIN:    --step; return mod;
+      case REPEAT:    --step; return mod;
    }
    return NONE;
 }
@@ -143,7 +143,7 @@ int ThresholdDerefiner::ApplyImpl(Mesh &mesh)
 {
    if (mesh.Conforming()) { return NONE; }
 
-   const Vector &local_err = estimator->GetLocalErrors();
+   const Vector &local_err = estimator.GetLocalErrors();
    bool derefs = mesh.DerefineByError(local_err, threshold, nc_limit, op);
 
    return derefs ? CONTINUE + DEREFINED : NONE;

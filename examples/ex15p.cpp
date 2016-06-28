@@ -223,7 +223,7 @@ int main(int argc, char *argv[])
    // 12. A derefiner selects groups of elements that can be coarsened to form
    //     a larger element. A conservative enough threshold needs to be set to
    //     prevent derefining elements that would immediately be refined again.
-   ThresholdDerefiner derefiner(&estimator);
+   ThresholdDerefiner derefiner(estimator);
    derefiner.SetThreshold(hysteresis * max_elem_error);
    derefiner.SetNCLimit(nc_limit);
 

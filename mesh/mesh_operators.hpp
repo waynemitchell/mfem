@@ -73,7 +73,7 @@ public:
       CONTINUE    = 1, /**< update spaces and grid-functions and continue
                             computations with the new mesh */
       STOP        = 2, ///< a stopping criterion was satisfied
-      AGAIN       = 3, /**< update spaces and grid-functions and call the
+      REPEAT      = 3, /**< update spaces and grid-functions and call the
                             operator Apply() method again */
       MASK_UPDATE = 1, ///< bit mask for the "update" bit
       MASK_ACTION = 3  ///< bit mask for all "action" bits
@@ -95,9 +95,9 @@ public:
    /** @brief Check if STOP action is requested, e.g. stopping criterion is
        satisfied. */
    bool Stop() const { return ((mod & MASK_ACTION) == STOP); }
-   /** @brief Check if AGAIN action is requested, i.e. FiniteElementSpaces and
+   /** @brief Check if REPEAT action is requested, i.e. FiniteElementSpaces and
        GridFunctions need to be updated, and Apply() must be called again. */
-   bool Again() const { return ((mod & MASK_ACTION) == AGAIN); }
+   bool Repeat() const { return ((mod & MASK_ACTION) == REPEAT); }
    /** @brief Check if CONTINUE action is requested, i.e. FiniteElementSpaces
        and GridFunctions need to be updated and computations should continue. */
    bool Continue() const { return ((mod & MASK_ACTION) == CONTINUE); }
@@ -268,7 +268,7 @@ public:
 class ThresholdDerefiner : public MeshOperator
 {
 protected:
-   ErrorEstimator *estimator; ///< Not owned.
+   ErrorEstimator &estimator;
 
    double threshold;
    int nc_limit, op;
@@ -280,7 +280,7 @@ protected:
 
 public:
    /// Construct a ThresholdDerefiner using the given ErrorEstimator.
-   ThresholdDerefiner(ErrorEstimator *est)
+   ThresholdDerefiner(ErrorEstimator &est)
       : estimator(est)
    {
       threshold = 0.0;
@@ -296,7 +296,7 @@ public:
    void SetNCLimit(int nc_lim) { nc_limit = nc_lim; }
 
    /// Reset the associated estimator.
-   virtual void Reset() { estimator->Reset(); }
+   virtual void Reset() { estimator.Reset(); }
 };
 
 
