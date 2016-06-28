@@ -271,7 +271,7 @@ int main(int argc, char *argv[])
          // 15f. Apply the refiner on the mesh. The refiner calls the error
          //      estimator to obtain element errors, then it selects elements to
          //      be refined and finally it modifies the mesh. The Stop() method
-         //      can be used to determine if a stopping criterion was met.
+         //      determines if all elements satisfy the local threshold.
          refiner.Apply(mesh);
          if (refiner.Stop())
          {

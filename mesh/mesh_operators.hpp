@@ -9,8 +9,8 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#ifndef MFEM_MESH_CONTROLS
-#define MFEM_MESH_CONTROLS
+#ifndef MFEM_MESH_OPERATORS
+#define MFEM_MESH_OPERATORS
 
 #include "../config/config.hpp"
 #include "../general/array.hpp"
@@ -254,6 +254,8 @@ public:
    virtual void Reset();
 };
 
+// TODO: BulkRefiner to refine a portion of the gobal error
+
 
 /** @brief De-refinement operator using an error threshold.
 
@@ -317,4 +319,4 @@ public:
 
 } // namespace mfem
 
-#endif // MFEM_MESH_CONTROLS
+#endif // MFEM_MESH_OPERATORS
