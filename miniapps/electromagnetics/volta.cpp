@@ -273,6 +273,9 @@ int main(int argc, char *argv[])
       // Display the current number of DoFs in each finite element space
       Volta.PrintSizes();
 
+      // Assemble all forms
+      Volta.Assemble();
+
       // Solve the system and compute any auxiliary fields
       Volta.Solve();
 
@@ -290,7 +293,6 @@ int main(int argc, char *argv[])
       {
          Volta.DisplayToGLVis();
       }
-      if (mpi.Root() && (visit || visualization)) { cout << "done." << endl; }
 
       if (mpi.Root())
       {
@@ -334,10 +336,16 @@ int main(int argc, char *argv[])
       // maximum element error.
       const double frac = 0.7;
       double threshold = frac * global_max_err;
-      if (mpi.Root()) { cout << " Refinement ..." << flush; }
+      if (mpi.Root()) { cout << "Refining ..." << endl; }
       pmesh.RefineByError(errors, threshold);
 
       // Update the electrostatic solver to reflect the new state of the mesh.
+      Volta.Update();
+
+      if (mpi.Root()) { cout << "Rebalancing ..." << endl; }
+      pmesh.Rebalance();
+
+      // Update again after rebalancing
       Volta.Update();
    }
 
