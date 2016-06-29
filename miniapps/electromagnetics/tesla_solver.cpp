@@ -373,17 +373,19 @@ TeslaSolver::Solve()
    // Compute magnetic field (H) from B and M
    if (myid_ == 0) { cout << "Computing H ... " << flush; }
 
-   HypreParMatrix *HDivHCurlMuInv = hDivHCurlMuInv_->ParallelAssemble();
+   ParGridFunction bd(HCurlFESpace_);
+   hDivHCurlMuInv_->Mult(*b_, bd);
+   if ( m_ )
+   {
+     hDivHCurlMuInv_->AddMult(*m_, bd, -1.0 * mu0_);
+   }
+   
    HypreParVector *BD = new HypreParVector(HCurlFESpace_);
    HypreParVector *H  = new HypreParVector(HCurlFESpace_);
 
-   HDivHCurlMuInv->Mult(*B,*BD);
-
-   if ( M )
-   {
-      HDivHCurlMuInv->Mult(*M,*BD,-1.0*mu0_,1.0);
-   }
-
+   Array<int> dbc_dofs_h;
+   hCurlMass_->FormLinearSystem(dbc_dofs_h, *h_, bd, *MassHCurl, *H, *BD);
+			       
    HyprePCG * pcgM = new HyprePCG(*MassHCurl);
    pcgM->SetTol(1e-12);
    pcgM->SetMaxIter(500);
@@ -392,13 +394,12 @@ TeslaSolver::Solve()
    pcgM->SetPreconditioner(*diagM);
    pcgM->Mult(*BD,*H);
 
-   *h_ = *H;
-
-   if (myid_ == 0) { cout << "done." << endl; }
+   hCurlMass_->RecoverFEMSolution(*H, bd, *h_);
+      
+   if (myid_ == 0) { cout << "done." << flush; }
 
    delete diagM;
    delete pcgM;
-   delete HDivHCurlMuInv;
    delete MassHCurl;
    delete A;
    delete B;
