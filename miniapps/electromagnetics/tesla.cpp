@@ -114,7 +114,8 @@ int main(int argc, char *argv[])
    const char *mesh_file = "butterfly_3d.mesh";
    int order = 1;
    int maxit = 100;
-   int sr = 0, pr = 0;
+   int serial_ref_levels = 0;
+   int parallel_ref_levels = 0;
    bool visualization = true;
    bool visit = true;
 
@@ -128,9 +129,9 @@ int main(int argc, char *argv[])
                   "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
-   args.AddOption(&sr, "-rs", "--serial-ref-levels",
+   args.AddOption(&serial_ref_levels, "-rs", "--serial-ref-levels",
                   "Number of serial refinement levels.");
-   args.AddOption(&pr, "-rp", "--parallel-ref-levels",
+   args.AddOption(&parallel_ref_levels, "-rp", "--parallel-ref-levels",
                   "Number of parallel refinement levels.");
    args.AddOption(&b_uniform_, "-ubbc", "--uniform-b-bc",
                   "Specify if the three components of the constant magnetic flux density");
@@ -176,29 +177,29 @@ int main(int argc, char *argv[])
    // and volume meshes with the same code.
    Mesh *mesh = new Mesh(mesh_file, 1, 1);
 
-   // Refine the serial mesh on all processors to increase the resolution. In
-   // this example we do 'ref_levels' of uniform refinement. NURBS meshes are
-   // refined at least twice, as they are typically coarse.
-   if (mpi.Root()) { cout << "Starting initialization." << endl; }
+   if (mpi.Root())
    {
-      int ref_levels = sr;
-      if (mesh->NURBSext && ref_levels < 2)
-      {
-         ref_levels = 2;
-      }
-      for (int l = 0; l < ref_levels; l++)
-      {
-         mesh->UniformRefinement();
-      }
+      cout << "Starting initialization." << endl;
    }
 
-   // Project a NURBS mesh to a piecewise-quadratic curved mesh. Make sure that
-   // the mesh is non-conforming.
+   // Project a NURBS mesh to a piecewise-quadratic curved mesh
    if (mesh->NURBSext)
    {
+      mesh->UniformRefinement();
+      if (serial_ref_levels > 0) { serial_ref_levels--; }
+
       mesh->SetCurvature(2);
    }
+
+   // Ensure that quad and hex meshes are treated as non-conforming.
    mesh->EnsureNCMesh();
+
+   // Refine the serial mesh on all processors to increase the resolution. In
+   // this example we do 'ref_levels' of uniform refinement.
+   for (int l = 0; l < serial_ref_levels; l++)
+   {
+      mesh->UniformRefinement();
+   }
 
    // Define a parallel mesh by a partitioning of the serial mesh. Refine
    // this mesh further in parallel to increase the resolution. Once the
@@ -207,7 +208,7 @@ int main(int argc, char *argv[])
    delete mesh;
 
    // Refine this mesh in parallel to increase the resolution.
-   int par_ref_levels = pr;
+   int par_ref_levels = parallel_ref_levels;
    for (int l = 0; l < par_ref_levels; l++)
    {
       pmesh.UniformRefinement();
@@ -270,6 +271,9 @@ int main(int argc, char *argv[])
       // Display the current number of DoFs in each finite element space
       Tesla.PrintSizes();
 
+      // Assemble all forms
+      Tesla.Assemble();
+
       // Solve the system and compute any auxiliary fields
       Tesla.Solve();
 
@@ -286,10 +290,6 @@ int main(int argc, char *argv[])
       if (visualization)
       {
          Tesla.DisplayToGLVis();
-      }
-      if (mpi.Root() && (visit || visualization))
-      {
-         cout << "done." << endl;
       }
 
       if (mpi.Root())
@@ -334,10 +334,16 @@ int main(int argc, char *argv[])
       // maximum element error.
       const double frac = 0.5;
       double threshold = frac * global_max_err;
-      if (mpi.Root()) { cout << " Refinement ..." << flush; }
+      if (mpi.Root()) { cout << "Refining ..." << endl; }
       pmesh.RefineByError(errors, threshold);
 
       // Update the magnetostatic solver to reflect the new state of the mesh.
+      Tesla.Update();
+
+      if (mpi.Root()) { cout << "Rebalancing ..." << endl; }
+      pmesh.Rebalance();
+
+      // Update again after rebalancing
       Tesla.Update();
    }
 
@@ -369,7 +375,7 @@ SetupInvPermeabilityCoefficient()
    else if ( pw_mu_.Size() > 0 )
    {
       pw_mu_inv_.SetSize(pw_mu_.Size());
-      for (int i=0; i<pw_mu_.Size(); i++)
+      for (int i = 0; i < pw_mu_.Size(); i++)
       {
          MFEM_ASSERT( pw_mu_[i] > 0.0, "permeability values must be positive" );
          pw_mu_inv_[i] = 1.0/pw_mu_[i];
@@ -391,9 +397,9 @@ double magnetic_shell(const Vector &x)
 {
    double r2 = 0.0;
 
-   for (int i=0; i<x.Size(); i++)
+   for (int i = 0; i < x.Size(); i++)
    {
-      r2 += (x(i)-ms_params_(i))*(x(i)-ms_params_(i));
+      r2 += (x(i) - ms_params_(i))*(x(i) - ms_params_(i));
    }
 
    if ( sqrt(r2) >= ms_params_(x.Size()) &&

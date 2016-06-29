@@ -221,19 +221,16 @@ void VoltaSolver::Assemble()
       h1Mass_->Assemble();
       h1Mass_->Finalize();
    }
-
    if ( h1SurfMass_ )
    {
       h1SurfMass_->Assemble();
       h1SurfMass_->Finalize();
    }
-
    if ( hCurlMass_ )
    {
       hCurlMass_->Assemble();
       hCurlMass_->Finalize();
    }
-
    if ( hCurlHDiv_ )
    {
       hCurlHDiv_->Assemble();
@@ -246,7 +243,7 @@ void VoltaSolver::Assemble()
 void
 VoltaSolver::Update()
 {
-   if (myid_ == 0) { cout << "Updating ..." << flush; }
+   if (myid_ == 0) { cout << "Updating ..." << endl; }
 
    // Inform the spaces that the mesh has changed
    // Note: we don't need to interpolate any GridFunctions on the new mesh
@@ -275,8 +272,6 @@ VoltaSolver::Update()
 
    // Inform the other objects that the space has changed.
    Grad_->Update();
-
-   if (myid_ == 0) { cout << " done." << endl; }
 }
 
 void
