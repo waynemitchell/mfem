@@ -298,19 +298,19 @@ TeslaSolver::Solve()
    HypreParVector *RHS = new HypreParVector(HCurlFESpace_);
    *RHS = 0.0;
 
-   HypreParMatrix *MassHCurl = hCurlMass_->ParallelAssemble();
-
    // Initialize the volumetric current density
    if ( j_ )
    {
       j_->ProjectCoefficient(*jCoef_);
 
+      HypreParMatrix *MassHCurl = hCurlMass_->ParallelAssemble();
       HypreParVector *J    = j_->ParallelProject();
       HypreParVector *JD   = new HypreParVector(HCurlFESpace_);
 
       MassHCurl->Mult(*J,*JD);
       DivFreeProj_->Mult(*JD, *RHS);
 
+      delete MassHCurl;
       delete J;
       delete JD;
    }
@@ -379,32 +379,28 @@ TeslaSolver::Solve()
    {
      hDivHCurlMuInv_->AddMult(*m_, bd, -1.0 * mu0_);
    }
-   
-   HypreParVector *BD = new HypreParVector(HCurlFESpace_);
-   HypreParVector *H  = new HypreParVector(HCurlFESpace_);
+
+   HypreParMatrix MassHCurl;
+   Vector BD, H;
 
    Array<int> dbc_dofs_h;
-   hCurlMass_->FormLinearSystem(dbc_dofs_h, *h_, bd, *MassHCurl, *H, *BD);
-			       
-   HyprePCG * pcgM = new HyprePCG(*MassHCurl);
+   hCurlMass_->FormLinearSystem(dbc_dofs_h, *h_, bd, MassHCurl, H, BD);
+
+   HyprePCG * pcgM = new HyprePCG(MassHCurl);
    pcgM->SetTol(1e-12);
    pcgM->SetMaxIter(500);
    pcgM->SetPrintLevel(0);
-   HypreDiagScale *diagM = new HypreDiagScale;
-   pcgM->SetPreconditioner(*diagM);
-   pcgM->Mult(*BD,*H);
+   HypreDiagScale diagM;
+   pcgM->SetPreconditioner(diagM);
+   pcgM->Mult(BD,H);
 
-   hCurlMass_->RecoverFEMSolution(*H, bd, *h_);
-      
+   hCurlMass_->RecoverFEMSolution(H, bd, *h_);
+
    if (myid_ == 0) { cout << "done." << flush; }
 
-   delete diagM;
    delete pcgM;
-   delete MassHCurl;
    delete A;
    delete B;
-   delete BD;
-   delete H;
    delete M;
 
    if (myid_ == 0) { cout << " Solver done. " << endl; }

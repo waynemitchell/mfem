@@ -424,32 +424,27 @@ VoltaSolver::Solve()
    {
      hCurlHDiv_->AddMult(*p_, ed, -1.0);
    }
-   
-   HypreParMatrix * MassHDiv = hDivMass_->ParallelAssemble();
-   HypreParVector *ED = new HypreParVector(HDivFESpace_);
-   HypreParVector *D  = new HypreParVector(HDivFESpace_);
+
+   HypreParMatrix MassHDiv;
+   Vector ED, D;
 
    Array<int> dbc_dofs_d;
-   hDivMass_->FormLinearSystem(dbc_dofs_d, *d_, ed, *MassHDiv, *D, *ED);
-			       
-   HyprePCG * pcgM = new HyprePCG(*MassHDiv);
+   hDivMass_->FormLinearSystem(dbc_dofs_d, *d_, ed, MassHDiv, D, ED);
+
+   HyprePCG *pcgM = new HyprePCG(MassHDiv);
    pcgM->SetTol(1e-12);
    pcgM->SetMaxIter(500);
    pcgM->SetPrintLevel(0);
-   HypreDiagScale *diagM = new HypreDiagScale;
-   pcgM->SetPreconditioner(*diagM);
-   pcgM->Mult(*ED,*D);
+   HypreDiagScale diagM;
+   pcgM->SetPreconditioner(diagM);
+   pcgM->Mult(ED, D);
 
-   hDivMass_->RecoverFEMSolution(*D, ed, *d_);
- 
+   hDivMass_->RecoverFEMSolution(D, ed, *d_);
+
    if (myid_ == 0) { cout << "done." << flush; }
 
-   delete diagM;
    delete pcgM;
-   delete MassHDiv;
    delete E;
-   delete ED;
-   delete D;
    delete P;
 
    if (myid_ == 0) { cout << "Solver done. " << endl; }

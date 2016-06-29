@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
    if ( mpi.Root() ) { display_banner(cout); }
 
    // Parse command-line options.
-   const char *mesh_file = "butterfly_3d.mesh";
+   const char *mesh_file = "../../data/ball-nurbs.mesh";
    int order = 1;
    int maxit = 100;
    int serial_ref_levels = 0;
@@ -340,11 +340,14 @@ int main(int argc, char *argv[])
       // Update the magnetostatic solver to reflect the new state of the mesh.
       Tesla.Update();
 
-      if (mpi.Root()) { cout << "Rebalancing ..." << endl; }
-      pmesh.Rebalance();
+      if (pmesh.Nonconforming())
+      {
+         if (mpi.Root()) { cout << "Rebalancing ..." << endl; }
+         pmesh.Rebalance();
 
-      // Update again after rebalancing
-      Tesla.Update();
+         // Update again after rebalancing
+         Tesla.Update();
+      }
    }
 
    return 0;
