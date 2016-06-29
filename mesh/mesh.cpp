@@ -5965,6 +5965,8 @@ void Mesh::UniformRefinement()
 
       if (Conforming())
       {
+         // In parallel we should set the default 2nd argument to -3 to indicate
+         // uniform refinement.
          LocalRefinement(elem_to_refine);
       }
       else
@@ -5989,7 +5991,7 @@ void Mesh::UniformRefinement()
 void Mesh::GeneralRefinement(const Array<Refinement> &refinements,
                              int nonconforming, int nc_limit)
 {
-   if (Dim == 1)
+   if (Dim == 1 || (Dim == 3 && meshgen & 1))
    {
       nonconforming = 0;
    }
@@ -6147,13 +6149,13 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
 {
    int *vert;
    int v[2][4], v_new, bisect, t;
-   Element **pce = &elements[i];
+   Element *el = elements[i];
    Vertex V;
 
-   t = pce[0]->GetType();
+   t = el->GetType();
    if (t == Element::TRIANGLE)
    {
-      Triangle *tri = (Triangle *) pce[0];
+      Triangle *tri = (Triangle *) el;
 
       vert = tri->GetVertices();
 
@@ -6228,7 +6230,7 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
    else if (t == Element::TETRAHEDRON)
    {
       int j, type, new_type, old_redges[2], new_redges[2][2], flag;
-      Tetrahedron *tet = (Tetrahedron *) pce[0];
+      Tetrahedron *tet = (Tetrahedron *) el;
 
       MFEM_VERIFY(tet->GetRefinementFlag() != 0,
                   "TETRAHEDRON element is not marked for refinement.");
@@ -6353,12 +6355,12 @@ void Mesh::Bisection(int i, const DSTable &v_to_v, int *middle)
 {
    int *vert;
    int v[2][3], v_new, bisect, t;
-   Element **pce = &boundary[i];
+   Element *bdr_el = boundary[i];
 
-   t = pce[0]->GetType();
+   t = bdr_el->GetType();
    if (t == Element::TRIANGLE)
    {
-      Triangle *tri = (Triangle *) pce[0];
+      Triangle *tri = (Triangle *) bdr_el;
 
       vert = tri->GetVertices();
 

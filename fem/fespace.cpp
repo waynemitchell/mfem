@@ -1424,7 +1424,7 @@ void FiniteElementSpace::Update(bool want_transform)
    {
       return; // mesh and space are in sync, no-op
    }
-   if (mesh->GetSequence() != sequence + 1)
+   if (want_transform && mesh->GetSequence() != sequence + 1)
    {
       MFEM_ABORT("Error in update sequence. Space needs to be updated after "
                  "each mesh modification.");

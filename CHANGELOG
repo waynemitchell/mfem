@@ -45,7 +45,7 @@ Dynamic AMR with parallel load balancing, derefinement of non-conforming meshes
 
 - Isotropically refined non-conforming meshes can now be derefined, both in
   serial and in parallel, based on a per-element error measure and a
-  derefinement threshold. See ParMesh::GeneralDerefinement().
+  derefinement threshold. See the class ThresholdDerefiner.
 
 - Following an arbitrary mesh change (uniform/general conforming/non-conforming
   refinement, derefinement, load balancing), the FiniteElementSpace and
@@ -58,6 +58,10 @@ Dynamic AMR with parallel load balancing, derefinement of non-conforming meshes
      fespace.Update();   // calculate a transformation matrix (by default)
      x.Update();         // apply the transformation to the GridFunction
      z.Update();         // apply it again
+
+- New abstractions are available for error estimation and general mesh
+  operations such as refinement and derefinement. See the base classes
+  ErrorEstimator and MeshOperator and their descendants.
 
 - The above features are illustrated in the new Example 15 (see also Example 6).
 
@@ -111,6 +115,8 @@ Miscellaneous
   in ASCII and binary formats.
 
 - Added support for boundary bilinear form integrators when using hybridization.
+
+- Added support for Robin boundary conditions for DG in BoundaryMassIntegrator.
 
 - Moved all reference element connectivity descriptions, such as element-edge,
   element-face, etc. to the template class Geometry::Constants<Geometry::Type>.
