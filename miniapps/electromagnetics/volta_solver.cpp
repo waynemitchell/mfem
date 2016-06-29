@@ -430,21 +430,20 @@ VoltaSolver::Solve()
    // Compute electric displacement (D) from E and P
    if (myid_ == 0) { cout << "Computing D ... " << flush; }
 
-   HypreParMatrix *HCurlHDivEps = hCurlHDivEps_->ParallelAssemble();
+   ParGridFunction ed(HDivFESpace_);
+   hCurlHDivEps_->Mult(*e_, ed);
+   if ( p_ )
+   {
+     hCurlHDiv_->AddMult(*p_, ed, -1.0);
+   }
+   
+   HypreParMatrix * MassHDiv = hDivMass_->ParallelAssemble();
    HypreParVector *ED = new HypreParVector(HDivFESpace_);
    HypreParVector *D  = new HypreParVector(HDivFESpace_);
 
-   HCurlHDivEps->Mult(*E,*ED);
-
-   if ( P )
-   {
-      HypreParMatrix *HCurlHDiv = hCurlHDiv_->ParallelAssemble();
-      HCurlHDiv->Mult(*P,*ED,-1.0,1.0);
-      delete HCurlHDiv;
-   }
-
-   HypreParMatrix * MassHDiv = hDivMass_->ParallelAssemble();
-
+   Array<int> dbc_dofs_d;
+   hDivMass_->FormLinearSystem(dbc_dofs_d, *d_, ed, *MassHDiv, *D, *ED);
+			       
    HyprePCG * pcgM = new HyprePCG(*MassHDiv);
    pcgM->SetTol(1e-12);
    pcgM->SetMaxIter(500);
@@ -453,13 +452,12 @@ VoltaSolver::Solve()
    pcgM->SetPreconditioner(*diagM);
    pcgM->Mult(*ED,*D);
 
-   *d_ = *D;
-
+   hDivMass_->RecoverFEMSolution(*D, ed, *d_);
+ 
    if (myid_ == 0) { cout << "done." << flush; }
 
    delete diagM;
    delete pcgM;
-   delete HCurlHDivEps;
    delete MassHDiv;
    delete E;
    delete ED;
