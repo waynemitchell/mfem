@@ -34,6 +34,11 @@ protected:
 
    /// The fields and their names (used when saving)
    std::map<std::string, GridFunction*> field_map;
+
+   /// Field data that the collection explicitly manages
+   std::map<std::string, double*> managed_field_data_map;
+
+
    /// The (common) mesh for the collected fields
    Mesh *mesh;
 
@@ -88,6 +93,12 @@ public:
    GridFunction *GetField(const char *field_name);
    /// Check if a grid function is part of the collection
    bool HasField(const char *name) { return field_map.count(name) == 1; }
+
+   /**
+    * Gets a pointer to the data associated with a field
+    * If the field does not exist, it will allocate memory for the field
+    */
+   virtual double* GetFieldData(const char *field_name, FiniteElementSpace* fes = NULL);
 
    /// Get a pointer to the mesh in the collection
    Mesh *GetMesh() { return mesh; }

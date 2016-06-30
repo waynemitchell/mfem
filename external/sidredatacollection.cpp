@@ -17,13 +17,6 @@
 namespace mfem
 {
 
-SidreDataCollection::SidreDataCollection(const std::string& collection_name)
-  : mfem::DataCollection(collection_name.c_str())
-{
-  asctoolkit::sidre::DataStore ds;
-  sidre_dc_group = ds.getRoot()->createGroup( collection_name );
-}
-
 // class SidreDataCollection implementation
 // This version is a prototype of adding needed MFEM data to Sidre as mostly 'external' data.
 // There are some exceptions - individual scalars are copied into Sidre, as long as we know the
@@ -35,7 +28,9 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name, asc
   namespace sidre = asctoolkit::sidre;
 
   sidre_dc_group = dg->createGroup( collection_name );
-/*
+
+
+  /*
   // Create group for mesh
   sidre::DataGroup * mesh_grp = sidre_dc_group->createGroup("topology");
   addMesh(mesh_grp);
@@ -72,10 +67,88 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name, asc
 */
 }
 
+void SidreDataCollection::SetMesh(Mesh *new_mesh)
+{
+
+}
+
+void SidreDataCollection::Save()
+{
+    namespace sidre = asctoolkit::sidre;
+    sidre::DataGroup* grp = sidre_dc_group->getGroup("state");
+
+    grp->getView("cycle")->setScalar(cycle);
+    grp->getView("time")->setScalar(time);
+
+    std::string filename, protocol;
+
+    std::stringstream fNameSstr;
+
+    if(cycle >= 0)
+    {
+        fNameSstr << "ex9_sidre_"<< cycle;
+    }
+
+    protocol = "text";
+    filename = fNameSstr.str() + ".txt";
+    //cout << "saving text version as '" << filename << "'" << endl;
+    sidre_dc_group->getDataStore()->save(filename, protocol);
+
+    protocol = "conduit_hdf5";
+    filename = fNameSstr.str() + ".hdf5";
+    //cout << "saving hdf5 version as '" << filename << "'" << endl;
+    sidre_dc_group->getDataStore()->save(filename, protocol);
+
+}
+
+
+void SidreDataCollection::SetupMeshBlueprint()
+{
+    namespace sidre = asctoolkit::sidre;
+    sidre::DataGroup* grp = sidre_dc_group;
+
+    grp->createViewString("topology/type", "unstructured");
+    grp->createViewString("topology/elements/shape","quads");   // <-- Note: this comes form the mesh
+    grp->createView("topology/elements/connectivity");
+
+    grp->createViewString("coordset/type", "explicit");
+    grp->createView("coordset/x");
+    grp->createView("coordset/y");
+    grp->createView("coordset/z");
+
+    grp->createViewString("fields/material_attribute/association", "Element");
+    grp->createView("fields/material_attribute/values");
+
+    grp->createViewScalar("state/cycle", 0);
+    grp->createViewScalar("state/time", 0.);
+    grp->createViewScalar("state/domain", myid);
+}
+
+double* SidreDataCollection::GetFieldData(const char *field_name, FiniteElementSpace* fes)
+{
+    std::string fName = "fields/" + std::string(field_name);
+
+    namespace sidre = asctoolkit::sidre;
+
+    MFEM_ASSERT( fes != NULL, "SidreDataCollection::GetFieldData requires a non-null FiniteElementSpace.");
+
+    if( ! sidre_dc_group->hasGroup( fName) )
+    {
+        int sz = fes->GetVSize();
+        sidre::DataGroup* grp = sidre_dc_group->createGroup( fName);
+        grp->createViewString("basis", fes->FEColl()->Name());
+        grp->createViewAndAllocate("values", sidre::DOUBLE_ID, sz);
+    }
+
+    return sidre_dc_group->getView(fName + "/values")->getArray();
+}
+
+
+
 void SidreDataCollection::RegisterField(const std::string& name, GridFunction *gf)
 {
-//  DataCollection::RegisterField(name.c_str(), gf);
-  addField(sidre_dc_group->createGroup(name), gf);
+  DataCollection::RegisterField(name.c_str(), gf);
+  //addField(sidre_dc_group->createGroup(name), gf);
 }
 
 // Private helper functions
@@ -164,10 +237,10 @@ void SidreDataCollection::addField(asctoolkit::sidre::DataGroup * grp, GridFunct
 
 void SidreDataCollection::addMesh(asctoolkit::sidre::DataGroup * grp)
 {
-// should consider adding version members for mesh  in mfem
-//  grp->createView("version")->setScalar( ncmesh ? 1.1 : 1.0 );
-  grp->createView("type")->setString("unstructured");
-//  grp->createView("dimension")->setScalar(mesh->Dim);
+
+    // Usa Aaron's
+
+
 }
 
 void SidreDataCollection::addVertices(asctoolkit::sidre::DataGroup * grp)

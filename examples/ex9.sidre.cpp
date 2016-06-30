@@ -87,11 +87,15 @@ int main(int argc, char *argv[])
    double t_final = 10.0;
    double dt = 0.01;
    bool visualization = true;
-   bool sidre = false;
+   bool sidre = true;
    int vis_steps = 5;
 
    int precision = 8;
    cout.precision(precision);
+
+#ifdef MFEM_USE_SIDRE
+   asctoolkit::sidre::DataStore ds;
+#endif
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -131,7 +135,10 @@ int main(int argc, char *argv[])
    if (sidre)
    {
 #ifdef MFEM_USE_SIDRE
-	   dc = new SidreDataCollection("Example9");
+	   dc = new SidreDataCollection("Example9", ds.getRoot() );
+#else
+	   std::cerr << "\nError: sidre option not available in current configuration." << std::endl;
+	   return 1;
 #endif
    }
    else

@@ -135,6 +135,28 @@ GridFunction *DataCollection::GetField(const char *field_name)
    }
 }
 
+
+double* DataCollection::GetFieldData(const char *field_name, FiniteElementSpace* fes)
+{
+    // Check if we already have the grid function, if so, return its data
+   if(HasField(field_name))
+   {
+       return field_map[field_name]->GetData();
+   }
+
+
+   // Otherwise, if the data does not exist, allocate it
+   if( managed_field_data_map.find(field_name) != managed_field_data_map.end())
+   {
+       managed_field_data_map[field_name] = new double[fes->GetVSize()];
+   }
+
+   // Return a pointer to the data
+   return managed_field_data_map[field_name];
+}
+
+
+
 void DataCollection::SetPrefixPath(const char *prefix)
 {
    if (prefix)
@@ -322,6 +344,14 @@ DataCollection::~DataCollection()
       {
          delete it->second;
       }
+   }
+
+   // Delete data that the data collection explicitly allocated
+   typedef std::map<std::string, double*>::iterator DMIt;
+   for(DMIt it = managed_field_data_map.begin();
+       it != managed_field_data_map.end(); ++it)
+   {
+       delete [] it->second;
    }
 }
 

@@ -37,16 +37,28 @@ public:
   typedef int mfem_int_t;
   typedef double mfem_double_t;
 
-  SidreDataCollection(const std::string& collection_name);
-
   SidreDataCollection(const std::string& collection_name, asctoolkit::sidre::DataGroup * dg);
 
   void RegisterField(const std::string& name, GridFunction *gf);
 
-  void setMeshStream(std::istream &input) {}
+  void SetupMeshBluePrint();
 
   /// Verify we will delete the mesh and fields if we own them
   virtual ~SidreDataCollection() {}
+
+  void SetMesh(Mesh *new_mesh);
+
+  void setMeshStream(std::istream& input) {}
+
+  void SetupMeshBlueprint();
+
+  void Save();
+
+  /**
+   * Gets a pointer to the associated field's view data
+   * If the field does not exist, it will create a view of the appropriate size
+   */
+  double* GetFieldData(const char *field_name, FiniteElementSpace* fes = NULL);
 
 private:
   // Private helper functions

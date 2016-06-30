@@ -30,6 +30,7 @@
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <algorithm>
 
 using namespace std;
@@ -90,7 +91,7 @@ int main(int argc, char *argv[])
    double dt = 0.01;
    bool visualization = true;
    bool visit = false;
-   int vis_steps = 5;
+   int vis_steps = 25;
 
    const char *sidre_restart = "\0";
    bool sidre_use_restart = false;
@@ -136,22 +137,19 @@ int main(int argc, char *argv[])
 
    // 1.7 Create datastore
    // see https://rzlc.llnl.gov/confluence/display/MAPP/MFEM+Mesh+Blueprint+Prototype
-   const char *fec_type;
-   asctoolkit::sidre::DataStore ds;
-   asctoolkit::sidre::DataGroup *root;
+   std::string fec_type;
 
-   asctoolkit::sidre::DataGroup *topology;
-   asctoolkit::sidre::DataGroup *elements;
-   asctoolkit::sidre::DataView *elements_connectivity;
+   namespace sidre = asctoolkit::sidre;
+   sidre::DataStore ds;
 
-   asctoolkit::sidre::DataGroup *fields;
-   asctoolkit::sidre::DataGroup *nodes;
-   asctoolkit::sidre::DataGroup *material_attribute;
-   asctoolkit::sidre::DataView *material_attribute_values;
+   sidre::DataView *elements_connectivity;
+   sidre::DataView *material_attribute_values;
+   sidre::DataView *coordset_values;
 
-   asctoolkit::sidre::DataGroup *state;
-   asctoolkit::sidre::DataGroup *coordset;
-   asctoolkit::sidre::DataView *coordset_values;
+
+   DataCollection * dc = NULL;
+   dc = new SidreDataCollection("Example9", ds.getRoot() );
+   sidre::DataGroup* grp = ds.getRoot()->getGroup("Example9");
 
 
    if (strcmp(sidre_restart, "\0") != 0) {
@@ -161,71 +159,54 @@ int main(int argc, char *argv[])
    if (sidre_use_restart) {
       cout << "loading sidre dump (" << sidre_restart_protocol << ") '" 
            << sidre_restart << "'" << endl;
+
       ds.load(sidre_restart, sidre_restart_protocol);
-      root = ds.getRoot();
-
-      topology = root->getGroup("topology");
-      elements = topology->getGroup("elements");
-      elements_connectivity = elements->getView("connectivity");
-
-      fields = root->getGroup("fields");
-      nodes = fields->getGroup("nodes");
-      material_attribute = fields->getGroup("material_attribute");
-      material_attribute_values = material_attribute->getView("values");
-
-      state = root->getGroup("state");
-      coordset = root->getGroup("coordset");
-
-      fec_type = nodes->getView("basis")->getString();
+      fec_type = grp->getView("fields/nodes/basis")->getString();
    }
    else {
-      root = ds.getRoot();
+      dynamic_cast<SidreDataCollection*>(dc)->SetupMeshBlueprint();
 
-      topology = root->createGroup("topology");
-      elements = topology->createGroup("elements");
-      elements_connectivity = elements->createView("connectivity");
-
-      fields = root->createGroup("fields");
-      nodes = fields->createGroup("nodes");
-      material_attribute = fields->createGroup("material_attribute");
-      material_attribute_values = material_attribute->createView("values");
-
-      state = root->createGroup("state");
-      coordset = root->createGroup("coordset");
-      coordset_values = coordset->createView("values");
-
-      fec_type = "L2_2D_P3";
-   }
-
-   // 2. Populate the Mesh. Either from the mesh file or from a restart
-   Mesh *mesh;
-   ElementAllocator *elm_alloc = NULL;
-   ElementAllocator *bndry_alloc = NULL;
-   Allocator *vertices_alloc = NULL;
-   if (sidre_use_restart) {
-   }
-   else {
-   int element_size = 4;
-      // Initialize the allocators for the elements in this example
-      /*
-      size_t num_elements = 8;
-      InternalElementAllocator elm_alloc(num_elements, Geometry::SQUARE);
-      */
-      elm_alloc = new SidreElementAllocator(element_size, elements_connectivity,
-            material_attribute_values);
-      bndry_alloc = new InternalElementAllocator(8, element_size);
-      vertices_alloc = new SidreAllocator<double>(coordset_values);
-      // 2. Read the mesh from the given mesh file. We can handle geometrically
-      //    periodic meshes in this code.
+      // Load mesh into a string and save in datastore
       ifstream imesh(mesh_file);
       if (!imesh)
       {
-         cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
-         return 2;
+        cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
+        return 2;
       }
-      //mesh = new Mesh(imesh, 1, 1);
-      mesh = new Mesh(imesh, elm_alloc, bndry_alloc, vertices_alloc, 1, 1);
+      std::string meshStr((std::istreambuf_iterator<char>(imesh)),
+                           std::istreambuf_iterator<char>());
       imesh.close();
+
+      grp->createViewString("aux/orig_mesh_str", meshStr);
+   }
+
+   elements_connectivity = grp->getView("topology/elements/connectivity");
+   material_attribute_values = grp->getView("fields/material_attribute/values");
+
+
+   // 2. Populate the Mesh. Either from the mesh file or from a restart
+   Mesh *mesh;
+
+   ElementAllocator *elm_alloc = NULL;
+   ElementAllocator *bndry_alloc = NULL;
+   Allocator *vertices_alloc = NULL;
+   //if (sidre_use_restart) {
+   //}
+   //else {
+      int element_size = 4;
+
+      // Initialize the allocators for the elements in this example
+      elm_alloc = new SidreElementAllocator(element_size, elements_connectivity,
+        material_attribute_values);
+      bndry_alloc = new InternalElementAllocator(8, element_size);
+      vertices_alloc = new SidreAllocator<double>(coordset_values);
+
+      // 2. Read the mesh from the given mesh file. We can handle geometrically
+      //    periodic meshes in this code.
+      std::istringstream istrMesh(grp->getView("aux/orig_mesh_str")->getString() );
+
+      // initialize the mesh from the istringstream
+      mesh = new Mesh(istrMesh, elm_alloc, bndry_alloc, vertices_alloc, 1, 1);
 
 
       // 4. Refine the mesh to increase the resolution. In this example we do
@@ -255,8 +236,21 @@ int main(int argc, char *argv[])
          }
       }
 
-   }
+   //}
+
+
    int dim = mesh->Dimension();
+   if(! sidre_use_restart)
+   {
+      std::stringstream sstr;
+      sstr << "L2_" << dim << "D_P" << order;
+      fec_type = sstr.str();
+   }
+   else
+   {
+       fec_type = grp->getView("fields/nodes/basis")->getString();
+   }
+
 
    // 3. Define the ODE solver used for time integration. Several explicit
    //    Runge-Kutta methods are available.
@@ -284,7 +278,7 @@ int main(int argc, char *argv[])
    // L2_2D_P3
    //DG_FECollection fec(order, dim);
    //FiniteElementSpace fes(mesh, &fec);
-   FiniteElementCollection *fec = FiniteElementCollection::New(fec_type);
+   FiniteElementCollection *fec = FiniteElementCollection::New(fec_type.c_str());
    FiniteElementSpace fes(mesh, fec);
 
    cout << "the finite element collection has name: '" << fec->Name() << "'" << endl;
@@ -321,40 +315,23 @@ int main(int argc, char *argv[])
    // 7. Define the initial conditions, save the corresponding grid function to
    //    a file and (optionally) save data in the VisIt format and initialize
    //    GLVis visualization.
-   asctoolkit::sidre::DataView *nodes_values;
-   int nv_len = 0;
-   if (!sidre_use_restart) {
-      nv_len = fes.GetVSize();
-      nodes_values = nodes->createView("values")->
-         allocate(asctoolkit::sidre::detail::SidreTT<double>::id, nv_len);
-      nodes->createView("basis")->setString(fec->Name());
-   }
-   else {
-      throw std::runtime_error("not implemented");
-      cout << "recreating the gridfunction from '" << sidre_restart << "'" << endl;
-      nodes_values = nodes->getView("values");
-      nv_len = nodes_values->getNumElements();
-   }
-
-   cout << "vector size if " << nv_len << endl;
-   GridFunction u(&fes, nodes_values->getArray(), nv_len);
+   GridFunction u(&fes, dc->GetFieldData("solution",&fes), fes.GetVSize());
+   dc->RegisterField("solution", &u);
 
    if (!sidre_use_restart) {
       u.ProjectCoefficient(u0);
+   }
+   else
+   {
+       mesh->SetNodalGridFunction(&u);
    }
 
    // test dumping
    if (1)
    {
-      string filename = "apple.txt";
-      string protocol = "text";
-      cout << "saving text version as '" << filename << "'" << endl;
-      ds.save(filename, protocol);
-
-      filename = "apple.hdf5";
-      protocol = "conduit_hdf5";
-      cout << "saving hdf5 version as '" << filename << "'" << endl;
-      ds.save(filename, protocol);
+      dc->Save();
+      std::string filename = "ex9_sidre.hdf5";
+      std::string protocol = "conduit_hdf5";
 
       cout << "trying to load '" << filename << "'" << endl;
       asctoolkit::sidre::DataStore copy_ds;
@@ -441,11 +418,11 @@ int main(int argc, char *argv[])
             sout << "solution\n" << *mesh << u << flush;
          }
 
-         if (visit)
+         if (dc != NULL)
          {
-            visit_dc.SetCycle(ti);
-            visit_dc.SetTime(t);
-            visit_dc.Save();
+            dc->SetCycle(ti);
+            dc->SetTime(t);
+            dc->Save();
          }
       }
    }
