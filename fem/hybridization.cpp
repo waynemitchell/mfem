@@ -481,6 +481,10 @@ void Hybridization::AssembleMatrix(int el, const DenseMatrix &A)
 void Hybridization::AssembleBdrMatrix(int bdr_el, const DenseMatrix &A)
 {
    // Not tested.
+#ifdef MFEM_DEBUG
+   Array<int> vdofs, bvdofs;
+   fes->GetBdrElementVDofs(bdr_el, bvdofs);
+#endif
 
    int el;
    DenseMatrix B(A);
@@ -498,6 +502,15 @@ void Hybridization::AssembleBdrMatrix(int bdr_el, const DenseMatrix &A)
       // Convert local element dofs to local element vdofs.
       Ordering::DofsToVDofs<Ordering::byNODES>(e2f.Size()/vdim, vdim, lvdofs);
       MFEM_ASSERT(lvdofs.Size() == A.Height(), "internal error");
+#ifdef MFEM_DEBUG
+      fes->GetElementVDofs(el, vdofs);
+      for (int i = 0; i < lvdofs.Size(); i++)
+      {
+         int bd = lvdofs[i];
+         bd = (bd >= 0) ? vdofs[bd] : -1-vdofs[-1-bd];
+         MFEM_ASSERT(bvdofs[i] == bd, "internal error");
+      }
+#endif
       B.AdjustDofDirection(lvdofs);
       FiniteElementSpace::AdjustVDofs(lvdofs);
       // Create a map from local element vdofs to local boundary (face) vdofs.
