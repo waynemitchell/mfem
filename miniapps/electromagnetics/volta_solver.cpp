@@ -114,16 +114,6 @@ VoltaSolver::VoltaSolver(ParMesh & pmesh, int order,
    hCurlHDivEps_ = new ParMixedBilinearForm(HCurlFESpace_,HDivFESpace_);
    hCurlHDivEps_->AddDomainIntegrator(new VectorFEMassIntegrator(*epsCoef_));
 
-   // Assemble Matrices
-   divEpsGrad_->Assemble();
-   divEpsGrad_->Finalize();
-
-   hDivMass_->Assemble();
-   hDivMass_->Finalize();
-
-   hCurlHDivEps_->Assemble();
-   hCurlHDivEps_->Finalize();
-
    // Discrete Grad operator
    Grad_ = new ParDiscreteGradOperator(H1FESpace_, HCurlFESpace_);
 
@@ -138,33 +128,25 @@ VoltaSolver::VoltaSolver(ParMesh & pmesh, int order,
 
       h1Mass_ = new ParBilinearForm(H1FESpace_);
       h1Mass_->AddDomainIntegrator(new MassIntegrator);
-      h1Mass_->Assemble();
-      h1Mass_->Finalize();
    }
 
    if ( p_src_ )
    {
       p_ = new ParGridFunction(HCurlFESpace_);
 
-      hCurlMass_  = new ParBilinearForm(HCurlFESpace_);
+      hCurlMass_ = new ParBilinearForm(HCurlFESpace_);
       hCurlMass_->AddDomainIntegrator(new VectorFEMassIntegrator);
-      hCurlMass_->Assemble();
-      hCurlMass_->Finalize();
 
       hCurlHDiv_ = new ParMixedBilinearForm(HCurlFESpace_, HDivFESpace_);
       hCurlHDiv_->AddDomainIntegrator(new VectorFEMassIntegrator);
-      hCurlHDiv_->Assemble();
-      hCurlHDiv_->Finalize();
    }
 
    if ( nbcs_->Size() > 0 )
    {
       sigma_ = new ParGridFunction(H1FESpace_);
 
-      h1SurfMass_  = new ParBilinearForm(H1FESpace_);
+      h1SurfMass_ = new ParBilinearForm(H1FESpace_);
       h1SurfMass_->AddBoundaryIntegrator(new MassIntegrator);
-      h1SurfMass_->Assemble();
-      h1SurfMass_->Finalize();
    }
 }
 
@@ -221,15 +203,54 @@ VoltaSolver::PrintSizes()
    }
 }
 
+void VoltaSolver::Assemble()
+{
+   if (myid_ == 0) { cout << "Assembling ... " << flush; }
+
+   divEpsGrad_->Assemble();
+   divEpsGrad_->Finalize();
+
+   hDivMass_->Assemble();
+   hDivMass_->Finalize();
+
+   hCurlHDivEps_->Assemble();
+   hCurlHDivEps_->Finalize();
+
+   if ( h1Mass_ )
+   {
+      h1Mass_->Assemble();
+      h1Mass_->Finalize();
+   }
+   if ( h1SurfMass_ )
+   {
+      h1SurfMass_->Assemble();
+      h1SurfMass_->Finalize();
+   }
+   if ( hCurlMass_ )
+   {
+      hCurlMass_->Assemble();
+      hCurlMass_->Finalize();
+   }
+   if ( hCurlHDiv_ )
+   {
+      hCurlHDiv_->Assemble();
+      hCurlHDiv_->Finalize();
+   }
+
+   if (myid_ == 0) { cout << "done." << endl << flush; }
+}
+
 void
 VoltaSolver::Update()
 {
-   if (myid_ == 0) { cout << " Assembly ... " << flush; }
+   if (myid_ == 0) { cout << "Updating ..." << endl; }
 
    // Inform the spaces that the mesh has changed
-   H1FESpace_->Update();
-   HCurlFESpace_->Update();
-   HDivFESpace_->Update();
+   // Note: we don't need to interpolate any GridFunctions on the new mesh
+   // so we pass 'false' to skip creation of any transformation matrices.
+   H1FESpace_->Update(false);
+   HCurlFESpace_->Update(false);
+   HDivFESpace_->Update(false);
 
    // Inform the grid functions that the space has changed.
    phi_->Update();
@@ -241,55 +262,22 @@ VoltaSolver::Update()
 
    // Inform the bilinear forms that the space has changed.
    divEpsGrad_->Update();
-   divEpsGrad_->Assemble();
-   divEpsGrad_->Finalize();
-
    hDivMass_->Update();
-   hDivMass_->Assemble();
-   hDivMass_->Finalize();
-
    hCurlHDivEps_->Update();
-   hCurlHDivEps_->Assemble();
-   hCurlHDivEps_->Finalize();
 
-   if ( h1Mass_ )
-   {
-      h1Mass_->Update();
-      h1Mass_->Assemble();
-      h1Mass_->Finalize();
-   }
-
-   if ( h1SurfMass_ )
-   {
-      h1SurfMass_->Update();
-      h1SurfMass_->Assemble();
-      h1SurfMass_->Finalize();
-   }
-
-   if ( hCurlMass_ )
-   {
-      hCurlMass_->Update();
-      hCurlMass_->Assemble();
-      hCurlMass_->Finalize();
-   }
-
-   if ( hCurlHDiv_ )
-   {
-      hCurlHDiv_->Update();
-      hCurlHDiv_->Assemble();
-      hCurlHDiv_->Finalize();
-   }
+   if ( h1Mass_ )     { h1Mass_->Update(); }
+   if ( h1SurfMass_ ) { h1SurfMass_->Update(); }
+   if ( hCurlMass_ )  { hCurlMass_->Update(); }
+   if ( hCurlHDiv_ )  { hCurlHDiv_->Update(); }
 
    // Inform the other objects that the space has changed.
    Grad_->Update();
-
-   if (myid_ == 0) { cout << "done." << flush; }
 }
 
 void
 VoltaSolver::Solve()
 {
-   if (myid_ == 0) { cout << "Running solver ... " << endl << flush; }
+   if (myid_ == 0) { cout << "Running solver ... " << endl; }
 
    // Initialize the electric potential with its boundary conditions
    *phi_ = 0.0;
@@ -428,7 +416,7 @@ VoltaSolver::Solve()
    delete Phi;
 
    // Compute electric displacement (D) from E and P
-   if (myid_ == 0) { cout << "Computing D ... " << flush; }
+   if (myid_ == 0) { cout << "Computing D ..." << flush; }
 
    ParGridFunction ed(HDivFESpace_);
    hCurlHDivEps_->Mult(*e_, ed);
@@ -436,35 +424,30 @@ VoltaSolver::Solve()
    {
      hCurlHDiv_->AddMult(*p_, ed, -1.0);
    }
-   
-   HypreParMatrix * MassHDiv = hDivMass_->ParallelAssemble();
-   HypreParVector *ED = new HypreParVector(HDivFESpace_);
-   HypreParVector *D  = new HypreParVector(HDivFESpace_);
+
+   HypreParMatrix MassHDiv;
+   Vector ED, D;
 
    Array<int> dbc_dofs_d;
-   hDivMass_->FormLinearSystem(dbc_dofs_d, *d_, ed, *MassHDiv, *D, *ED);
-			       
-   HyprePCG * pcgM = new HyprePCG(*MassHDiv);
+   hDivMass_->FormLinearSystem(dbc_dofs_d, *d_, ed, MassHDiv, D, ED);
+
+   HyprePCG *pcgM = new HyprePCG(MassHDiv);
    pcgM->SetTol(1e-12);
    pcgM->SetMaxIter(500);
    pcgM->SetPrintLevel(0);
-   HypreDiagScale *diagM = new HypreDiagScale;
-   pcgM->SetPreconditioner(*diagM);
-   pcgM->Mult(*ED,*D);
+   HypreDiagScale diagM;
+   pcgM->SetPreconditioner(diagM);
+   pcgM->Mult(ED, D);
 
-   hDivMass_->RecoverFEMSolution(*D, ed, *d_);
- 
+   hDivMass_->RecoverFEMSolution(D, ed, *d_);
+
    if (myid_ == 0) { cout << "done." << flush; }
 
-   delete diagM;
    delete pcgM;
-   delete MassHDiv;
    delete E;
-   delete ED;
-   delete D;
    delete P;
 
-   if (myid_ == 0) { cout << " Solver done. " << flush; }
+   if (myid_ == 0) { cout << "Solver done. " << endl; }
 }
 
 void
@@ -486,7 +469,7 @@ VoltaSolver::GetErrorEstimates(Vector & errors)
    L2ZZErrorEstimator(flux_integrator, *phi_,
                       smooth_flux_fes, flux_fes, errors, norm_p);
 
-   if (myid_ == 0) { cout << "done." << flush; }
+   if (myid_ == 0) { cout << "done." << endl; }
 }
 
 void
@@ -514,14 +497,14 @@ VoltaSolver::WriteVisItFields(int it)
       visit_dc_->SetTime(prob_size);
       visit_dc_->Save();
 
-      if (myid_ == 0) { cout << " " << flush; }
+      if (myid_ == 0) { cout << " done." << endl; }
    }
 }
 
 void
 VoltaSolver::InitializeGLVis()
 {
-   if ( myid_ == 0 ) { cout << "Opening GLVis sockets." << endl << flush; }
+   if ( myid_ == 0 ) { cout << "Opening GLVis sockets." << endl; }
 
    socks_["Phi"] = new socketstream;
    socks_["Phi"]->precision(8);
@@ -547,7 +530,6 @@ VoltaSolver::InitializeGLVis()
       socks_["Sigma"] = new socketstream;
       socks_["Sigma"]->precision(8);
    }
-   if ( myid_ == 0 ) { cout << "GLVis sockets open." << endl << flush; }
 }
 
 void
@@ -593,7 +575,7 @@ VoltaSolver::DisplayToGLVis()
                      *sigma_, "Surface Charge Density (Sigma)", Wx, Wy, Ww, Wh);
       Wx += offx;
    }
-   if (myid_ == 0) { cout << " " << flush; }
+   if (myid_ == 0) { cout << " done." << endl; }
 }
 
 } // namespace electromagnetics
