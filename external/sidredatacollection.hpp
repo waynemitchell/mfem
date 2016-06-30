@@ -12,6 +12,8 @@
 #ifndef MFEM_SIDREDATACOLLECTION
 #define MFEM_SIDREDATACOLLECTION
 
+#ifdef MFEM_USE_SIDRE
+
 #include "../fem/datacollection.hpp"
 
 namespace mfem
@@ -65,5 +67,7 @@ private:
 };
 
 } // end namespace mfem
+
+#endif
 
 #endif
