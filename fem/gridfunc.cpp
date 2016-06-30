@@ -12,7 +12,6 @@
 // Implementation of GridFunction
 
 #include "fem.hpp"
-#include "datacollection.hpp"
 #include <limits>
 #include <cstring>
 #include <string>
@@ -28,24 +27,6 @@ using namespace std;
 /// Creates grid function associated with a finite element space.  Registers the grid function in the
 /// provided data collection.  If the data collection is contains data for a grid
 /// function with this name, it will populate the grid function data values.
-
-GridFunction::GridFunction(const std::string& name, DataCollection * dc, FiniteElementSpace *f)
-{
-   fes = f;
-   fec = NULL;
-   sequence = f->GetSequence();
-
-   // Check if grid function with this name exists in data collection.
-
-   // TODO Aaron
-   // If no, then create grid function and register it in data collection.
-   // Vector(f->GetVSize())
-   // dc.RegisterField(name, this);
-
-   // If yes, then create grid function using values present in data collection.
-   // TODO Kenny
-   // In the sidre data collection class, it will check if grid function exists in datastore, then create grid function using those values, and that pre-allocated memory block.
-}
 
 GridFunction::GridFunction(Mesh *m, std::istream &input)
    : Vector()
