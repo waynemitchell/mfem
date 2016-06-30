@@ -2217,23 +2217,21 @@ int Mesh::initElementAllocators(ElementAllocator *elm_alloc,
                          ElementAllocator *bndry_alloc,
                          Allocator *_vertices_allocator) 
 {
-    element_allocator = elm_alloc;
-    boundary_allocator = bndry_alloc;
-
-   if (elm_alloc == &null_allocator && bndry_alloc == &null_allocator)
-   {
-	  own_allocators = true;
-
-   }
-   else
-   {
-	  own_allocators = false;
-      boundary_allocator = bndry_alloc;
-	  bndry_alloc->set_elements(&boundary);
+   own_allocators = false;
+   if (elm_alloc) {
       element_allocator = elm_alloc;
       elm_alloc->set_elements(&elements);
    }
-
+   else {
+      element_allocator = &null_allocator;
+   }
+   if (bndry_alloc) {
+      boundary_allocator = bndry_alloc;
+	   bndry_alloc->set_elements(&boundary);
+   }
+   else {
+      boundary_allocator = &null_allocator;
+   }
    vertices_allocator = _vertices_allocator;
    return 0;
 }
