@@ -277,7 +277,7 @@ public:
 /** Adaptive restarted GMRES.
     m_max and m_min(=1) are the maximal and minimal restart parameters.
     m_step(=1) is the step to use for going from m_max and m_min.
-    cf(=0.4) is a desired convergance factor. */
+    cf(=0.4) is a desired convergence factor. */
 int aGMRES(const Operator &A, Vector &x, const Vector &b,
            const Operator &M, int &max_iter,
            int m_max, int m_min, int m_step, double cf,

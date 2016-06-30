@@ -377,7 +377,7 @@ TeslaSolver::Solve()
    hDivHCurlMuInv_->Mult(*b_, bd);
    if ( m_ )
    {
-     hDivHCurlMuInv_->AddMult(*m_, bd, -1.0 * mu0_);
+      hDivHCurlMuInv_->AddMult(*m_, bd, -1.0 * mu0_);
    }
 
    HypreParMatrix MassHCurl;

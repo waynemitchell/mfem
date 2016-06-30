@@ -79,13 +79,14 @@ void Hybridization::ConstructC()
             c_pfes->ExchangeFaceNbrData();
             c_num_face_nbr_dofs = c_pfes->GetFaceNbrVSize();
          }
-#ifdef MFEM_DEBUG
+#ifdef MFEM_DEBUG_HERE
          MFEM_WARNING('[' << c_pfes->GetMyRank() <<
                       "] num_shared_slave_faces = " << num_shared_slave_faces
                       << ", glob_num_shared_slave_faces = "
                       << glob_num_shared_slave_faces
                       << "\n   num_face_nbr_dofs = " << c_num_face_nbr_dofs
                       << ", num_shared_faces = " << pmesh->GetNSharedFaces());
+#undef MFEM_DEBUG_HERE
 #endif
       }
    }

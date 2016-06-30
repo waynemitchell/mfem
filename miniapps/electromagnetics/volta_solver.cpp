@@ -422,7 +422,7 @@ VoltaSolver::Solve()
    hCurlHDivEps_->Mult(*e_, ed);
    if ( p_ )
    {
-     hCurlHDiv_->AddMult(*p_, ed, -1.0);
+      hCurlHDiv_->AddMult(*p_, ed, -1.0);
    }
 
    HypreParMatrix MassHDiv;
