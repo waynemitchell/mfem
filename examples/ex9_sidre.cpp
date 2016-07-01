@@ -37,6 +37,7 @@
 using namespace std;
 using namespace mfem;
 
+//#include "slic/slic.hpp"
 #include "sidre/sidre.hpp"
 
 // Choice for the problem setup. The fluid velocity, initial condition and
@@ -138,10 +139,10 @@ int main(int argc, char *argv[])
 
    // 1.7 Create datastore
    // see https://rzlc.llnl.gov/confluence/display/MAPP/MFEM+Mesh+Blueprint+Prototype
-   std::string fec_type;
-
    namespace sidre = asctoolkit::sidre;
    sidre::DataStore ds;
+
+   //asctoolkit::slic::debug::checksAreErrors = true;
 
    sidre::DataView *elements_connectivity;
    sidre::DataView *material_attribute_values;
@@ -159,11 +160,14 @@ int main(int argc, char *argv[])
    }
 
    if (sidre_use_restart) {
-      cout << "loading sidre dump (" << sidre_restart_protocol << ") '" 
-           << sidre_restart << "'" << endl;
+      std::cout << "loading sidre checkpoint: "<< sidre_restart
+              << " using protocol: " << sidre_restart_protocol
+              << std::endl;
 
       ds.load(sidre_restart, sidre_restart_protocol);
-      fec_type = grp->getView("fields/nodes/basis")->getString();
+
+      dc->SetTime( grp->getView("state/time")->getScalar() );
+      dc->SetCycle(grp->getView("state/cycle")->getScalar() );
    }
    else {
       dynamic_cast<SidreDataCollection*>(dc)->SetupMeshBlueprint();
@@ -227,7 +231,7 @@ int main(int argc, char *argv[])
       int num_elements = mesh->GetNE();
       elements_connectivity->apply(num_elements, 0, element_size);
       material_attribute_values->apply(num_elements, 0, 1);
-   
+
       {
          Vertex *data = (Vertex*)vertices_alloc->getdata();
          printf("data is %p\n", data);
@@ -240,20 +244,26 @@ int main(int argc, char *argv[])
 
    //}
 
-
    int dim = mesh->Dimension();
-   if(! sidre_use_restart)
-   {
-      std::stringstream sstr;
-      sstr << "L2_" << dim << "D_P" << order;
-      fec_type = sstr.str();
-      grp->getView("fields/nodes/basis")->setString(fec_type);
 
-   }
-   else
-   {
-       fec_type = grp->getView("fields/nodes/basis")->getString();
-   }
+   // Deal with mesh's grid function: nodes
+   // Temp HACK (KW):
+   //  When not restart, copy data from mesh to datastore
+   //  In both cases, set the mesh version to point to this
+   // Remove once we directly load the mesh into the datastore
+   // Note: There is likely a much better way to do this
+    const FiniteElementSpace* nFes = mesh->GetNodalFESpace();
+    int sz = nFes->GetVSize();
+    double* gfData = dc->GetFieldData("nodes", nFes);
+
+    if(! sidre_use_restart)
+    {
+      double* meshNodeData = mesh->GetNodes()->GetData();
+      std::memcpy(gfData, meshNodeData, sizeof(double) * sz);
+    }
+
+    mesh->GetNodes()->NewDataAndSize(gfData, sz);
+    dc->RegisterField( "nodes", mesh->GetNodes());
 
 
    // 3. Define the ODE solver used for time integration. Several explicit
@@ -279,15 +289,24 @@ int main(int argc, char *argv[])
 
    // 5. Define the discontinuous DG finite element space of the given
    //    polynomial order on the refined mesh.
-   // L2_2D_P3
-   //DG_FECollection fec(order, dim);
-   //FiniteElementSpace fes(mesh, &fec);
-   FiniteElementCollection *fec = FiniteElementCollection::New(fec_type.c_str());
+   std::string solution_fec_name;
+   if(! sidre_use_restart)
+   {
+      std::stringstream sstr;
+      sstr << "L2_" << dim << "D_P" << order;
+      solution_fec_name = sstr.str();
+   }
+   else
+   {
+       solution_fec_name = grp->getView("fields/solution/basis")->getString();
+   }
+
+   FiniteElementCollection *fec = FiniteElementCollection::New(solution_fec_name.c_str());
    FiniteElementSpace fes(mesh, fec);
 
-   cout << "the finite element collection has name: '" << fec->Name() << "'" << endl;
-
-   cout << "Number of unknowns: " << fes.GetVSize() << endl;
+   cout << "The solution has : " << fes.GetVSize() << " unknowns. "
+        << "Its finite element collection has name: '" << fec->Name() << "'"
+        << endl;
 
    // 6. Set up and assemble the bilinear and linear forms corresponding to the
    //    DG discretization. The DGTraceIntegrator involves integrals over mesh
@@ -325,12 +344,8 @@ int main(int argc, char *argv[])
    if (!sidre_use_restart) {
       u.ProjectCoefficient(u0);
    }
-   else
-   {
-       mesh->SetNodalGridFunction(&u);
-   }
 
-   // test dumping
+   // test dumping data collection
    if (1)
    {
       dc->Save();
@@ -352,6 +367,7 @@ int main(int argc, char *argv[])
       }
    }
 
+   if(! sidre_use_restart )
    {
       ofstream omesh("ex9.mesh");
       omesh.precision(precision);
@@ -404,6 +420,7 @@ int main(int argc, char *argv[])
 
    double t = dc->GetTime();
    int ti = dc->GetCycle();
+   const int restartFromCycle = ti;
    while(true)
    {
       if (t >= t_final - dt/2)
@@ -440,8 +457,16 @@ int main(int argc, char *argv[])
 
    // 9. Save the final solution. This output can be viewed later using GLVis:
    //    "glvis -m ex9.mesh -g ex9-final.gf".
+   if(! sidre_use_restart )
    {
       ofstream osol("ex9-final.gf");
+      osol.precision(precision);
+      u.Save(osol);
+   }
+   else {
+      std::stringstream sstr;
+      sstr << "ex9-final_restart_" << restartFromCycle << ".gf";
+      ofstream osol( sstr.str().c_str() );
       osol.precision(precision);
       u.Save(osol);
    }

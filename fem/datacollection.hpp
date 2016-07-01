@@ -98,7 +98,7 @@ public:
     * Gets a pointer to the data associated with a field
     * If the field does not exist, it will allocate memory for the field
     */
-   virtual double* GetFieldData(const char *field_name, FiniteElementSpace* fes = NULL);
+   virtual double* GetFieldData(const char *field_name, const FiniteElementSpace* fes = NULL);
 
    /// Get a pointer to the mesh in the collection
    Mesh *GetMesh() { return mesh; }

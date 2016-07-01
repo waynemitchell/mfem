@@ -125,32 +125,27 @@ void SidreDataCollection::SetupMeshBlueprint()
     grp->createViewString("fields/material_attribute/association", "Element");
     grp->createView("fields/material_attribute/values");
 
-    grp->createView("fields/nodes/basis");
-    grp->createView("fields/nodes/values");
-
-
     grp->createViewScalar("state/cycle", 0);
     grp->createViewScalar("state/time", 0.);
     grp->createViewScalar("state/domain", myid);
 }
 
-double* SidreDataCollection::GetFieldData(const char *field_name, FiniteElementSpace* fes)
+double* SidreDataCollection::GetFieldData(const char *field_name, const FiniteElementSpace* fes)
 {
-    std::string fName = "fields/" + std::string(field_name);
-
     namespace sidre = asctoolkit::sidre;
 
     MFEM_ASSERT( fes != NULL, "SidreDataCollection::GetFieldData requires a non-null FiniteElementSpace.");
 
-    if( ! sidre_dc_group->hasGroup( fName) )
+    sidre::DataGroup* f = sidre_dc_group->getGroup("fields");
+    if( ! f->hasGroup( field_name ) )
     {
         int sz = fes->GetVSize();
-        sidre::DataGroup* grp = sidre_dc_group->createGroup( fName);
+        sidre::DataGroup* grp = f->createGroup( field_name );
         grp->createViewString("basis", fes->FEColl()->Name());
         grp->createViewAndAllocate("values", sidre::DOUBLE_ID, sz);
     }
 
-    return sidre_dc_group->getView(fName + "/values")->getArray();
+    return f->getGroup(field_name)->getView("values")->getArray();
 }
 
 

@@ -60,7 +60,7 @@ public:
    * Gets a pointer to the associated field's view data
    * If the field does not exist, it will create a view of the appropriate size
    */
-  double* GetFieldData(const char *field_name, FiniteElementSpace* fes = NULL);
+  double* GetFieldData(const char *field_name, const FiniteElementSpace* fes = NULL);
 
 private:
   // Private helper functions

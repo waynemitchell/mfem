@@ -136,7 +136,7 @@ GridFunction *DataCollection::GetField(const char *field_name)
 }
 
 
-double* DataCollection::GetFieldData(const char *field_name, FiniteElementSpace* fes)
+double* DataCollection::GetFieldData(const char *field_name, const FiniteElementSpace* fes)
 {
     // Check if we already have the grid function, if so, return its data
    if(HasField(field_name))
