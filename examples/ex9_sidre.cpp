@@ -149,6 +149,7 @@ int main(int argc, char *argv[])
 
 
    DataCollection * dc = NULL;
+
    dc = new SidreDataCollection("Example9", ds.getRoot() );
    sidre::DataGroup* grp = ds.getRoot()->getGroup("Example9");
 
@@ -445,15 +446,14 @@ int main(int argc, char *argv[])
       u.Save(osol);
    }
 
-   /*
-   double *data = u.GetData();
-   int u_len = u.Size();
-   cout << "GridFunction u's data:" << endl;
-   for (int i = 0; i < u_len; i++) {
-      cout << data[i] << endl;
-   }
-   cout << "done" << endl;
-   */
+
+   //double *data = u.GetData();
+   //int u_len = u.Size();
+   //cout << "GridFunction u's data:" << endl;
+   //for (int i = 0; i < u_len; i++) {
+   //   cout << data[i] << endl;
+   //}
+   //cout << "done" << endl;
 
 
    // 10. Free the used memory.

@@ -12,6 +12,8 @@
 #ifndef MFEM_SIDREDATACOLLECTION
 #define MFEM_SIDREDATACOLLECTION
 
+#include "../config/config.hpp"
+
 #ifdef MFEM_USE_SIDRE
 
 #include "../fem/datacollection.hpp"
