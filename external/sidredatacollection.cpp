@@ -121,6 +121,10 @@ void SidreDataCollection::SetupMeshBlueprint()
     grp->createViewString("fields/material_attribute/association", "Element");
     grp->createView("fields/material_attribute/values");
 
+    grp->createView("fields/nodes/basis");
+    grp->createView("fields/nodes/values");
+
+
     grp->createViewScalar("state/cycle", 0);
     grp->createViewScalar("state/time", 0.);
     grp->createViewScalar("state/domain", myid);

@@ -28,6 +28,7 @@
 //               with VisIt (visit.llnl.gov) is also illustrated.
 
 #include "mfem.hpp"
+
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -245,6 +246,8 @@ int main(int argc, char *argv[])
       std::stringstream sstr;
       sstr << "L2_" << dim << "D_P" << order;
       fec_type = sstr.str();
+      grp->getView("fields/nodes/basis")->setString(fec_type);
+
    }
    else
    {
@@ -398,8 +401,9 @@ int main(int argc, char *argv[])
    FE_Evolution adv(m.SpMat(), k.SpMat(), b);
    ode_solver->Init(adv);
 
-   double t = 0.0;
-   for (int ti = 0; true; )
+   double t = dc->GetTime();
+   int ti = dc->GetCycle();
+   while(true)
    {
       if (t >= t_final - dt/2)
       {
@@ -423,6 +427,12 @@ int main(int argc, char *argv[])
             dc->SetCycle(ti);
             dc->SetTime(t);
             dc->Save();
+         }
+         if(visit)
+         {
+            visit_dc.SetCycle(ti);
+            visit_dc.SetTime(t);
+            visit_dc.Save();
          }
       }
    }

@@ -43,8 +43,6 @@ public:
 
   void RegisterField(const std::string& name, GridFunction *gf);
 
-  void SetupMeshBluePrint();
-
   /// Verify we will delete the mesh and fields if we own them
   virtual ~SidreDataCollection() {}
 
