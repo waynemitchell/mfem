@@ -124,9 +124,10 @@ DEP_CXX ?= $(MFEM_CXX)
 # SIDRE library and required libraries configurations.
 MFEM_USE_SIDRE ?= YES
 ifeq ($(MFEM_USE_SIDRE),YES)
-   SIDRE_DIR ?= @MFEM_DIR@/../asctoolkit
-   CONDUIT_DIR ?= @MFEM_DIR@/../conduit
-   HDF5_DIR ?= @MFEM_DIR@/../hdf5
+# Using default directories that match what marbl uses.
+   SIDRE_DIR ?= @MFEM_DIR@/../asctoolkit/P.lc_linux/build
+   CONDUIT_DIR ?= @MFEM_DIR@/../conduit/P.lc_linux/install
+   HDF5_DIR ?= /usr/local/tools/hdf5-gnu-serial-1.8.16
 
    INCFLAGS += -I$(SIDRE_DIR)/include -I$(CONDUIT_DIR)/include -I$(HDF5_DIR)/include
    ALL_LIBS += -L$(SIDRE_DIR)/lib -L$(CONDUIT_DIR)/lib -L$(HDF5_DIR)/lib -Wl,-rpath=$(HDF5_DIR)/lib -lsidre -lslic -lcommon -lconduit -lconduit_relay -llibb64 -lhdf5 -lz -ldl

@@ -178,6 +178,12 @@ void DataCollection::Load(int cycle)
 
 }
 
+void Load(const std::string& path, const std::string& protocol)
+{
+
+}
+
+
 void DataCollection::Save()
 {
    SaveMesh();

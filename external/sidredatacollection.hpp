@@ -56,6 +56,8 @@ public:
 
   void Save();
 
+  void Load(const std::string& path, const std::string& protocol = "conduit_hdf5");
+
   /**
    * Gets a pointer to the associated field's view data
    * If the field does not exist, it will create a view of the appropriate size

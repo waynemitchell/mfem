@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
    double dt = 0.01;
    bool visualization = true;
    bool visit = false;
-   int vis_steps = 25;
+   int vis_steps = 100;
 
    const char *sidre_restart = "\0";
    bool sidre_use_restart = false;
@@ -160,6 +160,7 @@ int main(int argc, char *argv[])
    }
 
    if (sidre_use_restart) {
+   /*
       std::cout << "loading sidre checkpoint: "<< sidre_restart
               << " using protocol: " << sidre_restart_protocol
               << std::endl;
@@ -168,9 +169,10 @@ int main(int argc, char *argv[])
 
       dc->SetTime( grp->getView("state/time")->getScalar() );
       dc->SetCycle(grp->getView("state/cycle")->getScalar() );
+      */
+      dc->Load(sidre_restart, sidre_restart_protocol);
    }
    else {
-      dynamic_cast<SidreDataCollection*>(dc)->SetupMeshBlueprint();
 
       // Load mesh into a string and save in datastore
       ifstream imesh(mesh_file);
@@ -182,6 +184,8 @@ int main(int argc, char *argv[])
       std::string meshStr((std::istreambuf_iterator<char>(imesh)),
                            std::istreambuf_iterator<char>());
       imesh.close();
+
+      dynamic_cast<SidreDataCollection*>(dc)->SetupMeshBlueprint();
 
       grp->createViewString("aux/orig_mesh_str", meshStr);
    }
