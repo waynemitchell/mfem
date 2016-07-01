@@ -12,16 +12,15 @@
 //
 //               mpirun -np 4 ex15p -m ../data/square-disc-nurbs.mesh
 //               mpirun -np 4 ex15p -m ../data/disc-nurbs.mesh
-//               mpirun -np 4 ex15p -m ../data/fichera.mesh
-//               mpirun -np 4 ex15p -m ../data/ball-nurbs.mesh
+//               mpirun -np 4 ex15p -m ../data/fichera.mesh -tf 0.5
+//               mpirun -np 4 ex15p -m ../data/ball-nurbs.mesh -tf 0.5
 //               mpirun -np 4 ex15p -m ../data/mobius-strip.mesh
 //               mpirun -np 4 ex15p -m ../data/amr-quad.mesh
 //
 //               Conforming meshes (no load balancing and derefinement):
 //
 //               mpirun -np 4 ex15p -m ../data/square-disc.mesh
-//               mpirun -np 4 ex15p -m ../data/escher.mesh -o 1
-//               mpirun -np 4 ex15p -m ../data/square-disc-surf.mesh
+//               mpirun -np 4 ex15p -m ../data/escher.mesh -r 2 -tf 0.3
 //
 // Description:  Building on Example 6, this example demonstrates dynamic AMR.
 //               The mesh is adapted to a time-dependent solution by refinement
@@ -84,8 +83,10 @@ int main(int argc, char *argv[])
    nfeatures = 1;
    const char *mesh_file = "../data/star-hilbert.mesh";
    int order = 2;
+   double t_final = 1.0;
    double max_elem_error = 1.0e-4;
    double hysteresis = 0.25; // derefinement safety coefficient
+   int ref_levels = 0;
    int nc_limit = 3;         // maximum level of hanging nodes
    bool visualization = true;
    bool visit = false;
@@ -103,8 +104,12 @@ int main(int argc, char *argv[])
                   "Maximum element error");
    args.AddOption(&hysteresis, "-y", "--hysteresis",
                   "Derefinement safety coefficient.");
+   args.AddOption(&ref_levels, "-r", "--ref-levels",
+                  "Number of initial uniform refinement levels.");
    args.AddOption(&nc_limit, "-l", "--nc-limit",
                   "Maximum level of hanging nodes.");
+   args.AddOption(&t_final, "-tf", "--t-final",
+                  "Final time; start time is 0.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -134,13 +139,18 @@ int main(int argc, char *argv[])
    int sdim = mesh->SpaceDimension();
 
    // 4. Project a NURBS mesh to a piecewise-quadratic curved mesh. Make sure
-   //    that the mesh is non-conforming if it has quads or hexes.
+   //    that the mesh is non-conforming if it has quads or hexes and refine it.
    if (mesh->NURBSext)
    {
       mesh->UniformRefinement();
+      if (ref_levels > 0) { ref_levels--; }
       mesh->SetCurvature(2);
    }
    mesh->EnsureNCMesh();
+   for (int l = 0; l < ref_levels; l++)
+   {
+      mesh->UniformRefinement();
+   }
 
    // 5. Define a parallel mesh by partitioning the serial mesh.  Once the
    //    parallel mesh is defined, the serial mesh can be deleted.
@@ -232,7 +242,7 @@ int main(int argc, char *argv[])
    //     solve the problem on the current mesh, visualize the solution and
    //     refine the mesh as many times as necessary. Then we derefine any
    //     elements which have very small errors.
-   for (double time = 0.0; time < 1.0 + 1e-10; time += 0.01)
+   for (double time = 0.0; time < t_final + 1e-10; time += 0.01)
    {
       if (myid == 0)
       {

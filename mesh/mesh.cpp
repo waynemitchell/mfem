@@ -1011,6 +1011,9 @@ void Mesh::FinalizeTriMesh(int generate_edges, int refine, bool fix_orientation)
 
    SetAttributes();
 
+   BaseGeom = Geometry::TRIANGLE;
+   BaseBdrGeom = Geometry::SEGMENT;
+
    meshgen = 1;
 }
 
@@ -1037,6 +1040,9 @@ void Mesh::FinalizeQuadMesh(int generate_edges, int refine,
    NumOfFaces = 0;
 
    SetAttributes();
+
+   BaseGeom = Geometry::SQUARE;
+   BaseBdrGeom = Geometry::SEGMENT;
 
    meshgen = 2;
 }
@@ -1612,6 +1618,9 @@ void Mesh::FinalizeTetMesh(int generate_edges, int refine, bool fix_orientation)
 
    SetAttributes();
 
+   BaseGeom = Geometry::TETRAHEDRON;
+   BaseBdrGeom = Geometry::TRIANGLE;
+
    meshgen = 1;
 }
 
@@ -1640,6 +1649,9 @@ void Mesh::FinalizeHexMesh(int generate_edges, int refine, bool fix_orientation)
    }
 
    SetAttributes();
+
+   BaseGeom = Geometry::CUBE;
+   BaseBdrGeom = Geometry::SQUARE;
 
    meshgen = 2;
 }

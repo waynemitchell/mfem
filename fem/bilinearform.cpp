@@ -638,13 +638,13 @@ void BilinearForm::EliminateEssentialBC(Array<int> &bdr_attr_is_ess,
    Array<int> ess_dofs, conf_ess_dofs;
    fes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
 
-   if (fes->GetConformingRestriction() == NULL)
+   if (fes->GetVSize() == height)
    {
       EliminateEssentialBCFromDofs(ess_dofs, sol, rhs, d);
    }
    else
    {
-      fes->GetConformingRestriction()->BooleanMult(ess_dofs, conf_ess_dofs);
+      fes->GetRestrictionMatrix()->BooleanMult(ess_dofs, conf_ess_dofs);
       EliminateEssentialBCFromDofs(conf_ess_dofs, sol, rhs, d);
    }
 }
@@ -654,13 +654,13 @@ void BilinearForm::EliminateEssentialBC(Array<int> &bdr_attr_is_ess, int d)
    Array<int> ess_dofs, conf_ess_dofs;
    fes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
 
-   if (fes->GetConformingRestriction() == NULL)
+   if (fes->GetVSize() == height)
    {
       EliminateEssentialBCFromDofs(ess_dofs, d);
    }
    else
    {
-      fes->GetConformingRestriction()->BooleanMult(ess_dofs, conf_ess_dofs);
+      fes->GetRestrictionMatrix()->BooleanMult(ess_dofs, conf_ess_dofs);
       EliminateEssentialBCFromDofs(conf_ess_dofs, d);
    }
 }
@@ -671,13 +671,13 @@ void BilinearForm::EliminateEssentialBCDiag (Array<int> &bdr_attr_is_ess,
    Array<int> ess_dofs, conf_ess_dofs;
    fes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
 
-   if (fes->GetConformingRestriction() == NULL)
+   if (fes->GetVSize() == height)
    {
       EliminateEssentialBCFromDofsDiag(ess_dofs, value);
    }
    else
    {
-      fes->GetConformingRestriction()->BooleanMult(ess_dofs, conf_ess_dofs);
+      fes->GetRestrictionMatrix()->BooleanMult(ess_dofs, conf_ess_dofs);
       EliminateEssentialBCFromDofsDiag(conf_ess_dofs, value);
    }
 }

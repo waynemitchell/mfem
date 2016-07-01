@@ -221,7 +221,10 @@ int main(int argc, char *argv[])
 
       if (global_dofs > max_dofs)
       {
-         cout << "Reached the maximum number of dofs. Stop." << endl;
+         if (myid == 0)
+         {
+            cout << "Reached the maximum number of dofs. Stop." << endl;
+         }
          break;
       }
 
@@ -232,7 +235,10 @@ int main(int argc, char *argv[])
       refiner.Apply(pmesh);
       if (refiner.Stop())
       {
-         cout << "Stopping criterion satisfied. Stop." << endl;
+         if (myid == 0)
+         {
+            cout << "Stopping criterion satisfied. Stop." << endl;
+         }
          break;
       }
 

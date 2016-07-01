@@ -101,10 +101,11 @@ int main(int argc, char *argv[])
    if ( mpi.Root() ) { display_banner(cout); }
 
    // Parse command-line options.
-   const char *mesh_file = "butterfly_3d.mesh";
+   const char *mesh_file = "../../data/ball-nurbs.mesh";
    int order = 1;
    int maxit = 100;
-   int sr = 0, pr = 0;
+   int serial_ref_levels = 0;
+   int parallel_ref_levels = 0;
    bool visualization = true;
    bool visit = true;
 
@@ -121,9 +122,9 @@ int main(int argc, char *argv[])
                   "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
-   args.AddOption(&sr, "-rs", "--serial-ref-levels",
+   args.AddOption(&serial_ref_levels, "-rs", "--serial-ref-levels",
                   "Number of serial refinement levels.");
-   args.AddOption(&pr, "-rp", "--parallel-ref-levels",
+   args.AddOption(&parallel_ref_levels, "-rp", "--parallel-ref-levels",
                   "Number of parallel refinement levels.");
    args.AddOption(&e_uniform_, "-uebc", "--uniform-e-bc",
                   "Specify if the three components of the constant electric field");
@@ -173,29 +174,30 @@ int main(int argc, char *argv[])
    Mesh *mesh = new Mesh(mesh_file, 1, 1);
    int sdim = mesh->SpaceDimension();
 
+   if (mpi.Root())
+   {
+      cout << "Starting initialization." << endl;
+   }
+
+   // Project a NURBS mesh to a piecewise-quadratic curved mesh
+   if (mesh->NURBSext)
+   {
+      mesh->UniformRefinement();
+      if (serial_ref_levels > 0) { serial_ref_levels--; }
+
+      mesh->SetCurvature(2);
+   }
+
+   // Ensure that quad and hex meshes are treated as non-conforming.
+   mesh->EnsureNCMesh();
+
    // Refine the serial mesh on all processors to increase the resolution. In
    // this example we do 'ref_levels' of uniform refinement. NURBS meshes are
    // refined at least twice, as they are typically coarse.
-   if (mpi.Root()) { cout << "Starting initialization." << endl; }
+   for (int l = 0; l < serial_ref_levels; l++)
    {
-      int ref_levels = sr;
-      if (mesh->NURBSext && ref_levels < 2)
-      {
-         ref_levels = 2;
-      }
-      for (int l = 0; l < ref_levels; l++)
-      {
-         mesh->UniformRefinement();
-      }
+      mesh->UniformRefinement();
    }
-
-   // Project a NURBS mesh to a piecewise-quadratic curved mesh. Make sure that
-   // the mesh is non-conforming.
-   if (mesh->NURBSext)
-   {
-      mesh->SetCurvature(2);
-   }
-   mesh->EnsureNCMesh();
 
    // Define a parallel mesh by a partitioning of the serial mesh. Refine
    // this mesh further in parallel to increase the resolution. Once the
@@ -204,7 +206,7 @@ int main(int argc, char *argv[])
    delete mesh;
 
    // Refine this mesh in parallel to increase the resolution.
-   int par_ref_levels = pr;
+   int par_ref_levels = parallel_ref_levels;
    for (int l = 0; l < par_ref_levels; l++)
    {
       pmesh.UniformRefinement();
@@ -273,6 +275,9 @@ int main(int argc, char *argv[])
       // Display the current number of DoFs in each finite element space
       Volta.PrintSizes();
 
+      // Assemble all forms
+      Volta.Assemble();
+
       // Solve the system and compute any auxiliary fields
       Volta.Solve();
 
@@ -290,7 +295,6 @@ int main(int argc, char *argv[])
       {
          Volta.DisplayToGLVis();
       }
-      if (mpi.Root() && (visit || visualization)) { cout << "done." << endl; }
 
       if (mpi.Root())
       {
@@ -334,11 +338,20 @@ int main(int argc, char *argv[])
       // maximum element error.
       const double frac = 0.7;
       double threshold = frac * global_max_err;
-      if (mpi.Root()) { cout << " Refinement ..." << flush; }
+      if (mpi.Root()) { cout << "Refining ..." << endl; }
       pmesh.RefineByError(errors, threshold);
 
       // Update the electrostatic solver to reflect the new state of the mesh.
       Volta.Update();
+
+      if (pmesh.Nonconforming())
+      {
+         if (mpi.Root()) { cout << "Rebalancing ..." << endl; }
+         pmesh.Rebalance();
+
+         // Update again after rebalancing
+         Volta.Update();
+      }
    }
 
    delete epsCoef;
