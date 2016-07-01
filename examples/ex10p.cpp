@@ -400,7 +400,7 @@ int main(int argc, char *argv[])
       w_gf.Save(ee_ofs);
    }
 
-   // 10. Free the used memory.
+   // 12. Free the used memory.
    delete ode_solver;
    delete pmesh;
 

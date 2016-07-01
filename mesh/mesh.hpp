@@ -523,17 +523,15 @@ public:
    int Dimension() const { return Dim; }
    int SpaceDimension() const { return spaceDim; }
 
-   /// Return pointer to vertex i's coordinates
-   const double *GetVertex(int i) const
-   {
-      MFEM_ASSERT(Nodes == NULL, "Not supported on higher order meshes");
-      return vertices[i]();
-   }
-   double *GetVertex(int i)
-   {
-      MFEM_ASSERT(Nodes == NULL, "Not supported on higher order meshes");
-      return vertices[i]();
-   }
+   /// @brief Return pointer to vertex i's coordinates.
+   /// @warning For high-order meshes (when Nodes != NULL) vertices may not
+   /// being updated and should not be used!
+   const double *GetVertex(int i) const { return vertices[i](); }
+
+   /// @brief Return pointer to vertex i's coordinates.
+   /// @warning For high-order meshes (when Nodes != NULL) vertices may not
+   /// being updated and should not be used!
+   double *GetVertex(int i) { return vertices[i](); }
 
    const Element* const *GetElementsArray() const
    { return elements.GetData(); }

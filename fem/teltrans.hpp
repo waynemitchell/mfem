@@ -19,7 +19,7 @@
 namespace mfem
 {
 
-// Templated element transformation classe, cf. eltrans.?pp
+// Templated element transformation classes, cf. eltrans.?pp
 
 // Element transformation class, templated on a mesh type and an integration
 // rule. It is constructed from a mesh (e.g. class TMesh) and shape evaluator

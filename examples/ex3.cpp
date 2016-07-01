@@ -12,7 +12,6 @@
 //               ex3 -m ../data/fichera-q3.mesh
 //               ex3 -m ../data/square-disc-nurbs.mesh
 //               ex3 -m ../data/beam-hex-nurbs.mesh
-//               ex3 -m ../data/amr-quad.mesh -o 2
 //               ex3 -m ../data/amr-hex.mesh
 //               ex3 -m ../data/fichera-amr.mesh
 //               ex3 -m ../data/star-surf.mesh -o 1
