@@ -34,7 +34,6 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name, asc
 
   sidre_dc_group = dg->createGroup( collection_name );
 
-
   /*
   // Create group for mesh
   sidre::DataGroup * mesh_grp = sidre_dc_group->createGroup("topology");
@@ -75,6 +74,16 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name, asc
 void SidreDataCollection::SetMesh(Mesh *new_mesh)
 {
 
+}
+
+void SidreDataCollection::Load(const std::string& path, const std::string& protocol)
+{
+	std::cout << "Loading Sidre checkpoint: " << path << " using protocol: " << protocol << std::endl;
+
+//	sidre_dc_group->getDataStore()->load(path, protocol, sidre_dc_group);
+	sidre_dc_group->getDataStore()->load(path, protocol);
+	SetTime( sidre_dc_group->getView("state/time")->getScalar() );
+	SetCycle( sidre_dc_group->getView("state/cycle")->getScalar() );
 }
 
 void SidreDataCollection::Save()

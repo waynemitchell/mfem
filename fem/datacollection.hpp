@@ -138,6 +138,8 @@ public:
    /// Load the collection
    virtual void Load(int cycle);
 
+   virtual void Load(const std::string& path, const std::string& protocol = "conduit_hdf5") {}
+
    /// Delete the mesh and fields if owned by the collection
    virtual ~DataCollection();
 
