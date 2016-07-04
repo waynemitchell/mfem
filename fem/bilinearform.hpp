@@ -38,6 +38,10 @@ protected:
    /// FE space on which the form lives.
    FiniteElementSpace *fes;
 
+   /// Indicates the Mesh::sequence corresponding to the current state of the
+   /// BilinearForm.
+   long sequence;
+
    int extern_bfs;
 
    /// Set of Domain Integrators to be applied.
@@ -69,7 +73,8 @@ protected:
    // may be used in the construction of derived classes
    BilinearForm() : Matrix (0)
    {
-      fes = NULL; mat = mat_e = NULL; extern_bfs = 0; element_matrices = NULL;
+      fes = NULL; sequence = -1;
+      mat = mat_e = NULL; extern_bfs = 0; element_matrices = NULL;
       static_cond = NULL; hybridization = NULL;
       precompute_sparsity = 0;
    }
@@ -95,7 +100,7 @@ public:
 
    /// Return the trace FE space associated with static condensation.
    FiniteElementSpace *SCFESpace() const
-   { return static_cond->GetTraceFESpace(); }
+   { return static_cond ? static_cond->GetTraceFESpace() : NULL; }
 
    /** Enable hybridization; for details see the description for class
        Hybridization in fem/hybridization.hpp. This method should be called
@@ -238,6 +243,8 @@ public:
    void ComputeElementMatrix(int i, DenseMatrix &elmat);
    void AssembleElementMatrix(int i, const DenseMatrix &elmat,
                               Array<int> &vdofs, int skip_zeros = 1);
+   void AssembleBdrElementMatrix(int i, const DenseMatrix &elmat,
+                                 Array<int> &vdofs, int skip_zeros = 1);
 
    /** Eliminate essential boundary DOFs from the system. The array
        'bdr_attr_is_ess' marks boundary attributes that constitute the essential

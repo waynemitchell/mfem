@@ -640,6 +640,10 @@ void SparseMatrix::BooleanMultTranspose(const Array<int> &x,
 
 double SparseMatrix::InnerProduct(const Vector &x, const Vector &y) const
 {
+   MFEM_ASSERT(x.Size() == Width(), "x.Size() = " << x.Size()
+               << " must be equal to Width() = " << Width());
+   MFEM_ASSERT(y.Size() == Height(), "y.Size() = " << y.Size()
+               << " must be equal to Height() = " << Height());
    double prod = 0.0;
    for (int i = 0; i < height; i++)
    {
