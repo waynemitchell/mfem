@@ -437,6 +437,7 @@ void ParGridFunction::SaveAsOne(std::ostream &out)
          values[p] -= nv[p];
          delete [] values[p];
       }
+      out.flush();
    }
    else
    {
@@ -493,15 +494,14 @@ double GlobalLpNorm(const double p, double loc_norm, MPI_Comm comm)
 
 void ParGridFunction::ComputeFlux(
    BilinearFormIntegrator &blfi,
-   GridFunction &flux_, int wcoef, int subdomain)
+   GridFunction &flux, int wcoef, int subdomain)
 {
-   // In this context we know that flux should be a ParGridFunction
-   ParGridFunction& flux = dynamic_cast<ParGridFunction&>(flux_);
-
-   ParFiniteElementSpace *ffes = flux.ParFESpace();
+   ParFiniteElementSpace *ffes =
+      dynamic_cast<ParFiniteElementSpace*>(flux.FESpace());
+   MFEM_VERIFY(ffes, "the flux FE space must be ParFiniteElementSpace");
 
    Array<int> count(flux.Size());
-   SumFluxAndCount(blfi, flux, count, 0, subdomain);
+   SumFluxAndCount(blfi, flux, count, wcoef, subdomain);
 
    if (ffes->Conforming()) // FIXME: nonconforming
    {
@@ -515,8 +515,9 @@ void ParGridFunction::ComputeFlux(
    }
    else
    {
-      MFEM_WARNING("Averaging on processor boundaries not implemented for "
-                   "NC meshes yet.");
+      MFEM_ABORT("Averaging on processor boundaries not implemented for "
+                 "NC meshes yet.\n"
+                 "Use L2ZZErrorEstimator() instead of ZZErrorEstimator().");
    }
 
    // complete averaging
@@ -630,7 +631,7 @@ double L2ZZErrorEstimator(BilinearFormIntegrator &flux_integrator,
    }
 
    double glob_error;
-   MPI_Allreduce(&total_error, &glob_error, 1, MPI_DOUBLE, MPI_MAX,
+   MPI_Allreduce(&total_error, &glob_error, 1, MPI_DOUBLE, MPI_SUM,
                  xfes->GetComm());
 
    return pow(glob_error, 1.0/norm_p);

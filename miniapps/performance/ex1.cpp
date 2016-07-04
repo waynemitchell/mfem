@@ -102,15 +102,7 @@ int main(int argc, char *argv[])
    // 2. Read the mesh from the given mesh file. We can handle triangular,
    //    quadrilateral, tetrahedral, hexahedral, surface and volume meshes with
    //    the same code.
-   Mesh *mesh;
-   ifstream imesh(mesh_file);
-   if (!imesh)
-   {
-      cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
-      return 2;
-   }
-   mesh = new Mesh(imesh, 1, 1);
-   imesh.close();
+   Mesh *mesh = new Mesh(mesh_file, 1, 1);
    int dim = mesh->Dimension();
 
    // 3. Check if the optimized version matches the given mesh
@@ -232,7 +224,7 @@ int main(int argc, char *argv[])
       a_oper.AssembleBilinearForm(*a);
    }
    tic_toc.Stop();
-   cout << " done, " << tic_toc.RealTime() << " sec." << endl;
+   cout << " done, " << tic_toc.RealTime() << "s." << endl;
 
    SparseMatrix A;
    Vector B, X;

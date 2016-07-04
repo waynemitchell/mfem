@@ -32,5 +32,6 @@
 #endif
 
 #include "solvers.hpp"
+#include "superlu.hpp"
 
 #endif

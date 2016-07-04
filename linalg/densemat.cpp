@@ -415,12 +415,10 @@ MatrixInverse *DenseMatrix::Inverse() const
 
 double DenseMatrix::Det() const
 {
-#ifdef MFEM_DEBUG
-   if (Height() != Width() || Height() < 1 || Height() > 3)
-   {
-      mfem_error("DenseMatrix::Det");
-   }
-#endif
+   MFEM_ASSERT(Height() == Width() && Height() > 0 && Height() < 4,
+               "The matrix must be square and sized 1, 2, or 3 to compute the determinate."
+               << "  Height() = " << Height()
+               << ", Width() = " << Width());
 
    switch (Height())
    {
@@ -1653,12 +1651,10 @@ inline void GetScalingFactor(const double &d_max, double &mult)
 
 double DenseMatrix::CalcSingularvalue(const int i) const
 {
-#ifdef MFEM_DEBUG
-   if (Height() != Width() || Height() < 1 || Height() > 3)
-   {
-      mfem_error("DenseMatrix::CalcSingularvalue");
-   }
-#endif
+   MFEM_ASSERT(Height() == Width() && Height() > 0 && Height() < 4,
+               "The matrix must be square and sized 1, 2, or 3 to compute the singular values."
+               << "  Height() = " << Height()
+               << ", Width() = " << Width());
 
    const int n = Height();
    const double *d = data;
@@ -2206,7 +2202,7 @@ void DenseMatrix::GetRow(int r, Vector &row)
    }
 }
 
-void DenseMatrix::GetColumn(int c, Vector &col)
+void DenseMatrix::GetColumn(int c, Vector &col) const
 {
    int m = Height();
    col.SetSize(m);
@@ -2220,7 +2216,7 @@ void DenseMatrix::GetColumn(int c, Vector &col)
    }
 }
 
-void DenseMatrix::GetDiag(Vector &d)
+void DenseMatrix::GetDiag(Vector &d) const
 {
    if (height != width)
    {
@@ -2234,7 +2230,7 @@ void DenseMatrix::GetDiag(Vector &d)
    }
 }
 
-void DenseMatrix::Getl1Diag(Vector &l)
+void DenseMatrix::Getl1Diag(Vector &l) const
 {
    if (height != width)
    {
@@ -2443,8 +2439,8 @@ void DenseMatrix::CopyRows(const DenseMatrix &A, int row1, int row2)
 {
    SetSize(row2 - row1 + 1, A.Width());
 
-   for (int i = row1; i <= row2; i++)
-      for (int j = 0; j < Width(); j++)
+   for (int j = 0; j < Width(); j++)
+      for (int i = row1; i <= row2; i++)
       {
          (*this)(i-row1,j) = A(i,j);
       }
@@ -2454,8 +2450,8 @@ void DenseMatrix::CopyCols(const DenseMatrix &A, int col1, int col2)
 {
    SetSize(A.Height(), col2 - col1 + 1);
 
-   for (int i = 0; i < Height(); i++)
-      for (int j = col1; j <= col2; j++)
+   for (int j = col1; j <= col2; j++)
+      for (int i = 0; i < Height(); i++)
       {
          (*this)(i,j-col1) = A(i,j);
       }
@@ -2504,9 +2500,23 @@ void DenseMatrix::CopyMN(const DenseMatrix &A, int m, int n, int Aro, int Aco,
    int i, j;
 
    MFEM_VERIFY(row_offset+m <= this->Height() && col_offset+n <= this->Width(),
-               "this DenseMatrix is too small to accomodate the submatrix.");
+               "this DenseMatrix is too small to accomodate the submatrix.  "
+               << "row_offset = " << row_offset
+               << ", m = " << m
+               << ", this->Height() = " << this->Height()
+               << ", col_offset = " << col_offset
+               << ", n = " << n
+               << ", this->Width() = " << this->Width()
+              );
    MFEM_VERIFY(Aro+m <= A.Height() && Aco+n <= A.Width(),
-               "The A DenseMatrix is too small to accomodate the submatrix.");
+               "The A DenseMatrix is too small to accomodate the submatrix.  "
+               << "Aro = " << Aro
+               << ", m = " << m
+               << ", A.Height() = " << A.Height()
+               << ", Aco = " << Aco
+               << ", n = " << n
+               << ", A.Width() = " << A.Width()
+              );
 
    for (j = 0; j < n; j++)
       for (i = 0; i < m; i++)
@@ -3123,13 +3133,15 @@ void CalcInverseTranspose(const DenseMatrix &a, DenseMatrix &inva)
 
 void CalcOrtho(const DenseMatrix &J, Vector &n)
 {
-#ifdef MFEM_DEBUG
-   if (((J.Height() != 2 || J.Width() != 1) &&
-        (J.Height() != 3 || J.Width() != 2)) || (J.Height() != n.Size()))
-   {
-      mfem_error("CalcOrtho(...)");
-   }
-#endif
+   MFEM_ASSERT( ((J.Height() == 2 && J.Width() == 1)
+                 || (J.Height() == 3 && J.Width() == 2))
+                && (J.Height() == n.Size()),
+                "Matrix must be 3x2 or 2x1, "
+                << "and the Vector must be sized with the rows. "
+                << " J.Height() = " << J.Height()
+                << ", J.Width() = " << J.Width()
+                << ", n.Size() = " << n.Size()
+              );
 
    const double *d = J.Data();
    if (J.Height() == 2)
