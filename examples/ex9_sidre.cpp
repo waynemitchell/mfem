@@ -353,7 +353,7 @@ int main(int argc, char *argv[])
    if (1)
    {
       dc->Save();
-      std::string filename = "ex9_sidre.hdf5";
+      std::string filename = "Example9_1_ser.hdf5";
       std::string protocol = "conduit_hdf5";
 
       cout << "trying to load '" << filename << "'" << endl;

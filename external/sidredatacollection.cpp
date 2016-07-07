@@ -15,9 +15,14 @@
 #ifdef MFEM_USE_SIDRE
 
 #include "sidredatacollection.hpp"
-#include "../mesh/mesh.hpp"
-#include "../fem/gridfunc.hpp"
+
+
+#include "../fem/fem.hpp"
+
 #include "sidre/sidre.hpp"
+#ifdef MFEM_USE_MPI
+  #include "spio/IOManager.hpp"
+#endif
 
 namespace mfem
 {
@@ -73,7 +78,7 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name, asc
 
 void SidreDataCollection::SetMesh(Mesh *new_mesh)
 {
-
+    DataCollection::SetMesh(new_mesh);
 }
 
 void SidreDataCollection::Load(const std::string& path, const std::string& protocol)
@@ -98,22 +103,43 @@ void SidreDataCollection::Save()
 
     std::stringstream fNameSstr;
 
-    fNameSstr << "ex9_sidre";
+    fNameSstr << name;
+
     if(cycle >= 0)
     {
         fNameSstr << "_" << cycle;
     }
+    fNameSstr << "_" << num_procs ;
 
-    protocol = "text";
-    filename = fNameSstr.str() + ".txt";
-    //cout << "saving text version as '" << filename << "'" << endl;
-    sidre_dc_group->getDataStore()->save(filename, protocol);
+    // write out in serial if non-mpi or for debug
+    bool useSerial = (myid == 0);
 
-    protocol = "conduit_hdf5";
-    filename = fNameSstr.str() + ".hdf5";
-    //cout << "saving hdf5 version as '" << filename << "'" << endl;
-    sidre_dc_group->getDataStore()->save(filename, protocol);
+#ifdef MFEM_USE_MPI
 
+    ParMesh *par_mesh = dynamic_cast<ParMesh*>(mesh);
+    if (par_mesh)
+    {
+        asctoolkit::spio::IOManager writer(par_mesh->GetComm());
+        writer.write(sidre_dc_group, num_procs, fNameSstr.str(), "conduit_hdf5");
+    }
+    else
+    {
+        useSerial = true;
+    }
+
+#endif
+
+    // write out in serial for debugging, or if MPI unavailable
+    if(useSerial)
+    {
+        protocol = "text";
+        filename = fNameSstr.str() + "_ser.txt";
+        sidre_dc_group->getDataStore()->save(filename, protocol);
+
+        protocol = "conduit_hdf5";
+        filename = fNameSstr.str() + "_ser.hdf5";
+        sidre_dc_group->getDataStore()->save(filename, protocol);
+    }
 }
 
 
