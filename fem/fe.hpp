@@ -1236,6 +1236,9 @@ private:
    Array<double *> open_pts, closed_pts;
    Array<Basis *> open_basis, closed_basis;
 
+   int open_basis_type;
+   int closed_basis_type;
+
    static Array2D<int> binom;
 
    static void CalcMono(const int p, const double x, double *u);
@@ -1249,7 +1252,9 @@ private:
 
    QuadratureFunctions1D quad_func;
 public:
-   Poly_1D() { }
+   Poly_1D():
+       open_basis_type(NumericalQuad1D::InvalidQuad),
+       closed_basis_type(NumericalQuad1D::InvalidQuad) { }
 
    static const int *Binom(const int p);
 

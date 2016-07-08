@@ -6495,8 +6495,31 @@ void Poly_1D::CalcChebyshev(const int p, const double x, double *u, double *d)
    }
 }
 
-const double *Poly_1D::OpenPoints(const int p,const int type)
+const double *Poly_1D::OpenPoints(const int p, int type)
 {
+   /// Check the type of points we are using
+   if(open_basis_type == NumericalQuad1D::InvalidQuad)
+   {
+       /// we can set the type of open points
+       /// make sure we are requesting valid points
+       if( (type == NumericalQuad1D::OpenEquallySpaced) ||
+               (type == NumericalQuad1D::GaussLegendre) )
+       {
+           open_basis_type = type;
+       }
+       else
+       {
+           MFEM_ABORT("Trying to set the open basis to type: " << type <<
+                              " Which is not known to be an open set of points");
+       }
+   }
+   else if( open_basis_type != type)
+   {
+       MFEM_ABORT("Open Basis Point Type Already Set!" <<
+                  "This Poly_1D object is already defined to use open_basis_pts of type: " <<
+                  open_basis_type << " Requesting open basis pts of type: " << type );
+   }
+
    if (open_pts.Size() <= p)
    {
       int i = open_pts.Size();
@@ -6515,8 +6538,31 @@ const double *Poly_1D::OpenPoints(const int p,const int type)
    return open_pts[p];
 }
 
-const double *Poly_1D::ClosedPoints(const int p, const int type)
+const double *Poly_1D::ClosedPoints(const int p, int type)
 {
+    /// Check the type of points we are using
+   if(closed_basis_type == NumericalQuad1D::InvalidQuad)
+   {
+       /// we can set the type of open points
+       /// make sure we are requesting valid points
+       if( ( type == NumericalQuad1D::GaussLobatto) ||
+               ( type == NumericalQuad1D::ClosedEquallySpaced) )
+       {
+           closed_basis_type = type;
+       }
+       else
+       {
+           MFEM_ABORT("Trying to set the closed basis to type: " << type <<
+                  " Which is not known to be a closed set of points");
+       }
+   }
+   else if( closed_basis_type != type)
+   {
+       MFEM_ABORT("Closed Basis Point Type Already Set!" <<
+                  "This Poly_1D object is already defined to use closed_basis_pts of type: " <<
+                  closed_basis_type << " Requesting closed basis pts of type: " << type );
+   }
+
    if (closed_pts.Size() <= p)
    {
       int i = closed_pts.Size();
