@@ -56,7 +56,7 @@ public:
 
   void Save();
 
-  void Load(const std::string& path, const std::string& protocol = "conduit_hdf5");
+  void Load(const std::string& path, const std::string& protocol = "sidre_hdf5");
 
   /**
    * Gets a pointer to the associated field's view data

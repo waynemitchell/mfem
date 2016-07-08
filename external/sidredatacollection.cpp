@@ -120,7 +120,7 @@ void SidreDataCollection::Save()
     if (par_mesh)
     {
         asctoolkit::spio::IOManager writer(par_mesh->GetComm());
-        writer.write(sidre_dc_group, num_procs, fNameSstr.str(), "conduit_hdf5");
+        writer.write(sidre_dc_group, num_procs, fNameSstr.str(), "sidre_hdf5");
     }
     else
     {
@@ -132,11 +132,11 @@ void SidreDataCollection::Save()
     // write out in serial for debugging, or if MPI unavailable
     if(useSerial)
     {
-        protocol = "text";
-        filename = fNameSstr.str() + "_ser.txt";
+        protocol = "json";
+        filename = fNameSstr.str() + "_ser.json";
         sidre_dc_group->getDataStore()->save(filename, protocol);
 
-        protocol = "conduit_hdf5";
+        protocol = "sidre_hdf5";
         filename = fNameSstr.str() + "_ser.hdf5";
         sidre_dc_group->getDataStore()->save(filename, protocol);
     }
