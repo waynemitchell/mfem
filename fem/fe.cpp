@@ -6497,11 +6497,11 @@ void Poly_1D::CalcChebyshev(const int p, const double x, double *u, double *d)
 
 const double *Poly_1D::OpenPoints(const int p, int type)
 {
-   /// Check the type of points we are using
+   // Check the type of points we are using
    if (open_basis_type == NumericalQuad1D::InvalidQuad)
    {
-      /// we can set the type of open points
-      /// make sure we are requesting valid points
+      // we can set the type of open points
+      // make sure we are requesting valid points
       if ( (type == NumericalQuad1D::OpenEquallySpaced) ||
            (type == NumericalQuad1D::GaussLegendre) )
       {
@@ -6540,11 +6540,11 @@ const double *Poly_1D::OpenPoints(const int p, int type)
 
 const double *Poly_1D::ClosedPoints(const int p, int type)
 {
-   /// Check the type of points we are using
+   // Check the type of points we are using
    if (closed_basis_type == NumericalQuad1D::InvalidQuad)
    {
-      /// we can set the type of open points
-      /// make sure we are requesting valid points
+      // we can set the type of open points
+      // make sure we are requesting valid points
       if ( ( type == NumericalQuad1D::GaussLobatto) ||
            ( type == NumericalQuad1D::ClosedEquallySpaced) )
       {
@@ -9209,8 +9209,8 @@ RT_QuadrilateralElement::RT_QuadrilateralElement(const int p,
                          H_DIV, FunctionSpace::Qk),
      dof_map(Dof), dof2nk(Dof)
 {
-   /// convert from the CloedBasisType and OpenBasisType of RT_FECollection
-   /// also do some error checking :-)
+   // convert from the CloedBasisType and OpenBasisType of RT_FECollection
+   // also do some error checking :-)
    int translated_c_type = NumericalQuad1D::InvalidQuad;
    int translated_o_type = NumericalQuad1D::InvalidQuad;
 
@@ -9451,8 +9451,8 @@ RT_HexahedronElement::RT_HexahedronElement(const int p,
                          H_DIV, FunctionSpace::Qk),
      dof_map(Dof), dof2nk(Dof)
 {
-   /// convert from the CloedBasisType and OpenBasisType of RT_FECollection
-   /// also do some error checking :-)
+   // convert from the CloedBasisType and OpenBasisType of RT_FECollection
+   // also do some error checking :-)
    int translated_c_type = NumericalQuad1D::InvalidQuad;
    int translated_o_type = NumericalQuad1D::InvalidQuad;
 
