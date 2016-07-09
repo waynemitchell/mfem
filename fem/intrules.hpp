@@ -258,7 +258,7 @@ class NumericalQuad1D
 public:
    enum
    {
-      InvalidQuad = -1,
+      Invalid = -1,
       GaussLegendre = 0,
       GaussLobatto = 1,
       OpenEquallySpaced = 2,
