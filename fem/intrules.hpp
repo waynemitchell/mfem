@@ -244,8 +244,8 @@ public:
    void OpenEquallySpaced(const int np, IntegrationRule *ir);
    void ClosedEquallySpaced(const int np, IntegrationRule *ir);
 
-   /// A helper function that will play nice with Poly_1D::OpenPoints
-   ///   and Poly_1D::ClosedPoints
+   /// A helper function that will play nice with Poly_1D::OpenPoints and
+   /// Poly_1D::ClosedPoints
    void GivePolyPoints(const int np, double *pts , const int type);
 private:
    void CalculateLagrangeWeights(IntegrationRule *ir);

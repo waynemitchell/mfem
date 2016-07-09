@@ -1583,12 +1583,11 @@ H1_Trace_FECollection::H1_Trace_FECollection(const int p, const int dim,
 
 L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
 {
-   /// Corresponding the the BasisType enum of L2_FECollection.hpp
+   // Corresponding to the BasisType enum of L2_FECollection.hpp
    m_type = (BasisType)type;
    if (m_type == Positive)
    {
       snprintf(d_name, 32, "L2_T%d_%dD_P%d", type, dim, p);
-
    }
    else
    {
@@ -1640,8 +1639,8 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
       }
       else
       {
-         /// Don't mess with triangle element basis points yet
-         if ( (m_type == OpenEquallySpaced) ||  (m_type == GaussLegendre) )
+         // Don't mess with triangle element basis points yet
+         if ((m_type == OpenEquallySpaced) ||  (m_type == GaussLegendre))
          {
             L2_Elements[Geometry::TRIANGLE] = new L2_TriangleElement(p, GaussLegendre);
          }
@@ -1653,7 +1652,7 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
          L2_Elements[Geometry::SQUARE] = new L2_QuadrilateralElement(p, m_type);
       }
 
-      /// All trace elements use Gauss Legendre points?
+      // All trace elements use Gauss Legendre points?
       Tr_Elements[Geometry::SEGMENT] = new L2_SegmentElement(p, 0);
 
       const int TriDof = L2_Elements[Geometry::TRIANGLE]->GetDof();
@@ -1685,7 +1684,7 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
       }
       else
       {
-         /// don't mess with tets
+         // Don't mess with tets yet
          if ( (m_type == OpenEquallySpaced) ||  (m_type == GaussLegendre) )
          {
             L2_Elements[Geometry::TETRAHEDRON] =
@@ -1699,7 +1698,7 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
          L2_Elements[Geometry::CUBE] = new L2_HexahedronElement(p, m_type);
       }
 
-      /// All trace element use Gauss Legendre nodal points?
+      // All trace element use Gauss Legendre nodal points?
       Tr_Elements[Geometry::TRIANGLE] = new L2_TriangleElement(p, 0);
       Tr_Elements[Geometry::SQUARE] = new L2_QuadrilateralElement(p, 0);
    }
@@ -1806,7 +1805,7 @@ void RT_FECollection::InitFaces(const int p, const int dim, const int map_type,
       RT_Elements[g] = NULL;
       RT_dof[g] = 0;
    }
-   /// Degree of Freedom Orderings
+   // Degree of Freedom orderings
    for (int i = 0; i < 2; i++)
    {
       SegDofOrd[i] = NULL;

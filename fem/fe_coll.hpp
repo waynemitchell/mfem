@@ -134,8 +134,8 @@ public:
    {
       GaussLegendre = 0, // Nodal basis, with nodes at the Gauss-Legendre points
       GaussLobatto  = 1, // Nodal basis, with nodes at the Gauss-Lobatto points
-      Positive      = 2,  // Positive basis, Bernstein polynomials
-      OpenEquallySpaced = 3 , // Nodal basis, nodes at open equally spaced points
+      Positive      = 2, // Positive basis, Bernstein polynomials
+      OpenEquallySpaced = 3,  // Nodal basis, nodes at open equally spaced points
       ClosedEquallySpaced = 4 // Nodal basis, nodes at closed equally spaced points
    };
 
@@ -200,7 +200,7 @@ public:
    enum OpenBasisType
    {
       GaussLegendre = -1, // Nodal basis, with nodes at the Gauss-Legendre points
-      OpenEquallySpaced = -2 , // Nodal basis, nodes at open equally spaced points
+      OpenEquallySpaced = -2, // Nodal basis, nodes at open equally spaced points
    };
 
    enum ClosedBasisType
@@ -210,7 +210,7 @@ public:
    };
 
    RT_FECollection(const int p, const int dim,
-                   const int op_type = -1 , const int cp_type = 1);
+                   const int op_type = -1, const int cp_type = 1);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return RT_Elements[GeomType]; }
