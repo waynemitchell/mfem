@@ -6498,7 +6498,7 @@ void Poly_1D::CalcChebyshev(const int p, const double x, double *u, double *d)
 const double *Poly_1D::OpenPoints(const int p, int type)
 {
    // Check the type of points we are using
-   if (open_basis_type == NumericalQuad1D::InvalidQuad)
+   if (open_basis_type == NumericalQuad1D::Invalid)
    {
       // we can set the type of open points
       // make sure we are requesting valid points
@@ -6541,7 +6541,7 @@ const double *Poly_1D::OpenPoints(const int p, int type)
 const double *Poly_1D::ClosedPoints(const int p, int type)
 {
    // Check the type of points we are using
-   if (closed_basis_type == NumericalQuad1D::InvalidQuad)
+   if (closed_basis_type == NumericalQuad1D::Invalid)
    {
       // we can set the type of open points
       // make sure we are requesting valid points
@@ -9211,8 +9211,8 @@ RT_QuadrilateralElement::RT_QuadrilateralElement(const int p,
 {
    // convert from the CloedBasisType and OpenBasisType of RT_FECollection
    // also do some error checking :-)
-   int translated_c_type = NumericalQuad1D::InvalidQuad;
-   int translated_o_type = NumericalQuad1D::InvalidQuad;
+   int translated_c_type = NumericalQuad1D::Invalid;
+   int translated_o_type = NumericalQuad1D::Invalid;
 
    if ( cp_type == 1)
    {
@@ -9232,11 +9232,11 @@ RT_QuadrilateralElement::RT_QuadrilateralElement(const int p,
       translated_o_type = NumericalQuad1D::OpenEquallySpaced;
    }
 
-   if ( translated_c_type == NumericalQuad1D::InvalidQuad)
+   if ( translated_c_type == NumericalQuad1D::Invalid)
       MFEM_ABORT( "Asking for an undefined closed basis type.  cp_type = "
                   << cp_type);
 
-   if ( translated_o_type == NumericalQuad1D::InvalidQuad)
+   if ( translated_o_type == NumericalQuad1D::Invalid)
       MFEM_ABORT( "Asking for an undefined open basis type.  op_type = "
                   << op_type);
 
@@ -9453,8 +9453,8 @@ RT_HexahedronElement::RT_HexahedronElement(const int p,
 {
    // convert from the CloedBasisType and OpenBasisType of RT_FECollection
    // also do some error checking :-)
-   int translated_c_type = NumericalQuad1D::InvalidQuad;
-   int translated_o_type = NumericalQuad1D::InvalidQuad;
+   int translated_c_type = NumericalQuad1D::Invalid;
+   int translated_o_type = NumericalQuad1D::Invalid;
 
    if ( cp_type == 1)
    {
@@ -9474,11 +9474,11 @@ RT_HexahedronElement::RT_HexahedronElement(const int p,
       translated_o_type = NumericalQuad1D::OpenEquallySpaced;
    }
 
-   if ( translated_c_type == NumericalQuad1D::InvalidQuad)
+   if ( translated_c_type == NumericalQuad1D::Invalid)
       MFEM_ABORT( "Asking for an undefined closed basis type.  cp_type = "
                   << cp_type);
 
-   if ( translated_o_type == NumericalQuad1D::InvalidQuad)
+   if ( translated_o_type == NumericalQuad1D::Invalid)
       MFEM_ABORT( "Asking for an undefined open basis type.  op_type = "
                   << op_type);
 
