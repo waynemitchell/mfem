@@ -1253,8 +1253,8 @@ private:
    QuadratureFunctions1D quad_func;
 public:
    Poly_1D():
-       open_basis_type(NumericalQuad1D::InvalidQuad),
-       closed_basis_type(NumericalQuad1D::InvalidQuad) { }
+      open_basis_type(NumericalQuad1D::InvalidQuad),
+      closed_basis_type(NumericalQuad1D::InvalidQuad) { }
 
    static const int *Binom(const int p);
 
