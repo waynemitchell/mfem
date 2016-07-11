@@ -21,7 +21,6 @@
 #include "../fem/eltrans.hpp"
 #include "../fem/coefficient.hpp"
 #include <iostream>
-#include "allocator.hpp"
 
 namespace mfem
 {
@@ -68,6 +67,7 @@ protected:
    Array<Element *> boundary;
    Array<Element *> faces;
 
+   /*
    // we just allocated contiguously
    static ElementAllocator null_allocator;
    ElementAllocator *element_allocator;
@@ -81,6 +81,7 @@ protected:
 
    int reinitFromElementAllocators(Geometry::Type elms_type,
                                Geometry::Type bndry_type);
+   */
 
    struct FaceInfo
    {
@@ -157,10 +158,10 @@ protected:
 
    void DeleteTables();
 
-   Element *ReadElementWithoutAttr(std::istream &, ElementAllocator& = null_allocator);
+   Element *ReadElementWithoutAttr(std::istream &);
    static void PrintElementWithoutAttr(const Element *, std::ostream &);
 
-   Element *ReadElement(std::istream &, ElementAllocator& = null_allocator);
+   Element *ReadElement(std::istream &);
    static void PrintElement(const Element *, std::ostream &);
 
    // Readers for different mesh formats, used in the Load() method
@@ -363,7 +364,7 @@ protected:
 
 public:
 
-   Mesh() { initElementAllocators(); Init(); InitTables(); meshgen = 0; Dim = 0; }
+   Mesh() {  Init(); InitTables(); meshgen = 0; Dim = 0; }
 
    /** Copy constructor. Performs a deep copy of (almost) all data, so that the
        source mesh can be modified (e.g. deleted, refined) without affecting the
@@ -382,7 +383,7 @@ public:
 
    Mesh(int _Dim, int NVert, int NElem, int NBdrElem = 0, int _spaceDim= -1)
    {
-      initElementAllocators();
+      
       if (_spaceDim == -1)
       {
          _spaceDim = _Dim;
@@ -390,7 +391,7 @@ public:
       InitMesh(_Dim, _spaceDim, NVert, NElem, NBdrElem);
    }
 
-   Element *NewElement(int geom, ElementAllocator& = null_allocator);
+   Element *NewElement(int geom);
 
    void AddVertex(const double *);
    void AddTri(const int *vi, int attr = 1);
@@ -438,7 +439,7 @@ public:
    Mesh(int nx, int ny, int nz, Element::Type type, int generate_edges = 0,
         double sx = 1.0, double sy = 1.0, double sz = 1.0)
    {
-      initElementAllocators();
+      
       Make3D(nx, ny, nz, type, generate_edges, sx, sy, sz);
    }
 
@@ -449,14 +450,14 @@ public:
    Mesh(int nx, int ny, Element::Type type, int generate_edges = 0,
         double sx = 1.0, double sy = 1.0)
    {
-      initElementAllocators();
+      
       Make2D(nx, ny, type, generate_edges, sx, sy);
    }
 
    /** Creates 1D mesh , divided into n equal intervals. */
    explicit Mesh(int n, double sx = 1.0)
    {
-      initElementAllocators();
+      
       Make1D(n, sx);
    }
 
@@ -472,12 +473,14 @@ public:
    Mesh(std::istream &input, DataCollection * dc, int generate_edges = 0, int refine = 1,
         bool fix_orientation = true);
 
+   /*
    Mesh(std::istream &input, 
          ElementAllocator *element_allocator,
          ElementAllocator *boundary_element_allocator, 
          Allocator *vertices_allocator,
          int generate_edges = 0, int refine = 1, 
          bool fix_orientation = true);
+   */
 
    /// Create a disjoint mesh from the given mesh array
    Mesh(Mesh *mesh_array[], int num_pieces);
@@ -492,7 +495,7 @@ public:
    /** Return a bitmask:
        bit 0 - simplices are present in the mesh (triangles, tets),
        bit 1 - tensor product elements are present in the mesh (quads, hexes).*/
-   inline int MeshGenerator() { initElementAllocators(); return meshgen; }
+   inline int MeshGenerator() {  return meshgen; }
 
    /** Returns number of vertices.  Vertices are only at the corners of
        elements, where you would expect them in the lowest-order mesh. */
@@ -527,10 +530,19 @@ public:
    const double *GetVertex(int i) const { return vertices[i](); }
    double *GetVertex(int i) { return vertices[i](); }
 
+   void ChangeElementObjectDataOwnership(Array<Element*>&, size_t,
+         int*, size_t, int*, size_t);
+
+   void ChangeElementDataOwnership(int *indices, size_t max_indices,
+         int *attributes, size_t max_attributes);
+
    const Element* const *GetElementsArray() const
    { return elements.GetData(); }
 
    const Element *GetElement(int i) const { return elements[i]; }
+
+   int SetElementData(int *indices, size_t max_indices,
+                      int *attributes, size_t max_attributes);
 
    Element *GetElement(int i) { return elements[i]; }
 
@@ -928,11 +940,6 @@ public:
    }
 
    void MesquiteSmooth(const int mesquite_option = 0);
-
-   /// Get the allocators for this mesh
-   /// It would be ni
-   inline ElementAllocator *get_element_allocator() { return element_allocator; };
-   inline ElementAllocator *get_boundary_allocator() { return element_allocator; };
 
    /// Destroys mesh.
    virtual ~Mesh();

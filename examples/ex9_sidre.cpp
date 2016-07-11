@@ -197,56 +197,47 @@ int main(int argc, char *argv[])
    // 2. Populate the Mesh. Either from the mesh file or from a restart
    Mesh *mesh;
 
-   ElementAllocator *elm_alloc = NULL;
-   ElementAllocator *bndry_alloc = NULL;
-   Allocator *vertices_alloc = NULL;
-   //if (sidre_use_restart) {
-   //}
-   //else {
-      int element_size = 4;
+   // 2. Read the mesh from the given mesh file. We can handle geometrically
+   //    periodic meshes in this code.
+   std::istringstream istrMesh(grp->getView("aux/orig_mesh_str")->getString() );
 
-      // Initialize the allocators for the elements in this example
-      elm_alloc = new SidreElementAllocator(element_size, elements_connectivity,
-        material_attribute_values);
-      bndry_alloc = new InternalElementAllocator(8, element_size);
-      vertices_alloc = new SidreAllocator<double>(coordset_values);
-
-      // 2. Read the mesh from the given mesh file. We can handle geometrically
-      //    periodic meshes in this code.
-      std::istringstream istrMesh(grp->getView("aux/orig_mesh_str")->getString() );
-
-      // initialize the mesh from the istringstream
-      mesh = new Mesh(istrMesh, elm_alloc, bndry_alloc, vertices_alloc, 1, 1);
+   // initialize the mesh from the istringstream
+   mesh = new Mesh(istrMesh, 1, 1);
 
 
-      // 4. Refine the mesh to increase the resolution. In this example we do
-      //    'ref_levels' of uniform refinement, where 'ref_levels' is a
-      //    command-line parameter. If the mesh is of NURBS type, we convert it to
-      //    a (piecewise-polynomial) high-order mesh.
-      for (int lev = 0; lev < ref_levels; lev++)
-      {
-         mesh->UniformRefinement();
-      }
-      if (mesh->NURBSext)
-      {
-         mesh->SetCurvature(max(order, 1));
-      }
+   // 4. Refine the mesh to increase the resolution. In this example we do
+   //    'ref_levels' of uniform refinement, where 'ref_levels' is a
+   //    command-line parameter. If the mesh is of NURBS type, we convert it to
+   //    a (piecewise-polynomial) high-order mesh.
+   for (int lev = 0; lev < ref_levels; lev++)
+   {
+      mesh->UniformRefinement();
+   }
+   if (mesh->NURBSext)
+   {
+      mesh->SetCurvature(max(order, 1));
+   }
 
-      int num_elements = mesh->GetNE();
-      elements_connectivity->apply(num_elements, 0, element_size);
-      material_attribute_values->apply(num_elements, 0, 1);
+   int num_elements = mesh->GetNE();
+   int element_size = 4;
+   int num_boundary_elements = mesh->GetNBE();
+   int num_indices = num_elements * element_size;
 
-      {
-         Vertex *data = (Vertex*)vertices_alloc->getdata();
-         printf("data is %p\n", data);
-         int len = vertices_alloc->getcapacity();
-         printf ("we own %d vertices\n", len);
-         for (int i = 0; i < len; i++) {
-            cout << "Vertex " << i << " : " << data[i](1) << " " << data[i](2) << endl;
-         }
-      }
+   elements_connectivity->allocate(
+               asctoolkit::sidre::detail::SidreTT<int>::id,
+               num_indices);
+   elements_connectivity->apply(num_indices, 0, element_size);
 
-   //}
+   material_attribute_values->allocate(
+               asctoolkit::sidre::detail::SidreTT<int>::id,
+               num_elements);
+   material_attribute_values->apply(num_elements, 0, 1);
+
+   mesh->ChangeElementDataOwnership(elements_connectivity->getArray(),
+      element_size * num_elements, material_attribute_values->getArray(),
+      num_elements);
+
+
 
    int dim = mesh->Dimension();
 
@@ -350,8 +341,9 @@ int main(int argc, char *argv[])
    }
 
    // test dumping data collection
-   if (1)
+   if (0)
    {
+      cout << "needs to be updated to maintain order";
       dc->Save();
       std::string filename = "Example9_1_ser.hdf5";
       std::string protocol = "conduit_hdf5";
@@ -359,6 +351,10 @@ int main(int argc, char *argv[])
       cout << "trying to load '" << filename << "'" << endl;
       asctoolkit::sidre::DataStore copy_ds;
       copy_ds.load(filename, protocol);
+
+      protocol = "json";
+      filename = "round2.json";
+      copy_ds.save(filename, protocol);
 
       if (ds.getRoot()->isEquivalentTo( copy_ds.getRoot() ) )
       {
@@ -489,9 +485,6 @@ int main(int argc, char *argv[])
    delete ode_solver;
    delete fec;
    delete mesh;
-   delete elm_alloc;
-   delete bndry_alloc;
-   delete vertices_alloc;
 
    return 0;
 }

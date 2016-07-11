@@ -47,8 +47,7 @@ public:
 
    /// Constants for the classes derived from Element.
    enum Type { POINT, SEGMENT, TRIANGLE, QUADRILATERAL, TETRAHEDRON,
-               HEXAHEDRON
-             };
+               HEXAHEDRON};
 
    /// Default element constructor.
    explicit Element(int bg = Geometry::POINT, int *_indices = NULL, 
@@ -59,8 +58,10 @@ public:
    ///  has moved
    inline void SetIndices(int *p) { indices = p; };
 
+   inline void SetOwnership(bool _self_alloc) { self_alloc = _self_alloc; };
+
    /// Returns the indices pointer
-   inline const int *GetIndices() const { return indices; };
+   inline int *GetIndices() { return indices; };
 
    /// Returns the indices pointer
    inline int *&GetIndicesRef() { return indices; };
