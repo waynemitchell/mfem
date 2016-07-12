@@ -159,8 +159,8 @@ int main(int argc, char *argv[])
       sidre_use_restart = true;
    }
 
+   // conduit_json
    if (sidre_use_restart) {
-      /*
       std::cout << "loading sidre checkpoint: "<< sidre_restart
               << " using protocol: " << sidre_restart_protocol
               << std::endl;
@@ -168,7 +168,8 @@ int main(int argc, char *argv[])
 
       dc->SetTime( grp->getView("state/time")->getScalar() );
       dc->SetCycle(grp->getView("state/cycle")->getScalar() );
-      */
+
+
       dc->Load(sidre_restart, sidre_restart_protocol);
    }
    else {
@@ -210,10 +211,11 @@ int main(int argc, char *argv[])
            bool fix_orientation = true);
       */
       string element_shape = grp->getView("topology/elements/shape")->getString();
+      cout << "element shape is " << element_shape << endl;
       Geometry::Type elem_shape;
       // where should we get this?
       dim = 2;
-      if (element_shape == "quad") {
+      if (element_shape == "quads") {
          elem_shape = Geometry::SQUARE; 
       }
       else {
@@ -282,18 +284,20 @@ int main(int argc, char *argv[])
          element_size * num_elements, material_attribute_values->getArray(),
          num_elements);
 
-      coordset_values->allocate(
-            asctoolkit::sidre::detail::SidreTT<double>::id,
-            coordset_len);
+      // this is the cause of the failure on a restart
+      if (true) {// false) {
+         coordset_values->allocate(
+               asctoolkit::sidre::detail::SidreTT<double>::id,
+               coordset_len);
 
-      mesh->ChangeVertexDataOwnership(coordset_values->getArray(),
-            dim, coordset_len);
-
-      cout << "Print coordset (sidre owned):" << endl;
-      for (int i = 0; i < num_vertices; i++) {
-         double *data = mesh->GetVertex(i);
-         cout << i << " (" << data[0] << ", " << data[1] << ", " << data[2] 
-              << ")" << endl;
+         mesh->ChangeVertexDataOwnership(coordset_values->getArray(),
+               dim, coordset_len);
+         cout << "Print coordset (sidre owned):" << endl;
+         for (int i = 0; i < num_vertices; i++) {
+            double *data = mesh->GetVertex(i);
+            cout << i << " (" << data[0] << ", " << data[1] << ", " << data[2] 
+                 << ")" << endl;
+         }
       }
    }
 

@@ -153,8 +153,8 @@ void SidreDataCollection::SetupMeshBlueprint()
 
     grp->createViewString("coordset/type", "explicit");
     grp->createView("coordset/x");
-    grp->createView("coordset/y");
-    grp->createView("coordset/z");
+    //grp->createView("coordset/y");
+    //grp->createView("coordset/z");
 
     grp->createViewString("fields/material_attribute/association", "Element");
     grp->createView("fields/material_attribute/values");
