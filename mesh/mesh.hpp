@@ -391,7 +391,7 @@ public:
       InitMesh(_Dim, _spaceDim, NVert, NElem, NBdrElem);
    }
 
-   Element *NewElement(int geom);
+   Element *NewElement(int geom, int_ptr_pair = int_ptr_pair(NULL, NULL));
 
    void AddVertex(const double *);
    void AddTri(const int *vi, int attr = 1);

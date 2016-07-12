@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
 
    const char *sidre_restart = "\0";
    bool sidre_use_restart = false;
-   const char *sidre_restart_protocol = "conduit_hdf5";
+   const char *sidre_restart_protocol = "sidre_hdf5";
 
    int precision = 8;
    cout.precision(precision);
@@ -160,11 +160,10 @@ int main(int argc, char *argv[])
    }
 
    if (sidre_use_restart) {
-   /*
+      /*
       std::cout << "loading sidre checkpoint: "<< sidre_restart
               << " using protocol: " << sidre_restart_protocol
               << std::endl;
-
       ds.load(sidre_restart, sidre_restart_protocol);
 
       dc->SetTime( grp->getView("state/time")->getScalar() );
@@ -197,45 +196,49 @@ int main(int argc, char *argv[])
    // 2. Populate the Mesh. Either from the mesh file or from a restart
    Mesh *mesh;
 
-   // 2. Read the mesh from the given mesh file. We can handle geometrically
-   //    periodic meshes in this code.
-   std::istringstream istrMesh(grp->getView("aux/orig_mesh_str")->getString() );
-
-   // initialize the mesh from the istringstream
-   mesh = new Mesh(istrMesh, 1, 1);
-
-
-   // 4. Refine the mesh to increase the resolution. In this example we do
-   //    'ref_levels' of uniform refinement, where 'ref_levels' is a
-   //    command-line parameter. If the mesh is of NURBS type, we convert it to
-   //    a (piecewise-polynomial) high-order mesh.
-   for (int lev = 0; lev < ref_levels; lev++)
-   {
-      mesh->UniformRefinement();
+   if (false && sidre_use_restart) {
    }
-   if (mesh->NURBSext)
-   {
-      mesh->SetCurvature(max(order, 1));
+   else {
+      // 2. Read the mesh from the given mesh file. We can handle geometrically
+      //    periodic meshes in this code.
+      std::istringstream istrMesh(grp->getView("aux/orig_mesh_str")->getString() );
+
+      // initialize the mesh from the istringstream
+      mesh = new Mesh(istrMesh, 1, 1);
+
+
+      // 4. Refine the mesh to increase the resolution. In this example we do
+      //    'ref_levels' of uniform refinement, where 'ref_levels' is a
+      //    command-line parameter. If the mesh is of NURBS type, we convert it to
+      //    a (piecewise-polynomial) high-order mesh.
+      for (int lev = 0; lev < ref_levels; lev++)
+      {
+         mesh->UniformRefinement();
+      }
+      if (mesh->NURBSext)
+      {
+         mesh->SetCurvature(max(order, 1));
+      }
+
+      int num_elements = mesh->GetNE();
+      int element_size = 4;
+      int num_boundary_elements = mesh->GetNBE();
+      int num_indices = num_elements * element_size;
+
+      elements_connectivity->allocate(
+                  asctoolkit::sidre::detail::SidreTT<int>::id,
+                  num_indices);
+      //elements_connectivity->apply(num_indices, 0, element_size);
+
+      material_attribute_values->allocate(
+                  asctoolkit::sidre::detail::SidreTT<int>::id,
+                  num_elements);
+      //material_attribute_values->apply(num_elements, 0, 1);
+
+      mesh->ChangeElementDataOwnership(elements_connectivity->getArray(),
+         element_size * num_elements, material_attribute_values->getArray(),
+         num_elements);
    }
-
-   int num_elements = mesh->GetNE();
-   int element_size = 4;
-   int num_boundary_elements = mesh->GetNBE();
-   int num_indices = num_elements * element_size;
-
-   elements_connectivity->allocate(
-               asctoolkit::sidre::detail::SidreTT<int>::id,
-               num_indices);
-   elements_connectivity->apply(num_indices, 0, element_size);
-
-   material_attribute_values->allocate(
-               asctoolkit::sidre::detail::SidreTT<int>::id,
-               num_elements);
-   material_attribute_values->apply(num_elements, 0, 1);
-
-   mesh->ChangeElementDataOwnership(elements_connectivity->getArray(),
-      element_size * num_elements, material_attribute_values->getArray(),
-      num_elements);
 
 
 
@@ -341,20 +344,15 @@ int main(int argc, char *argv[])
    }
 
    // test dumping data collection
-   if (0)
+   if (1)
    {
-      cout << "needs to be updated to maintain order";
       dc->Save();
       std::string filename = "Example9_1_ser.hdf5";
-      std::string protocol = "conduit_hdf5";
+      std::string protocol = "sidre_hdf5";
 
       cout << "trying to load '" << filename << "'" << endl;
       asctoolkit::sidre::DataStore copy_ds;
       copy_ds.load(filename, protocol);
-
-      protocol = "json";
-      filename = "round2.json";
-      copy_ds.save(filename, protocol);
 
       if (ds.getRoot()->isEquivalentTo( copy_ds.getRoot() ) )
       {

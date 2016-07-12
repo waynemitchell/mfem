@@ -2289,7 +2289,7 @@ Mesh::Mesh(std::istream &input,
    InitTables();
    Load(input, generate_edges, refine, fix_orientation);
 }
-
+*/
 Mesh::Mesh(double *vertices, int num_vertices,
       int *element_indices, Geometry::Type element_type, 
       int *element_attributes, int num_elements,
@@ -2297,42 +2297,47 @@ Mesh::Mesh(double *vertices, int num_vertices,
       int *boundary_attributes, int num_boundary_elements,
       int dimension, int space_dimension)
 {
+   if (element_type != Geometry::SQUARE) {
+      throw std::runtime_error("only support quads");
+   }
+
    if (space_dimension == -1)
    {
       space_dimension = dimension;
    }
+
    InitMesh(dimension, space_dimension, num_vertices, num_elements,
          num_boundary_elements);
+
    for (int i = 0; i < num_vertices; i++) {
       for (int j = 0; j < dimension; j++) {
          this->vertices[i](j) = vertices[dimension * i + j];
       }
+      elements[i] = NewElement(element_type, int_ptr_pair(element_indices + i*4, element_attributes + i));
    }
-   NumOfVertices = num_vertices;
-   element_allocator = new AliasElementAllocator(element_indices, 
-         element_attributes);
-   boundary_allocator = new AliasElementAllocator(boundary_indices,
-         boundary_attributes);
-   initElementAllocators(element_allocator, boundary_allocator);
-   own_allocators = true;
-   reinitFromElementAllocators(element_type, boundary_type);
-}
-*/
 
-Element *Mesh::NewElement(int geom)
+   for (int i = 0; i < num_boundary_elements; i++) {
+      boundary[i] = NewElement(boundary_type, int_ptr_pair(boundary_indices + i*2, boundary_attributes + i));
+   }
+
+   NumOfVertices = num_vertices;
+   FinalizeQuadMesh(1, 1);
+}
+
+Element *Mesh::NewElement(int geom, int_ptr_pair external_data)
 {
    switch (geom)
    {
-      case Geometry::POINT:     return (new Point());
-      case Geometry::SEGMENT:   return (new Segment());
-      case Geometry::TRIANGLE:  return (new Triangle());
-      case Geometry::SQUARE:    return (new Quadrilateral());
-      case Geometry::CUBE:      return (new Hexahedron());
+      case Geometry::POINT:     return (new Point(external_data));
+      case Geometry::SEGMENT:   return (new Segment(external_data));
+      case Geometry::TRIANGLE:  return (new Triangle(external_data));
+      case Geometry::SQUARE:    return (new Quadrilateral(external_data));
+      case Geometry::CUBE:      return (new Hexahedron(external_data));
       case Geometry::TETRAHEDRON:
 #ifdef MFEM_USE_MEMALLOC
          return TetMemory.Alloc();
 #else
-         return (new Tetrahedron());
+         return (new Tetrahedron(external_data));
 #endif
    }
 

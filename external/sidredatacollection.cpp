@@ -84,7 +84,6 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
 void SidreDataCollection::Load(const std::string& path, const std::string& protocol)
 {
 	std::cout << "Loading Sidre checkpoint: " << path << " using protocol: " << protocol << std::endl;
-
 //	sidre_dc_group->getDataStore()->load(path, protocol, sidre_dc_group);
 	sidre_dc_group->getDataStore()->load(path, protocol);
 	SetTime( sidre_dc_group->getView("state/time")->getScalar() );
