@@ -21,7 +21,7 @@ BaseArray::BaseArray(int asize, int ainc, int elementsize)
 {
    if (asize > 0)
    {
-      data = new char[asize * elementsize];
+      data = new char[asize * elementsize]();
       size = allocsize = asize;
    }
    else
@@ -46,7 +46,7 @@ void BaseArray::GrowSize(int minsize, int elementsize)
    int nsize = (inc > 0) ? abs(allocsize) + inc : 2 * abs(allocsize);
    if (nsize < minsize) { nsize = minsize; }
 
-   p = new char[nsize * elementsize];
+   p = new char[nsize * elementsize]();
    if (size > 0)
    {
       memcpy(p, data, size * elementsize);

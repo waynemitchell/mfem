@@ -191,12 +191,45 @@ int main(int argc, char *argv[])
 
    elements_connectivity = grp->getView("topology/elements/connectivity");
    material_attribute_values = grp->getView("fields/material_attribute/values");
+   coordset_values = grp->getView("coordset/x");
 
 
    // 2. Populate the Mesh. Either from the mesh file or from a restart
    Mesh *mesh;
 
-   if (false && sidre_use_restart) {
+   int dim;
+   if (sidre_use_restart) {
+      /*
+      Mesh(double *vertices, int num_vertices,
+           int *element_indices, Geometry::Type element_type, 
+           int *element_attributes, int num_elements,
+           int *boundary_indices, Geometry::Type boundary_type,
+           int *boundary_attributes, int num_boundary_elements,
+           int dimension, int space_dimension= -1,
+           int generate_edges = 0, int refine = 0, 
+           bool fix_orientation = true);
+      */
+      string element_shape = grp->getView("topology/elements/shape")->getString();
+      Geometry::Type elem_shape;
+      // where should we get this?
+      dim = 2;
+      if (element_shape == "quad") {
+         elem_shape = Geometry::SQUARE; 
+      }
+      else {
+         throw std::runtime_error("unknown element shape");
+      }
+      int number_of_vertices = coordset_values->getNumElements() / dim;
+      if (number_of_vertices != elements_connectivity->getNumElements() ||
+          number_of_vertices != material_attribute_values->getNumElements()) {
+         throw std::runtime_error("length mismatch");
+      }
+      mesh = new Mesh(coordset_values->getArray(), 
+            number_of_vertices * dim,
+            elements_connectivity->getArray(), elem_shape,
+            material_attribute_values->getArray(), 
+            elements_connectivity->getNumElements(),
+            NULL, Geometry::POINT, NULL, 0, dim);
    }
    else {
       // 2. Read the mesh from the given mesh file. We can handle geometrically
@@ -220,10 +253,20 @@ int main(int argc, char *argv[])
          mesh->SetCurvature(max(order, 1));
       }
 
+      dim = mesh->Dimension();
       int num_elements = mesh->GetNE();
       int element_size = 4;
-      int num_boundary_elements = mesh->GetNBE();
+      //int num_boundary_elements = mesh->GetNBE();
       int num_indices = num_elements * element_size;
+      int num_vertices = mesh->GetNV();
+      int coordset_len = dim * num_vertices; 
+
+      cout << "Print coordset:" << endl;
+      for (int i = 0; i < num_vertices; i++) {
+         double *data = mesh->GetVertex(i);
+         cout << i << " (" << data[0] << ", " << data[1] << ", " << data[2] 
+              << ")" << endl;
+      }
 
       elements_connectivity->allocate(
                   asctoolkit::sidre::detail::SidreTT<int>::id,
@@ -238,11 +281,24 @@ int main(int argc, char *argv[])
       mesh->ChangeElementDataOwnership(elements_connectivity->getArray(),
          element_size * num_elements, material_attribute_values->getArray(),
          num_elements);
+
+      coordset_values->allocate(
+            asctoolkit::sidre::detail::SidreTT<double>::id,
+            coordset_len);
+
+      mesh->ChangeVertexDataOwnership(coordset_values->getArray(),
+            dim, coordset_len);
+
+      cout << "Print coordset (sidre owned):" << endl;
+      for (int i = 0; i < num_vertices; i++) {
+         double *data = mesh->GetVertex(i);
+         cout << i << " (" << data[0] << ", " << data[1] << ", " << data[2] 
+              << ")" << endl;
+      }
    }
 
 
 
-   int dim = mesh->Dimension();
 
    // Deal with mesh's grid function: nodes
    // Temp HACK (KW):
@@ -356,11 +412,11 @@ int main(int argc, char *argv[])
 
       if (ds.getRoot()->isEquivalentTo( copy_ds.getRoot() ) )
       {
-        cout << "Datastore save/load with conduit hdf5 passed, they are equivalent." << endl;
+        cout << "Datastore save/load with sidre hdf5 passed, they are equivalent." << endl;
       }
       else
       {
-       cout << "Datastore conduit hdf5 instances don't match =[" << endl;
+       cout << "Datastore sidre hdf5 instances don't match =[" << endl;
        exit(-1);
       }
    }

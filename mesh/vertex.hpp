@@ -13,6 +13,7 @@
 #define MFEM_VERTEX
 
 #include "../config/config.hpp"
+#include <stdio.h>
 
 namespace mfem
 {
@@ -21,27 +22,42 @@ namespace mfem
 class Vertex
 {
 protected:
-   double coord[3];
+   // this is awful 
+   union {
+      double coord[3];
+      double *coord_ptr;
+   };
+   bool is_external;
+   void init(double *_data = 0);
 
 public:
-   Vertex() { }
+   Vertex() { printf("called\n"); }
 
-   Vertex (double *xx, int dim);
-   Vertex( double x, double y) { coord[0] = x; coord[1] = y; coord[2] = 0.; }
-   Vertex( double x, double y, double z)
-   { coord[0] = x; coord[1] = y; coord[2] = z; }
+   Vertex(double *_data) { init(_data); }
+
+   Vertex (double *xx, int dim, double *_data = 0);
+   Vertex( double x, double y, double *_data = 0) { init(_data); coord[0] = x; coord[1] = y; coord[2] = 0.; }
+   Vertex( double x, double y, double z, double *_data = 0)
+   { init(_data); coord[0] = x; coord[1] = y; coord[2] = z; }
 
    /// Returns pointer to the coordinates of the vertex.
-   inline double * operator() () const { return (double*)coord; }
+   inline double * operator() () const { if (is_external) return coord_ptr; else return (double*)coord; }
 
    /// Returns the i'th coordinate of the vertex.
-   inline double & operator() (int i) { return coord[i]; }
+   inline double & operator() (int i) { return is_external ? coord_ptr[i] : coord[i]; }
 
    /// Returns the i'th coordinate of the vertex.
-   inline const double & operator() (int i) const { return coord[i]; }
+   inline const double & operator() (int i) const { if (is_external) return coord_ptr[i]; else return coord[i]; }//is_external ? coord_ptr[i] : coord[i]; }
+
+   void SetCoordPtr(double *_coord) {
+      coord_ptr = _coord;
+      is_external = true;
+   }
 
    void SetCoords(const double *p)
-   { coord[0] = p[0]; coord[1] = p[1]; coord[2] = p[2]; }
+   { if (!is_external) { coord[0] = p[0]; coord[1] = p[1]; coord[2] = p[2]; }
+     else { coord_ptr[0] = p[0]; coord_ptr[1] = p[1]; coord_ptr[2] = p[2]; }
+   }
 
    ~Vertex() { }
 };

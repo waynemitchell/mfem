@@ -2235,6 +2235,21 @@ void Mesh::ChangeElementDataOwnership(int *indices,
          indices, max_indices, attributes, max_attributes);
 }
 
+void Mesh::ChangeVertexDataOwnership(double *vertex_data,
+      int dim, size_t len_vertex_data) {
+   if (len_vertex_data < NumOfVertices * dim) {
+      throw std::runtime_error("Not enough vertices in external array");
+   }
+   // this will loop through all the allocated mfem::Vertex objects,
+   // copy the values into vertex_data,
+   // delete the self allocated data, and assign the correct slice
+   // of data from vertex_data
+   for (int i = 0; i < NumOfVertices; i++) {
+      memcpy(vertex_data + i * dim, vertices[i](), dim * sizeof(double));
+      vertices[i].SetCoordPtr(vertex_data + i * dim);
+   }
+}
+
 
 /*
 // TODO: use real error objects
@@ -2295,7 +2310,8 @@ Mesh::Mesh(double *vertices, int num_vertices,
       int *element_attributes, int num_elements,
       int *boundary_indices, Geometry::Type boundary_type,
       int *boundary_attributes, int num_boundary_elements,
-      int dimension, int space_dimension)
+      int dimension, int space_dimension,
+      int generate_faces, int refine, bool fix_orientation)
 {
    if (element_type != Geometry::SQUARE) {
       throw std::runtime_error("only support quads");
@@ -2309,19 +2325,41 @@ Mesh::Mesh(double *vertices, int num_vertices,
    InitMesh(dimension, space_dimension, num_vertices, num_elements,
          num_boundary_elements);
 
+   int element_index_stride = 4;
+   int boundary_index_stride = 0;
+
    for (int i = 0; i < num_vertices; i++) {
-      for (int j = 0; j < dimension; j++) {
-         this->vertices[i](j) = vertices[dimension * i + j];
-      }
-      elements[i] = NewElement(element_type, int_ptr_pair(element_indices + i*4, element_attributes + i));
+         this->vertices[i].SetCoordPtr(vertices + i * dimension);
+   }
+   NumOfVertices = num_vertices;
+
+   for (int i = 0; i < num_elements; i++) {
+      elements[i] = NewElement(element_type, int_ptr_pair(element_indices + 
+               i * element_index_stride, element_attributes + i));
+   }
+   NumOfElements = num_elements;
+
+   switch (element_type)
+   {
+      case Geometry::TRIANGLE: FinalizeTriMesh(generate_faces, refine, fix_orientation);
+                               break;
+      case Geometry::SQUARE: FinalizeQuadMesh(generate_faces, refine, fix_orientation);
+                               break;
+      case Geometry::CUBE: FinalizeHexMesh(generate_faces, refine, fix_orientation);
+                               break;
+      case Geometry::TETRAHEDRON: FinalizeTetMesh(generate_faces, refine, fix_orientation);
+                               break;
+      default: throw std::runtime_error("cannot finialize mesh");
    }
 
    for (int i = 0; i < num_boundary_elements; i++) {
-      boundary[i] = NewElement(boundary_type, int_ptr_pair(boundary_indices + i*2, boundary_attributes + i));
+      boundary[i] = NewElement(boundary_type, int_ptr_pair(boundary_indices + 
+               i * boundary_index_stride, boundary_attributes + i));
    }
-
-   NumOfVertices = num_vertices;
-   FinalizeQuadMesh(1, 1);
+   NumOfBdrElements = num_boundary_elements;
+   
+   // need?
+   // SetAttributes();
 }
 
 Element *Mesh::NewElement(int geom, int_ptr_pair external_data)
