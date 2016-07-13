@@ -1394,13 +1394,14 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
    const int pm1 = p - 1, pm2 = pm1 - 1, pm3 = pm2 - 1;
 
    m_type = (BasisType)type;
-   if (type == GaussLobatto)
+   if (type == Positive)
    {
-      snprintf(h1_name, 32, "H1_%dD_P%d", dim, p);
+      snprintf(h1_name, 32, "H1Pos_%dD_P%d", dim, p);
+
    }
    else
    {
-      snprintf(h1_name, 32, "H1Pos_%dD_P%d", dim, p);
+       snprintf(h1_name, 32, "H1_%dD_P%d", dim, p);
    }
 
    for (int g = 0; g < Geometry::NumGeom; g++)
@@ -1427,13 +1428,13 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
    if (dim >= 1)
    {
       H1_dof[Geometry::SEGMENT] = pm1;
-      if (type == GaussLobatto)
+      if (type == Positive)
       {
-         H1_Elements[Geometry::SEGMENT] = new H1_SegmentElement(p);
+          H1_Elements[Geometry::SEGMENT] = new H1Pos_SegmentElement(p);
       }
       else
       {
-         H1_Elements[Geometry::SEGMENT] = new H1Pos_SegmentElement(p);
+          H1_Elements[Geometry::SEGMENT] = new H1_SegmentElement(p, type);
       }
 
       SegDofOrd[0] = new int[2*pm1];
@@ -1974,7 +1975,8 @@ DG_Interface_FECollection::DG_Interface_FECollection(const int p, const int dim,
    MFEM_VERIFY(dim == 2 || dim == 3, "Wrong dimension, dim = " << dim);
 }
 
-ND_FECollection::ND_FECollection(const int p, const int dim)
+ND_FECollection::ND_FECollection(const int p, const int dim,
+        const int op_type, const int cp_type)
 {
    const int pm1 = p - 1, pm2 = p - 2;
 
@@ -2000,7 +2002,7 @@ ND_FECollection::ND_FECollection(const int p, const int dim)
 
    if (dim >= 1)
    {
-      ND_Elements[Geometry::SEGMENT] = new ND_SegmentElement(p);
+      ND_Elements[Geometry::SEGMENT] = new ND_SegmentElement(p, op_type, cp_type);
       ND_dof[Geometry::SEGMENT] = p;
 
       SegDofOrd[0] = new int[2*p];
@@ -2014,7 +2016,7 @@ ND_FECollection::ND_FECollection(const int p, const int dim)
 
    if (dim >= 2)
    {
-      ND_Elements[Geometry::SQUARE] = new ND_QuadrilateralElement(p);
+      ND_Elements[Geometry::SQUARE] = new ND_QuadrilateralElement(p, op_type, cp_type);
       ND_dof[Geometry::SQUARE] = 2*p*pm1;
 
       ND_Elements[Geometry::TRIANGLE] = new ND_TriangleElement(p);
@@ -2094,7 +2096,7 @@ ND_FECollection::ND_FECollection(const int p, const int dim)
 
    if (dim >= 3)
    {
-      ND_Elements[Geometry::CUBE] = new ND_HexahedronElement(p);
+      ND_Elements[Geometry::CUBE] = new ND_HexahedronElement(p, op_type, cp_type);
       ND_dof[Geometry::CUBE] = 3*p*pm1*pm1;
 
       ND_Elements[Geometry::TETRAHEDRON] = new ND_TetrahedronElement(p);

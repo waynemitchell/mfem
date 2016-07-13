@@ -80,7 +80,8 @@ public:
    enum BasisType
    {
       GaussLobatto = 0, // Nodal basis, with nodes at the Gauss-Lobatto points
-      Positive     = 1  // Positive basis, Bernstein polynomials
+      Positive     = 1,  // Positive basis, Bernstein polynomials
+      ClosedEquallySpaced = 2 // Nodal basis with equally spaced nodes
    };
 
 protected:
@@ -256,7 +257,20 @@ protected:
    int *SegDofOrd[2], *TriDofOrd[6], *QuadDofOrd[8];
 
 public:
-   ND_FECollection(const int p, const int dim);
+   enum OpenBasisType
+   {
+      GaussLegendre = -1, // Nodal basis, with nodes at the Gauss-Legendre points
+      OpenEquallySpaced = -2 , // Nodal basis, nodes at open equally spaced points
+   };
+
+   enum ClosedBasisType
+   {
+      GaussLobatto  = 1, // Nodal basis, with nodes at the Gauss-Lobatto points
+      ClosedEquallySpaced = 2 // Nodal basis, nodes at closed equally spaced points
+   };
+
+   ND_FECollection(const int p, const int dim,
+           const int op_type = -1 , const int cp_type = 1);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return ND_Elements[GeomType]; }

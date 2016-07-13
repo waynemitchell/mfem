@@ -1319,14 +1319,14 @@ extern Poly_1D poly1d;
 class H1_SegmentElement : public NodalFiniteElement
 {
 private:
-   Poly_1D::Basis &basis1d;
+   Poly_1D::Basis *basis1d;
 #ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, dshape_x;
 #endif
    Array<int> dof_map;
 
 public:
-   H1_SegmentElement(const int p);
+   H1_SegmentElement(const int p, const int type = 0);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
@@ -1338,14 +1338,14 @@ public:
 class H1_QuadrilateralElement : public NodalFiniteElement
 {
 private:
-   Poly_1D::Basis &basis1d;
+   Poly_1D::Basis *basis1d;
 #ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, shape_y, dshape_x, dshape_y;
 #endif
    Array<int> dof_map;
 
 public:
-   H1_QuadrilateralElement(const int p);
+   H1_QuadrilateralElement(const int p, const int type = 0);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
@@ -1357,14 +1357,14 @@ public:
 class H1_HexahedronElement : public NodalFiniteElement
 {
 private:
-   Poly_1D::Basis &basis1d;
+   Poly_1D::Basis *basis1d;
 #ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, shape_y, shape_z, dshape_x, dshape_y, dshape_z;
 #endif
    Array<int> dof_map;
 
 public:
-   H1_HexahedronElement(const int p);
+   H1_HexahedronElement(const int p, const int type = 0);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
@@ -1869,7 +1869,8 @@ class ND_HexahedronElement : public VectorFiniteElement
    Array<int> dof_map, dof2tk;
 
 public:
-   ND_HexahedronElement(const int p);
+   ND_HexahedronElement(const int p,
+           const int op_type = -1 , const int cp_type = 1);
 
    virtual void CalcVShape(const IntegrationPoint &ip,
                            DenseMatrix &shape) const;
@@ -1920,7 +1921,8 @@ class ND_QuadrilateralElement : public VectorFiniteElement
    Array<int> dof_map, dof2tk;
 
 public:
-   ND_QuadrilateralElement(const int p);
+   ND_QuadrilateralElement(const int p,
+           const int op_type = -1 , const int cp_type = 1);
    virtual void CalcVShape(const IntegrationPoint &ip,
                            DenseMatrix &shape) const;
    virtual void CalcVShape(ElementTransformation &Trans,
@@ -2037,7 +2039,7 @@ class ND_SegmentElement : public VectorFiniteElement
    Array<int> dof2tk;
 
 public:
-   ND_SegmentElement(const int p);
+   ND_SegmentElement(const int p, const int op_type = -1 , const int cp_type = 1);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const
    { obasis1d.Eval(ip.x, shape); }
    virtual void CalcVShape(const IntegrationPoint &ip,
