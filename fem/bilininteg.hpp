@@ -361,6 +361,31 @@ public:
 };
 
 
+/** Integrator for (- grad u, v) for H1 and Nedelec elements.
+    This is equivalent to a weak divergence of the Nedelec basis functions.
+ */
+class VectorFEWeakDivergenceIntegrator: public BilinearFormIntegrator
+{
+private:
+   Coefficient *Q;
+#ifndef MFEM_THREAD_SAFE
+   DenseMatrix dshape;
+   DenseMatrix dshapedxt;
+   DenseMatrix vshape;
+   DenseMatrix invdfdx;
+#endif
+public:
+   VectorFEWeakDivergenceIntegrator() { Q = NULL; }
+   VectorFEWeakDivergenceIntegrator(Coefficient &q) { Q = &q; }
+   virtual void AssembleElementMatrix(const FiniteElement &el,
+                                      ElementTransformation &Trans,
+                                      DenseMatrix &elmat) { }
+   virtual void AssembleElementMatrix2(const FiniteElement &trial_fe,
+                                       const FiniteElement &test_fe,
+                                       ElementTransformation &Trans,
+                                       DenseMatrix &elmat);
+};
+
 /// Integrator for (curl u, v) for Nedelec and RT elements
 class VectorFECurlIntegrator: public BilinearFormIntegrator
 {
