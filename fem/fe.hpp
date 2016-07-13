@@ -97,6 +97,13 @@ public:
 
    int GetMapType() const { return MapType; }
 
+   void SetMapType(int M)
+   {
+      MFEM_VERIFY(M == VALUE || M == INTEGRAL || M == H_CURL || M == H_DIV,
+                  "unknown MapType");
+      MapType = M;
+   }
+
    /** pure virtual function which evaluates the values of all
        shape functions at a given point ip and stores
        them in the vector shape of dimension Dof */
@@ -1726,6 +1733,10 @@ public:
                             ElementTransformation &Trans,
                             DenseMatrix &grad) const
    { ProjectGrad_RT(nk, dof2nk, fe, Trans, grad); }
+   virtual void ProjectCurl(const FiniteElement &fe,
+                            ElementTransformation &Trans,
+                            DenseMatrix &curl) const
+   { ProjectGrad_RT(nk, dof2nk, fe, Trans, curl); }
 };
 
 

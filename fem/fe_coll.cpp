@@ -1581,7 +1581,8 @@ H1_Trace_FECollection::H1_Trace_FECollection(const int p, const int dim,
 }
 
 
-L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
+L2_FECollection::L2_FECollection(const int p, const int dim, const int type,
+                                 const int map_type)
 {
    m_type = (BasisType)type;
    if (type == 0)
@@ -1617,8 +1618,10 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
       {
          L2_Elements[Geometry::SEGMENT] = new L2Pos_SegmentElement(p);
       }
+      L2_Elements[Geometry::SEGMENT]->SetMapType(map_type);
 
       Tr_Elements[Geometry::POINT] = new PointFiniteElement;
+      Tr_Elements[Geometry::POINT]->SetMapType(map_type);
 
       const int pp1 = p + 1;
       SegDofOrd[0] = new int[2*pp1];
@@ -1641,7 +1644,11 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
          L2_Elements[Geometry::TRIANGLE] = new L2Pos_TriangleElement(p);
          L2_Elements[Geometry::SQUARE] = new L2Pos_QuadrilateralElement(p);
       }
+      L2_Elements[Geometry::TRIANGLE]->SetMapType(map_type);
+      L2_Elements[Geometry::SQUARE]->SetMapType(map_type);
+
       Tr_Elements[Geometry::SEGMENT] = new L2_SegmentElement(p, 0);
+      Tr_Elements[Geometry::SEGMENT]->SetMapType(map_type);
 
       const int TriDof = L2_Elements[Geometry::TRIANGLE]->GetDof();
       TriDofOrd[0] = new int[6*TriDof];
@@ -1676,8 +1683,13 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
          L2_Elements[Geometry::TETRAHEDRON] = new L2Pos_TetrahedronElement(p);
          L2_Elements[Geometry::CUBE] = new L2Pos_HexahedronElement(p);
       }
+      L2_Elements[Geometry::TETRAHEDRON]->SetMapType(map_type);
+      L2_Elements[Geometry::CUBE]->SetMapType(map_type);
+
       Tr_Elements[Geometry::TRIANGLE] = new L2_TriangleElement(p, 0);
       Tr_Elements[Geometry::SQUARE] = new L2_QuadrilateralElement(p, 0);
+      Tr_Elements[Geometry::TRIANGLE]->SetMapType(map_type);
+      Tr_Elements[Geometry::SQUARE]->SetMapType(map_type);
    }
    else
    {

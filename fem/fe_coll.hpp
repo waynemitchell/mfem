@@ -146,7 +146,8 @@ private:
    int *TriDofOrd[6]; // for rotating triangle dofs in 2D
 
 public:
-   L2_FECollection(const int p, const int dim, const int type = GaussLegendre);
+   L2_FECollection(const int p, const int dim, const int type = GaussLegendre,
+                   const int map_type = FiniteElement::VALUE);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return L2_Elements[GeomType]; }
