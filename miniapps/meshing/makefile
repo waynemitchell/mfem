@@ -20,7 +20,7 @@ TEST_MK = $(MFEM_DIR)/config/test.mk
 MFEM_LIB_FILE = mfem_is_not_built
 -include $(CONFIG_MK)
 
-SEQ_MINIAPPS = mobius-strip klein-bottle mesh-explorer
+SEQ_MINIAPPS = mobius-strip klein-bottle mesh-explorer display_basis
 PAR_MINIAPPS =
 ifeq ($(MFEM_USE_MPI),NO)
    MINIAPPS = $(SEQ_MINIAPPS)
