@@ -33,7 +33,7 @@ namespace mfem
 // data does not change during a run.  There are some drawbacks to trying to do most data as 'external'
 // to Sidre. (For future discussion)
 SidreDataCollection::SidreDataCollection(const std::string& collection_name, asctoolkit::sidre::DataGroup* dg)
-  : mfem::DataCollection(collection_name.c_str())
+  : mfem::DataCollection(collection_name.c_str()), parent_datagroup(dg)
 {
   namespace sidre = asctoolkit::sidre;
 
@@ -86,6 +86,8 @@ void SidreDataCollection::Load(const std::string& path, const std::string& proto
 	std::cout << "Loading Sidre checkpoint: " << path << " using protocol: " << protocol << std::endl;
 //	sidre_dc_group->getDataStore()->load(path, protocol, sidre_dc_group);
 	sidre_dc_group->getDataStore()->load(path, protocol);
+   // we have to get this again because the group pointer may have changed
+   sidre_dc_group = parent_datagroup->getGroup( name );
 	SetTime( sidre_dc_group->getView("state/time")->getScalar() );
 	SetCycle( sidre_dc_group->getView("state/cycle")->getScalar() );
 }
@@ -131,7 +133,7 @@ void SidreDataCollection::Save()
     // write out in serial for debugging, or if MPI unavailable
     if(useSerial)
     {
-        protocol = "json";
+        protocol = "conduit_json";
         filename = fNameSstr.str() + "_ser.json";
         sidre_dc_group->getDataStore()->save(filename, protocol);
 

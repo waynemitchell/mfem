@@ -533,13 +533,13 @@ public:
    double *GetVertex(int i) { return vertices[i](); }
 
    void ChangeElementObjectDataOwnership(Array<Element*>&, size_t,
-         int*, size_t, int*, size_t);
+         int*, size_t, int*, size_t, bool zerocopy);
 
    void ChangeElementDataOwnership(int *indices, size_t max_indices,
-         int *attributes, size_t max_attributes);
+         int *attributes, size_t max_attributes, bool zerocopy = false);
 
    void ChangeVertexDataOwnership(double *vertices, int dim, 
-         size_t num_vertices);
+         size_t num_vertices, bool zerocopy = false);
 
    const Element* const *GetElementsArray() const
    { return elements.GetData(); }

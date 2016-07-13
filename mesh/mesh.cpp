@@ -2201,7 +2201,7 @@ Mesh::Mesh(std::istream &input, int generate_edges, int refine,
 void Mesh::ChangeElementObjectDataOwnership(
       Array<Element*> &elem_objs, size_t elem_objs_size,
       int *indices, size_t max_indices, 
-      int *attributes, size_t max_attributes) 
+      int *attributes, size_t max_attributes, bool zerocopy)
 {
    size_t offset = 0;
    if (max_attributes < elem_objs_size) {
@@ -2215,8 +2215,10 @@ void Mesh::ChangeElementObjectDataOwnership(
       if (offset + length > max_indices) {
          throw std::runtime_error("new `indices` memory not large enough");
       }
-      memcpy(indices + offset, element_indices, length * sizeof(int));
-      attributes[i] = elem_objs[i]->GetAttribute();
+      if (!zerocopy) {
+         memcpy(indices + offset, element_indices, length * sizeof(int));
+         attributes[i] = elem_objs[i]->GetAttribute();
+      }
       if (elem_objs[i]->IsSelfAlloc()) {
          delete element_indices;
          elem_objs[i]->SetOwnership(false);
@@ -2230,13 +2232,13 @@ void Mesh::ChangeElementObjectDataOwnership(
 
 void Mesh::ChangeElementDataOwnership(int *indices,
       size_t max_indices, int *attributes,
-      size_t max_attributes) {
+      size_t max_attributes, bool zerocopy) {
    ChangeElementObjectDataOwnership(elements, NumOfElements,
-         indices, max_indices, attributes, max_attributes);
+         indices, max_indices, attributes, max_attributes, zerocopy);
 }
 
 void Mesh::ChangeVertexDataOwnership(double *vertex_data,
-      int dim, size_t len_vertex_data) {
+      int dim, size_t len_vertex_data, bool zerocopy) {
    if (len_vertex_data < NumOfVertices * dim) {
       throw std::runtime_error("Not enough vertices in external array");
    }
@@ -2245,7 +2247,9 @@ void Mesh::ChangeVertexDataOwnership(double *vertex_data,
    // delete the self allocated data, and assign the correct slice
    // of data from vertex_data
    for (int i = 0; i < NumOfVertices; i++) {
-      memcpy(vertex_data + i * dim, vertices[i](), dim * sizeof(double));
+      if (!zerocopy) {
+         memcpy(vertex_data + i * dim, vertices[i](), dim * sizeof(double));
+      }
       vertices[i].SetCoordPtr(vertex_data + i * dim);
    }
 }

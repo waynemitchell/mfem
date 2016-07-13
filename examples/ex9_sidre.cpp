@@ -141,36 +141,23 @@ int main(int argc, char *argv[])
    // see https://rzlc.llnl.gov/confluence/display/MAPP/MFEM+Mesh+Blueprint+Prototype
    namespace sidre = asctoolkit::sidre;
    sidre::DataStore ds;
-
    //asctoolkit::slic::debug::checksAreErrors = true;
-
    sidre::DataView *elements_connectivity;
    sidre::DataView *material_attribute_values;
    sidre::DataView *coordset_values;
-
-
    DataCollection * dc = NULL;
-
    dc = new SidreDataCollection("Example9", ds.getRoot() );
    sidre::DataGroup* grp = ds.getRoot()->getGroup("Example9");
-
-
    if (strcmp(sidre_restart, "\0") != 0) {
       sidre_use_restart = true;
    }
 
-   // conduit_json
+   // 2. Read the mesh from the given mesh file. We can handle geometrically
+   //    periodic meshes in this code.
    if (sidre_use_restart) {
-      std::cout << "loading sidre checkpoint: "<< sidre_restart
-              << " using protocol: " << sidre_restart_protocol
-              << std::endl;
-      ds.load(sidre_restart, sidre_restart_protocol);
-
-      dc->SetTime( grp->getView("state/time")->getScalar() );
-      dc->SetCycle(grp->getView("state/cycle")->getScalar() );
-
-
       dc->Load(sidre_restart, sidre_restart_protocol);
+      // we should get this from the DataCollection
+      grp = ds.getRoot()->getGroup("Example9");
    }
    else {
 
@@ -193,115 +180,50 @@ int main(int argc, char *argv[])
    elements_connectivity = grp->getView("topology/elements/connectivity");
    material_attribute_values = grp->getView("fields/material_attribute/values");
    coordset_values = grp->getView("coordset/x");
+   std::istringstream istrMesh(grp->getView("aux/orig_mesh_str")->getString() );
 
+   // initialize the mesh from the istringstream
+   Mesh *mesh = new Mesh(istrMesh, 1, 1);
 
-   // 2. Populate the Mesh. Either from the mesh file or from a restart
-   Mesh *mesh;
-
-   int dim;
-   if (sidre_use_restart) {
-      /*
-      Mesh(double *vertices, int num_vertices,
-           int *element_indices, Geometry::Type element_type, 
-           int *element_attributes, int num_elements,
-           int *boundary_indices, Geometry::Type boundary_type,
-           int *boundary_attributes, int num_boundary_elements,
-           int dimension, int space_dimension= -1,
-           int generate_edges = 0, int refine = 0, 
-           bool fix_orientation = true);
-      */
-      string element_shape = grp->getView("topology/elements/shape")->getString();
-      cout << "element shape is " << element_shape << endl;
-      Geometry::Type elem_shape;
-      // where should we get this?
-      dim = 2;
-      if (element_shape == "quads") {
-         elem_shape = Geometry::SQUARE; 
-      }
-      else {
-         throw std::runtime_error("unknown element shape");
-      }
-      int number_of_vertices = coordset_values->getNumElements() / dim;
-      if (number_of_vertices != elements_connectivity->getNumElements() ||
-          number_of_vertices != material_attribute_values->getNumElements()) {
-         throw std::runtime_error("length mismatch");
-      }
-      mesh = new Mesh(coordset_values->getArray(), 
-            number_of_vertices * dim,
-            elements_connectivity->getArray(), elem_shape,
-            material_attribute_values->getArray(), 
-            elements_connectivity->getNumElements(),
-            NULL, Geometry::POINT, NULL, 0, dim);
+   // 3. Refine the mesh to increase the resolution. In this example we do
+   //    'ref_levels' of uniform refinement, where 'ref_levels' is a
+   //    command-line parameter. If the mesh is of NURBS type, we convert it to
+   //    a (piecewise-polynomial) high-order mesh.
+   for (int lev = 0; lev < ref_levels; lev++)
+   {
+      mesh->UniformRefinement();
    }
-   else {
-      // 2. Read the mesh from the given mesh file. We can handle geometrically
-      //    periodic meshes in this code.
-      std::istringstream istrMesh(grp->getView("aux/orig_mesh_str")->getString() );
+   if (mesh->NURBSext)
+   {
+      mesh->SetCurvature(max(order, 1));
+   }
 
-      // initialize the mesh from the istringstream
-      mesh = new Mesh(istrMesh, 1, 1);
+   mesh->GetBoundingBox(bb_min, bb_max, max(order, 1));
 
-
-      // 4. Refine the mesh to increase the resolution. In this example we do
-      //    'ref_levels' of uniform refinement, where 'ref_levels' is a
-      //    command-line parameter. If the mesh is of NURBS type, we convert it to
-      //    a (piecewise-polynomial) high-order mesh.
-      for (int lev = 0; lev < ref_levels; lev++)
-      {
-         mesh->UniformRefinement();
-      }
-      if (mesh->NURBSext)
-      {
-         mesh->SetCurvature(max(order, 1));
-      }
-
-      dim = mesh->Dimension();
-      int num_elements = mesh->GetNE();
-      int element_size = 4;
-      //int num_boundary_elements = mesh->GetNBE();
-      int num_indices = num_elements * element_size;
-      int num_vertices = mesh->GetNV();
-      int coordset_len = dim * num_vertices; 
-
-      cout << "Print coordset:" << endl;
-      for (int i = 0; i < num_vertices; i++) {
-         double *data = mesh->GetVertex(i);
-         cout << i << " (" << data[0] << ", " << data[1] << ", " << data[2] 
-              << ")" << endl;
-      }
-
+   // 4. Change ownership of mesh data
+   int dim = mesh->Dimension();
+   int num_elements = mesh->GetNE();
+   int element_size = 4;
+   int num_indices = num_elements * element_size;
+   int num_vertices = mesh->GetNV();
+   int coordset_len = dim * num_vertices; 
+   
+   if (!sidre_use_restart) {
       elements_connectivity->allocate(
                   asctoolkit::sidre::detail::SidreTT<int>::id,
                   num_indices);
-      //elements_connectivity->apply(num_indices, 0, element_size);
-
       material_attribute_values->allocate(
                   asctoolkit::sidre::detail::SidreTT<int>::id,
                   num_elements);
-      //material_attribute_values->apply(num_elements, 0, 1);
-
-      mesh->ChangeElementDataOwnership(elements_connectivity->getArray(),
-         element_size * num_elements, material_attribute_values->getArray(),
-         num_elements);
-
-      // this is the cause of the failure on a restart
-      if (true) {// false) {
-         coordset_values->allocate(
-               asctoolkit::sidre::detail::SidreTT<double>::id,
-               coordset_len);
-
-         mesh->ChangeVertexDataOwnership(coordset_values->getArray(),
-               dim, coordset_len);
-         cout << "Print coordset (sidre owned):" << endl;
-         for (int i = 0; i < num_vertices; i++) {
-            double *data = mesh->GetVertex(i);
-            cout << i << " (" << data[0] << ", " << data[1] << ", " << data[2] 
-                 << ")" << endl;
-         }
-      }
+      coordset_values->allocate(
+            asctoolkit::sidre::detail::SidreTT<double>::id,
+            coordset_len);
    }
-
-
+   mesh->ChangeElementDataOwnership(elements_connectivity->getArray(),
+      element_size * num_elements, material_attribute_values->getArray(),
+      num_elements);
+   mesh->ChangeVertexDataOwnership(coordset_values->getArray(),
+         dim, coordset_len);
 
 
    // Deal with mesh's grid function: nodes
@@ -324,7 +246,8 @@ int main(int argc, char *argv[])
     dc->RegisterField( "nodes", mesh->GetNodes());
 
 
-   // 3. Define the ODE solver used for time integration. Several explicit
+
+   // 4. Define the ODE solver used for time integration. Several explicit
    //    Runge-Kutta methods are available.
    ODESolver *ode_solver = NULL;
    switch (ode_solver_type)
@@ -338,12 +261,6 @@ int main(int argc, char *argv[])
          cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
          return 3;
    }
-
-   // 4. OLD: Refine the mesh to increase the resolution. In this example we do
-   //    'ref_levels' of uniform refinement, where 'ref_levels' is a
-   //    command-line parameter. If the mesh is of NURBS type, we convert it to
-   //    a (piecewise-polynomial) high-order mesh.
-   mesh->GetBoundingBox(bb_min, bb_max, max(order, 1));
 
    // 5. Define the discontinuous DG finite element space of the given
    //    polynomial order on the refined mesh.
