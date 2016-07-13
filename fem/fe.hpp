@@ -1861,7 +1861,7 @@ class ND_HexahedronElement : public VectorFiniteElement
 {
    static const double tk[18];
 
-   Poly_1D::Basis &cbasis1d, &obasis1d;
+   Poly_1D::Basis *cbasis1d, *obasis1d;
 #ifndef MFEM_THREAD_SAFE
    mutable Vector shape_cx, shape_ox, shape_cy, shape_oy, shape_cz, shape_oz;
    mutable Vector dshape_cx, dshape_cy, dshape_cz;
@@ -1913,7 +1913,7 @@ class ND_QuadrilateralElement : public VectorFiniteElement
 {
    static const double tk[8];
 
-   Poly_1D::Basis &cbasis1d, &obasis1d;
+   Poly_1D::Basis *cbasis1d, *obasis1d;
 #ifndef MFEM_THREAD_SAFE
    mutable Vector shape_cx, shape_ox, shape_cy, shape_oy;
    mutable Vector dshape_cx, dshape_cy;
@@ -2035,13 +2035,13 @@ class ND_SegmentElement : public VectorFiniteElement
 {
    static const double tk[1];
 
-   Poly_1D::Basis &obasis1d;
+   Poly_1D::Basis *obasis1d;
    Array<int> dof2tk;
 
 public:
-   ND_SegmentElement(const int p, const int op_type = -1 , const int cp_type = 1);
+   ND_SegmentElement(const int p, const int op_type = -1 );
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const
-   { obasis1d.Eval(ip.x, shape); }
+   { obasis1d->Eval(ip.x, shape); }
    virtual void CalcVShape(const IntegrationPoint &ip,
                            DenseMatrix &shape) const;
    virtual void CalcVShape(ElementTransformation &Trans,
