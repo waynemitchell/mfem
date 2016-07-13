@@ -1,33 +1,22 @@
-//                                MFEM Example 10
+//                                MFEM Example 16
 //
-// Compile with: make ex10
+// Compile with: make ex16
 //
 // Sample runs:
-//    ex10 -m ../data/beam-quad.mesh -s 3 -r 2 -o 2 -dt 3
-//    ex10 -m ../data/beam-tri.mesh -s 3 -r 2 -o 2 -dt 3
-//    ex10 -m ../data/beam-hex.mesh -s 2 -r 1 -o 2 -dt 3
-//    ex10 -m ../data/beam-tet.mesh -s 2 -r 1 -o 2 -dt 3
-//    ex10 -m ../data/beam-quad.mesh -s 14 -r 2 -o 2 -dt 0.03 -vs 20
-//    ex10 -m ../data/beam-hex.mesh -s 14 -r 1 -o 2 -dt 0.05 -vs 20
+//    ex10 -m ../data/star.mesh -s 3 -r 2 -o 2 -dt 3
 //
-// Description:  This examples solves a time dependent nonlinear elasticity
-//               problem of the form dv/dt = H(x) + S v, dx/dt = v, where H is a
-//               hyperelastic model and S is a viscosity operator of Laplacian
-//               type. The geometry of the domain is assumed to be as follows:
-//
-//                                 +---------------------+
-//                    boundary --->|                     |
-//                    attribute 1  |                     |
-//                    (fixed)      +---------------------+
+// Description:  This examples solves a time dependent nonlinear heat equation
+//               problem of the form du/dt = C(u), where C is a
+//               non-linear Laplacian C(u) = \nabla \cdot (\alpha u) \nabla u.
 //
 //               The example demonstrates the use of nonlinear operators (the
-//               class HyperelasticOperator defining H(x)), as well as their
+//               class ConductionOperator defining C(x)), as well as their
 //               implicit time integration using a Newton method for solving an
 //               associated reduced backward-Euler type nonlinear equation
 //               (class BackwardEulerOperator). Each Newton step requires the
 //               inversion of a Jacobian matrix, which is done through a
 //               (preconditioned) inner solver. Note that implementing the
-//               method HyperelasticOperator::ImplicitSolve is the only
+//               method ConductionOperator::ImplicitSolve is the only
 //               requirement for high-order implicit (SDIRK) time integration.
 //
 //               We recommend viewing examples 2 and 9 before viewing this
@@ -46,29 +35,26 @@ class BackwardEulerOperator;
 
 /** After spatial discretization, the hyperelastic model can be written as a
  *  system of ODEs:
- *     dv/dt = -M^{-1}*(H(x) + S*v)
- *     dx/dt = v,
- *  where x is the vector representing the deformation, v is the velocity field,
- *  M is the mass matrix, S is the viscosity matrix, and H(x) is the nonlinear
- *  hyperelastic operator.
+ *     du/dt = -M^{-1}*C(u)
+ *  where u is the vector representing the temperature,
+ *  M is the mass matrix, and C(x) is the nonlinear
+ *  conduction operator.
  *
- *  Class HyperelasticOperator represents the right-hand side of the above
- *  system of ODEs. */
-class HyperelasticOperator : public TimeDependentOperator
+ *  Class ConductionOperator represents the right-hand side of the above ODE
+ */
+class ConductionOperator : public TimeDependentOperator
 {
 protected:
    FiniteElementSpace &fespace;
 
-   BilinearForm M, S;
-   NonlinearForm H;
-   double viscosity;
-   HyperelasticModel *model;
+   BilinearForm M;
+   NonlinearForm C;
 
    CGSolver M_solver; // Krylov solver for inverting the mass matrix M
    DSmoother M_prec;  // Preconditioner for the mass matrix M
 
    /** Nonlinear operator defining the reduced backward Euler equation for the
-       velocity. Used in the implementation of method ImplicitSolve. */
+       temperature. Used in the implementation of method ImplicitSolve. */
    BackwardEulerOperator *backward_euler_oper;
    /// Newton solver for the backward Euler equation
    NewtonSolver newton_solver;
@@ -80,80 +66,55 @@ protected:
    mutable Vector z; // auxiliary vector
 
 public:
-   HyperelasticOperator(FiniteElementSpace &f, Array<int> &ess_bdr,
-                        double visc, double mu, double K);
+   ConductionOperator(FiniteElementSpace &f, Array<int> &ess_bdr,
+                      double alpha);
 
-   virtual void Mult(const Vector &vx, Vector &dvx_dt) const;
-   /** Solve the Backward-Euler equation: k = f(x + dt*k, t), for the unknown k.
+   virtual void Mult(const Vector &u, Vector &du_dt) const;
+   /** Solve the Backward-Euler equation: k = f(u + dt*k, t), for the unknown k.
        This is the only requirement for high-order SDIRK implicit integration.*/
-   virtual void ImplicitSolve(const double dt, const Vector &x, Vector &k);
-
-   double ElasticEnergy(Vector &x) const;
-   double KineticEnergy(Vector &v) const;
-   void GetElasticEnergyDensity(GridFunction &x, GridFunction &w) const;
+   virtual void ImplicitSolve(const double dt, const Vector &u, Vector &k);
 
    virtual ~HyperelasticOperator();
 };
 
 // Nonlinear operator of the form:
-//       k --> (M + dt*S)*k + H(x + dt*v + dt^2*k) + S*v,
-// where M and S are given BilinearForms, H is a given NonlinearForm, v and x
+//       k --> M*k+ C(u + dt*k),
+// where M is a BilinearForms, H is a given NonlinearForm, v and x
 // are given vectors, and dt is a scalar.
 class BackwardEulerOperator : public Operator
 {
 private:
-   BilinearForm *M, *S;
-   NonlinearForm *H;
+   BilinearForm *M;
+   NonlinearForm *C;
    mutable SparseMatrix *Jacobian;
-   const Vector *v, *x;
+   const Vector *u;
    double dt;
-   mutable Vector w, z;
+   mutable Vector z;
 
 public:
-   BackwardEulerOperator(BilinearForm *M_, BilinearForm *S_, NonlinearForm *H_);
-   void SetParameters(double dt_, const Vector *v_, const Vector *x_);
+   BackwardEulerOperator(BilinearForm *M_, NonlinearForm *C_);
+   void SetParameters(double dt_, const Vector *u_);
    virtual void Mult(const Vector &k, Vector &y) const;
    virtual Operator &GetGradient(const Vector &k) const;
    virtual ~BackwardEulerOperator();
 };
 
-/** Function representing the elastic energy density for the given hyperelastic
-    model+deformation. Used in HyperelasticOperator::GetElasticEnergyDensity. */
-class ElasticEnergyCoefficient : public Coefficient
-{
-private:
-   HyperelasticModel &model;
-   GridFunction      &x;
-   DenseMatrix        J;
-
-public:
-   ElasticEnergyCoefficient(HyperelasticModel &m, GridFunction &x_)
-      : model(m), x(x_) { }
-   virtual double Eval(ElementTransformation &T, const IntegrationPoint &ip);
-   virtual ~ElasticEnergyCoefficient() { }
-};
-
-void InitialDeformation(const Vector &x, Vector &y);
-
-void InitialVelocity(const Vector &x, Vector &v);
+double InitialTemperature(const Vector &x);
 
 void visualize(ostream &out, Mesh *mesh, GridFunction *deformed_nodes,
                GridFunction *field, const char *field_name = NULL,
                bool init_vis = false);
 
-
 int main(int argc, char *argv[])
 {
    // 1. Parse command-line options.
-   const char *mesh_file = "../data/beam-quad.mesh";
+   const char *mesh_file = "../data/star.mesh";
    int ref_levels = 2;
    int order = 2;
    int ode_solver_type = 3;
    double t_final = 300.0;
    double dt = 3.0;
-   double visc = 1e-2;
-   double mu = 0.25;
-   double K = 5.0;
+   double alpha = 10;
    bool visualization = true;
    int vis_steps = 1;
 
@@ -171,12 +132,8 @@ int main(int argc, char *argv[])
                   "Final time; start time is 0.");
    args.AddOption(&dt, "-dt", "--time-step",
                   "Time step.");
-   args.AddOption(&visc, "-v", "--viscosity",
-                  "Viscosity coefficient.");
-   args.AddOption(&mu, "-mu", "--shear-modulus",
-                  "Shear modulus in the Neo-Hookean hyperelastic model.");
-   args.AddOption(&K, "-K", "--bulk-modulus",
-                  "Bulk modulus in the Neo-Hookean hyperelastic model.");
+   args.AddOption(&alpha, "-a", "--alpha",
+                  "Alpha coefficient.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -227,71 +184,39 @@ int main(int argc, char *argv[])
       mesh->UniformRefinement();
    }
 
-   // 5. Define the vector finite element spaces representing the mesh
-   //    deformation x, the velocity v, and the initial configuration, x_ref.
-   //    Define also the elastic energy density, w, which is in a discontinuous
-   //    higher-order space. Since x and v are integrated in time as a system,
-   //    we group them together in block vector vx, with offsets given by the
-   //    fe_offset array.
+   // 5. Define the vector finite element space representing the current and the 
+   //    initial temperature, u_ref.
    H1_FECollection fe_coll(order, dim);
-   FiniteElementSpace fespace(mesh, &fe_coll, dim);
+   FiniteElementSpace fespace(mesh, &fe_coll);
 
    int fe_size = fespace.GetVSize();
-   cout << "Number of velocity/deformation unknowns: " << fe_size << endl;
-   Array<int> fe_offset(3);
-   fe_offset[0] = 0;
-   fe_offset[1] = fe_size;
-   fe_offset[2] = 2*fe_size;
+   cout << "Number of temperature unknowns: " << fe_size << endl;
 
-   BlockVector vx(fe_offset);
-   GridFunction v, x;
-   v.MakeRef(&fespace, vx.GetBlock(0), 0);
-   x.MakeRef(&fespace, vx.GetBlock(1), 0);
-
-   GridFunction x_ref(&fespace);
-   mesh->GetNodes(x_ref);
-
-   L2_FECollection w_fec(order + 1, dim);
-   FiniteElementSpace w_fespace(mesh, &w_fec);
-   GridFunction w(&w_fespace);
+   Vector u;
+   GridFunction u_gf;
+   u_gf.MakeRef(&fespace, u, 0);
 
    // 6. Set the initial conditions for v and x, and the boundary conditions on
    //    a beam-like mesh (see description above).
-   VectorFunctionCoefficient velo(dim, InitialVelocity);
-   v.ProjectCoefficient(velo);
-   VectorFunctionCoefficient deform(dim, InitialDeformation);
-   x.ProjectCoefficient(deform);
+   FunctionCoefficient u_0(InitialTemperature);
+   u_gf.ProjectCoefficient(u_0);
 
    Array<int> ess_bdr(fespace.GetMesh()->bdr_attributes.Max());
-   ess_bdr = 0;
-   ess_bdr[0] = 1; // boundary attribute 1 (index 0) is fixed
+   ess_bdr = 1;
 
-   // 7. Initialize the hyperelastic operator, the GLVis visualization and print
-   //    the initial energies.
-   HyperelasticOperator oper(fespace, ess_bdr, visc, mu, K);
+   // 7. Initialize the conduction operator and the GLVis visualization 
+   ConductionOperator oper(fespace, ess_bdr, alpha);
 
-   socketstream vis_v, vis_w;
+   socketstream vis_u;
    if (visualization)
    {
       char vishost[] = "localhost";
       int  visport   = 19916;
-      vis_v.open(vishost, visport);
-      vis_v.precision(8);
-      visualize(vis_v, mesh, &x, &v, "Velocity", true);
-      vis_w.open(vishost, visport);
-      if (vis_w)
-      {
-         oper.GetElasticEnergyDensity(x, w);
-         vis_w.precision(8);
-         visualize(vis_w, mesh, &x, &w, "Elastic energy density", true);
-      }
+      vis_u.open(vishost, visport);
+      vis_u.precision(8);
+      visualize(vis_u, mesh, &x, &u, "Temperature", true);
    }
 
-   double ee0 = oper.ElasticEnergy(x);
-   double ke0 = oper.KineticEnergy(v);
-   cout << "initial elastic energy (EE) = " << ee0 << endl;
-   cout << "initial kinetic energy (KE) = " << ke0 << endl;
-   cout << "initial   total energy (TE) = " << (ee0 + ke0) << endl;
 
    // 8. Perform time-integration (looping over the time iterations, ti, with a
    //    time-step dt).
@@ -306,44 +231,24 @@ int main(int argc, char *argv[])
          last_step = true;
       }
 
-      ode_solver->Step(vx, t, dt);
+      ode_solver->Step(u, t, dt);
 
       if (last_step || (ti % vis_steps) == 0)
       {
-         double ee = oper.ElasticEnergy(x);
-         double ke = oper.KineticEnergy(v);
-
-         cout << "step " << ti << ", t = " << t << ", EE = " << ee << ", KE = "
-              << ke << ", ΔTE = " << (ee+ke)-(ee0+ke0) << endl;
+         cout << "step " << ti << ", t = " << t << endl;
 
          if (visualization)
          {
-            visualize(vis_v, mesh, &x, &v);
-            if (vis_w)
-            {
-               oper.GetElasticEnergyDensity(x, w);
-               visualize(vis_w, mesh, &x, &w);
-            }
+            visualize(vis_u, mesh, &x, &u);
          }
       }
    }
 
    // 9. Save the displaced mesh, the velocity and elastic energy.
    {
-      GridFunction *nodes = &x;
-      int owns_nodes = 0;
-      mesh->SwapNodes(nodes, owns_nodes);
-      ofstream mesh_ofs("deformed.mesh");
-      mesh_ofs.precision(8);
-      mesh->Print(mesh_ofs);
-      mesh->SwapNodes(nodes, owns_nodes);
-      ofstream velo_ofs("velocity.sol");
-      velo_ofs.precision(8);
-      v.Save(velo_ofs);
-      ofstream ee_ofs("elastic_energy.sol");
-      ee_ofs.precision(8);
-      oper.GetElasticEnergyDensity(x, w);
-      w.Save(ee_ofs);
+      ofstream u_ofs("temperature.sol");
+      u_ofs.precision(8);
+      u.Save(u_ofs);
    }
 
    // 10. Free the used memory.
@@ -353,22 +258,14 @@ int main(int argc, char *argv[])
    return 0;
 }
 
-void visualize(ostream &out, Mesh *mesh, GridFunction *deformed_nodes,
-               GridFunction *field, const char *field_name, bool init_vis)
+void visualize(ostream &out, Mesh *mesh, GridFunction *field, const char *field_name, bool init_vis)
 {
    if (!out)
    {
       return;
    }
 
-   GridFunction *nodes = deformed_nodes;
-   int owns_nodes = 0;
-
-   mesh->SwapNodes(nodes, owns_nodes);
-
    out << "solution\n" << *mesh << *field;
-
-   mesh->SwapNodes(nodes, owns_nodes);
 
    if (init_vis)
    {
@@ -387,35 +284,31 @@ void visualize(ostream &out, Mesh *mesh, GridFunction *deformed_nodes,
 }
 
 BackwardEulerOperator::BackwardEulerOperator(
-   BilinearForm *M_, BilinearForm *S_, NonlinearForm *H_)
-   : Operator(M_->Height()), M(M_), S(S_), H(H_), Jacobian(NULL),
-     v(NULL), x(NULL), dt(0.0), w(height), z(height)
+   BilinearForm *M_, NonlinearForm *C_)
+   : Operator(M_->Height()), M(M_), C(C_), Jacobian(NULL),
+     u(NULL), dt(0.0), z(height)
 { }
 
-void BackwardEulerOperator::SetParameters(double dt_, const Vector *v_,
-                                          const Vector *x_)
+void BackwardEulerOperator::SetParameters(double dt_, const Vector *u_)
 {
-   dt = dt_;  v = v_;  x = x_;
+   dt = dt_;  u = u_;
 }
 
 void BackwardEulerOperator::Mult(const Vector &k, Vector &y) const
 {
-   // compute: y = H(x + dt*(v + dt*k)) + M*k + S*(v + dt*k)
-   add(*v, dt, k, w);
-   add(*x, dt, w, z);
-   H->Mult(z, y);
+   // compute: y = M*k + C(x + dt*k)
+   add(*u, dt, k, z);
+   C->Mult(z, y);
    M->AddMult(k, y);
-   S->AddMult(w, y);
 }
 
 Operator &BackwardEulerOperator::GetGradient(const Vector &k) const
 {
    delete Jacobian;
-   Jacobian = Add(1.0, M->SpMat(), dt, S->SpMat());
-   add(*v, dt, k, w);
-   add(*x, dt, w, z);
-   SparseMatrix *grad_H = dynamic_cast<SparseMatrix *>(&H->GetGradient(z));
-   Jacobian->Add(dt*dt, *grad_H);
+   Jacobian = M->SpMat;
+   add(*u, dt, k, z);
+   SparseMatrix *grad_C = dynamic_cast<SparseMatrix *>(&C->GetGradient(z));
+   Jacobian->Add(dt,  *grad_H);
    return *Jacobian;
 }
 
@@ -425,18 +318,15 @@ BackwardEulerOperator::~BackwardEulerOperator()
 }
 
 
-HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
-                                           Array<int> &ess_bdr, double visc,
-                                           double mu, double K)
-   : TimeDependentOperator(2*f.GetVSize(), 0.0), fespace(f),
-     M(&fespace), S(&fespace), H(&fespace), z(height/2)
+ConductionOperator::ConductionOperator(FiniteElementSpace &f,
+                                       Array<int> &ess_bdr, double al)
+   : TimeDependentOperator(f.GetVSize(), 0.0), fespace(f),
+     M(&fespace), C(&fespace), z(height)
 {
    const double rel_tol = 1e-8;
    const int skip_zero_entries = 0;
 
-   const double ref_density = 1.0; // density in the reference configuration
-   ConstantCoefficient rho0(ref_density);
-   M.AddDomainIntegrator(new VectorMassIntegrator(rho0));
+   M.AddDomainIntegrator(new MassIntegrator());
    M.Assemble(skip_zero_entries);
    M.EliminateEssentialBC(ess_bdr);
    M.Finalize(skip_zero_entries);
@@ -449,18 +339,12 @@ HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
    M_solver.SetPreconditioner(M_prec);
    M_solver.SetOperator(M.SpMat());
 
-   model = new NeoHookeanModel(mu, K);
-   H.AddDomainIntegrator(new HyperelasticNLFIntegrator(model));
-   H.SetEssentialBC(ess_bdr);
+   alpha = al;
+   ConstantCoefficient alpha_coeff(alpha);
+   C.AddDomainIntegrator(new NLConductionIntegrator(alpha));
+   C.SetEssentialBC(ess_bdr);
 
-   viscosity = visc;
-   ConstantCoefficient visc_coeff(viscosity);
-   S.AddDomainIntegrator(new VectorDiffusionIntegrator(visc_coeff));
-   S.Assemble(skip_zero_entries);
-   S.EliminateEssentialBC(ess_bdr);
-   S.Finalize(skip_zero_entries);
-
-   backward_euler_oper = new BackwardEulerOperator(&M, &S, &H);
+   backward_euler_oper = new BackwardEulerOperator(&M, &C);
 
 #ifndef MFEM_USE_SUITESPARSE
    J_prec = new DSmoother(1);
@@ -485,98 +369,56 @@ HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
    newton_solver.SetMaxIter(10);
 }
 
-void HyperelasticOperator::Mult(const Vector &vx, Vector &dvx_dt) const
+void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
 {
-   // Create views to the sub-vectors v, x of vx, and dv_dt, dx_dt of dvx_dt
-   int sc = height/2;
-   Vector v(vx.GetData() +  0, sc);
-   Vector x(vx.GetData() + sc, sc);
-   Vector dv_dt(dvx_dt.GetData() +  0, sc);
-   Vector dx_dt(dvx_dt.GetData() + sc, sc);
-
-   H.Mult(x, z);
-   if (viscosity != 0.0)
-   {
-      S.AddMult(v, z);
-   }
+   C.Mult(u, z);
    z.Neg(); // z = -z
-   M_solver.Mult(z, dv_dt);
-
-   dx_dt = v;
+   M_solver.Mult(z, du_dt);
 }
 
-void HyperelasticOperator::ImplicitSolve(const double dt,
-                                         const Vector &vx, Vector &dvx_dt)
+void ConductionOperator::ImplicitSolve(const double dt,
+                                       const Vector &u, Vector &du_dt)
 {
-   int sc = height/2;
-   Vector v(vx.GetData() +  0, sc);
-   Vector x(vx.GetData() + sc, sc);
-   Vector dv_dt(dvx_dt.GetData() +  0, sc);
-   Vector dx_dt(dvx_dt.GetData() + sc, sc);
-
-   // By eliminating kx from the coupled system:
-   //    kv = -M^{-1}*[H(x + dt*kx) + S*(v + dt*kv)]
-   //    kx = v + dt*kv
-   // we reduce it to a nonlinear equation for kv, represented by the
-   // backward_euler_oper. This equation is solved with the newton_solver
+   // Solve the nonlinear equation:
+   //    k = -M^{-1}*[C(u + dt*k)]
+   // This equation is solved with the newton_solver
    // object (using J_solver and J_prec internally).
-   backward_euler_oper->SetParameters(dt, &v, &x);
+   backward_euler_oper->SetParameters(dt, &u);
    Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
-   newton_solver.Mult(zero, dv_dt);
-   add(v, dt, dv_dt, dx_dt);
+   newton_solver.Mult(zero, du_dt);
 
    MFEM_VERIFY(newton_solver.GetConverged(), "Newton Solver did not converge.");
 }
 
-double HyperelasticOperator::ElasticEnergy(Vector &x) const
+ConductionOperator::~ConductionOperator()
 {
-   return H.GetEnergy(x);
-}
-
-double HyperelasticOperator::KineticEnergy(Vector &v) const
-{
-   return 0.5*M.InnerProduct(v, v);
-}
-
-void HyperelasticOperator::GetElasticEnergyDensity(
-   GridFunction &x, GridFunction &w) const
-{
-   ElasticEnergyCoefficient w_coeff(*model, x);
-   w.ProjectCoefficient(w_coeff);
-}
-
-HyperelasticOperator::~HyperelasticOperator()
-{
-   delete model;
    delete backward_euler_oper;
    delete J_solver;
    delete J_prec;
 }
 
-
-double ElasticEnergyCoefficient::Eval(ElementTransformation &T,
-                                      const IntegrationPoint &ip)
+void InitialTemperature(const Vector &x)
 {
-   model.SetTransformation(T);
-   x.GetVectorGradient(T, J);
-   // return model.EvalW(J);  // in reference configuration
-   return model.EvalW(J)/J.Det(); // in deformed configuration
+   int dim = x.Size();
+   switch (dim)
+      {
+      case 1:
+         if (abs(x(0)) < 0.5) {
+            return 1.0;
+         }
+         else {
+            return 0.0;
+         }
+      case 2:
+      case 3:         
+         if (sqrt(x(0)*x(0) + x(1) * x(1)) < 0.5) {
+            return 1.0;
+         }
+         else {
+            return 0.0;
+         }
+
+      }
+   return 0.0;
 }
 
-
-void InitialDeformation(const Vector &x, Vector &y)
-{
-   // set the initial configuration to be the same as the reference, stress
-   // free, configuration
-   y = x;
-}
-
-void InitialVelocity(const Vector &x, Vector &v)
-{
-   const int dim = x.Size();
-   const double s = 0.1/64.;
-
-   v = 0.0;
-   v(dim-1) = s*x(0)*x(0)*(8.0-x(0));
-   v(0) = -s*x(0)*x(0);
-}
