@@ -221,9 +221,9 @@ int main(int argc, char *argv[])
    }
    mesh->ChangeElementDataOwnership(elements_connectivity->getArray(),
       element_size * num_elements, material_attribute_values->getArray(),
-      num_elements);
+      num_elements, sidre_use_restart);
    mesh->ChangeVertexDataOwnership(coordset_values->getArray(),
-         dim, coordset_len);
+         dim, coordset_len, sidre_use_restart);
 
 
    // Deal with mesh's grid function: nodes
