@@ -6497,27 +6497,27 @@ void Poly_1D::CalcChebyshev(const int p, const double x, double *u, double *d)
 
 const double *Poly_1D::OpenPoints(const int p, int type)
 {
-   /// Check the type of points we are using
-   if(open_basis_type == NumericalQuad1D::InvalidQuad)
+   // Check the type of points we are using
+   if (open_basis_type == NumericalQuad1D::Invalid)
    {
-       /// we can set the type of open points
-       /// make sure we are requesting valid points
-       if( (type == NumericalQuad1D::OpenEquallySpaced) ||
-               (type == NumericalQuad1D::GaussLegendre) )
-       {
-           open_basis_type = type;
-       }
-       else
-       {
-           MFEM_ABORT("Trying to set the open basis to type: " << type <<
-                              " Which is not known to be an open set of points");
-       }
+      // we can set the type of open points
+      // make sure we are requesting valid points
+      if ( (type == NumericalQuad1D::OpenEquallySpaced) ||
+           (type == NumericalQuad1D::GaussLegendre) )
+      {
+         open_basis_type = type;
+      }
+      else
+      {
+         MFEM_ABORT("Trying to set the open basis to type: " << type <<
+                    " Which is not known to be an open set of points");
+      }
    }
-   else if( open_basis_type != type)
+   else if (open_basis_type != type)
    {
-       MFEM_ABORT("Open Basis Point Type Already Set!" <<
-                  "This Poly_1D object is already defined to use open_basis_pts of type: " <<
-                  open_basis_type << " Requesting open basis pts of type: " << type );
+      MFEM_ABORT("Open Basis Point Type Already Set!" <<
+                 "This Poly_1D object is already defined to use open_basis_pts of type: " <<
+                 open_basis_type << " Requesting open basis pts of type: " << type);
    }
 
    if (open_pts.Size() <= p)
@@ -6529,10 +6529,10 @@ const double *Poly_1D::OpenPoints(const int p, int type)
          open_pts[i] = NULL;
       }
    }
-   if ( open_pts[p] == NULL)
+   if (open_pts[p] == NULL)
    {
       open_pts[p] = new double[p + 1];
-      quad_func.GivePolyPoints(p+1, open_pts[p],type );
+      quad_func.GivePolyPoints(p+1, open_pts[p],type);
    }
 
    return open_pts[p];
@@ -6540,27 +6540,27 @@ const double *Poly_1D::OpenPoints(const int p, int type)
 
 const double *Poly_1D::ClosedPoints(const int p, int type)
 {
-    /// Check the type of points we are using
-   if(closed_basis_type == NumericalQuad1D::InvalidQuad)
+   // Check the type of points we are using
+   if (closed_basis_type == NumericalQuad1D::Invalid)
    {
-       /// we can set the type of open points
-       /// make sure we are requesting valid points
-       if( ( type == NumericalQuad1D::GaussLobatto) ||
-               ( type == NumericalQuad1D::ClosedEquallySpaced) )
-       {
-           closed_basis_type = type;
-       }
-       else
-       {
-           MFEM_ABORT("Trying to set the closed basis to type: " << type <<
-                  " Which is not known to be a closed set of points");
-       }
+      // we can set the type of open points
+      // make sure we are requesting valid points
+      if ( (type == NumericalQuad1D::GaussLobatto) ||
+           (type == NumericalQuad1D::ClosedEquallySpaced) )
+      {
+         closed_basis_type = type;
+      }
+      else
+      {
+         MFEM_ABORT("Trying to set the closed basis to type: " << type <<
+                    " Which is not known to be a closed set of points");
+      }
    }
-   else if( closed_basis_type != type)
+   else if (closed_basis_type != type)
    {
-       MFEM_ABORT("Closed Basis Point Type Already Set!" <<
-                  "This Poly_1D object is already defined to use closed_basis_pts of type: " <<
-                  closed_basis_type << " Requesting closed basis pts of type: " << type );
+      MFEM_ABORT("Closed Basis Point Type Already Set!" <<
+                 "This Poly_1D object is already defined to use closed_basis_pts of type: " <<
+                 closed_basis_type << " Requesting closed basis pts of type: " << type);
    }
 
    if (closed_pts.Size() <= p)
@@ -6572,16 +6572,16 @@ const double *Poly_1D::ClosedPoints(const int p, int type)
          closed_pts[i] = NULL;
       }
    }
-   if ( closed_pts[p] == NULL)
+   if (closed_pts[p] == NULL)
    {
       closed_pts[p] = new double[p + 1];
-      quad_func.GivePolyPoints(p+1, closed_pts[p],type );
+      quad_func.GivePolyPoints(p+1, closed_pts[p],type);
    }
 
    return closed_pts[p];
 }
 
-Poly_1D::Basis &Poly_1D::OpenBasis(const int p,const int type)
+Poly_1D::Basis &Poly_1D::OpenBasis(const int p, const int type)
 {
    if (open_basis.Size() <= p)
    {
@@ -6592,7 +6592,7 @@ Poly_1D::Basis &Poly_1D::OpenBasis(const int p,const int type)
          open_basis[i] = NULL;
       }
    }
-   if ( open_basis[p] == NULL)
+   if (open_basis[p] == NULL)
    {
       open_basis[p] = new Basis(p, OpenPoints(p,type));
    }
@@ -6611,7 +6611,7 @@ Poly_1D::Basis &Poly_1D::ClosedBasis(const int p, const int type)
          closed_basis[i] = NULL;
       }
    }
-   if ( closed_basis[p] == NULL)
+   if (closed_basis[p] == NULL)
    {
       closed_basis[p] = new Basis(p, ClosedPoints(p, type));
    }
@@ -9253,17 +9253,18 @@ const double RT_QuadrilateralElement::nk[8] =
 { 0., -1.,  1., 0.,  0., 1.,  -1., 0. };
 
 RT_QuadrilateralElement::RT_QuadrilateralElement(const int p,
-                                                 const int op_type , const int cp_type)
+                                                 const int op_type,
+                                                 const int cp_type)
    : VectorFiniteElement(2, Geometry::SQUARE, 2*(p + 1)*(p + 2), p + 1,
                          H_DIV, FunctionSpace::Qk),
      dof_map(Dof), dof2nk(Dof)
 {
-   /// convert from the CloedBasisType and OpenBasisType of RT_FECollection
-   /// also do some error checking :-)
-   int translated_c_type = NumericalQuad1D::InvalidQuad;
-   int translated_o_type = NumericalQuad1D::InvalidQuad;
+   // convert from the CloedBasisType and OpenBasisType of RT_FECollection
+   // also do some error checking
+   int translated_c_type = NumericalQuad1D::Invalid;
+   int translated_o_type = NumericalQuad1D::Invalid;
 
-   if ( cp_type == 1)
+   if (cp_type == 1)
    {
       translated_c_type = NumericalQuad1D::GaussLobatto;
    }
@@ -9272,7 +9273,7 @@ RT_QuadrilateralElement::RT_QuadrilateralElement(const int p,
       translated_c_type = NumericalQuad1D::ClosedEquallySpaced;
    }
 
-   if ( op_type == -1)
+   if (op_type == -1)
    {
       translated_o_type = NumericalQuad1D::GaussLegendre;
    }
@@ -9281,19 +9282,19 @@ RT_QuadrilateralElement::RT_QuadrilateralElement(const int p,
       translated_o_type = NumericalQuad1D::OpenEquallySpaced;
    }
 
-   if ( translated_c_type == NumericalQuad1D::InvalidQuad)
-      MFEM_ABORT( "Asking for an undefined closed basis type.  cp_type = "
-                  << cp_type);
+   if (translated_c_type == NumericalQuad1D::Invalid)
+      MFEM_ABORT("Asking for an undefined closed basis type.  cp_type = "
+                 << cp_type);
 
-   if ( translated_o_type == NumericalQuad1D::InvalidQuad)
+   if (translated_o_type == NumericalQuad1D::Invalid)
       MFEM_ABORT( "Asking for an undefined open basis type.  op_type = "
                   << op_type);
 
    cbasis1d = &poly1d.ClosedBasis(p + 1, translated_c_type);
    obasis1d = &poly1d.OpenBasis(p, translated_o_type);
 
-   const double *cp = poly1d.ClosedPoints(p + 1,translated_c_type);
-   const double *op = poly1d.OpenPoints(p,translated_o_type);
+   const double *cp = poly1d.ClosedPoints(p + 1, translated_c_type);
+   const double *op = poly1d.OpenPoints(p, translated_o_type);
    const int dof2 = Dof/2;
 
 #ifndef MFEM_THREAD_SAFE
@@ -9495,17 +9496,18 @@ const double RT_HexahedronElement::nk[18] =
 { 0.,0.,-1.,  0.,-1.,0.,  1.,0.,0.,  0.,1.,0.,  -1.,0.,0.,  0.,0.,1. };
 
 RT_HexahedronElement::RT_HexahedronElement(const int p,
-                                           const int op_type, const int cp_type)
+                                           const int op_type,
+                                           const int cp_type)
    : VectorFiniteElement(3, Geometry::CUBE, 3*(p + 1)*(p + 1)*(p + 2), p + 1,
                          H_DIV, FunctionSpace::Qk),
      dof_map(Dof), dof2nk(Dof)
 {
-   /// convert from the CloedBasisType and OpenBasisType of RT_FECollection
-   /// also do some error checking :-)
-   int translated_c_type = NumericalQuad1D::InvalidQuad;
-   int translated_o_type = NumericalQuad1D::InvalidQuad;
+   // convert from the CloedBasisType and OpenBasisType of RT_FECollection
+   // also do some error checking :-)
+   int translated_c_type = NumericalQuad1D::Invalid;
+   int translated_o_type = NumericalQuad1D::Invalid;
 
-   if ( cp_type == 1)
+   if (cp_type == 1)
    {
       translated_c_type = NumericalQuad1D::GaussLobatto;
    }
@@ -9514,7 +9516,7 @@ RT_HexahedronElement::RT_HexahedronElement(const int p,
       translated_c_type = NumericalQuad1D::ClosedEquallySpaced;
    }
 
-   if ( op_type == -1)
+   if (op_type == -1)
    {
       translated_o_type = NumericalQuad1D::GaussLegendre;
    }
@@ -9523,19 +9525,19 @@ RT_HexahedronElement::RT_HexahedronElement(const int p,
       translated_o_type = NumericalQuad1D::OpenEquallySpaced;
    }
 
-   if ( translated_c_type == NumericalQuad1D::InvalidQuad)
-      MFEM_ABORT( "Asking for an undefined closed basis type.  cp_type = "
-                  << cp_type);
+   if (translated_c_type == NumericalQuad1D::Invalid)
+      MFEM_ABORT("Asking for an undefined closed basis type.  cp_type = "
+                 << cp_type);
 
-   if ( translated_o_type == NumericalQuad1D::InvalidQuad)
-      MFEM_ABORT( "Asking for an undefined open basis type.  op_type = "
-                  << op_type);
+   if (translated_o_type == NumericalQuad1D::Invalid)
+      MFEM_ABORT("Asking for an undefined open basis type.  op_type = "
+                 << op_type);
 
    cbasis1d = &poly1d.ClosedBasis(p + 1, translated_c_type);
    obasis1d = &poly1d.OpenBasis(p , translated_o_type);
 
-   const double *cp = poly1d.ClosedPoints(p + 1,translated_c_type);
-   const double *op = poly1d.OpenPoints(p,translated_o_type);
+   const double *cp = poly1d.ClosedPoints(p + 1, translated_c_type);
+   const double *op = poly1d.OpenPoints(p, translated_o_type);
    const int dof3 = Dof/3;
 
 #ifndef MFEM_THREAD_SAFE
