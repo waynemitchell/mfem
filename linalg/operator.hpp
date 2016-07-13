@@ -219,6 +219,23 @@ public:
    }
 };
 
+
+// Operator constrained by fixing certain entries in x; constructor creates a modified
+// linear system to be A X = b respecting the fixed entries in x indicated by list
+class ConstrainedOperator : public Operator
+{
+protected:
+   Array<int> constraint_list;
+   Operator *A;
+
+public:
+   explicit ConstrainedOperator(Operator *A, const Array<int> &list, const Vector &x, Vector &X, Vector &b);
+
+   virtual void Mult(const Vector &x, Vector &y) const;
+
+   virtual ~ConstrainedOperator() { }
+};
+
 }
 
 #endif

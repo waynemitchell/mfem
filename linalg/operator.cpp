@@ -45,4 +45,49 @@ void Operator::PrintMatlab (std::ostream & out, int n, int m) const
    }
 }
 
+ConstrainedOperator::ConstrainedOperator(Operator *A, const Array<int> &list,
+   const Vector &x, Vector &X, Vector &b) : Operator(A->Height(), A->Width()), A(A)
+{
+   constraint_list.MakeRef(list);
+
+   Vector z(x.Size());
+   X = x;
+   for (int i = 0; i < x.Size(); i++)
+   {
+      if (constraint_list[i] == 0)
+         X(i) = 0;
+   }
+   A->Mult(X, z);
+   for (int i = 0; i < x.Size(); i++)
+   {
+      if (constraint_list[i] == 0)
+      {
+         b(i) -= z(i);
+      }
+      else
+      {
+         b(i) = X(i);
+      }
+   }
+}
+
+void ConstrainedOperator::Mult(const Vector &x, Vector &y) const
+{
+   Vector mlt(x);
+
+   for (int i = 0; i < x.Size(); i++)
+   {
+      if (constraint_list[i] != 0)
+         mlt(i) = 0;
+   }
+
+   A->Mult(mlt, y);
+
+   for (int i = 0; i < x.Size(); i++)
+   {
+      if (constraint_list[i] != 0)
+         y(i) = x(i);
+   }
+}
+
 }

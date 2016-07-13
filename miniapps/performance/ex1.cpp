@@ -117,12 +117,12 @@ int main(int argc, char *argv[])
          delete mesh;
          return 3;
       }
-      else if (!mesh_t::MatchesNodes(*mesh))
-      {
-         cout << "Switching the mesh curvature to match the "
-              << "optimized value (order " << mesh_p << ") ..." << endl;
-         mesh->SetCurvature(mesh_p, false, -1, Ordering::byNODES);
-      }
+   }
+   if (!mesh_t::MatchesNodes(*mesh))
+   {
+      cout << "Switching the mesh curvature to match the "
+           << "optimized value (order " << mesh_p << ") ..." << endl;
+      mesh->SetCurvature(mesh_p, false, -1, Ordering::byNODES);
    }
 
    // 4. Refine the mesh to increase the resolution. In this example we do
@@ -175,11 +175,13 @@ int main(int argc, char *argv[])
    //    the boundary attributes from the mesh as essential (Dirichlet) and
    //    converting them to a list of true dofs.
    Array<int> ess_tdof_list;
+   Array<int> ess_tdof_marker;
    if (mesh->bdr_attributes.Size())
    {
       Array<int> ess_bdr(mesh->bdr_attributes.Max());
       ess_bdr = 1;
       fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+      fespace->ListToMarker(ess_tdof_list, fespace->GetTrueVSize(), ess_tdof_marker);
    }
 
    // 8. Set up the linear form b(.) which corresponds to the right-hand side of
@@ -206,11 +208,13 @@ int main(int argc, char *argv[])
    //     static condensation, etc.
    if (static_cond) { a->EnableStaticCondensation(); }
 
-   cout << "Assembling the matrix ..." << flush;
+   cout << "Assembling the bilinear form ..." << flush;
    tic_toc.Clear();
    tic_toc.Start();
    // Pre-allocate sparsity assuming dense element matrices
    a->UsePrecomputedSparsity();
+   oper_t a_oper(integ_t(coeff_t(1.0)), *fespace);
+   Vector B(*b);
    if (!perf)
    {
       // Standard assembly using a diffusion domain integrator
@@ -220,23 +224,33 @@ int main(int argc, char *argv[])
    else
    {
       // High-performance assembly using the templated operator type
-      oper_t a_oper(integ_t(coeff_t(1.0)), *fespace);
       a_oper.AssembleBilinearForm(*a);
+      a_oper.Assemble(); // Chooses between ::MultAssembled and ::MultUnassembled
    }
    tic_toc.Stop();
    cout << " done, " << tic_toc.RealTime() << "s." << endl;
 
    SparseMatrix A;
-   Vector B, X;
-   a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
+   Vector X(a_oper.Height());
+   ConstrainedOperator a_oper_bc(&a_oper, ess_tdof_marker, x, X, B);
 
-   cout << "Size of linear system: " << A.Height() << endl;
+   cout << "Size of linear system: " << a_oper_bc.Height() << endl;
 
 #ifndef MFEM_USE_SUITESPARSE
-   // 12. Define a simple symmetric Gauss-Seidel preconditioner and use it to
-   //     solve the system A X = B with PCG.
+   // 12. Solve the system A X = B with CG. In the standard case, use a simple
+   //     symmetric Gauss-Seidel preconditioner.
+   a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
    GSSmoother M(A);
-   PCG(A, M, B, X, 1, 500, 1e-12, 0.0);
+   if (!perf)
+   {
+      PCG(A, M, B, X, 1, 500, 1e-12, 0.0);
+   }
+   else
+   {
+      // Cannot utilize Gauss-Seidel preconditioner with how matrix-free operator
+      // handles essential BCs. See ConstrainedOperator
+      PCG(a_oper_bc, M, B, X, 1, 500, 1e-12, 0.0);
+   }
 #else
    // 12. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
    UMFPackSolver umf_solver;
@@ -246,7 +260,14 @@ int main(int argc, char *argv[])
 #endif
 
    // 13. Recover the solution as a finite element grid function.
-   a->RecoverFEMSolution(X, *b, x);
+   if (!perf)
+   {
+      a->RecoverFEMSolution(X, *b, x);
+   }
+   else
+   {
+      x = X;
+   }
 
    // 14. Save the refined mesh and the solution. This output can be viewed later
    //     using GLVis: "glvis -m refined.mesh -g sol.gf".
