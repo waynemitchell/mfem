@@ -538,6 +538,9 @@ public:
    void ChangeElementDataOwnership(int *indices, size_t max_indices,
          int *attributes, size_t max_attributes, bool zerocopy = false);
 
+   void ChangeBoundaryElementDataOwnership(int *indices, size_t max_indices,
+         int *attributes, size_t max_attributes, bool zerocopy = false);
+
    void ChangeVertexDataOwnership(double *vertices, int dim, 
          size_t num_vertices, bool zerocopy = false);
 

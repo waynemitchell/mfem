@@ -2237,6 +2237,14 @@ void Mesh::ChangeElementDataOwnership(int *indices,
          indices, max_indices, attributes, max_attributes, zerocopy);
 }
 
+
+void Mesh::ChangeBoundaryElementDataOwnership(int *indices,
+      size_t max_indices, int *attributes,
+      size_t max_attributes, bool zerocopy) {
+   ChangeElementObjectDataOwnership(boundary, NumOfBdrElements,
+         indices, max_indices, attributes, max_attributes, zerocopy);
+}
+
 void Mesh::ChangeVertexDataOwnership(double *vertex_data,
       int dim, size_t len_vertex_data, bool zerocopy) {
    if (len_vertex_data < NumOfVertices * dim) {
