@@ -189,7 +189,8 @@ int main(int argc, char *argv[])
    // Let us now pray that every element is of the same type
    int el_num = 0;
    int geomType = mesh->GetElement(el_num)->GetGeometryType();
-   const IntegrationRule *specialIntRule = &moreAwesomeQuadrature.Get(geomType, order);
+   const IntegrationRule *specialIntRule = &moreAwesomeQuadrature.Get(geomType,
+                                                                      order);
    // this should be exact integration (through  6th order elements on 6th order meshes)
    const double intPolyExactness = 20;
 

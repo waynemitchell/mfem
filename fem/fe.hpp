@@ -1870,7 +1870,7 @@ class ND_HexahedronElement : public VectorFiniteElement
 
 public:
    ND_HexahedronElement(const int p,
-           const int op_type = -1 , const int cp_type = 1);
+                        const int op_type = -1 , const int cp_type = 1);
 
    virtual void CalcVShape(const IntegrationPoint &ip,
                            DenseMatrix &shape) const;
@@ -1922,7 +1922,7 @@ class ND_QuadrilateralElement : public VectorFiniteElement
 
 public:
    ND_QuadrilateralElement(const int p,
-           const int op_type = -1 , const int cp_type = 1);
+                           const int op_type = -1 , const int cp_type = 1);
    virtual void CalcVShape(const IntegrationPoint &ip,
                            DenseMatrix &shape) const;
    virtual void CalcVShape(ElementTransformation &Trans,

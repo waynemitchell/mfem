@@ -6646,22 +6646,24 @@ H1_SegmentElement::H1_SegmentElement(const int p, const int type)
    : NodalFiniteElement(1, Geometry::SEGMENT, p + 1, p, FunctionSpace::Pk),
      dof_map(Dof)
 {
-    if(type == 0)
-    {
-        // Gauss-Lobatto nodal points
-        basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::GaussLobatto);
-    }
-    else if(type == 1)
-    {
-        MFEM_ABORT("Asking for a positive basis type in H1 [nondal] segment element");
-    }
-    else if (type == 2)
-    {
-        // equally-spaced, closed nodal points
-        basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::ClosedEquallySpaced);
-    }
-    else
-        MFEM_ABORT("Unknown basis type for H1 segment element.  type= " << type);
+   if (type == 0)
+   {
+      // Gauss-Lobatto nodal points
+      basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::GaussLobatto);
+   }
+   else if (type == 1)
+   {
+      MFEM_ABORT("Asking for a positive basis type in H1 [nondal] segment element");
+   }
+   else if (type == 2)
+   {
+      // equally-spaced, closed nodal points
+      basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::ClosedEquallySpaced);
+   }
+   else
+   {
+      MFEM_ABORT("Unknown basis type for H1 segment element.  type= " << type);
+   }
 
    const double *cp = poly1d.ClosedPoints(p);
 
@@ -6751,22 +6753,24 @@ H1_QuadrilateralElement::H1_QuadrilateralElement(const int p, const int type)
    : NodalFiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p,
                         FunctionSpace::Qk), dof_map((p + 1)*(p + 1))
 {
-    if(type == 0)
-    {
-        // Gauss-Lobatto nodal points
-        basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::GaussLobatto);
-    }
-    else if(type == 1)
-    {
-        MFEM_ABORT("Asking for a positive basis type in H1 [nondal] Quadrilateral element");
-    }
-    else if (type == 2)
-    {
-        // equally-spaced, closed nodal points
-        basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::ClosedEquallySpaced);
-    }
-    else
-        MFEM_ABORT("Unknown basis type for H1 quadrilateral element.  type= " << type);
+   if (type == 0)
+   {
+      // Gauss-Lobatto nodal points
+      basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::GaussLobatto);
+   }
+   else if (type == 1)
+   {
+      MFEM_ABORT("Asking for a positive basis type in H1 [nondal] Quadrilateral element");
+   }
+   else if (type == 2)
+   {
+      // equally-spaced, closed nodal points
+      basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::ClosedEquallySpaced);
+   }
+   else
+   {
+      MFEM_ABORT("Unknown basis type for H1 quadrilateral element.  type= " << type);
+   }
 
    const double *cp = poly1d.ClosedPoints(p);
 
@@ -6912,22 +6916,24 @@ H1_HexahedronElement::H1_HexahedronElement(const int p, const int type)
                         FunctionSpace::Qk),
      dof_map((p + 1)*(p + 1)*(p + 1))
 {
-   if(type == 0)
+   if (type == 0)
    {
-       // Gauss-Lobatto nodal points
-       basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::GaussLobatto);
+      // Gauss-Lobatto nodal points
+      basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::GaussLobatto);
    }
-   else if(type == 1)
+   else if (type == 1)
    {
-       MFEM_ABORT("Asking for a positive basis type in H1 [nondal] hexahderon element");
+      MFEM_ABORT("Asking for a positive basis type in H1 [nondal] hexahderon element");
    }
    else if (type == 2)
    {
-       // equally-spaced, closed nodal points
-       basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::ClosedEquallySpaced);
+      // equally-spaced, closed nodal points
+      basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::ClosedEquallySpaced);
    }
    else
-       MFEM_ABORT("Unknown basis type for H1 hexahedron element.  type= " << type);
+   {
+      MFEM_ABORT("Unknown basis type for H1 hexahedron element.  type= " << type);
+   }
 
    const double *cp = poly1d.ClosedPoints(p);
 
@@ -10176,36 +10182,42 @@ const double ND_HexahedronElement::tk[18] =
 { 1.,0.,0.,  0.,1.,0.,  0.,0.,1., -1.,0.,0.,  0.,-1.,0.,  0.,0.,-1. };
 
 ND_HexahedronElement::ND_HexahedronElement(const int p,
-        const int op_type, const int cp_type)
+                                           const int op_type, const int cp_type)
    : VectorFiniteElement(3, Geometry::CUBE, 3*p*(p + 1)*(p + 1), p,
                          H_CURL, FunctionSpace::Qk),
      dof_map(Dof), dof2tk(Dof)
 {
-    if(op_type == -1)
-    {
-        // Gauss-Legendre open basis
-        obasis1d = &poly1d.OpenBasis(p-1, NumericalQuad1D::GaussLegendre);
-    }
-    else if(op_type == -2)
-    {
-        //Open equally spaced basis
-        obasis1d = &poly1d.OpenBasis(p-1, NumericalQuad1D::OpenEquallySpaced);
-    }
-    else
-        MFEM_ABORT("Unknown open basis type for ND hexahedron element.  op_type= " << op_type);
+   if (op_type == -1)
+   {
+      // Gauss-Legendre open basis
+      obasis1d = &poly1d.OpenBasis(p-1, NumericalQuad1D::GaussLegendre);
+   }
+   else if (op_type == -2)
+   {
+      //Open equally spaced basis
+      obasis1d = &poly1d.OpenBasis(p-1, NumericalQuad1D::OpenEquallySpaced);
+   }
+   else
+   {
+      MFEM_ABORT("Unknown open basis type for ND hexahedron element.  op_type= " <<
+                 op_type);
+   }
 
-    if(cp_type == 1)
-    {
-        // Gauss-Lobatto closed basis
-        cbasis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::GaussLobatto);
-    }
-    else if(cp_type == 2)
-    {
-        // Equally Spaced closed basis
-        cbasis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::ClosedEquallySpaced);
-    }
-    else
-        MFEM_ABORT("Unknown open basis type for ND hexahedron element.  cp_type= " << cp_type);
+   if (cp_type == 1)
+   {
+      // Gauss-Lobatto closed basis
+      cbasis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::GaussLobatto);
+   }
+   else if (cp_type == 2)
+   {
+      // Equally Spaced closed basis
+      cbasis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::ClosedEquallySpaced);
+   }
+   else
+   {
+      MFEM_ABORT("Unknown open basis type for ND hexahedron element.  cp_type= " <<
+                 cp_type);
+   }
 
    const double *cp = poly1d.ClosedPoints(p);
    const double *op = poly1d.OpenPoints(p - 1);
@@ -10571,35 +10583,41 @@ const double ND_QuadrilateralElement::tk[8] =
 { 1.,0.,  0.,1., -1.,0., 0.,-1. };
 
 ND_QuadrilateralElement::ND_QuadrilateralElement(const int p,
-        const int op_type, const int cp_type)
+                                                 const int op_type, const int cp_type)
    : VectorFiniteElement(2, Geometry::SQUARE, 2*p*(p + 1), p,
                          H_CURL, FunctionSpace::Qk), dof_map(Dof), dof2tk(Dof)
 {
-    if(op_type == -1)
-    {
-        // Gauss-Legendre open basis
-        obasis1d = &poly1d.OpenBasis(p-1, NumericalQuad1D::GaussLegendre);
-    }
-    else if(op_type == -2)
-    {
-        //Open equally spaced basis
-        obasis1d = &poly1d.OpenBasis(p-1, NumericalQuad1D::OpenEquallySpaced);
-    }
-    else
-        MFEM_ABORT("Unknown open basis type for ND quadrilateral element.  op_type= " << op_type);
+   if (op_type == -1)
+   {
+      // Gauss-Legendre open basis
+      obasis1d = &poly1d.OpenBasis(p-1, NumericalQuad1D::GaussLegendre);
+   }
+   else if (op_type == -2)
+   {
+      //Open equally spaced basis
+      obasis1d = &poly1d.OpenBasis(p-1, NumericalQuad1D::OpenEquallySpaced);
+   }
+   else
+   {
+      MFEM_ABORT("Unknown open basis type for ND quadrilateral element.  op_type= " <<
+                 op_type);
+   }
 
-    if(cp_type == 1)
-    {
-        // Gauss-Lobatto closed basis
-        cbasis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::GaussLobatto);
-    }
-    else if(cp_type == 2)
-    {
-        // Equally Spaced closed basis
-        cbasis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::ClosedEquallySpaced);
-    }
-    else
-        MFEM_ABORT("Unknown open basis type for ND quadrilateral element.  cp_type= " << cp_type);
+   if (cp_type == 1)
+   {
+      // Gauss-Lobatto closed basis
+      cbasis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::GaussLobatto);
+   }
+   else if (cp_type == 2)
+   {
+      // Equally Spaced closed basis
+      cbasis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::ClosedEquallySpaced);
+   }
+   else
+   {
+      MFEM_ABORT("Unknown open basis type for ND quadrilateral element.  cp_type= " <<
+                 cp_type);
+   }
 
    const double *cp = poly1d.ClosedPoints(p);
    const double *op = poly1d.OpenPoints(p - 1);
@@ -11206,22 +11224,25 @@ void ND_TriangleElement::CalcCurlShape(const IntegrationPoint &ip,
 const double ND_SegmentElement::tk[1] = { 1. };
 
 ND_SegmentElement::ND_SegmentElement(const int p,
-        const int op_type)
+                                     const int op_type)
    : VectorFiniteElement(1, Geometry::SEGMENT, p, p - 1,
                          H_CURL, FunctionSpace::Pk), dof2tk(Dof)
 {
-    if(op_type == -1)
-    {
-        // Gauss-Legendre open basis
-        obasis1d = &poly1d.OpenBasis(p-1, NumericalQuad1D::GaussLegendre);
-    }
-    else if(op_type == -2)
-    {
-        // Opend Equally-Spaced basis
-        obasis1d = &poly1d.OpenBasis(p-1, NumericalQuad1D::OpenEquallySpaced);
-    }
-    else
-        MFEM_ABORT("Unknown open basis type for ND segment element.  op_type= " << op_type);
+   if (op_type == -1)
+   {
+      // Gauss-Legendre open basis
+      obasis1d = &poly1d.OpenBasis(p-1, NumericalQuad1D::GaussLegendre);
+   }
+   else if (op_type == -2)
+   {
+      // Opend Equally-Spaced basis
+      obasis1d = &poly1d.OpenBasis(p-1, NumericalQuad1D::OpenEquallySpaced);
+   }
+   else
+   {
+      MFEM_ABORT("Unknown open basis type for ND segment element.  op_type= " <<
+                 op_type);
+   }
 
    const double *op = poly1d.OpenPoints(p - 1);
 

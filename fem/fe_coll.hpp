@@ -270,7 +270,7 @@ public:
    };
 
    ND_FECollection(const int p, const int dim,
-           const int op_type = -1 , const int cp_type = 1);
+                   const int op_type = -1 , const int cp_type = 1);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return ND_Elements[GeomType]; }

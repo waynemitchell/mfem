@@ -1400,7 +1400,7 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
    }
    else
    {
-       snprintf(h1_name, 32, "H1_%dD_P%d", dim, p);
+      snprintf(h1_name, 32, "H1_%dD_P%d", dim, p);
    }
 
    for (int g = 0; g < Geometry::NumGeom; g++)
@@ -1429,11 +1429,11 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
       H1_dof[Geometry::SEGMENT] = pm1;
       if (type == Positive)
       {
-          H1_Elements[Geometry::SEGMENT] = new H1Pos_SegmentElement(p);
+         H1_Elements[Geometry::SEGMENT] = new H1Pos_SegmentElement(p);
       }
       else
       {
-          H1_Elements[Geometry::SEGMENT] = new H1_SegmentElement(p, type);
+         H1_Elements[Geometry::SEGMENT] = new H1_SegmentElement(p, type);
       }
 
       SegDofOrd[0] = new int[2*pm1];
@@ -1451,8 +1451,8 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
       H1_dof[Geometry::SQUARE] = pm1*pm1;
       if (type == Positive)
       {
-          H1_Elements[Geometry::TRIANGLE] = new H1Pos_TriangleElement(p);
-          H1_Elements[Geometry::SQUARE] = new H1Pos_QuadrilateralElement(p);
+         H1_Elements[Geometry::TRIANGLE] = new H1Pos_TriangleElement(p);
+         H1_Elements[Geometry::SQUARE] = new H1Pos_QuadrilateralElement(p);
       }
       else
       {
@@ -1507,13 +1507,13 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
          H1_dof[Geometry::CUBE] = QuadDof*pm1;
          if (type == Positive)
          {
-             H1_Elements[Geometry::TETRAHEDRON] = new H1Pos_TetrahedronElement(p);
-             H1_Elements[Geometry::CUBE] = new H1Pos_HexahedronElement(p);
+            H1_Elements[Geometry::TETRAHEDRON] = new H1Pos_TetrahedronElement(p);
+            H1_Elements[Geometry::CUBE] = new H1Pos_HexahedronElement(p);
          }
          else
          {
-             H1_Elements[Geometry::TETRAHEDRON] = new H1_TetrahedronElement(p);
-             H1_Elements[Geometry::CUBE] = new H1_HexahedronElement(p, type);
+            H1_Elements[Geometry::TETRAHEDRON] = new H1_TetrahedronElement(p);
+            H1_Elements[Geometry::CUBE] = new H1_HexahedronElement(p, type);
          }
       }
    }
@@ -1974,7 +1974,7 @@ DG_Interface_FECollection::DG_Interface_FECollection(const int p, const int dim,
 }
 
 ND_FECollection::ND_FECollection(const int p, const int dim,
-        const int _op_type, const int _cp_type)
+                                 const int _op_type, const int _cp_type)
 {
    const int pm1 = p - 1, pm2 = p - 2;
 
@@ -2003,28 +2003,34 @@ ND_FECollection::ND_FECollection(const int p, const int dim,
    int op_type = 0;
    int cp_type = 0;
 
-   if(_op_type == -1)
+   if (_op_type == -1)
    {
       op_type = -1;
    }
-   else if(_op_type == -2)
+   else if (_op_type == -2)
    {
       op_type = -2;
    }
    else
-      MFEM_ABORT("Invalid open basis point type in ND_FECollection.  _op_type = " << _op_type);
-
-
-   if(_cp_type == 1)
    {
-       cp_type = 1;
+      MFEM_ABORT("Invalid open basis point type in ND_FECollection.  _op_type = " <<
+                 _op_type);
    }
-   else if(_cp_type == 2)
+
+
+   if (_cp_type == 1)
    {
-       cp_type = 2;
+      cp_type = 1;
+   }
+   else if (_cp_type == 2)
+   {
+      cp_type = 2;
    }
    else
-       MFEM_ABORT("Invalid closed basis point type in ND_FECollection.  _cp_type = " << _cp_type);
+   {
+      MFEM_ABORT("Invalid closed basis point type in ND_FECollection.  _cp_type = " <<
+                 _cp_type);
+   }
 
 
    if (dim >= 1)
@@ -2043,7 +2049,8 @@ ND_FECollection::ND_FECollection(const int p, const int dim,
 
    if (dim >= 2)
    {
-      ND_Elements[Geometry::SQUARE] = new ND_QuadrilateralElement(p, op_type, cp_type);
+      ND_Elements[Geometry::SQUARE] = new ND_QuadrilateralElement(p, op_type,
+                                                                  cp_type);
       ND_dof[Geometry::SQUARE] = 2*p*pm1;
 
       ND_Elements[Geometry::TRIANGLE] = new ND_TriangleElement(p);
