@@ -43,7 +43,7 @@ public:
 
   SidreDataCollection(const std::string& collection_name, asctoolkit::sidre::DataGroup * dg);
 
-  void RegisterField(const std::string& name, GridFunction *gf);
+  void RegisterField(const char* field_name, GridFunction *gf);
 
   /// Verify we will delete the mesh and fields if we own them
   virtual ~SidreDataCollection() {}
@@ -62,7 +62,7 @@ public:
    * Gets a pointer to the associated field's view data
    * If the field does not exist, it will create a view of the appropriate size
    */
-  double* GetFieldData(const char *field_name, const FiniteElementSpace* fes = NULL);
+  double* GetFieldData(const char *field_name, int sz = 0);
 
 private:
   // Private helper functions

@@ -222,22 +222,25 @@ int main(int argc, char *argv[])
 
       int num_elements = mesh->GetNE();
       int element_size = 4;
-      int num_boundary_elements = mesh->GetNBE();
-      int num_indices = num_elements * element_size;
+      if(!sidre_use_restart)
+      {
+          //int num_boundary_elements = mesh->GetNBE();
+          int num_indices = num_elements * element_size;
 
-      elements_connectivity->allocate(
-                  asctoolkit::sidre::detail::SidreTT<int>::id,
-                  num_indices);
-      //elements_connectivity->apply(num_indices, 0, element_size);
+          elements_connectivity->allocate(
+                      asctoolkit::sidre::detail::SidreTT<int>::id,
+                      num_indices);
+          //elements_connectivity->apply(num_indices, 0, element_size);
 
-      material_attribute_values->allocate(
-                  asctoolkit::sidre::detail::SidreTT<int>::id,
-                  num_elements);
-      //material_attribute_values->apply(num_elements, 0, 1);
+          material_attribute_values->allocate(
+                      asctoolkit::sidre::detail::SidreTT<int>::id,
+                      num_elements);
+          //material_attribute_values->apply(num_elements, 0, 1);
+      }
 
       mesh->ChangeElementDataOwnership(elements_connectivity->getArray(),
-         element_size * num_elements, material_attribute_values->getArray(),
-         num_elements);
+             element_size * num_elements, material_attribute_values->getArray(),
+             num_elements);
    }
 
 
@@ -252,7 +255,7 @@ int main(int argc, char *argv[])
    // Note: There is likely a much better way to do this
     const FiniteElementSpace* nFes = mesh->GetNodalFESpace();
     int sz = nFes->GetVSize();
-    double* gfData = dc->GetFieldData("nodes", nFes);
+    double* gfData = dc->GetFieldData("nodes", sz);
 
     if(! sidre_use_restart)
     {
@@ -336,7 +339,7 @@ int main(int argc, char *argv[])
    // 7. Define the initial conditions, save the corresponding grid function to
    //    a file and (optionally) save data in the VisIt format and initialize
    //    GLVis visualization.
-   GridFunction u(&fes, dc->GetFieldData("solution",&fes), fes.GetVSize());
+   GridFunction u(&fes, dc->GetFieldData("solution",fes.GetVSize()));
    dc->RegisterField("solution", &u);
 
    if (!sidre_use_restart) {

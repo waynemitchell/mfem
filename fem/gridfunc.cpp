@@ -12,6 +12,7 @@
 // Implementation of GridFunction
 
 #include "fem.hpp"
+
 #include <limits>
 #include <cstring>
 #include <string>
@@ -23,10 +24,6 @@ namespace mfem
 {
 
 using namespace std;
-
-/// Creates grid function associated with a finite element space.  Registers the grid function in the
-/// provided data collection.  If the data collection is contains data for a grid
-/// function with this name, it will populate the grid function data values.
 
 GridFunction::GridFunction(Mesh *m, std::istream &input)
    : Vector()

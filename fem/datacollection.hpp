@@ -87,7 +87,7 @@ public:
    DataCollection(const char *collection_name, Mesh *_mesh);
 
    /// Add a grid function to the collection
-   virtual void RegisterField(const char *field_name, GridFunction *gf);
+   virtual void RegisterField(const char* field_name, GridFunction *gf);
    /** Get a pointer to a grid function in the collection. Returns NULL if
        'field_name' is not in the collection. */
    GridFunction *GetField(const char *field_name);
@@ -96,9 +96,10 @@ public:
 
    /**
     * Gets a pointer to the data associated with a field
-    * If the field does not exist, it will allocate memory for the field
+    * If the field (or data) does not exist and sz is greater than zero, it will allocate memory for the field
+    * else, it returns a null pointer
     */
-   virtual double* GetFieldData(const char *field_name, const FiniteElementSpace* fes = NULL);
+   virtual double* GetFieldData(const char *field_name, int sz = 0);
 
    /// Get a pointer to the mesh in the collection
    Mesh *GetMesh() { return mesh; }

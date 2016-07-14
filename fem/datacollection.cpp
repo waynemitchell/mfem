@@ -136,7 +136,7 @@ GridFunction *DataCollection::GetField(const char *field_name)
 }
 
 
-double* DataCollection::GetFieldData(const char *field_name, const FiniteElementSpace* fes)
+double* DataCollection::GetFieldData(const char *field_name, int sz)
 {
     // Check if we already have the grid function, if so, return its data
    if(HasField(field_name))
@@ -145,10 +145,13 @@ double* DataCollection::GetFieldData(const char *field_name, const FiniteElement
    }
 
 
-   // Otherwise, if the data does not exist, allocate it
+   // Otherwise, if the data does not exist, and sz > 0, allocate it
    if( managed_field_data_map.find(field_name) != managed_field_data_map.end())
    {
-       managed_field_data_map[field_name] = new double[fes->GetVSize()];
+       if(sz <= 0)
+          return NULL;
+       else
+          managed_field_data_map[field_name] = new double[sz];
    }
 
    // Return a pointer to the data
@@ -322,6 +325,7 @@ void DataCollection::DeleteData()
       delete mesh;
    }
    mesh = NULL;
+
    for (map<string,GridFunction*>::iterator it = field_map.begin();
         it != field_map.end(); ++it)
    {
@@ -332,6 +336,16 @@ void DataCollection::DeleteData()
       it->second = NULL;
    }
    own_data = false;
+
+   // Delete data that the data collection explicitly allocated
+   typedef std::map<std::string, double*>::iterator DMIt;
+   for(DMIt it = managed_field_data_map.begin();
+       it != managed_field_data_map.end(); ++it)
+   {
+       if(it->second != NULL)
+           delete [] it->second;
+   }
+
 }
 
 void DataCollection::DeleteAll()
@@ -342,23 +356,7 @@ void DataCollection::DeleteAll()
 
 DataCollection::~DataCollection()
 {
-   if (own_data)
-   {
-      delete mesh;
-      for (map<string,GridFunction*>::iterator it = field_map.begin();
-           it != field_map.end(); ++it)
-      {
-         delete it->second;
-      }
-   }
-
-   // Delete data that the data collection explicitly allocated
-   typedef std::map<std::string, double*>::iterator DMIt;
-   for(DMIt it = managed_field_data_map.begin();
-       it != managed_field_data_map.end(); ++it)
-   {
-       delete [] it->second;
-   }
+   DeleteData();
 }
 
 

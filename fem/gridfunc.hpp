@@ -66,7 +66,10 @@ public:
    GridFunction(FiniteElementSpace *f) : Vector(f->GetVSize())
    { fes = f; fec = NULL; sequence = f->GetSequence(); }
 
-   GridFunction(FiniteElementSpace *f, double *data, int size) : Vector(data, size)
+   /** Construct a grid function using previously allocated data
+    *  Assumes there is sufficient allocated space for the dofs of f
+    */
+   GridFunction(FiniteElementSpace *f, double *data) : Vector(data, f->GetVSize())
    { fes = f; fec = NULL; sequence = f->GetSequence(); }
 
    GridFunction(Mesh *m, std::istream &input);

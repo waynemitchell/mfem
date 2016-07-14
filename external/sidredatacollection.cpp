@@ -102,7 +102,8 @@ void SidreDataCollection::Save()
 
     std::stringstream fNameSstr;
 
-    fNameSstr << name;
+    // Note: If non-empty, prefix_path has a separator ('/') at the end
+    fNameSstr << prefix_path << name;
 
     if(cycle >= 0)
     {
@@ -164,18 +165,14 @@ void SidreDataCollection::SetupMeshBlueprint()
     grp->createViewScalar("state/domain", myid);
 }
 
-double* SidreDataCollection::GetFieldData(const char *field_name, const FiniteElementSpace* fes)
+double* SidreDataCollection::GetFieldData(const char *field_name, int sz)
 {
     namespace sidre = asctoolkit::sidre;
-
-    MFEM_ASSERT( fes != NULL, "SidreDataCollection::GetFieldData requires a non-null FiniteElementSpace.");
 
     sidre::DataGroup* f = sidre_dc_group->getGroup("fields");
     if( ! f->hasGroup( field_name ) )
     {
-        int sz = fes->GetVSize();
         sidre::DataGroup* grp = f->createGroup( field_name );
-        grp->createViewString("basis", fes->FEColl()->Name());
         grp->createViewAndAllocate("values", sidre::DOUBLE_ID, sz);
     }
 
@@ -183,10 +180,33 @@ double* SidreDataCollection::GetFieldData(const char *field_name, const FiniteEl
 }
 
 
-
-void SidreDataCollection::RegisterField(const std::string& name, GridFunction *gf)
+void SidreDataCollection::RegisterField(const char* field_name, GridFunction *gf)
 {
-  DataCollection::RegisterField(name.c_str(), gf);
+  namespace sidre = asctoolkit::sidre;
+  sidre::DataGroup* f = sidre_dc_group->getGroup("fields");
+
+  if( gf != NULL )
+  {
+      if( !f->hasGroup( field_name ) )
+          sidre::DataGroup* grp = f->createGroup( field_name );
+
+      sidre::DataGroup* grp = f->getGroup( field_name );
+
+      // Set the gf data as external if it is not already in the datastore
+      if(!grp->hasView("values"))
+      {
+          grp->createView("values", sidre::DOUBLE_ID, gf->Size())
+             ->setExternalDataPtr( gf->GetData());
+      }
+
+      // Set the basis string using the gf's finite element space
+      if(!grp->hasView("basis"))
+      {
+          grp->createViewString("basis", gf->FESpace()->FEColl()->Name());
+      }
+  }
+
+  DataCollection::RegisterField(field_name, gf);
   //addField(sidre_dc_group->createGroup(name), gf);
 }
 
