@@ -53,22 +53,24 @@ protected:
    Solver *K_solver;
    Solver *K_prec;
 
-   const GridFunction *u_gf;
+   Vector u_alpha;
 
    Array<int> &ess_bdr;
+
+   double alpha;
 
    mutable Vector z; // auxiliary vector
 
 public:
    ConductionOperator(FiniteElementSpace &f, Array<int> &ess_bdr,
-                      double alpha, GridFunction u_gf);
+                      double alpha, const Vector &u_);
 
    virtual void Mult(const Vector &u, Vector &du_dt) const;
    /** Solve the Backward-Euler equation: k = f(u + dt*k, t), for the unknown k.
        This is the only requirement for high-order SDIRK implicit integration.*/
    virtual void ImplicitSolve(const double dt, const Vector &u, Vector &k);
 
-   void SetParameters(const GridFunction *u_gf_);
+   void SetParameters(const Vector &u_);
 
    virtual ~ConductionOperator();
 };
@@ -179,7 +181,7 @@ int main(int argc, char *argv[])
    ess_bdr = 1;
 
    // 7. Initialize the conduction operator and the GLVis visualization 
-   ConductionOperator oper(fespace, ess_bdr, alpha, u_gf);
+   ConductionOperator oper(fespace, ess_bdr, alpha, u);
 
    socketstream vis_u;
    if (visualization)
@@ -188,7 +190,7 @@ int main(int argc, char *argv[])
       int  visport   = 19916;
       vis_u.open(vishost, visport);
       vis_u.precision(8);
-      visualize(vis_u, mesh, &u, "Temperature", true);
+      visualize(vis_u, mesh, &u_gf, "Temperature", true);
    }
 
 
@@ -213,17 +215,17 @@ int main(int argc, char *argv[])
 
          if (visualization)
          {
-            visualize(vis_u, mesh, &u);
+            visualize(vis_u, mesh, &u_gf);
          }
       }
-      oper.SetParameters(u_gf);
+      oper.SetParameters(u);
    }
 
    // 9. Save the displaced mesh, the velocity and elastic energy.
    {
       ofstream u_ofs("temperature.sol");
       u_ofs.precision(8);
-      u.Save(u_ofs);
+      u_gf.Save(u_ofs);
    }
 
    // 10. Free the used memory.
@@ -259,15 +261,13 @@ void visualize(ostream &out, Mesh *mesh, GridFunction *field, const char *field_
 }
 
 ConductionOperator::ConductionOperator(FiniteElementSpace &f,
-                                       Array<int> &ess_bdr_, double al, const GridFunction *u_gf)
-   : TimeDependentOperator(f.GetVSize(), 0.0), fespace(f), z(height)
+                                       Array<int> &ess_bdr_, double al, const Vector &u_)
+   : TimeDependentOperator(f.GetVSize(), 0.0), fespace(f), ess_bdr(ess_bdr_), z(height)
 {
    const double rel_tol = 1e-8;
    const int skip_zero_entries = 0;
 
-   ess_bdr = ess_bdr_;
-
-   M = new BilinearForm(fespace);
+   M = new BilinearForm(&fespace);
    M->AddDomainIntegrator(new MassIntegrator());
    M->Assemble(skip_zero_entries);
    M->EliminateEssentialBC(ess_bdr);
@@ -279,7 +279,7 @@ ConductionOperator::ConductionOperator(FiniteElementSpace &f,
    M_solver.SetMaxIter(30);
    M_solver.SetPrintLevel(0);
    M_solver.SetPreconditioner(M_prec);
-   M_solver.SetOperator(M.SpMat());
+   M_solver.SetOperator(M->SpMat());
 
    alpha = al;
 
@@ -292,7 +292,7 @@ ConductionOperator::ConductionOperator(FiniteElementSpace &f,
    K_minres->SetPreconditioner(*K_prec);
    K_solver = K_minres;
 
-   SetParameters(u_gf);
+   SetParameters(u_);
 
 }
 
@@ -309,22 +309,28 @@ void ConductionOperator::ImplicitSolve(const double dt,
    // Solve the equation:
    //    du_dt = -M^{-1}*[K(u + dt*du_dt)]
 
-   SparseMatrix T = M->SpMat() + dt * K->SpMat();
-   K_solver.SetOperator(T);
+   SparseMatrix *T = Add(1.0, M->SpMat(), dt, K->SpMat());
+   K_solver->SetOperator(*T);
    K->Mult(u, z);
-   K_solver.Mult(z, du_dt);
+   K_solver->Mult(z, du_dt);
 }
 
-void ConductionOperator::SetParameters(const GridFunction *u_gf)
+void ConductionOperator::SetParameters(const Vector &u_)
 {
    const int skip_zero_entries = 0;
+
+   u_alpha = u_;
+   u_alpha *= alpha;
 
    if (K != NULL) {
       delete K;
    } 
 
    K = new BilinearForm(&fespace);
-   GridFunctionCoefficient u_coeff(alpha * &u_gf);
+   GridFunction u_alpha_gf;
+   u_alpha_gf.MakeRef(&fespace, u_alpha, 0);
+
+   GridFunctionCoefficient u_coeff(&u_alpha_gf);
 
    K->AddDomainIntegrator(new DiffusionIntegrator(u_coeff));
    K->Assemble(skip_zero_entries);
@@ -339,7 +345,7 @@ ConductionOperator::~ConductionOperator()
    delete K_prec;
 }
 
-void InitialTemperature(const Vector &x)
+double InitialTemperature(const Vector &x)
 {
    int dim = x.Size();
    switch (dim)
