@@ -262,16 +262,16 @@ int main(int argc, char *argv[])
    switch (ode_solver_type)
    {
       case 11:
-         ode_solver = new CVODESolver(u); break;
+         ode_solver = new CVODESolver(u, false); break;
       case 12:
-         ode_solver = new ARKODESolver(u); break;
+         ode_solver = new ARKODESolver(u, false); break;
       case 13:
-         ode_solver = new ARKODESolver(u);
+         ode_solver = new ARKODESolver(u, false);
          static_cast<ARKODESolver *>(ode_solver)->WrapSetERKTableNum(table_num);
          static_cast<ARKODESolver *>(ode_solver)->WrapSetFixedStep((realtype) dt);
          break;
       case 14:
-         ode_solver = new CVODESolver(u, CV_BDF, CV_NEWTON);
+         ode_solver = new CVODESolver(u, false, CV_BDF, CV_NEWTON);
          static_cast<CVODESolver *>(ode_solver)->SetSStolerances(1e-3, 1e-6);
          break;
    }

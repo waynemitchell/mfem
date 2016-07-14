@@ -387,26 +387,23 @@ int main(int argc, char *argv[])
    switch (ode_solver_type)
    {
       case 4:
-         ode_solver = new CVODESolver(MPI_COMM_WORLD, *vx_hyp,
-                                      CV_BDF, CV_NEWTON);
+         ode_solver = new CVODESolver(*vx_hyp, true, CV_BDF, CV_NEWTON);
          break;
       case 5:
-         ode_solver = new CVODESolver(MPI_COMM_WORLD, *vx_hyp,
-                                      CV_BDF, CV_NEWTON);
+         ode_solver = new CVODESolver(*vx_hyp, true, CV_BDF, CV_NEWTON);
          static_cast<CVODESolver *>(ode_solver)->
             SetLinearSolve(oper.backward_euler_oper);
          break;
       case 6:
-         ode_solver = new ARKODESolver(MPI_COMM_WORLD, *vx_hyp, false);
+         ode_solver = new ARKODESolver(*vx_hyp, true, false);
          static_cast<ARKODESolver *>(ode_solver)->
             SetLinearSolve(oper.backward_euler_oper);
          break;
       case 15:
-         ode_solver = new CVODESolver(MPI_COMM_WORLD, *vx_hyp,
-                                      CV_ADAMS, CV_FUNCTIONAL);
+         ode_solver = new CVODESolver(*vx_hyp, true, CV_ADAMS, CV_FUNCTIONAL);
          break;
       case 16:
-         ode_solver = new ARKODESolver(MPI_COMM_WORLD, *vx_hyp, true);
+         ode_solver = new ARKODESolver(*vx_hyp, true, true);
          break;
    }
 
@@ -705,12 +702,14 @@ void HyperelasticOperator::ImplicitSolve(const double dt,
                             M.ParFESpace()->GlobalTrueVSize(),
                             dv_dt.GetData(),
                             M.ParFESpace()->GetTrueDofOffsets());
-   KinSolWrapper kinsol(*backward_euler_oper, *dv_dt_h);
+   KinSolWrapper kinsol(*backward_euler_oper, *dv_dt_h, true);
+
+   //kinsol.SetPrintLevel(1);
 
    HypreParVector one(M.ParFESpace());
    one = 1.0;
    *dv_dt_h = 0.0;
-   kinsol.solve(*dv_dt_h, one, one);
+   kinsol.Solve(*dv_dt_h, one, one);
 
    add(v, dt, dv_dt, dx_dt);
    delete dv_dt_h;

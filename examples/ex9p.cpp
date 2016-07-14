@@ -310,13 +310,13 @@ int main(int argc, char *argv[])
    switch (ode_solver_type)
    {
       case 11:
-         ode_solver = new CVODESolver(MPI_COMM_WORLD, *U);
+         ode_solver = new CVODESolver(*U, true);
          break;
       case 12:
-         ode_solver = new ARKODESolver(MPI_COMM_WORLD, *U);
+         ode_solver = new ARKODESolver(*U, true);
          break;
       case 13:
-         ode_solver = new ARKODESolver(MPI_COMM_WORLD, *U);
+         ode_solver = new ARKODESolver(*U, true);
          const int table_num = 3;
          ((ARKODESolver*) ode_solver)->WrapSetERKTableNum(table_num);
          ((ARKODESolver*) ode_solver)->WrapSetFixedStep(dt);

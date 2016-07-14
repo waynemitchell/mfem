@@ -29,25 +29,22 @@ private:
 
 protected:
    N_Vector y;
-   void* ode_mem;
+   void *ode_mem;
    int solver_iteration_type;
+
+   void (*connectNV)(Vector &, N_Vector &);
 
 public:
 
-   /** \brief
-    * This constructor wraps the CVodeCreate function and sets the
-    * initial condition. By default, this uses Adams methods with
-    * functional iterations (no Newton solves).
+   /** This constructor wraps the CVodeCreate function and sets the
+    *  initial condition. By default, this uses Adams methods with
+    *  functional iterations (no Newton solves).
     *
-    * CVodeCreate creates an internal memory block for a problem to
-    * be solved by CVODE.
+    *  CVodeCreate creates an internal memory block for a problem to
+    *  be solved by CVODE.
     */
-   CVODESolver(Vector &y_, int lmm = CV_ADAMS, int iter = CV_FUNCTIONAL);
-
-#ifdef MFEM_USE_MPI
-   CVODESolver(MPI_Comm comm_, Vector &y_,
+   CVODESolver(Vector &y_, bool parallel,
                int lmm = CV_ADAMS, int iter = CV_FUNCTIONAL);
-#endif
 
    /** \brief
     * The Init function is used in the initial construction and initialization
@@ -79,7 +76,7 @@ public:
     * The return value is CV_SUCCESS = 0 if no errors occurred, or
     * a negative value otherwise.
     */
-   void ReInit(TimeDependentOperator &_f, Vector &_y, double &_t);
+   void ReInit(TimeDependentOperator &_f, Vector &y_, double &_t);
 
    /** \brief SetSStolerances wraps the CVode function CVodeSStolerances which
     * specifies scalar relative and absolute tolerances. These tolerances must
@@ -141,6 +138,8 @@ protected:
    void* ode_mem;
    bool use_explicit;
 
+   void (*connectNV)(Vector &, N_Vector &);
+
 public:
 
    /** \brief This constructor wraps the ARKodeCreate function,
@@ -155,11 +154,7 @@ public:
     * ARKodeInit. If an initialization error occurs, ARKodeCreate
     * prints an error message to standard err and returns NULL.
     */
-   ARKODESolver(Vector &_y, int _use_explicit = true);
-
-#ifdef MFEM_USE_MPI
-   ARKODESolver(MPI_Comm _comm, Vector &_y, int use_explicit = true);
-#endif
+   ARKODESolver(Vector &mfem_y, bool parallel, bool _use_explicit = true);
 
    void Init(TimeDependentOperator &_f);
    /** \brief
@@ -190,7 +185,7 @@ public:
     * The return value is ARK_SUCCESS = 0 if no errors occurred, or
     * a negative value otherwise.
     */
-   void ReInit(TimeDependentOperator &_f, Vector &_y, double &_t);
+   void ReInit(TimeDependentOperator &_f, Vector &y_, double &_t);
 
    /** \brief
     * SetSStolerances wraps the ARKode function ARKodeSStolerances
@@ -294,15 +289,18 @@ private:
    N_Vector u_scale;
    N_Vector f_scale;
 
+   void (*connectNV)(Vector &, N_Vector &);
+
 public:
-   KinSolWrapper(Operator &op, Vector &mfem_u);
+   KinSolWrapper(Operator &oper, Vector &mfem_u,
+                 bool parallel, bool use_oper_grad = false);
    ~KinSolWrapper();
 
-   void setPrintLevel(int level);
-   void setFuncNormTol(double tol);
+   void SetPrintLevel(int level);
+   void SetFuncNormTol(double tol);
+   void SetScaledStepTol(double tol);
 
-   void setScaledStepTol(double tol);
-   void solve(Vector &mfem_u,
+   void Solve(Vector &mfem_u,
               Vector &mfem_u_scale, Vector &mfem_f_scale);
 };
 

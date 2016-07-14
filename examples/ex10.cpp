@@ -330,21 +330,21 @@ int main(int argc, char *argv[])
    switch (ode_solver_type)
    {
       case 4:
-         ode_solver = new CVODESolver(vx, CV_BDF, CV_NEWTON); break;
+         ode_solver = new CVODESolver(vx, false, CV_BDF, CV_NEWTON); break;
       case 5:
-         ode_solver = new CVODESolver(vx, CV_BDF, CV_NEWTON);
+         ode_solver = new CVODESolver(vx, false, CV_BDF, CV_NEWTON);
          static_cast<CVODESolver *>(ode_solver)->
             SetLinearSolve(oper.backward_euler_oper);
          break;
       case 6:
-         ode_solver = new ARKODESolver(vx, false);
+         ode_solver = new ARKODESolver(vx, false, false);
          static_cast<ARKODESolver *>(ode_solver)->
             SetLinearSolve(oper.backward_euler_oper);
          break;
       case 15:
-         ode_solver = new CVODESolver(vx, CV_ADAMS, CV_FUNCTIONAL); break;
+         ode_solver = new CVODESolver(vx, false); break;
       case 16:
-         ode_solver = new ARKODESolver(vx, true); break;
+         ode_solver = new ARKODESolver(vx, false, true); break;
    }
 
    ode_solver->Init(oper);
@@ -609,17 +609,16 @@ void HyperelasticOperator::ImplicitSolve(const double dt,
    // backward_euler_oper. This equation is solved with the newton_solver
    // object (using J_solver and J_prec internally).
    backward_euler_oper->SetParameters(dt, &v, &x);
-   Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
+   //Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
    //newton_solver.Mult(zero, dv_dt);
+   //MFEM_VERIFY(newton_solver.GetConverged(), "Newton Solver did not converge.");
 
-   KinSolWrapper kinsol(*backward_euler_oper, v);
+   KinSolWrapper kinsol(*backward_euler_oper, v, false);
    Vector one(sc);
    one = 1.0;
-   kinsol.solve(dv_dt, one, one);
+   kinsol.Solve(dv_dt, one, one);
 
    add(v, dt, dv_dt, dx_dt);
-
-   //MFEM_VERIFY(newton_solver.GetConverged(), "Newton Solver did not converge.");
 }
 
 double HyperelasticOperator::ElasticEnergy(Vector &x) const
