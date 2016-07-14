@@ -3,11 +3,11 @@
 // Compile with: make ex16
 //
 // Sample runs:
-//    ex10 -m ../data/star.mesh -s 3 -r 2 -o 2 -dt 3
+//    ex16 -s 3 --alpha 0.1 --kappa 0.1
 //
 // Description:  This examples solves a time dependent nonlinear heat equation
 //               problem of the form du/dt = C(u), where C is a
-//               non-linear Laplacian C(u) = \nabla \cdot (\alpha u) \nabla u.
+//               non-linear Laplacian C(u) = \nabla \cdot (\kappa + \alpha u) \nabla u.
 //
 //               The example demonstrates the use of nonlinear operators (the
 //               class ConductionOperator defining C(x)), as well as their
@@ -28,7 +28,7 @@ using namespace std;
 using namespace mfem;
 
 /** After spatial discretization, the conduction model can be written as:
- *     du/dt = -M^{-1}((\alpha u) Ku)
+ *     du/dt = M^{-1}((\kappa + \alpha u) -Ku)
  *  where u is the vector representing the temperature,
  *  M is the mass matrix, and K is the diffusion matrix.
  *
@@ -45,20 +45,17 @@ protected:
    CGSolver M_solver; // Krylov solver for inverting the mass matrix M
    DSmoother M_prec;  // Preconditioner for the mass matrix M
 
-   Solver *K_solver; // Implicit solver for M + dt K
-   Solver *K_prec; // Preconditioner for the implicit solver
+   CGSolver K_solver; // Implicit solver for M + dt K
+   DSmoother K_prec; // Preconditioner for the implicit solver
 
-   Vector u_alpha; // u * alpha at the previous time
+   Vector u_alpha; // \kappa + \alpha * u at the previous time
 
-   Array<int> &ess_bdr;
-
-   double alpha;
+   double alpha, kappa;
 
    mutable Vector z; // auxiliary vector
 
 public:
-   ConductionOperator(FiniteElementSpace &f, Array<int> &ess_bdr,
-                      double alpha, const Vector &u_);
+   ConductionOperator(FiniteElementSpace &f, double alpha, double kappa, const Vector &u_);
 
    virtual void Mult(const Vector &u, Vector &du_dt) const;
    /** Solve the Backward-Euler equation: k = f(u + dt*k, t), for the unknown k.
@@ -78,12 +75,13 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/star.mesh";
    int ref_levels = 2;
    int order = 2;
-   int ode_solver_type = 3;
-   double t_final = 300.0;
-   double dt = 3.0;
-   double alpha = 10;
+   int ode_solver_type = 14;
+   double t_final = 0.5;
+   double dt = 1.0e-2;
+   double alpha = 1.0e-2;
+   double kappa = 0.5;
    bool visualization = true;
-   int vis_steps = 1;
+   int vis_steps = 5;
 
    int precision = 8;
    cout.precision(precision);
@@ -104,6 +102,8 @@ int main(int argc, char *argv[])
                   "Time step.");
    args.AddOption(&alpha, "-a", "--alpha",
                   "Alpha coefficient.");
+   args.AddOption(&alpha, "-k", "--kappa",
+                  "Kappa coefficient offset.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -166,16 +166,13 @@ int main(int argc, char *argv[])
    GridFunction u_gf;
    u_gf.MakeRef(&fespace, u, 0);
 
-   // 6. Set the initial conditions for u, and the boundary conditions. All 
-   // boundaries are considered essential.
+   // 6. Set the initial conditions for u. All 
+   // boundaries are considered natural.
    FunctionCoefficient u_0(InitialTemperature);
    u_gf.ProjectCoefficient(u_0);
 
-   Array<int> ess_bdr(fespace.GetMesh()->bdr_attributes.Max());
-   ess_bdr = 1;
-
    // 7. Initialize the conduction operator and the VisIt visualization 
-   ConductionOperator oper(fespace, ess_bdr, alpha, u);
+   ConductionOperator oper(fespace, alpha, kappa, u);
 
    VisItDataCollection visit_dc("Example16", mesh);
    visit_dc.RegisterField("temperature", &u_gf);
@@ -223,9 +220,8 @@ int main(int argc, char *argv[])
    return 0;
 }
 
-ConductionOperator::ConductionOperator(FiniteElementSpace &f,
-                                       Array<int> &ess_bdr_, double al, const Vector &u_)
-   : TimeDependentOperator(f.GetVSize(), 0.0), fespace(f), ess_bdr(ess_bdr_), z(height)
+ConductionOperator::ConductionOperator(FiniteElementSpace &f, double al, double kap, const Vector &u_)
+   : TimeDependentOperator(f.GetVSize(), 0.0), fespace(f), M(NULL), K(NULL), u_alpha(height), z(height)
 {
    const double rel_tol = 1e-8;
    const int skip_zero_entries = 0;
@@ -233,7 +229,6 @@ ConductionOperator::ConductionOperator(FiniteElementSpace &f,
    M = new BilinearForm(&fespace);
    M->AddDomainIntegrator(new MassIntegrator());
    M->Assemble(skip_zero_entries);
-   M->EliminateEssentialBC(ess_bdr);
    M->Finalize(skip_zero_entries);
 
    M_solver.iterative_mode = false;
@@ -245,16 +240,15 @@ ConductionOperator::ConductionOperator(FiniteElementSpace &f,
    M_solver.SetOperator(M->SpMat());
 
    alpha = al;
+   kappa = kap;
 
-   K_prec = new DSmoother(1);
-   MINRESSolver *K_minres = new MINRESSolver;
-   K_minres->SetRelTol(rel_tol);
-   K_minres->SetAbsTol(0.0);
-   K_minres->SetMaxIter(300);
-   K_minres->SetPrintLevel(-1);
-   K_minres->SetPreconditioner(*K_prec);
-   K_solver = K_minres;
-
+   K_solver.iterative_mode = false;
+   K_solver.SetRelTol(rel_tol);
+   K_solver.SetAbsTol(0.0);
+   K_solver.SetMaxIter(100);
+   K_solver.SetPrintLevel(0);
+   K_solver.SetPreconditioner(K_prec);
+   
    SetParameters(u_);
 
 }
@@ -270,24 +264,23 @@ void ConductionOperator::ImplicitSolve(const double dt,
                                        const Vector &u, Vector &du_dt)
 {
    // Solve the equation:
-   //    du_dt = -M^{-1}*[K(u + dt*du_dt)]
+   //    du_dt = M^{-1}*[-K(u + dt*du_dt)]
 
    SparseMatrix *T = Add(1.0, M->SpMat(), dt, K->SpMat());
-   K_solver->SetOperator(*T);
+   K_solver.SetOperator(*T);
    K->Mult(u, z);
-   K_solver->Mult(z, du_dt);
+   z.Neg();
+   K_solver.Mult(z, du_dt);
 }
 
 void ConductionOperator::SetParameters(const Vector &u_)
 {
    const int skip_zero_entries = 0;
 
-   u_alpha = u_;
-   u_alpha *= alpha;
+   u_alpha = kappa;
+   u_alpha.Add(alpha, u_);
 
-   if (K != NULL) {
-      delete K;
-   } 
+   delete K;
 
    K = new BilinearForm(&fespace);
    GridFunction u_alpha_gf;
@@ -297,15 +290,14 @@ void ConductionOperator::SetParameters(const Vector &u_)
 
    K->AddDomainIntegrator(new DiffusionIntegrator(u_coeff));
    K->Assemble(skip_zero_entries);
-   K->EliminateEssentialBC(ess_bdr);
    K->Finalize(skip_zero_entries);
 
 }
 
 ConductionOperator::~ConductionOperator()
 {
-   delete K_solver;
-   delete K_prec;
+   delete M;
+   delete K;
 }
 
 double InitialTemperature(const Vector &x)
@@ -315,21 +307,21 @@ double InitialTemperature(const Vector &x)
       {
       case 1:
          if (abs(x(0)) < 0.5) {
-            return 1.0;
+            return 2.0;
          }
          else {
-            return 0.0;
+            return 1.0;
          }
       case 2:
       case 3:         
          if (sqrt(x(0)*x(0) + x(1) * x(1)) < 0.5) {
-            return 1.0;
+            return 2.0;
          }
          else {
-            return 0.0;
+            return 1.0;
          }
 
       }
-   return 0.0;
+   return 1.0;
 }
 
