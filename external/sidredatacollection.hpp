@@ -29,6 +29,7 @@ class SidreDataCollection : public DataCollection
 {
 
 protected:
+   asctoolkit::sidre::DataGroup *parent_datagroup;
 
 public:
 

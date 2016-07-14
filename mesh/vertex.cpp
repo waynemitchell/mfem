@@ -15,8 +15,19 @@
 namespace mfem
 {
 
-Vertex::Vertex (double *xx, int dim)
+void Vertex::init(double *_data) {
+   if (_data) {
+      is_external = true;
+      coord_ptr = _data;
+   }
+   else {
+      is_external = false;
+   }
+}
+
+Vertex::Vertex (double *xx, int dim, double *_data)
 {
+   init(_data);
    for (int i = 0; i < dim; i++)
    {
       coord[i] = xx[i];

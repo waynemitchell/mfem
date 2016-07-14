@@ -378,7 +378,9 @@ public:
         int *element_attributes, int num_elements,
         int *boundary_indices, Geometry::Type boundary_type,
         int *boundary_attributes, int num_boundary_elements,
-        int dimension, int space_dimension= -1);
+        int dimension, int space_dimension= -1,
+        int generate_edges = 0, int refine = 0, 
+        bool fix_orientation = true);
 
 
    Mesh(int _Dim, int NVert, int NElem, int NBdrElem = 0, int _spaceDim= -1)
@@ -531,10 +533,16 @@ public:
    double *GetVertex(int i) { return vertices[i](); }
 
    void ChangeElementObjectDataOwnership(Array<Element*>&, size_t,
-         int*, size_t, int*, size_t);
+         int*, size_t, int*, size_t, bool zerocopy);
 
    void ChangeElementDataOwnership(int *indices, size_t max_indices,
-         int *attributes, size_t max_attributes);
+         int *attributes, size_t max_attributes, bool zerocopy = false);
+
+   void ChangeBoundaryElementDataOwnership(int *indices, size_t max_indices,
+         int *attributes, size_t max_attributes, bool zerocopy = false);
+
+   void ChangeVertexDataOwnership(double *vertices, int dim, 
+         size_t num_vertices, bool zerocopy = false);
 
    const Element* const *GetElementsArray() const
    { return elements.GetData(); }

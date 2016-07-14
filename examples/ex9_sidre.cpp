@@ -150,26 +150,19 @@ int main(int argc, char *argv[])
 
 
    DataCollection * dc = NULL;
-
    dc = new SidreDataCollection("Example9", ds.getRoot() );
    sidre::DataGroup* grp = ds.getRoot()->getGroup("Example9");
-
 
    if (strcmp(sidre_restart, "\0") != 0) {
       sidre_use_restart = true;
    }
 
+   // 2. Read the mesh from the given mesh file. We can handle geometrically
+   //    periodic meshes in this code.
    if (sidre_use_restart) {
-      /*
-      std::cout << "loading sidre checkpoint: "<< sidre_restart
-              << " using protocol: " << sidre_restart_protocol
-              << std::endl;
-      ds.load(sidre_restart, sidre_restart_protocol);
-
-      dc->SetTime( grp->getView("state/time")->getScalar() );
-      dc->SetCycle(grp->getView("state/cycle")->getScalar() );
-      */
       dc->Load(sidre_restart, sidre_restart_protocol);
+      // we should get this from the DataCollection
+      grp = ds.getRoot()->getGroup("Example9");
    }
    else {
 
@@ -191,61 +184,52 @@ int main(int argc, char *argv[])
 
    elements_connectivity = grp->getView("topology/elements/connectivity");
    material_attribute_values = grp->getView("fields/material_attribute/values");
+   coordset_values = grp->getView("coordset/x");
+   std::istringstream istrMesh(grp->getView("aux/orig_mesh_str")->getString() );
 
+   // initialize the mesh from the istringstream
+   Mesh *mesh = new Mesh(istrMesh, 1, 1);
 
-   // 2. Populate the Mesh. Either from the mesh file or from a restart
-   Mesh *mesh;
-
-   if (false && sidre_use_restart) {
+   // 3. Refine the mesh to increase the resolution. In this example we do
+   //    'ref_levels' of uniform refinement, where 'ref_levels' is a
+   //    command-line parameter. If the mesh is of NURBS type, we convert it to
+   //    a (piecewise-polynomial) high-order mesh.
+   for (int lev = 0; lev < ref_levels; lev++)
+   {
+      mesh->UniformRefinement();
    }
-   else {
-      // 2. Read the mesh from the given mesh file. We can handle geometrically
-      //    periodic meshes in this code.
-      std::istringstream istrMesh(grp->getView("aux/orig_mesh_str")->getString() );
-
-      // initialize the mesh from the istringstream
-      mesh = new Mesh(istrMesh, 1, 1);
-
-
-      // 4. Refine the mesh to increase the resolution. In this example we do
-      //    'ref_levels' of uniform refinement, where 'ref_levels' is a
-      //    command-line parameter. If the mesh is of NURBS type, we convert it to
-      //    a (piecewise-polynomial) high-order mesh.
-      for (int lev = 0; lev < ref_levels; lev++)
-      {
-         mesh->UniformRefinement();
-      }
-      if (mesh->NURBSext)
-      {
-         mesh->SetCurvature(max(order, 1));
-      }
-
-      int num_elements = mesh->GetNE();
-      int element_size = 4;
-      if(!sidre_use_restart)
-      {
-          //int num_boundary_elements = mesh->GetNBE();
-          int num_indices = num_elements * element_size;
-
-          elements_connectivity->allocate(
-                      asctoolkit::sidre::detail::SidreTT<int>::id,
-                      num_indices);
-          //elements_connectivity->apply(num_indices, 0, element_size);
-
-          material_attribute_values->allocate(
-                      asctoolkit::sidre::detail::SidreTT<int>::id,
-                      num_elements);
-          //material_attribute_values->apply(num_elements, 0, 1);
-      }
-
-      mesh->ChangeElementDataOwnership(elements_connectivity->getArray(),
-             element_size * num_elements, material_attribute_values->getArray(),
-             num_elements);
+   if (mesh->NURBSext)
+   {
+      mesh->SetCurvature(max(order, 1));
    }
 
+   mesh->GetBoundingBox(bb_min, bb_max, max(order, 1));
 
-
+   // 3.b Change ownership of mesh data
    int dim = mesh->Dimension();
+   int num_elements = mesh->GetNE();
+   int element_size = 4;
+   int num_indices = num_elements * element_size;
+   int num_vertices = mesh->GetNV();
+   int coordset_len = dim * num_vertices; 
+   
+   if (!sidre_use_restart) {
+      elements_connectivity->allocate(
+                  asctoolkit::sidre::detail::SidreTT<int>::id,
+                  num_indices);
+      material_attribute_values->allocate(
+                  asctoolkit::sidre::detail::SidreTT<int>::id,
+                  num_elements);
+      coordset_values->allocate(
+            asctoolkit::sidre::detail::SidreTT<double>::id,
+            coordset_len);
+   }
+   mesh->ChangeElementDataOwnership(elements_connectivity->getArray(),
+      element_size * num_elements, material_attribute_values->getArray(),
+      num_elements, sidre_use_restart);
+   mesh->ChangeVertexDataOwnership(coordset_values->getArray(),
+         dim, coordset_len, sidre_use_restart);
+
 
    // Deal with mesh's grid function: nodes
    // Temp HACK (KW):
@@ -267,7 +251,8 @@ int main(int argc, char *argv[])
     dc->RegisterField( "nodes", mesh->GetNodes());
 
 
-   // 3. Define the ODE solver used for time integration. Several explicit
+
+   // 4. Define the ODE solver used for time integration. Several explicit
    //    Runge-Kutta methods are available.
    ODESolver *ode_solver = NULL;
    switch (ode_solver_type)
@@ -281,12 +266,6 @@ int main(int argc, char *argv[])
          cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
          return 3;
    }
-
-   // 4. OLD: Refine the mesh to increase the resolution. In this example we do
-   //    'ref_levels' of uniform refinement, where 'ref_levels' is a
-   //    command-line parameter. If the mesh is of NURBS type, we convert it to
-   //    a (piecewise-polynomial) high-order mesh.
-   mesh->GetBoundingBox(bb_min, bb_max, max(order, 1));
 
    // 5. Define the discontinuous DG finite element space of the given
    //    polynomial order on the refined mesh.
@@ -359,11 +338,11 @@ int main(int argc, char *argv[])
 
       if (ds.getRoot()->isEquivalentTo( copy_ds.getRoot() ) )
       {
-        cout << "Datastore save/load with conduit hdf5 passed, they are equivalent." << endl;
+        cout << "Datastore save/load with sidre hdf5 passed, they are equivalent." << endl;
       }
       else
       {
-       cout << "Datastore conduit hdf5 instances don't match =[" << endl;
+       cout << "Datastore sidre hdf5 instances don't match =[" << endl;
        exit(-1);
       }
    }
