@@ -111,6 +111,10 @@ public:
     */
    void Step(Vector &x, double &t, double &dt);
 
+   /** Defines a custom Jacobian inversion.
+       First calls the existing cv_lfree routine if it is not NULL.
+       It then sets the cv_linit, cv_lsetup, cv_lsolve, cv_lfree fields in
+       the CVODE's memory structure. */
    void SetLinearSolve(SundialsLinearSolveOperator*);
 
    /** \brief Destroys associated memory. Calls CVodeFree and N_VDestroy.
@@ -229,6 +233,10 @@ public:
     */
    void Step(Vector &x, double &t, double &dt);
 
+   /** Defines a custom Jacobian inversion.
+       First calls the existing ark_lfree routine if it is not NULL.
+       It then sets the ark_linit, ark_lsetup, ark_lsolve, ark_lfree fields in
+       the ARKODE's memory structure. */
    void SetLinearSolve(SundialsLinearSolveOperator*);
 
    /** \brief

@@ -110,315 +110,12 @@ static int KinSolJacAction(N_Vector v, N_Vector Jv, N_Vector u,
    return 0;
 }
 
-// Linear solve associated with CVodeMem structs.
-static int MFEMLinearCVSolve(void *cvode_mem,
-                             mfem::SundialsLinearSolveOperator *op);
-
-// Linear solve associated with ARKodeMem structs.
-static int MFEMLinearARKSolve(void *arkode_mem,
-                              mfem::SundialsLinearSolveOperator *op);
-
-namespace mfem
-{
-
-CVODESolver::CVODESolver(Vector &y_, bool parallel, int lmm, int iter)
-   : solver_iteration_type(iter)
-{
-   connectNV = (parallel) ? ConnectParNVector : ConnectNVector;
-
-   // Create the NVector y.
-   (*connectNV)(y_, y);
-
-   // Create the solver memory.
-   ode_mem = CVodeCreate(lmm, iter);
-
-   // Initialize integrator memory, specify the user's
-   // RHS function in x' = f(t, x), initial time, initial condition.
-   int flag = CVodeInit(ode_mem, SundialsMult, 0.0, y);
-   MFEM_ASSERT(flag >= 0, "CVodeInit() failed!");
-
-   // For some reason CVODE insists those to be set by hand (no defaults).
-   SetSStolerances(RELTOL, ABSTOL);
-
-   // When newton iterations are chosen, one should specify the linear solver.
-   if (solver_iteration_type == CV_NEWTON)
-   {
-      CVSpgmr(ode_mem, PREC_NONE, 0);
-   }
-}
-
-void CVODESolver::Init(TimeDependentOperator &_f)
-{
-   f = &_f;
-
-   // Set the pointer to user-defined data.
-   int flag = CVodeSetUserData(ode_mem, f);
-   MFEM_ASSERT(flag >= 0, "CVodeSetUserData() failed!");
-}
-
-void CVODESolver::ReInit(TimeDependentOperator &_f, Vector &y_, double & _t)
-{
-   f = &_f;
-   (*connectNV)(y_, y);
-
-   // Re-init memory, time and solution. The RHS action is known from Init().
-   int flag = CVodeReInit(ode_mem, static_cast<realtype>(_t), y);
-   MFEM_ASSERT(flag >= 0, "CVodeReInit() failed!");
-
-   // Set the pointer to user-defined data.
-   flag = CVodeSetUserData(ode_mem, this->f);
-   MFEM_ASSERT(flag >= 0, "CVodeSetUserData() failed!");
-
-   // When newton iterations are chosen, one should specify the linear solver.
-   if (solver_iteration_type == CV_NEWTON)
-   {
-      CVSpgmr(ode_mem, PREC_NONE, 0);
-   }
-}
-
-void CVODESolver::SetSStolerances(realtype reltol, realtype abstol)
-{
-   // Specify the scalar relative tolerance and scalar absolute tolerance.
-   int flag = CVodeSStolerances(ode_mem, reltol, abstol);
-   MFEM_ASSERT(flag >= 0, "CVodeSStolerances() failed!");
-}
-
-void CVODESolver::Step(Vector &x, double &t, double &dt)
-{
-#ifndef MFEM_USE_MPI
-   NV_DATA_S(y) = x.GetData();
-#else
-   HypreParVector *hx = dynamic_cast<HypreParVector *>(&x);
-   MFEM_ASSERT(hx != NULL, "Could not cast to HypreParVector!");
-   y = N_VMake_ParHyp(hx->StealParVector());
-#endif
-
-   // Perform the step.
-   realtype tout = t + dt;
-   int flag = CVode(ode_mem, tout, y, &t, CV_NORMAL);
-   MFEM_ASSERT(flag >= 0, "CVode() failed!");
-
-   // Record last incremental step size.
-   flag = CVodeGetLastStep(ode_mem, &dt);
-}
-
-void CVODESolver::SetLinearSolve(SundialsLinearSolveOperator* op)
-{
-   // Jean comment: If linear solve should be Newton, recreate ode_mem object.
-   //    Consider checking for CV_ADAMS vs CV_BDF as well.
-   // TODO: Is there an error here ??
-   if (solver_iteration_type == CV_FUNCTIONAL)
-   {
-      realtype t0 = ((CVodeMem) ode_mem)->cv_tn;
-      CVodeFree(&ode_mem);
-      ode_mem=CVodeCreate(CV_BDF, CV_NEWTON); // ??
-
-      int flag = CVodeInit(ode_mem, SundialsMult, t0, y);
-      MFEM_ASSERT(flag >= 0, "CVodeInit() failed!");
-
-      CVodeSetUserData(ode_mem, this->f);
-   }
-
-   SetSStolerances(1e-2, 1e-4);
-
-   MFEMLinearCVSolve(ode_mem, op);
-}
-
-CVODESolver::~CVODESolver()
-{
-   N_VDestroy(y);
-   if (ode_mem != NULL)
-   {
-      CVodeFree(&ode_mem);
-   }
-}
-
-
-ARKODESolver::ARKODESolver(Vector &mfem_y, bool parallel, bool _use_explicit)
-   : ODESolver(),
-     use_explicit(_use_explicit)
-{
-   connectNV = (parallel) ? ConnectParNVector : ConnectNVector;
-
-   // Create the NVector y.
-   (*connectNV)(mfem_y, y);
-
-   // Create the solver memory.
-   ode_mem = ARKodeCreate();
-
-   // Initialize the integrator memory, specify the user's
-   // RHS function in x' = f(t, x), the initial time, initial condition.
-   int flag = use_explicit ?
-              ARKodeInit(ode_mem, SundialsMult, NULL, 0.0, y) :
-              ARKodeInit(ode_mem, NULL, SundialsMult, 0.0, y);
-   MFEM_ASSERT(flag >= 0, "ARKodeInit() failed!");
-
-   SetSStolerances(RELTOL, ABSTOL);
-}
-
-void ARKODESolver::Init(TimeDependentOperator &_f)
-{
-   f = &_f;
-   // Set the pointer to user-defined data.
-   int flag = ARKodeSetUserData(ode_mem, this->f);
-   MFEM_ASSERT(flag >= 0, "ARKodeSetUserData() failed!");
-}
-
-void ARKODESolver::ReInit(TimeDependentOperator &_f, Vector &y_, double &_t)
-{
-   f = &_f;
-   (*connectNV)(y_, y);
-
-   // Re-init memory, time and solution. The RHS action is known from Init().
-   int flag = use_explicit ?
-              ARKodeReInit(ode_mem, SundialsMult, NULL, (realtype) _t, y) :
-              ARKodeReInit(ode_mem, NULL, SundialsMult, (realtype) _t, y);
-   MFEM_ASSERT(flag >= 0, "ARKodeReInit() failed!");
-
-   // Set the pointer to user-defined data.
-   flag = ARKodeSetUserData(ode_mem, this->f);
-   MFEM_ASSERT(flag >= 0, "ARKodeSetUserData() failed!");
-}
-
-void ARKODESolver::SetSStolerances(realtype reltol, realtype abstol)
-{
-   // Specify the scalar relative tolerance and scalar absolute tolerance.
-   int flag = ARKodeSStolerances(ode_mem, reltol, abstol);
-   MFEM_ASSERT(flag >= 0, "ARKodeSStolerances() failed!");
-}
-
-void ARKODESolver::Step(Vector &x, double &t, double &dt)
-{
-#ifndef MFEM_USE_MPI
-      NV_DATA_S(y) = x.GetData();
-#else
-   HypreParVector *hx = dynamic_cast<HypreParVector *>(&x);
-   MFEM_ASSERT(hx != NULL, "Could not cast to HypreParVector!");
-   y = N_VMake_ParHyp(hx->StealParVector());
-#endif
-
-   // Step.
-   realtype tout = t + dt;
-   int flag = ARKode(ode_mem, tout, y, &t, ARK_NORMAL);
-   MFEM_ASSERT(flag >= 0, "ARKode() failed!");
-
-   // Record last incremental step size.
-   flag = ARKodeGetLastStep(ode_mem, &dt);
-}
-
-void ARKODESolver::WrapSetERKTableNum(int table_num)
-{
-   ARKodeSetERKTableNum(ode_mem, table_num);
-}
-
-void ARKODESolver::WrapSetFixedStep(double dt)
-{
-   ARKodeSetFixedStep(ode_mem, static_cast<realtype>(dt));
-}
-
-void ARKODESolver::SetLinearSolve(SundialsLinearSolveOperator* op)
-{
-   if (use_explicit)
-   {
-      realtype t0= ((ARKodeMem) ode_mem)->ark_tn;
-      ARKodeFree(&ode_mem);
-      ode_mem=ARKodeCreate();
-
-      // TODO: why is this?
-      use_explicit=false;
-      //change init structure in order to switch to implicit method
-      int flag = use_explicit ?
-                    ARKodeInit(ode_mem, SundialsMult, NULL, t0, y) :
-                    ARKodeInit(ode_mem, NULL, SundialsMult, t0, y);
-      MFEM_ASSERT(flag >= 0, "ARKodeInit() failed!");
-
-      ARKodeSetUserData(ode_mem, this->f);
-   }
-
-   // Call ARKodeSetMaxNumSteps to increase default.
-   ARKodeSetMaxNumSteps(ode_mem, 10000);
-   SetSStolerances(1e-2,1e-4);
-
-   MFEMLinearARKSolve(ode_mem, op);
-}
-
-ARKODESolver::~ARKODESolver()
-{
-   N_VDestroy(y);
-   if (ode_mem != NULL)
-   {
-      ARKodeFree(&ode_mem);
-   }
-}
-
-KinSolWrapper::KinSolWrapper(Operator &oper, Vector &mfem_u,
-                             bool parallel, bool use_oper_grad)
-   : kin_mem(NULL)
-{
-   connectNV = (parallel) ? ConnectParNVector : ConnectNVector;
-
-   kin_mem = KINCreate();
-
-   (*connectNV)(mfem_u, u);
-   KINInit(kin_mem, KinSolMult, u);
-
-   // Set void pointer to user data.
-   KINSetUserData(kin_mem, static_cast<void *>(&oper));
-
-   // Set scaled preconditioned GMRES linear solver.
-   KINSpgmr(kin_mem, 0);
-
-   // Define the Jacobian action.
-   if (use_oper_grad)
-   {
-      KINSpilsSetJacTimesVecFn(kin_mem, KinSolJacAction);
-   }
-}
-
-void KinSolWrapper::SetPrintLevel(int level)
-{
-   KINSetPrintLevel(kin_mem, level);
-}
-
-void KinSolWrapper::SetFuncNormTol(double tol)
-{
-   KINSetFuncNormTol(kin_mem, tol);
-}
-
-void KinSolWrapper::SetScaledStepTol(double tol)
-{
-   KINSetScaledStepTol(kin_mem, tol);
-}
-
-void KinSolWrapper::Solve(Vector &mfem_u,
-                          Vector &mfem_u_scale, Vector &mfem_f_scale)
-{
-   (*connectNV)(mfem_u, u);
-   (*connectNV)(mfem_u_scale, u_scale);
-   (*connectNV)(mfem_f_scale, f_scale);
-
-   // LINESEARCH might be fancier, but more fragile near convergence.
-   int strategy = KIN_LINESEARCH;
-//   int strategy = KIN_NONE;
-   int flag = KINSol(kin_mem, u, strategy, u_scale, f_scale);
-   MFEM_VERIFY(flag == KIN_SUCCESS || flag == KIN_INITIAL_GUESS_OK,
-               "KINSol returned " << flag << " that indicated a problem!");
-}
-
-KinSolWrapper::~KinSolWrapper()
-{
-   KINFree(&kin_mem);
-}
-
-
-} // namespace mfem
-
 static int WrapLinearCVSolveInit(CVodeMem cv_mem)
 {
    return 0;
 }
 
-// Jean: Setup may not be needed, since Jacobian is recomputed each iteration
+// Jean: setup may not be needed, since Jacobian is recomputed each iteration
 // ypred is the predicted y at the current time, fpred is f(t,ypred).
 static int WrapLinearCVSolveSetup(CVodeMem cv_mem, int convfail,
                                   N_Vector ypred, N_Vector fpred,
@@ -453,41 +150,6 @@ static int WrapLinearCVSolve(CVodeMem cv_mem, N_Vector b,
 static void WrapLinearCVSolveFree(CVodeMem cv_mem)
 {
    return;
-}
-
-/*---------------------------------------------------------------
- MFEMLinearCVSolve:
-
- This routine initializes the memory record and sets various
- function fields specific to the linear solver module.
- MFEMLinearCVSolve first calls the existing lfree routine if this is not
- NULL. It then sets the cv_linit, cv_lsetup, cv_lsolve,
- cv_lfree fields in (*cvode_mem) to be WrapLinearCVSolveInit,
- WrapLinearCVSolveSetup, WrapLinearCVSolve, and WrapLinearCVSolveFree,
- respectively.
----------------------------------------------------------------*/
-static int MFEMLinearCVSolve(void *ode_mem,
-                             mfem::SundialsLinearSolveOperator *op)
-{
-   MFEM_VERIFY(ode_mem != NULL, "CVODE memory error!");
-   CVodeMem cv_mem = static_cast<CVodeMem>(ode_mem);
-
-   if (cv_mem->cv_lfree != NULL)
-   {
-      cv_mem->cv_lfree(cv_mem);
-   }
-
-   // Set four main function fields in cv_mem.
-   cv_mem->cv_linit  = WrapLinearCVSolveInit;
-   cv_mem->cv_lsetup = WrapLinearCVSolveSetup;
-   cv_mem->cv_lsolve = WrapLinearCVSolve;
-   cv_mem->cv_lfree  = WrapLinearCVSolveFree;
-
-   // Maximum number of Newton iterations.
-   CVodeSetMaxNumSteps(cv_mem, 50);
-
-   cv_mem->cv_lmem = op;
-   return (CVSPILS_SUCCESS);
 }
 
 /*
@@ -587,50 +249,308 @@ static int WrapLinearARKSolve(ARKodeMem ark_mem, N_Vector b,
    return 0;
 }
 
-/*
- ark_lfree should free up any memory allocated by the linear
- solver. This routine is called once a problem has been
- completed and the linear solver is no longer needed.
- */
+// This should free up any memory allocated by the linear solver.
 static void WrapLinearARKSolveFree(ARKodeMem ark_mem)
 {
    return;
 }
 
-/*---------------------------------------------------------------
- MFEMLinearARKSolve:
-
- This routine initializes the memory record and sets various
- function fields specific to the linear solver module.
- MFEMLinearARKSolve first calls the existing lfree routine if this is not
- NULL. It then sets the ark_linit, ark_lsetup, ark_lsolve,
- ark_lfree fields in (*arkode_mem) to be WrapLinearARKSolveInit,
- WrapLinearARKSolveSetup, WrapARKLinearSolve, and WrapLinearARKSolveFree,
- respectively.
----------------------------------------------------------------*/
-static int MFEMLinearARKSolve(void *arkode_mem,
-                              mfem::SundialsLinearSolveOperator* op)
+namespace mfem
 {
-   ARKodeMem ark_mem;
 
-   MFEM_VERIFY(arkode_mem != NULL, "ARKODE memory error!");
-   ark_mem = (ARKodeMem) arkode_mem;
+CVODESolver::CVODESolver(Vector &y_, bool parallel, int lmm, int iter)
+   : solver_iteration_type(iter)
+{
+   connectNV = (parallel) ? ConnectParNVector : ConnectNVector;
 
-   if (ark_mem->ark_lfree != NULL) { ark_mem->ark_lfree(ark_mem); }
+   // Create the NVector y.
+   (*connectNV)(y_, y);
+
+   // Create the solver memory.
+   ode_mem = CVodeCreate(lmm, iter);
+
+   // Initialize integrator memory, specify the user's
+   // RHS function in x' = f(t, x), initial time, initial condition.
+   int flag = CVodeInit(ode_mem, SundialsMult, 0.0, y);
+   MFEM_ASSERT(flag >= 0, "CVodeInit() failed!");
+
+   // For some reason CVODE insists those to be set by hand (no defaults).
+   SetSStolerances(RELTOL, ABSTOL);
+
+   // When newton iterations are chosen, one should specify the linear solver.
+   if (solver_iteration_type == CV_NEWTON)
+   {
+      CVSpgmr(ode_mem, PREC_NONE, 0);
+   }
+}
+
+void CVODESolver::Init(TimeDependentOperator &_f)
+{
+   f = &_f;
+
+   // Set the pointer to user-defined data.
+   int flag = CVodeSetUserData(ode_mem, f);
+   MFEM_ASSERT(flag >= 0, "CVodeSetUserData() failed!");
+}
+
+void CVODESolver::ReInit(TimeDependentOperator &_f, Vector &y_, double & _t)
+{
+   f = &_f;
+   (*connectNV)(y_, y);
+
+   // Re-init memory, time and solution. The RHS action is known from Init().
+   int flag = CVodeReInit(ode_mem, static_cast<realtype>(_t), y);
+   MFEM_ASSERT(flag >= 0, "CVodeReInit() failed!");
+
+   // Set the pointer to user-defined data.
+   flag = CVodeSetUserData(ode_mem, this->f);
+   MFEM_ASSERT(flag >= 0, "CVodeSetUserData() failed!");
+
+   // When newton iterations are chosen, one should specify the linear solver.
+   if (solver_iteration_type == CV_NEWTON)
+   {
+      CVSpgmr(ode_mem, PREC_NONE, 0);
+   }
+}
+
+void CVODESolver::SetSStolerances(realtype reltol, realtype abstol)
+{
+   // Specify the scalar relative tolerance and scalar absolute tolerance.
+   int flag = CVodeSStolerances(ode_mem, reltol, abstol);
+   MFEM_ASSERT(flag >= 0, "CVodeSStolerances() failed!");
+}
+
+void CVODESolver::Step(Vector &x, double &t, double &dt)
+{
+#ifndef MFEM_USE_MPI
+   NV_DATA_S(y) = x.GetData();
+#else
+   HypreParVector *hx = dynamic_cast<HypreParVector *>(&x);
+   MFEM_ASSERT(hx != NULL, "Could not cast to HypreParVector!");
+   y = N_VMake_ParHyp(hx->StealParVector());
+#endif
+
+   // Perform the step.
+   realtype tout = t + dt;
+   int flag = CVode(ode_mem, tout, y, &t, CV_NORMAL);
+   MFEM_ASSERT(flag >= 0, "CVode() failed!");
+
+   // Record last incremental step size.
+   flag = CVodeGetLastStep(ode_mem, &dt);
+}
+
+void CVODESolver::SetLinearSolve(SundialsLinearSolveOperator* op)
+{
+   MFEM_VERIFY(solver_iteration_type == CV_NEWTON,
+               "The function is applicable only to CV_NEWTON iteration type.");
+   MFEM_VERIFY(ode_mem != NULL, "CVODE memory error!");
+
+   CVodeMem cv_mem = static_cast<CVodeMem>(ode_mem);
+   if (cv_mem->cv_lfree != NULL)
+   {
+      cv_mem->cv_lfree(cv_mem);
+   }
+
+   // Set four main function fields in cv_mem.
+   cv_mem->cv_linit  = WrapLinearCVSolveInit;
+   cv_mem->cv_lsetup = WrapLinearCVSolveSetup;
+   cv_mem->cv_lsolve = WrapLinearCVSolve;
+   cv_mem->cv_lfree  = WrapLinearCVSolveFree;
+
+   // Maximum number of Newton iterations.
+   CVodeSetMaxNumSteps(cv_mem, 50);
+   SetSStolerances(1e-2, 1e-4);
+
+   cv_mem->cv_lmem = op;
+}
+
+CVODESolver::~CVODESolver()
+{
+   N_VDestroy(y);
+   if (ode_mem != NULL)
+   {
+      CVodeFree(&ode_mem);
+   }
+}
+
+
+ARKODESolver::ARKODESolver(Vector &mfem_y, bool parallel, bool _use_explicit)
+   : ODESolver(),
+     use_explicit(_use_explicit)
+{
+   connectNV = (parallel) ? ConnectParNVector : ConnectNVector;
+
+   // Create the NVector y.
+   (*connectNV)(mfem_y, y);
+
+   // Create the solver memory.
+   ode_mem = ARKodeCreate();
+
+   // Initialize the integrator memory, specify the user's
+   // RHS function in x' = f(t, x), the initial time, initial condition.
+   int flag = use_explicit ?
+              ARKodeInit(ode_mem, SundialsMult, NULL, 0.0, y) :
+              ARKodeInit(ode_mem, NULL, SundialsMult, 0.0, y);
+   MFEM_ASSERT(flag >= 0, "ARKodeInit() failed!");
+
+   SetSStolerances(RELTOL, ABSTOL);
+}
+
+void ARKODESolver::Init(TimeDependentOperator &_f)
+{
+   f = &_f;
+   // Set the pointer to user-defined data.
+   int flag = ARKodeSetUserData(ode_mem, this->f);
+   MFEM_ASSERT(flag >= 0, "ARKodeSetUserData() failed!");
+}
+
+void ARKODESolver::ReInit(TimeDependentOperator &_f, Vector &y_, double &_t)
+{
+   f = &_f;
+   (*connectNV)(y_, y);
+
+   // Re-init memory, time and solution. The RHS action is known from Init().
+   int flag = use_explicit ?
+              ARKodeReInit(ode_mem, SundialsMult, NULL, (realtype) _t, y) :
+              ARKodeReInit(ode_mem, NULL, SundialsMult, (realtype) _t, y);
+   MFEM_ASSERT(flag >= 0, "ARKodeReInit() failed!");
+
+   // Set the pointer to user-defined data.
+   flag = ARKodeSetUserData(ode_mem, this->f);
+   MFEM_ASSERT(flag >= 0, "ARKodeSetUserData() failed!");
+}
+
+void ARKODESolver::SetSStolerances(realtype reltol, realtype abstol)
+{
+   // Specify the scalar relative tolerance and scalar absolute tolerance.
+   int flag = ARKodeSStolerances(ode_mem, reltol, abstol);
+   MFEM_ASSERT(flag >= 0, "ARKodeSStolerances() failed!");
+}
+
+void ARKODESolver::Step(Vector &x, double &t, double &dt)
+{
+#ifndef MFEM_USE_MPI
+      NV_DATA_S(y) = x.GetData();
+#else
+   HypreParVector *hx = dynamic_cast<HypreParVector *>(&x);
+   MFEM_ASSERT(hx != NULL, "Could not cast to HypreParVector!");
+   y = N_VMake_ParHyp(hx->StealParVector());
+#endif
+
+   // Step.
+   realtype tout = t + dt;
+   int flag = ARKode(ode_mem, tout, y, &t, ARK_NORMAL);
+   MFEM_ASSERT(flag >= 0, "ARKode() failed!");
+
+   // Record last incremental step size.
+   flag = ARKodeGetLastStep(ode_mem, &dt);
+}
+
+void ARKODESolver::WrapSetERKTableNum(int table_num)
+{
+   ARKodeSetERKTableNum(ode_mem, table_num);
+}
+
+void ARKODESolver::WrapSetFixedStep(double dt)
+{
+   ARKodeSetFixedStep(ode_mem, static_cast<realtype>(dt));
+}
+
+void ARKODESolver::SetLinearSolve(SundialsLinearSolveOperator* op)
+{
+   MFEM_VERIFY(use_explicit == false,
+               "The function is applicable only to implicit time integration.");
+   MFEM_VERIFY(ode_mem != NULL, "ARKODE memory error!");
+
+   ARKodeMem ark_mem = static_cast<ARKodeMem>(ode_mem);
+   if (ark_mem->ark_lfree != NULL)
+   {
+      ark_mem->ark_lfree(ark_mem);
+   }
 
    // Tell ARKODE that the Jacobian inversion is custom.
    ark_mem->ark_lsolve_type = 4;
-   // Forces ARKODE to call lsetup prior to every time it calls lsolve.
-   // ark_mem->ark_msbp = -1;
-
    // Set four main function fields in ark_mem.
    ark_mem->ark_linit  = WrapLinearARKSolveInit;
    ark_mem->ark_lsetup = WrapLinearARKSolveSetup;
    ark_mem->ark_lsolve = WrapLinearARKSolve;
    ark_mem->ark_lfree  = WrapLinearARKSolveFree;
 
+   // Maximum number of Newton iterations.
+   ARKodeSetMaxNumSteps(ode_mem, 10000);
+   SetSStolerances(1e-2,1e-4);
+
    ark_mem->ark_lmem = op;
-   return (ARKSPILS_SUCCESS);
 }
+
+ARKODESolver::~ARKODESolver()
+{
+   N_VDestroy(y);
+   if (ode_mem != NULL)
+   {
+      ARKodeFree(&ode_mem);
+   }
+}
+
+KinSolWrapper::KinSolWrapper(Operator &oper, Vector &mfem_u,
+                             bool parallel, bool use_oper_grad)
+   : kin_mem(NULL)
+{
+   connectNV = (parallel) ? ConnectParNVector : ConnectNVector;
+
+   kin_mem = KINCreate();
+
+   (*connectNV)(mfem_u, u);
+   KINInit(kin_mem, KinSolMult, u);
+
+   // Set void pointer to user data.
+   KINSetUserData(kin_mem, static_cast<void *>(&oper));
+
+   // Set scaled preconditioned GMRES linear solver.
+   KINSpgmr(kin_mem, 0);
+
+   // Define the Jacobian action.
+   if (use_oper_grad)
+   {
+      KINSpilsSetJacTimesVecFn(kin_mem, KinSolJacAction);
+   }
+}
+
+void KinSolWrapper::SetPrintLevel(int level)
+{
+   KINSetPrintLevel(kin_mem, level);
+}
+
+void KinSolWrapper::SetFuncNormTol(double tol)
+{
+   KINSetFuncNormTol(kin_mem, tol);
+}
+
+void KinSolWrapper::SetScaledStepTol(double tol)
+{
+   KINSetScaledStepTol(kin_mem, tol);
+}
+
+void KinSolWrapper::Solve(Vector &mfem_u,
+                          Vector &mfem_u_scale, Vector &mfem_f_scale)
+{
+   (*connectNV)(mfem_u, u);
+   (*connectNV)(mfem_u_scale, u_scale);
+   (*connectNV)(mfem_f_scale, f_scale);
+
+   // LINESEARCH might be fancier, but more fragile near convergence.
+   int strategy = KIN_LINESEARCH;
+//   int strategy = KIN_NONE;
+   int flag = KINSol(kin_mem, u, strategy, u_scale, f_scale);
+   MFEM_VERIFY(flag == KIN_SUCCESS || flag == KIN_INITIAL_GUESS_OK,
+               "KINSol returned " << flag << " that indicated a problem!");
+}
+
+KinSolWrapper::~KinSolWrapper()
+{
+   KINFree(&kin_mem);
+}
+
+} // namespace mfem
 
 #endif
