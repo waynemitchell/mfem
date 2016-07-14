@@ -31,14 +31,11 @@
 using namespace std;
 using namespace mfem;
 
-class BackwardEulerOperator;
-
 /** After spatial discretization, the hyperelastic model can be written as a
  *  system of ODEs:
- *     du/dt = -M^{-1}*C(u)
+ *     du/dt = -M^{-1} (\alpha u) Ku
  *  where u is the vector representing the temperature,
- *  M is the mass matrix, and C(x) is the nonlinear
- *  conduction operator.
+ *  M is the mass matrix, and K is the diffusion matrix.
  *
  *  Class ConductionOperator represents the right-hand side of the above ODE
  */
@@ -47,61 +44,38 @@ class ConductionOperator : public TimeDependentOperator
 protected:
    FiniteElementSpace &fespace;
 
-   BilinearForm M;
-   NonlinearForm C;
+   BilinearForm *M;
+   BilinearForm *K;
 
    CGSolver M_solver; // Krylov solver for inverting the mass matrix M
    DSmoother M_prec;  // Preconditioner for the mass matrix M
 
-   /** Nonlinear operator defining the reduced backward Euler equation for the
-       temperature. Used in the implementation of method ImplicitSolve. */
-   BackwardEulerOperator *backward_euler_oper;
-   /// Newton solver for the backward Euler equation
-   NewtonSolver newton_solver;
-   /// Solver for the Jacobian solve in the Newton method
-   Solver *J_solver;
-   /// Preconditioner for the Jacobian
-   Solver *J_prec;
+   Solver *K_solver;
+   Solver *K_prec;
+
+   const GridFunction *u_gf;
+
+   Array<int> &ess_bdr;
 
    mutable Vector z; // auxiliary vector
 
 public:
    ConductionOperator(FiniteElementSpace &f, Array<int> &ess_bdr,
-                      double alpha);
+                      double alpha, GridFunction u_gf);
 
    virtual void Mult(const Vector &u, Vector &du_dt) const;
    /** Solve the Backward-Euler equation: k = f(u + dt*k, t), for the unknown k.
        This is the only requirement for high-order SDIRK implicit integration.*/
    virtual void ImplicitSolve(const double dt, const Vector &u, Vector &k);
 
-   virtual ~HyperelasticOperator();
-};
+   void SetParameters(const GridFunction *u_gf_);
 
-// Nonlinear operator of the form:
-//       k --> M*k+ C(u + dt*k),
-// where M is a BilinearForms, H is a given NonlinearForm, v and x
-// are given vectors, and dt is a scalar.
-class BackwardEulerOperator : public Operator
-{
-private:
-   BilinearForm *M;
-   NonlinearForm *C;
-   mutable SparseMatrix *Jacobian;
-   const Vector *u;
-   double dt;
-   mutable Vector z;
-
-public:
-   BackwardEulerOperator(BilinearForm *M_, NonlinearForm *C_);
-   void SetParameters(double dt_, const Vector *u_);
-   virtual void Mult(const Vector &k, Vector &y) const;
-   virtual Operator &GetGradient(const Vector &k) const;
-   virtual ~BackwardEulerOperator();
+   virtual ~ConductionOperator();
 };
 
 double InitialTemperature(const Vector &x);
 
-void visualize(ostream &out, Mesh *mesh, GridFunction *deformed_nodes,
+void visualize(ostream &out, Mesh *mesh, 
                GridFunction *field, const char *field_name = NULL,
                bool init_vis = false);
 
@@ -205,7 +179,7 @@ int main(int argc, char *argv[])
    ess_bdr = 1;
 
    // 7. Initialize the conduction operator and the GLVis visualization 
-   ConductionOperator oper(fespace, ess_bdr, alpha);
+   ConductionOperator oper(fespace, ess_bdr, alpha, u_gf);
 
    socketstream vis_u;
    if (visualization)
@@ -214,7 +188,7 @@ int main(int argc, char *argv[])
       int  visport   = 19916;
       vis_u.open(vishost, visport);
       vis_u.precision(8);
-      visualize(vis_u, mesh, &x, &u, "Temperature", true);
+      visualize(vis_u, mesh, &u, "Temperature", true);
    }
 
 
@@ -239,9 +213,10 @@ int main(int argc, char *argv[])
 
          if (visualization)
          {
-            visualize(vis_u, mesh, &x, &u);
+            visualize(vis_u, mesh, &u);
          }
       }
+      oper.SetParameters(u_gf);
    }
 
    // 9. Save the displaced mesh, the velocity and elastic energy.
@@ -283,53 +258,20 @@ void visualize(ostream &out, Mesh *mesh, GridFunction *field, const char *field_
    out << flush;
 }
 
-BackwardEulerOperator::BackwardEulerOperator(
-   BilinearForm *M_, NonlinearForm *C_)
-   : Operator(M_->Height()), M(M_), C(C_), Jacobian(NULL),
-     u(NULL), dt(0.0), z(height)
-{ }
-
-void BackwardEulerOperator::SetParameters(double dt_, const Vector *u_)
-{
-   dt = dt_;  u = u_;
-}
-
-void BackwardEulerOperator::Mult(const Vector &k, Vector &y) const
-{
-   // compute: y = M*k + C(x + dt*k)
-   add(*u, dt, k, z);
-   C->Mult(z, y);
-   M->AddMult(k, y);
-}
-
-Operator &BackwardEulerOperator::GetGradient(const Vector &k) const
-{
-   delete Jacobian;
-   Jacobian = M->SpMat;
-   add(*u, dt, k, z);
-   SparseMatrix *grad_C = dynamic_cast<SparseMatrix *>(&C->GetGradient(z));
-   Jacobian->Add(dt,  *grad_H);
-   return *Jacobian;
-}
-
-BackwardEulerOperator::~BackwardEulerOperator()
-{
-   delete Jacobian;
-}
-
-
 ConductionOperator::ConductionOperator(FiniteElementSpace &f,
-                                       Array<int> &ess_bdr, double al)
-   : TimeDependentOperator(f.GetVSize(), 0.0), fespace(f),
-     M(&fespace), C(&fespace), z(height)
+                                       Array<int> &ess_bdr_, double al, const GridFunction *u_gf)
+   : TimeDependentOperator(f.GetVSize(), 0.0), fespace(f), z(height)
 {
    const double rel_tol = 1e-8;
    const int skip_zero_entries = 0;
 
-   M.AddDomainIntegrator(new MassIntegrator());
-   M.Assemble(skip_zero_entries);
-   M.EliminateEssentialBC(ess_bdr);
-   M.Finalize(skip_zero_entries);
+   ess_bdr = ess_bdr_;
+
+   M = new BilinearForm(fespace);
+   M->AddDomainIntegrator(new MassIntegrator());
+   M->Assemble(skip_zero_entries);
+   M->EliminateEssentialBC(ess_bdr);
+   M->Finalize(skip_zero_entries);
 
    M_solver.iterative_mode = false;
    M_solver.SetRelTol(rel_tol);
@@ -340,38 +282,23 @@ ConductionOperator::ConductionOperator(FiniteElementSpace &f,
    M_solver.SetOperator(M.SpMat());
 
    alpha = al;
-   ConstantCoefficient alpha_coeff(alpha);
-   C.AddDomainIntegrator(new NLConductionIntegrator(alpha));
-   C.SetEssentialBC(ess_bdr);
 
-   backward_euler_oper = new BackwardEulerOperator(&M, &C);
+   K_prec = new DSmoother(1);
+   MINRESSolver *K_minres = new MINRESSolver;
+   K_minres->SetRelTol(rel_tol);
+   K_minres->SetAbsTol(0.0);
+   K_minres->SetMaxIter(300);
+   K_minres->SetPrintLevel(-1);
+   K_minres->SetPreconditioner(*K_prec);
+   K_solver = K_minres;
 
-#ifndef MFEM_USE_SUITESPARSE
-   J_prec = new DSmoother(1);
-   MINRESSolver *J_minres = new MINRESSolver;
-   J_minres->SetRelTol(rel_tol);
-   J_minres->SetAbsTol(0.0);
-   J_minres->SetMaxIter(300);
-   J_minres->SetPrintLevel(-1);
-   J_minres->SetPreconditioner(*J_prec);
-   J_solver = J_minres;
-#else
-   J_solver = new UMFPackSolver;
-   J_prec = NULL;
-#endif
+   SetParameters(u_gf);
 
-   newton_solver.iterative_mode = false;
-   newton_solver.SetSolver(*J_solver);
-   newton_solver.SetOperator(*backward_euler_oper);
-   newton_solver.SetPrintLevel(1); // print Newton iterations
-   newton_solver.SetRelTol(rel_tol);
-   newton_solver.SetAbsTol(0.0);
-   newton_solver.SetMaxIter(10);
 }
 
 void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
 {
-   C.Mult(u, z);
+   K->Mult(u, z);
    z.Neg(); // z = -z
    M_solver.Mult(z, du_dt);
 }
@@ -379,22 +306,37 @@ void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
 void ConductionOperator::ImplicitSolve(const double dt,
                                        const Vector &u, Vector &du_dt)
 {
-   // Solve the nonlinear equation:
-   //    k = -M^{-1}*[C(u + dt*k)]
-   // This equation is solved with the newton_solver
-   // object (using J_solver and J_prec internally).
-   backward_euler_oper->SetParameters(dt, &u);
-   Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
-   newton_solver.Mult(zero, du_dt);
+   // Solve the equation:
+   //    du_dt = -M^{-1}*[K(u + dt*du_dt)]
 
-   MFEM_VERIFY(newton_solver.GetConverged(), "Newton Solver did not converge.");
+   SparseMatrix T = M->SpMat() + dt * K->SpMat();
+   K_solver.SetOperator(T);
+   K->Mult(u, z);
+   K_solver.Mult(z, du_dt);
+}
+
+void ConductionOperator::SetParameters(const GridFunction *u_gf)
+{
+   const int skip_zero_entries = 0;
+
+   if (K != NULL) {
+      delete K;
+   } 
+
+   K = new BilinearForm(&fespace);
+   GridFunctionCoefficient u_coeff(alpha * &u_gf);
+
+   K->AddDomainIntegrator(new DiffusionIntegrator(u_coeff));
+   K->Assemble(skip_zero_entries);
+   K->EliminateEssentialBC(ess_bdr);
+   K->Finalize(skip_zero_entries);
+
 }
 
 ConductionOperator::~ConductionOperator()
 {
-   delete backward_euler_oper;
-   delete J_solver;
-   delete J_prec;
+   delete K_solver;
+   delete K_prec;
 }
 
 void InitialTemperature(const Vector &x)
