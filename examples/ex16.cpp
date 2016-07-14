@@ -168,7 +168,7 @@ int main(int argc, char *argv[])
    int fe_size = fespace.GetVSize();
    cout << "Number of temperature unknowns: " << fe_size << endl;
 
-   Vector u;
+   Vector u(fe_size);;
    GridFunction u_gf;
    u_gf.MakeRef(&fespace, u, 0);
 
