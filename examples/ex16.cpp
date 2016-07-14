@@ -11,11 +11,7 @@
 //
 //               The example demonstrates the use of nonlinear operators (the
 //               class ConductionOperator defining C(x)), as well as their
-//               implicit time integration using a Newton method for solving an
-//               associated reduced backward-Euler type nonlinear equation
-//               (class BackwardEulerOperator). Each Newton step requires the
-//               inversion of a Jacobian matrix, which is done through a
-//               (preconditioned) inner solver. Note that implementing the
+//               implicit time integration. Note that implementing the
 //               method ConductionOperator::ImplicitSolve is the only
 //               requirement for high-order implicit (SDIRK) time integration.
 //
@@ -31,9 +27,8 @@
 using namespace std;
 using namespace mfem;
 
-/** After spatial discretization, the hyperelastic model can be written as a
- *  system of ODEs:
- *     du/dt = -M^{-1} (\alpha u) Ku
+/** After spatial discretization, the conduction model can be written as:
+ *     du/dt = -M^{-1}((\alpha u) Ku)
  *  where u is the vector representing the temperature,
  *  M is the mass matrix, and K is the diffusion matrix.
  *
@@ -50,10 +45,10 @@ protected:
    CGSolver M_solver; // Krylov solver for inverting the mass matrix M
    DSmoother M_prec;  // Preconditioner for the mass matrix M
 
-   Solver *K_solver;
-   Solver *K_prec;
+   Solver *K_solver; // Implicit solver for M + dt K
+   Solver *K_prec; // Preconditioner for the implicit solver
 
-   Vector u_alpha;
+   Vector u_alpha; // u * alpha at the previous time
 
    Array<int> &ess_bdr;
 
@@ -77,10 +72,6 @@ public:
 
 double InitialTemperature(const Vector &x);
 
-void visualize(ostream &out, Mesh *mesh, 
-               GridFunction *field, const char *field_name = NULL,
-               bool init_vis = false);
-
 int main(int argc, char *argv[])
 {
    // 1. Parse command-line options.
@@ -93,6 +84,9 @@ int main(int argc, char *argv[])
    double alpha = 10;
    bool visualization = true;
    int vis_steps = 1;
+
+   int precision = 8;
+   cout.precision(precision);
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -172,27 +166,25 @@ int main(int argc, char *argv[])
    GridFunction u_gf;
    u_gf.MakeRef(&fespace, u, 0);
 
-   // 6. Set the initial conditions for v and x, and the boundary conditions on
-   //    a beam-like mesh (see description above).
+   // 6. Set the initial conditions for u, and the boundary conditions. All 
+   // boundaries are considered essential.
    FunctionCoefficient u_0(InitialTemperature);
    u_gf.ProjectCoefficient(u_0);
 
    Array<int> ess_bdr(fespace.GetMesh()->bdr_attributes.Max());
    ess_bdr = 1;
 
-   // 7. Initialize the conduction operator and the GLVis visualization 
+   // 7. Initialize the conduction operator and the VisIt visualization 
    ConductionOperator oper(fespace, ess_bdr, alpha, u);
 
-   socketstream vis_u;
+   VisItDataCollection visit_dc("Example16", mesh);
+   visit_dc.RegisterField("temperature", &u_gf);
    if (visualization)
    {
-      char vishost[] = "localhost";
-      int  visport   = 19916;
-      vis_u.open(vishost, visport);
-      vis_u.precision(8);
-      visualize(vis_u, mesh, &u_gf, "Temperature", true);
+      visit_dc.SetCycle(0);
+      visit_dc.SetTime(0.0);
+      visit_dc.Save();
    }
-
 
    // 8. Perform time-integration (looping over the time iterations, ti, with a
    //    time-step dt).
@@ -215,49 +207,20 @@ int main(int argc, char *argv[])
 
          if (visualization)
          {
-            visualize(vis_u, mesh, &u_gf);
+            visit_dc.SetCycle(ti);
+            visit_dc.SetTime(t);
+            visit_dc.Save();
          }
       }
       oper.SetParameters(u);
    }
 
-   // 9. Save the displaced mesh, the velocity and elastic energy.
-   {
-      ofstream u_ofs("temperature.sol");
-      u_ofs.precision(8);
-      u_gf.Save(u_ofs);
-   }
 
-   // 10. Free the used memory.
+   // 9. Free the used memory.
    delete ode_solver;
    delete mesh;
 
    return 0;
-}
-
-void visualize(ostream &out, Mesh *mesh, GridFunction *field, const char *field_name, bool init_vis)
-{
-   if (!out)
-   {
-      return;
-   }
-
-   out << "solution\n" << *mesh << *field;
-
-   if (init_vis)
-   {
-      out << "window_size 800 800\n";
-      out << "window_title '" << field_name << "'\n";
-      if (mesh->SpaceDimension() == 2)
-      {
-         out << "view 0 0\n"; // view from top
-         out << "keys jl\n";  // turn off perspective and light
-      }
-      out << "keys cm\n";         // show colorbar and mesh
-      out << "autoscale value\n"; // update value-range; keep mesh-extents fixed
-      out << "pause\n";
-   }
-   out << flush;
 }
 
 ConductionOperator::ConductionOperator(FiniteElementSpace &f,
