@@ -146,7 +146,7 @@ double* DataCollection::GetFieldData(const char *field_name, int sz)
 
 
    // Otherwise, if the data does not exist, and sz > 0, allocate it
-   if( managed_field_data_map.find(field_name) != managed_field_data_map.end())
+   if( managed_field_data_map.find(field_name) == managed_field_data_map.end())
    {
        if(sz <= 0)
           return NULL;
@@ -158,6 +158,38 @@ double* DataCollection::GetFieldData(const char *field_name, int sz)
    return managed_field_data_map[field_name];
 }
 
+double* DataCollection::GetFieldData(const char *field_name, int sz, const char *base_field, int offset, int stride)
+{
+    // If <field_name> is a field, return its pointer
+    if(HasField(field_name))
+    {
+        return field_map[field_name]->GetData();
+    }
+
+    // Else, if we are explicitly managing its memory, return a pointer
+    if( managed_field_data_map.find(field_name) == managed_field_data_map.end())
+    {
+        return managed_field_data_map[field_name];
+    }
+
+    // Else, check if base_field exists as a field and return the appropriate offset
+    if(HasField(base_field))
+    {
+        // Ignore sz and stride for now
+        // TODO: Check that there is sufficient space for this pointer
+        return field_map[base_field]->GetData() + offset;
+    }
+
+    // Else, check if we are explicitly managing base_field and return offset
+    if( managed_field_data_map.find(base_field) == managed_field_data_map.end())
+    {
+        return managed_field_data_map[base_field] + offset;
+    }
+
+    // At this point, we give up
+    return NULL;
+
+}
 
 
 void DataCollection::SetPrefixPath(const char *prefix)

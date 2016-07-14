@@ -101,6 +101,13 @@ public:
     */
    virtual double* GetFieldData(const char *field_name, int sz = 0);
 
+   /**
+    * Gets a pointer to the data of field_name
+    * If it does not exist, but base_field does, return pointer relative to base_field's data
+    */
+   virtual double* GetFieldData(const char *field_name, int sz, const char *base_field, int offset = 0, int stride = 1);
+
+
    /// Get a pointer to the mesh in the collection
    Mesh *GetMesh() { return mesh; }
    /// Set/change the mesh associated with the collection

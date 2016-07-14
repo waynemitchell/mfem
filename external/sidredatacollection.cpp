@@ -179,6 +179,35 @@ double* SidreDataCollection::GetFieldData(const char *field_name, int sz)
     return f->getGroup(field_name)->getView("values")->getArray();
 }
 
+double* SidreDataCollection::GetFieldData(const char *field_name, int sz, const char *base_field, int offset, int stride)
+{
+    namespace sidre = asctoolkit::sidre;
+
+    // Try to access /fields/<field_name>/values
+    // If not present, try to create it as a different view into /fields/<base_field>/values
+    //      with the given sz, stride and offset
+
+    sidre::DataGroup* f = sidre_dc_group->getGroup("fields");
+    if( ! f->hasGroup( field_name ) )
+    {
+        if( f->hasGroup( base_field) && f->getGroup(base_field)->hasView( "values" ) )
+        {
+            sidre::DataView* baseV = f->getGroup(base_field)->getView("values");
+            sidre::DataBuffer* buff = baseV->getBuffer();
+
+            sidre::DataGroup* f_grp  = f->createGroup(field_name);
+            sidre::DataView*  f_view = f_grp->createView("values", buff )
+                                            ->apply(sidre::DOUBLE_ID, sz, offset, stride);
+        }
+        else
+        {
+            return NULL;
+        }
+    }
+
+    return f->getGroup(field_name)->getView("values")->getArray();
+}
+
 
 void SidreDataCollection::RegisterField(const char* field_name, GridFunction *gf)
 {

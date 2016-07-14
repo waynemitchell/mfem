@@ -64,6 +64,12 @@ public:
    */
   double* GetFieldData(const char *field_name, int sz = 0);
 
+  /**
+   * Gets a pointer to the data of field_name
+   * Data is relative to the data associated with base_field
+   * Returns null if base_field does not exist
+   */
+  double* GetFieldData(const char *field_name, int sz, const char *base_field, int offset = 0, int stride = 1);
 private:
   // Private helper functions
 
