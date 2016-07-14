@@ -68,10 +68,13 @@ HypreParVector::HypreParVector(MPI_Comm comm, HYPRE_Int glob_size,
    hypre_ParVectorSetDataOwner(x,1); // owns the seq vector
    hypre_SeqVectorSetDataOwner(hypre_ParVectorLocalVector(x),0);
    hypre_ParVectorSetPartitioningOwner(x,0);
-   hypre_VectorData(hypre_ParVectorLocalVector(x)) = _data;
-   // If hypre_ParVectorLocalVector(x) is non-NULL, hypre_ParVectorInitialize(x)
-   // does not allocate memory!
+   double tmp = 0.0;
+   hypre_VectorData(hypre_ParVectorLocalVector(x)) = &tmp;
+   // If hypre_ParVectorLocalVector(x) and &tmp are non-NULL,
+   // hypre_ParVectorInitialize(x) does not allocate memory!
    hypre_ParVectorInitialize(x);
+   // Set the internal data array to the one passed in
+   hypre_VectorData(hypre_ParVectorLocalVector(x)) = _data;
    _SetDataAndSize_();
    own_ParVector = 1;
 }
@@ -199,6 +202,39 @@ double InnerProduct(HypreParVector *x, HypreParVector *y)
 double InnerProduct(HypreParVector &x, HypreParVector &y)
 {
    return hypre_ParVectorInnerProd(x, y);
+}
+
+
+double ParNormlp(const Vector &vec, double p, MPI_Comm comm)
+{
+   double norm = 0.0;
+   if (p == 1.0)
+   {
+      double loc_norm = vec.Norml1();
+      MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+   }
+   if (p == 2.0)
+   {
+      double loc_norm = vec*vec;
+      MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+      norm = sqrt(norm);
+   }
+   if (p < std::numeric_limits<double>::infinity())
+   {
+      double sum = 0.0;
+      for (int i = 0; i < vec.Size(); i++)
+      {
+         sum += pow(fabs(vec(i)), p);
+      }
+      MPI_Allreduce(&sum, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+      norm = pow(norm, 1.0/p);
+   }
+   else
+   {
+      double loc_norm = vec.Normlinf();
+      MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_MAX, comm);
+   }
+   return norm;
 }
 
 
@@ -910,6 +946,11 @@ HYPRE_Int HypreParMatrix::Mult(HypreParVector &x, HypreParVector &y,
 
 void HypreParMatrix::Mult(double a, const Vector &x, double b, Vector &y) const
 {
+   MFEM_ASSERT(x.Size() == Width(), "invalid x.Size() = " << x.Size()
+               << ", expected size = " << Width());
+   MFEM_ASSERT(y.Size() == Height(), "invalid y.Size() = " << y.Size()
+               << ", expected size = " << Height());
+
    if (X == NULL)
    {
       X = new HypreParVector(A->comm,
@@ -933,6 +974,11 @@ void HypreParMatrix::Mult(double a, const Vector &x, double b, Vector &y) const
 void HypreParMatrix::MultTranspose(double a, const Vector &x,
                                    double b, Vector &y) const
 {
+   MFEM_ASSERT(x.Size() == Height(), "invalid x.Size() = " << x.Size()
+               << ", expected size = " << Height());
+   MFEM_ASSERT(y.Size() == Width(), "invalid y.Size() = " << y.Size()
+               << ", expected size = " << Width());
+
    // Note: x has the dimensions of Y (height), and
    //       y has the dimensions of X (width)
    if (X == NULL)
@@ -2479,7 +2525,7 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    const FiniteElementCollection *edge_fec = edge_fespace->FEColl();
 
    bool trace_space, rt_trace_space;
-   ND_Trace_FECollection *nd_tr_fec;
+   ND_Trace_FECollection *nd_tr_fec = NULL;
    trace_space = dynamic_cast<const ND_Trace_FECollection*>(edge_fec);
    rt_trace_space = dynamic_cast<const RT_Trace_FECollection*>(edge_fec);
    trace_space = trace_space || rt_trace_space;
@@ -3049,7 +3095,6 @@ HypreLOBPCG::SetOperator(Operator & A)
       MPI_Scan(&locSize, &part[1], 1, HYPRE_MPI_INT, MPI_SUM, comm);
 
       part[0] = part[1] - locSize;
-      part[1]++;
 
       MPI_Allreduce(&locSize, &glbSize, 1, HYPRE_MPI_INT, MPI_SUM, comm);
    }
@@ -3074,6 +3119,7 @@ HypreLOBPCG::SetOperator(Operator & A)
       delete x;
    }
 
+   // Create a distributed vector without a data array.
    x = new HypreParVector(comm,glbSize,NULL,part);
 
    matvec_fn.MatvecCreate  = this->OperatorMatvecCreate;

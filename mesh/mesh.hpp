@@ -21,6 +21,8 @@
 #include "../fem/eltrans.hpp"
 #include "../fem/coefficient.hpp"
 #include <iostream>
+#include <fstream>
+#include <limits>
 
 namespace mfem
 {
@@ -32,11 +34,13 @@ class NURBSExtension;
 class FiniteElementSpace;
 class GridFunction;
 struct Refinement;
+class named_ifstream;
 
 #ifdef MFEM_USE_MPI
 class ParMesh;
 class ParNCMesh;
 #endif
+
 
 class Mesh
 {
@@ -57,7 +61,10 @@ protected:
 
    int meshgen; // see MeshGenerator()
 
-   long sequence; // counter for checking order of Space and GridFunction updates
+   // Counter for Mesh transformations: refinement, derefinement, rebalancing.
+   // Used for checking during Update operations on objects depending on the
+   // Mesh, such as FiniteElementSpace, GridFunction, etc.
+   long sequence;
 
    Array<Element *> elements;
    // Vertices are only at the corners of elements, where you would expect them
@@ -68,6 +75,7 @@ protected:
 
    struct FaceInfo
    {
+      // Inf = 64 * LocalFaceIndex + FaceOrientation
       int Elem1No, Elem2No, Elem1Inf, Elem2Inf;
       int NCFace; /* -1 if this is a regular conforming/boundary face;
                      index into 'nc_faces_info' if >= 0. */
@@ -112,11 +120,8 @@ protected:
    GridFunction *Nodes;
    int own_nodes;
 
-   static const int tet_faces[4][3];
-   static const int hex_faces[6][4]; // same as Hexahedron::faces
-
-   static const int tri_orientations[6][3];
-   static const int quad_orientations[8][4];
+   static const int vtk_quadratic_tet[10];
+   static const int vtk_quadratic_hex[27];
 
 #ifdef MFEM_USE_MEMALLOC
    friend class Tetrahedron;
@@ -124,6 +129,12 @@ protected:
 #endif
 
 public:
+   typedef Geometry::Constants<Geometry::SEGMENT>     seg_t;
+   typedef Geometry::Constants<Geometry::TRIANGLE>    tri_t;
+   typedef Geometry::Constants<Geometry::SQUARE>      quad_t;
+   typedef Geometry::Constants<Geometry::TETRAHEDRON> tet_t;
+   typedef Geometry::Constants<Geometry::CUBE>        hex_t;
+
    enum Operation { NONE, REFINE, DEREFINE, REBALANCE };
 
    Array<int> attributes;
@@ -147,7 +158,8 @@ protected:
    Element *ReadElement(std::istream &);
    static void PrintElement(const Element *, std::ostream &);
 
-   // Readers for different mesh formats, used in the Load() method
+   // Readers for different mesh formats, used in the Load() method.
+   // The implementations of these methods are in mesh_readers.cpp.
    void ReadMFEMMesh(std::istream &input, bool mfem_v11, int &curved);
    void ReadLineMesh(std::istream &input);
    void ReadNetgen2DMesh(std::istream &input, int &curved);
@@ -157,6 +169,26 @@ protected:
    void ReadNURBSMesh(std::istream &input, int &curved, int &read_gf);
    void ReadInlineMesh(std::istream &input, int generate_edges = 0);
    void ReadGmshMesh(std::istream &input);
+   /* Note NetCDF (optional library) is used for reading cubit files */
+#ifdef MFEM_USE_NETCDF
+   void ReadCubit(named_ifstream &input, int &curved, int &read_gf);
+#endif
+
+   static void skip_comment_lines(std::istream &is, const char comment_char)
+   {
+      while (1)
+      {
+         is >> std::ws;
+         if (is.peek() != comment_char) { break; }
+         is.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+      }
+   }
+   // Check for, and remove, a trailing '\r'.
+   static void filter_dos(std::string &line)
+   {
+      if (!line.empty() && *line.rbegin() == '\r')
+      { line.resize(line.size()-1); }
+   }
 
    void SetMeshGen(); // set 'meshgen'
 
@@ -252,11 +284,15 @@ protected:
    /// Used in GetFaceElementTransformations (...)
    void GetLocalQuadToHexTransformation (IsoparametricTransformation &loc,
                                          int i);
+   /// Used in GetFaceElementTransformations (...)
+   void GetLocalFaceTransformation(int face_type, int elem_type,
+                                   IsoparametricTransformation &Transf,
+                                   int inf);
    /** Used in GetFaceElementTransformations to account for the fact that a
        slave face occupies only a portion of its master face. */
-   void ApplySlaveTransformation(IsoparametricTransformation &transf,
-                                 const FaceInfo &fi);
-   bool IsSlaveFace(const FaceInfo &fi);
+   void ApplyLocalSlaveTransformation(IsoparametricTransformation &transf,
+                                      const FaceInfo &fi);
+   bool IsSlaveFace(const FaceInfo &fi) const;
 
    /// Returns the orientation of "test" relative to "base"
    static int GetTriOrientation (const int * base, const int * test);
@@ -338,8 +374,6 @@ protected:
    /// Swaps internal data with another mesh. By default, non-geometry members
    /// like 'ncmesh' and 'NURBSExt' are only swapped when 'non_geometry' is set.
    void Swap(Mesh& other, bool non_geometry = false);
-
-   virtual long ReduceInt(int value) { return value; }
 
 public:
 
@@ -427,6 +461,12 @@ public:
       Make1D(n, sx);
    }
 
+   /** Creates mesh by reading a file in MFEM, netgen, or VTK format. If
+       generate_edges = 0 (default) edges are not generated, if 1 edges are
+       generated. */
+   Mesh(const char *filename, int generate_edges = 0, int refine = 1,
+        bool fix_orientation = true);
+
    /** Creates mesh by reading data stream in MFEM, netgen, or VTK format. If
        generate_edges = 0 (default) edges are not generated, if 1 edges are
        generated. */
@@ -467,6 +507,12 @@ public:
    /// Return the number of faces (3D), edges (2D) or vertices (1D).
    int GetNumFaces() const;
 
+   /// Utility function: sum integers from all processors (Allreduce).
+   virtual long ReduceInt(int value) const { return value; }
+
+   /// Return the total (global) number of elements.
+   long GetGlobalNE() const { return ReduceInt(NumOfElements); }
+
    /// Equals 1 + num_holes - num_loops
    inline int EulerNumber() const
    { return NumOfVertices - NumOfEdges + NumOfFaces - NumOfElements; }
@@ -477,8 +523,14 @@ public:
    int Dimension() const { return Dim; }
    int SpaceDimension() const { return spaceDim; }
 
-   /// Return pointer to vertex i's coordinates
+   /// @brief Return pointer to vertex i's coordinates.
+   /// @warning For high-order meshes (when Nodes != NULL) vertices may not
+   /// being updated and should not be used!
    const double *GetVertex(int i) const { return vertices[i](); }
+
+   /// @brief Return pointer to vertex i's coordinates.
+   /// @warning For high-order meshes (when Nodes != NULL) vertices may not
+   /// being updated and should not be used!
    double *GetVertex(int i) { return vertices[i](); }
 
    const Element* const *GetElementsArray() const
@@ -553,6 +605,10 @@ public:
        Return the face index of boundary element i. (3D) */
    int GetBdrElementEdgeIndex(int i) const;
 
+   /** @brief For the given boundary element, bdr_el, return its adjacent
+       element and its info, i.e. 64*local_bdr_index+bdr_orientation. */
+   void GetBdrElementAdjacentElement(int bdr_el, int &el, int &info) const;
+
    /// Returns the type of element i.
    int GetElementType(int i) const;
 
@@ -601,28 +657,34 @@ public:
    /// Returns the transformation defining the given face element
    ElementTransformation *GetEdgeTransformation(int EdgeNo);
 
-   /** Returns (a pointer to a structure containing) the following data:
-       1) Elem1No - the index of the first element that contains this face
-       this is the element that has the same outward unit normal
-       vector as the face;
-       2) Elem2No - the index of the second element that contains this face
-       this element has outward unit normal vector as the face multiplied
-       with -1;
-       3) Elem1, Elem2 - pointers to the ElementTransformation's of the
-       first and the second element respectively;
-       4) Face - pointer to the ElementTransformation of the face;
-       5) Loc1, Loc2 - IntegrationPointTransformation's mapping the
-       face coordinate system to the element coordinate system
-       (both in their reference elements). Used to transform
-       IntegrationPoints from face to element. More formally, let:
-       TL1, TL2 be the transformations represented by Loc1, Loc2,
-       TE1, TE2 - the transformations represented by Elem1, Elem2,
-       TF - the transformation represented by Face, then
-       TF(x) = TE1(TL1(x)) = TE2(TL2(x)) for all x in the reference face.
-       6) FaceGeom - the base geometry for the face.
-       The mask specifies which fields in the structure to return:
-       mask & 1 - Elem1, mask & 2 - Elem2, mask & 4 - Loc1, mask & 8 - Loc2,
-       mask & 16 - Face. */
+   /// Returns (a pointer to a structure containing) the following data:
+   ///
+   /// 1) Elem1No - the index of the first element that contains this face this
+   ///    is the element that has the same outward unit normal vector as the
+   ///    face;
+   ///
+   /// 2) Elem2No - the index of the second element that contains this face this
+   ///    element has outward unit normal vector as the face multiplied with -1;
+   ///
+   /// 3) Elem1, Elem2 - pointers to the ElementTransformation's of the first
+   ///    and the second element respectively;
+   ///
+   /// 4) Face - pointer to the ElementTransformation of the face;
+   ///
+   /// 5) Loc1, Loc2 - IntegrationPointTransformation's mapping the face
+   ///    coordinate system to the element coordinate system (both in their
+   ///    reference elements). Used to transform IntegrationPoints from face to
+   ///    element. More formally, let:
+   ///       TL1, TL2 be the transformations represented by Loc1, Loc2,
+   ///       TE1, TE2 - the transformations represented by Elem1, Elem2,
+   ///       TF - the transformation represented by Face, then
+   ///       TF(x) = TE1(TL1(x)) = TE2(TL2(x)) for all x in the reference face.
+   ///
+   /// 6) FaceGeom - the base geometry for the face.
+   ///
+   /// The mask specifies which fields in the structure to return:
+   ///    mask & 1 - Elem1, mask & 2 - Elem2
+   ///    mask & 4 - Loc1, mask & 8 - Loc2, mask & 16 - Face.
    FaceElementTransformations *GetFaceElementTransformations(int FaceNo,
                                                              int mask = 31);
 
@@ -641,6 +703,9 @@ public:
    }
    void GetFaceElements (int Face, int *Elem1, int *Elem2);
    void GetFaceInfos (int Face, int *Inf1, int *Inf2);
+
+   int GetFaceGeometryType(int Face) const;
+   int GetFaceElementType(int Face) const;
 
    /// Check the orientation of the elements
    void CheckElementOrientation(bool fix_it = true);
@@ -739,7 +804,7 @@ public:
        tetrahedra and non-conforming refinement (i.e., with hanging-nodes) of
        triangles, quadrilaterals and hexahedrons. If 'nonconforming' = -1,
        suitable refinement method is selected automatically (namely, conforming
-       refinement for triangles). Use noncoforming = 0/1 to force the method.
+       refinement for triangles). Use nonconforming = 0/1 to force the method.
        For nonconforming refinements, nc_limit optionally specifies the maximum
        level of hanging nodes (unlimited by default). */
    void GeneralRefinement(const Array<Refinement> &refinements,
@@ -792,7 +857,7 @@ public:
    bool Conforming() const { return ncmesh == NULL; }
    bool Nonconforming() const { return ncmesh != NULL; }
 
-   /** Return fine element transformations following a mesh refinenemt.
+   /** Return fine element transformations following a mesh refinement.
        Space uses this to construct a global interpolation matrix. */
    const CoarseFineTransformations &GetRefinementTransforms();
 
@@ -814,7 +879,7 @@ public:
    /// Print the mesh in VTK format (linear and quadratic meshes only).
    void PrintVTK(std::ostream &out);
 
-   /** Print the mesh in VTK format. The parameter ref specifies an element
+   /** Print the mesh in VTK format. The parameter ref > 0 specifies an element
        subdivision number (useful for high order fields and curved meshes).
        If the optional field_data is set, we also add a FIELD section in the
        beginning of the file with additional dataset information. */
@@ -860,6 +925,10 @@ public:
 
    double GetElementVolume(int i);
 
+   /// Returns the minimum and maximum corners of the mesh bounding box. For
+   /// high-order meshes, the geometry is refined first "ref" times.
+   void GetBoundingBox(Vector &min, Vector &max, int ref = 2);
+
    void PrintCharacteristics(Vector *Vh = NULL, Vector *Vk = NULL,
                              std::ostream &out = std::cout);
 
@@ -899,6 +968,17 @@ public:
 /// Extrude a 1D mesh
 Mesh *Extrude1D(Mesh *mesh, const int ny, const double sy,
                 const bool closed = false);
+
+
+/// Input file stream that remembers the input file name (used for reading
+/// NetCDF meshes).
+class named_ifstream : public std::ifstream
+{
+public:
+   const char *filename;
+   named_ifstream(const char *mesh_name) :
+      std::ifstream(mesh_name), filename(mesh_name) {}
+};
 
 
 // inline functions

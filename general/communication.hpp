@@ -24,6 +24,31 @@
 namespace mfem
 {
 
+/** @brief A simple convenience class that calls MPI_Init() at construction and
+    MPI_Finalize() at destruction. It also provides easy access to
+    MPI_COMM_WORLD's rank and size. */
+class MPI_Session
+{
+protected:
+   int world_rank, world_size;
+   void GetRankAndSize()
+   {
+      MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+      MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+   }
+public:
+   MPI_Session() { MPI_Init(NULL, NULL); GetRankAndSize(); }
+   MPI_Session(int &argc, char **&argv)
+   { MPI_Init(&argc, &argv); GetRankAndSize(); }
+   ~MPI_Session() { MPI_Finalize(); }
+   /// Return MPI_COMM_WORLD's rank.
+   int WorldRank() const { return world_rank; }
+   /// Return MPI_COMM_WORLD's size.
+   int WorldSize() const { return world_size; }
+   /// Return true if WorldRank() == 0.
+   bool Root() const { return world_rank == 0; }
+};
+
 class GroupTopology
 {
 private:

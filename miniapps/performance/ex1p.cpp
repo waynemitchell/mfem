@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
    // 2. Parse command-line options.
-   const char *mesh_file = "../data/fichera.mesh";
+   const char *mesh_file = "../../data/fichera.mesh";
    int order = sol_p;
    bool static_cond = false;
    bool visualization = 1;
@@ -115,19 +115,7 @@ int main(int argc, char *argv[])
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
    //    and volume meshes with the same code.
-   Mesh *mesh;
-   ifstream imesh(mesh_file);
-   if (!imesh)
-   {
-      if (myid == 0)
-      {
-         cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
-      }
-      MPI_Finalize();
-      return 2;
-   }
-   mesh = new Mesh(imesh, 1, 1);
-   imesh.close();
+   Mesh *mesh = new Mesh(mesh_file, 1, 1);
    int dim = mesh->Dimension();
 
    // 4. Check if the optimized version matches the given mesh
@@ -287,7 +275,7 @@ int main(int argc, char *argv[])
    tic_toc.Stop();
    if (myid == 0)
    {
-      cout << " done, " << tic_toc.RealTime() << " sec." << endl;
+      cout << " done, " << tic_toc.RealTime() << "s." << endl;
    }
 
    HypreParMatrix A;

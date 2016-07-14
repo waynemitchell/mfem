@@ -236,7 +236,7 @@ void GridFunction::ComputeFlux(BilinearFormIntegrator &blfi,
 {
    Array<int> count(flux.Size());
 
-   SumFluxAndCount(blfi, flux, count, 0, subdomain);
+   SumFluxAndCount(blfi, flux, count, wcoef, subdomain);
 
    // complete averaging
    for (int i = 0; i < count.Size(); i++)
@@ -2125,6 +2125,7 @@ void GridFunction::Save(std::ostream &out) const
    {
       Vector::Print(out, fes->GetVDim());
    }
+   out.flush();
 }
 
 void GridFunction::SaveVTK(std::ostream &out, const std::string &field_name,
@@ -2201,6 +2202,7 @@ void GridFunction::SaveVTK(std::ostream &out, const std::string &field_name,
          }
       }
    }
+   out.flush();
 }
 
 void GridFunction::SaveSTLTri(std::ostream &out, double p1[], double p2[],
@@ -2331,6 +2333,7 @@ double ZZErrorEstimator(BilinearFormIntegrator &blfi,
                         Array<int>* aniso_flags,
                         int with_subdomains)
 {
+   const int with_coeff = 0;
    FiniteElementSpace *ufes = u.FESpace();
    FiniteElementSpace *ffes = flux.FESpace();
    ElementTransformation *Transf;
@@ -2363,7 +2366,7 @@ double ZZErrorEstimator(BilinearFormIntegrator &blfi,
    for (int s = 1; s <= nsd; s++)
    {
       // This calls the parallel version when u is a ParGridFunction
-      u.ComputeFlux(blfi, flux, 0, (with_subdomains ? s : 0));
+      u.ComputeFlux(blfi, flux, with_coeff, (with_subdomains ? s : -1));
 
       for (int i = 0; i < nfe; i++)
       {
@@ -2377,7 +2380,7 @@ double ZZErrorEstimator(BilinearFormIntegrator &blfi,
 
          Transf = ufes->GetElementTransformation(i);
          blfi.ComputeElementFlux(*ufes->GetFE(i), *Transf, ul,
-                                 *ffes->GetFE(i), fl, 0);
+                                 *ffes->GetFE(i), fl, with_coeff);
 
          fl -= fla;
 
