@@ -1587,11 +1587,11 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
    m_type = (BasisType)type;
    if (m_type == Positive)
    {
-      snprintf(d_name, 32, "L2_T%d_%dD_P%d", type, dim, p);
+      snprintf(d_name, 32, "L2_%dD_P%d", dim, p);
    }
    else
    {
-      snprintf(d_name, 32, "L2_%dD_P%d", dim, p);
+      snprintf(d_name, 32, "L2_T%d_%dD_P%d", type, dim, p);
    }
 
    for (int g = 0; g < Geometry::NumGeom; g++)
