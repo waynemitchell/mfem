@@ -67,7 +67,7 @@ typedef TConstantCoefficient<>                coeff_t;
 typedef TIntegrator<coeff_t,TDiffusionKernel> integ_t;
 
 // Static bilinear form type, combining the above types
-typedef TBilinearForm<mesh_t,sol_fes_t,int_rule_t,integ_t> oper_t;
+typedef TBilinearForm<mesh_t,sol_fes_t,int_rule_t,integ_t> HPCBilinearForm;
 
 int main(int argc, char *argv[])
 {
@@ -77,6 +77,7 @@ int main(int argc, char *argv[])
    bool static_cond = false;
    bool visualization = 1;
    bool perf = true;
+   bool matrix_free = true;
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -85,7 +86,10 @@ int main(int argc, char *argv[])
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
    args.AddOption(&perf, "-perf", "--hpc-version", "-std", "--standard-version",
-                  "Enable high-performance, tensor-based, assembly.");
+                  "Enable high-performance, tensor-based, assembly/evaluation.");
+   args.AddOption(&matrix_free, "-mf", "--matrix-free", "-asm", "--assembly",
+                  "Use matrix-free evaluation or efficient matrix assembly in "
+                  "the high-performance version.");
    args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
                   "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
@@ -117,12 +121,12 @@ int main(int argc, char *argv[])
          delete mesh;
          return 3;
       }
-   }
-   if (!mesh_t::MatchesNodes(*mesh))
-   {
-      cout << "Switching the mesh curvature to match the "
-           << "optimized value (order " << mesh_p << ") ..." << endl;
-      mesh->SetCurvature(mesh_p, false, -1, Ordering::byNODES);
+      else if (!mesh_t::MatchesNodes(*mesh))
+      {
+         cout << "Switching the mesh curvature to match the "
+              << "optimized value (order " << mesh_p << ") ..." << endl;
+         mesh->SetCurvature(mesh_p, false, -1, Ordering::byNODES);
+      }
    }
 
    // 4. Refine the mesh to increase the resolution. In this example we do
@@ -175,13 +179,11 @@ int main(int argc, char *argv[])
    //    the boundary attributes from the mesh as essential (Dirichlet) and
    //    converting them to a list of true dofs.
    Array<int> ess_tdof_list;
-   Array<int> ess_tdof_marker;
    if (mesh->bdr_attributes.Size())
    {
       Array<int> ess_bdr(mesh->bdr_attributes.Max());
       ess_bdr = 1;
       fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-      fespace->ListToMarker(ess_tdof_list, fespace->GetTrueVSize(), ess_tdof_marker);
    }
 
    // 8. Set up the linear form b(.) which corresponds to the right-hand side of
@@ -213,8 +215,10 @@ int main(int argc, char *argv[])
    tic_toc.Start();
    // Pre-allocate sparsity assuming dense element matrices
    a->UsePrecomputedSparsity();
-   oper_t a_oper(integ_t(coeff_t(1.0)), *fespace);
-   Vector B(*b);
+
+   HPCBilinearForm *a_hpc = NULL;
+   ConstrainedOperator *a_oper = NULL;
+
    if (!perf)
    {
       // Standard assembly using a diffusion domain integrator
@@ -223,50 +227,66 @@ int main(int argc, char *argv[])
    }
    else
    {
-      // High-performance assembly using the templated operator type
-      a_oper.AssembleBilinearForm(*a);
-      a_oper.Assemble(); // Chooses between ::MultAssembled and ::MultUnassembled
+      // High-performance assembly/evaluation using the templated operator type
+      a_hpc = new HPCBilinearForm(integ_t(coeff_t(1.0)), *fespace);
+      if (matrix_free)
+      {
+         a_hpc->Assemble(); // Chooses between ::MultAssembled and ::MultUnassembled
+         a_oper = new ConstrainedOperator(a_hpc, ess_tdof_list);
+      }
+      else
+      {
+         a_hpc->AssembleBilinearForm(*a);
+      }
    }
    tic_toc.Stop();
    cout << " done, " << tic_toc.RealTime() << "s." << endl;
 
-   SparseMatrix A;
-   Vector X(a_oper.Height());
-   ConstrainedOperator a_oper_bc(&a_oper, ess_tdof_marker, x, X, B);
-
-   cout << "Size of linear system: " << a_oper_bc.Height() << endl;
-
-#ifndef MFEM_USE_SUITESPARSE
    // 12. Solve the system A X = B with CG. In the standard case, use a simple
    //     symmetric Gauss-Seidel preconditioner.
-   a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
-   GSSmoother M(A);
-   if (!perf)
+   SparseMatrix A;
+   Vector B, X;
+   if (perf && matrix_free)
    {
-      PCG(A, M, B, X, 1, 500, 1e-12, 0.0);
+      // X and B point to the same data as x and b
+      X.NewDataAndSize(x.GetData(), x.Size());
+      B.NewDataAndSize(b->GetData(), b->Size());
+      a_oper->EliminateRHS(X, B);
    }
    else
+   {
+      a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
+      cout << "Size of linear system: " << a->Height() << endl;
+   }
+
+   if (perf && matrix_free)
    {
       // Cannot utilize Gauss-Seidel preconditioner with how matrix-free operator
-      // handles essential BCs. See ConstrainedOperator
-      PCG(a_oper_bc, M, B, X, 1, 500, 1e-12, 0.0);
-   }
-#else
-   // 12. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
-   UMFPackSolver umf_solver;
-   umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
-   umf_solver.SetOperator(A);
-   umf_solver.Mult(B, X);
-#endif
-
-   // 13. Recover the solution as a finite element grid function.
-   if (!perf)
-   {
-      a->RecoverFEMSolution(X, *b, x);
+      // handles essential BCs. See ConstrainedOperator.
+      CG(*a_oper, B, X, 1, 500, 1e-12, 0.0);
    }
    else
    {
+#ifndef MFEM_USE_SUITESPARSE
+      GSSmoother M(A);
+      PCG(A, M, B, X, 1, 500, 1e-12, 0.0);
+#else
+      // If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
+      UMFPackSolver umf_solver;
+      umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
+      umf_solver.SetOperator(A);
+      umf_solver.Mult(B, X);
+#endif
+   }
+
+   // 13. Recover the solution as a finite element grid function.
+   if (perf && matrix_free)
+   {
       x = X;
+   }
+   else
+   {
+      a->RecoverFEMSolution(X, *b, x);
    }
 
    // 14. Save the refined mesh and the solution. This output can be viewed later
@@ -290,6 +310,8 @@ int main(int argc, char *argv[])
 
    // 16. Free the used memory.
    delete a;
+   delete a_hpc;
+   delete a_oper;
    delete b;
    delete fespace;
    if (order > 0) { delete fec; }

@@ -45,48 +45,47 @@ void Operator::PrintMatlab (std::ostream & out, int n, int m) const
    }
 }
 
-ConstrainedOperator::ConstrainedOperator(Operator *A, const Array<int> &list,
-   const Vector &x, Vector &X, Vector &b) : Operator(A->Height(), A->Width()), A(A)
+ConstrainedOperator::ConstrainedOperator(Operator *A, const Array<int> &list)
+   : Operator(A->Height(), A->Width()), A(A)
 {
    constraint_list.MakeRef(list);
+   z.SetSize(height);
+   w.SetSize(height);
+}
 
-   Vector z(x.Size());
-   X = x;
-   for (int i = 0; i < x.Size(); i++)
+void ConstrainedOperator::EliminateRHS(const Vector &x, Vector &b) const
+{
+   w = 0.0;
+
+   for (int i = 0; i < constraint_list.Size(); i++)
    {
-      if (constraint_list[i] == 0)
-         X(i) = 0;
+      w(constraint_list[i]) = x(constraint_list[i]);
    }
-   A->Mult(X, z);
-   for (int i = 0; i < x.Size(); i++)
+
+   A->Mult(w, z);
+
+   b -= z;
+
+   for (int i = 0; i < constraint_list.Size(); i++)
    {
-      if (constraint_list[i] == 0)
-      {
-         b(i) -= z(i);
-      }
-      else
-      {
-         b(i) = X(i);
-      }
+      b(constraint_list[i]) = x(constraint_list[i]);
    }
 }
 
 void ConstrainedOperator::Mult(const Vector &x, Vector &y) const
 {
-   Vector mlt(x);
+   z = x;
 
-   for (int i = 0; i < x.Size(); i++)
+   for (int i = 0; i < constraint_list.Size(); i++)
    {
-      if (constraint_list[i] != 0)
-         mlt(i) = 0;
+      z(constraint_list[i]) = 0.0;
    }
 
-   A->Mult(mlt, y);
+   A->Mult(z, y);
 
-   for (int i = 0; i < x.Size(); i++)
+   for (int i = 0; i < constraint_list.Size(); i++)
    {
-      if (constraint_list[i] != 0)
-         y(i) = x(i);
+      y(constraint_list[i]) = x(constraint_list[i]);
    }
 }
 

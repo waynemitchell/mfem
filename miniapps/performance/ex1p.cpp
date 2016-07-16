@@ -67,7 +67,7 @@ typedef TConstantCoefficient<>                coeff_t;
 typedef TIntegrator<coeff_t,TDiffusionKernel> integ_t;
 
 // Static bilinear form type, combining the above types
-typedef TBilinearForm<mesh_t,sol_fes_t,int_rule_t,integ_t> oper_t;
+typedef TBilinearForm<mesh_t,sol_fes_t,int_rule_t,integ_t> HPCBilinearForm;
 
 int main(int argc, char *argv[])
 {
@@ -83,6 +83,7 @@ int main(int argc, char *argv[])
    bool static_cond = false;
    bool visualization = 1;
    bool perf = true;
+   bool matrix_free = true;
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -91,7 +92,10 @@ int main(int argc, char *argv[])
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
    args.AddOption(&perf, "-perf", "--hpc-version", "-std", "--standard-version",
-                  "Enable high-performance, tensor-based, assembly.");
+                  "Enable high-performance, tensor-based, assembly/evaluation.");
+   args.AddOption(&matrix_free, "-mf", "--matrix-free", "-asm", "--assembly",
+                  "Use matrix-free evaluation or efficient matrix assembly in "
+                  "the high-performance version.");
    args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
                   "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
@@ -228,6 +232,9 @@ int main(int argc, char *argv[])
       fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
    }
 
+   HypreParMatrix *P = fespace->Dof_TrueDof_Matrix();
+   const SparseMatrix *R = fespace->GetRestrictionMatrix();
+
    // 10. Set up the parallel linear form b(.) which corresponds to the
    //     right-hand side of the FEM linear system, which in this case is
    //     (1,phi_i) where phi_i are the basis functions in fespace.
@@ -260,6 +267,10 @@ int main(int argc, char *argv[])
    tic_toc.Start();
    // Pre-allocate sparsity assuming dense element matrices
    a->UsePrecomputedSparsity();
+
+   HPCBilinearForm *a_hpc = NULL;
+   ConstrainedOperator *a_oper = NULL;
+
    if (!perf)
    {
       // Standard assembly using a diffusion domain integrator
@@ -269,8 +280,17 @@ int main(int argc, char *argv[])
    else
    {
       // High-performance assembly using the templated operator type
-      oper_t a_oper(integ_t(coeff_t(1.0)), *fespace);
-      a_oper.AssembleBilinearForm(*a);
+      a_hpc = new HPCBilinearForm(integ_t(coeff_t(1.0)), *fespace);
+      if (matrix_free)
+      {
+         a_hpc->Assemble(); // Chooses between ::MultAssembled and ::MultUnassembled
+         RAPOperator *a_hpc_par = new RAPOperator(*P, *a_hpc, *P);
+         a_oper = new ConstrainedOperator(a_hpc_par, ess_tdof_list);
+      }
+      else
+      {
+         a_hpc->AssembleBilinearForm(*a);
+      }
    }
    tic_toc.Stop();
    if (myid == 0)
@@ -278,28 +298,58 @@ int main(int argc, char *argv[])
       cout << " done, " << tic_toc.RealTime() << "s." << endl;
    }
 
-   HypreParMatrix A;
-   Vector B, X;
-   a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
-
-   if (myid == 0)
-   {
-      cout << "Size of linear system: " << A.GetGlobalNumRows() << endl;
-   }
-
    // 14. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
    //     preconditioner from hypre.
-   HypreSolver *amg = new HypreBoomerAMG(A);
-   HyprePCG *pcg = new HyprePCG(A);
-   pcg->SetTol(1e-12);
-   pcg->SetMaxIter(200);
-   pcg->SetPrintLevel(2);
-   pcg->SetPreconditioner(*amg);
-   pcg->Mult(B, X);
+   HypreParMatrix A;
+   Vector B, X;
+   if (perf && matrix_free)
+   {
+      // Variational restriction with P
+      X.SetSize(fespace->TrueVSize());
+      B.SetSize(X.Size());
+      P->MultTranspose(*b, B);
+      R->Mult(x, X);
+      a_oper->EliminateRHS(X, B);
+   }
+   else
+   {
+      a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
+      if (myid == 0)
+      {
+         cout << "Size of linear system: " << A.GetGlobalNumRows() << endl;
+      }
+   }
+
+   CGSolver *pcg;
+   pcg = new CGSolver(MPI_COMM_WORLD);
+   pcg->SetRelTol(1e-6);
+   pcg->SetMaxIter(500);
+   pcg->SetPrintLevel(1);
+
+   if (perf && matrix_free)
+   {
+      pcg->SetOperator(*a_oper);
+      pcg->Mult(B, X);
+   }
+   else
+   {
+      HypreSolver *amg = new HypreBoomerAMG(A);
+      pcg->SetOperator(A);
+      pcg->SetPreconditioner(*amg);
+      pcg->Mult(B, X);
+      delete amg;
+   }
 
    // 15. Recover the parallel grid function corresponding to X. This is the
    //     local finite element solution on each processor.
-   a->RecoverFEMSolution(X, *b, x);
+   if (perf && matrix_free)
+   {
+      P->Mult(X, x);
+   }
+   else
+   {
+      a->RecoverFEMSolution(X, *b, x);
+   }
 
    // 16. Save the refined mesh and the solution in parallel. This output can
    //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
@@ -329,13 +379,14 @@ int main(int argc, char *argv[])
    }
 
    // 18. Free the used memory.
-   delete pcg;
-   delete amg;
    delete a;
+   delete a_hpc;
+   delete a_oper;
    delete b;
    delete fespace;
    if (order > 0) { delete fec; }
    delete pmesh;
+   delete pcg;
 
    MPI_Finalize();
 
