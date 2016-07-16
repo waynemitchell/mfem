@@ -584,6 +584,9 @@ SurfaceCurrent::SurfaceCurrent(ParFiniteElementSpace & H1FESpace,
 
    psi_ = new ParGridFunction(H1FESpace_);
    rhs_ = new ParGridFunction(H1FESpace_);
+
+   pcg_ = NULL;
+   amg_ = NULL;
 }
 
 SurfaceCurrent::~SurfaceCurrent()
