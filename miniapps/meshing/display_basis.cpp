@@ -66,24 +66,30 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
    args.AddOption(&d, "-d", "--dimension",
-                  "Space Dimension");
+                  "Space dimension");
    args.AddOption(&e, "-e", "--elem-type",
-                  "If d == 1, e = 0\n"
-                  "   d == 2, e = 0 -> triangle, e = 1 -> quadrilateral\n"
-                  "   d == 3, e = 0 -> tetrahedron, e = 1 -> hexahedron");
+                  "Element type, depending on dimension:\n"
+                  "\t  d == 1, e = 0\n"
+                  "\t  d == 2, e = 0 -> triangle\n"
+                  "\t          e = 1 -> quadrilateral\n"
+                  "\t  d == 3, e = 0 -> tetrahedron\n"
+                  "\t          e = 1 -> hexahedron");
    args.AddOption(&f, "-f", "--fe-type",
-                  "Finite Element Type\n"
-                  "  0 -> H1, 1 -> ND, 2 -> RT, 3 -> L2");
+                  "Finite element type:\n"
+                  "\t  0 -> H1\n"
+                  "\t  1 -> ND\n"
+                  "\t  2 -> RT\n"
+                  "\t  3 -> L2");
    args.AddOption(&t_, "-t", "--trans",
-                  "Coordinate Transform");
+                  "Coordinate transformation");
    args.AddOption(&nx, "-nx", "--num-win-x",
-                  "Number of Viz Windows in X");
+                  "Number of Viz windows in X");
    args.AddOption(&ny, "-ny", "--num-win-y",
-                  "Number of Viz Windows in y");
+                  "Number of Viz windows in y");
    args.AddOption(&Ww, "-w", "--width",
-                  "Width of Viz Windows");
+                  "Width of Viz windows");
    args.AddOption(&Wh, "-h", "--height",
-                  "Height of Viz Windows");
+                  "Height of Viz windows");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -93,10 +99,7 @@ int main(int argc, char *argv[])
    args.Parse();
    if (!args.Good())
    {
-      {
-         args.PrintUsage(cout);
-      }
-      MPI_Finalize();
+      args.PrintUsage(cout);
       return 1;
    }
    {

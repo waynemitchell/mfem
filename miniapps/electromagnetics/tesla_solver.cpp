@@ -638,7 +638,7 @@ SurfaceCurrent::ComputeSurfaceCurrent(ParGridFunction & k)
    if ( pcg_ == NULL ) { this->InitSolver(); }
    pcg_->Mult(RHS_, Psi_);
 
-   // Compute the parallel grid function correspoinding to Psi
+   // Compute the parallel grid function corresponding to Psi
    s0_->RecoverFEMSolution(Psi_, *rhs_, *psi_);
 
    // Compute the surface current from psi
