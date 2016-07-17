@@ -1621,7 +1621,7 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type,
       L2_Elements[Geometry::SEGMENT]->SetMapType(map_type);
 
       Tr_Elements[Geometry::POINT] = new PointFiniteElement;
-      Tr_Elements[Geometry::POINT]->SetMapType(map_type);
+      // No need to set the map_type for Tr_Elements.
 
       const int pp1 = p + 1;
       SegDofOrd[0] = new int[2*pp1];
@@ -1648,7 +1648,6 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type,
       L2_Elements[Geometry::SQUARE]->SetMapType(map_type);
 
       Tr_Elements[Geometry::SEGMENT] = new L2_SegmentElement(p, 0);
-      Tr_Elements[Geometry::SEGMENT]->SetMapType(map_type);
 
       const int TriDof = L2_Elements[Geometry::TRIANGLE]->GetDof();
       TriDofOrd[0] = new int[6*TriDof];
@@ -1688,8 +1687,6 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type,
 
       Tr_Elements[Geometry::TRIANGLE] = new L2_TriangleElement(p, 0);
       Tr_Elements[Geometry::SQUARE] = new L2_QuadrilateralElement(p, 0);
-      Tr_Elements[Geometry::TRIANGLE]->SetMapType(map_type);
-      Tr_Elements[Geometry::SQUARE]->SetMapType(map_type);
    }
    else
    {

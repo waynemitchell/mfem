@@ -97,13 +97,6 @@ public:
 
    int GetMapType() const { return MapType; }
 
-   void SetMapType(int M)
-   {
-      MFEM_VERIFY(M == VALUE || M == INTEGRAL || M == H_CURL || M == H_DIV,
-                  "unknown MapType");
-      MapType = M;
-   }
-
    /** pure virtual function which evaluates the values of all
        shape functions at a given point ip and stores
        them in the vector shape of dimension Dof */
@@ -203,7 +196,20 @@ public:
    virtual ~FiniteElement () { }
 };
 
-class NodalFiniteElement : public FiniteElement
+class ScalarFiniteElement : public FiniteElement
+{
+public:
+   ScalarFiniteElement(int D, int G, int Do, int O, int F = FunctionSpace::Pk)
+      : FiniteElement(D, G, Do, O, F) { }
+
+   void SetMapType(int M)
+   {
+      MFEM_VERIFY(M == VALUE || M == INTEGRAL, "unknown MapType");
+      MapType = M;
+   }
+};
+
+class NodalFiniteElement : public ScalarFiniteElement
 {
 protected:
    void NodalLocalInterpolation (ElementTransformation &Trans,
@@ -222,17 +228,11 @@ public:
    NodalFiniteElement(int D, int G, int Do, int O,
                       int F = FunctionSpace::Pk) :
 #ifdef MFEM_THREAD_SAFE
-      FiniteElement(D, G, Do, O, F)
+      ScalarFiniteElement(D, G, Do, O, F)
 #else
-      FiniteElement(D, G, Do, O, F), c_shape(Do)
+      ScalarFiniteElement(D, G, Do, O, F), c_shape(Do)
 #endif
    { }
-
-   void SetMapType(int M)
-   {
-      MFEM_VERIFY(M == VALUE || M == INTEGRAL, "unknown MapType");
-      MapType = M;
-   }
 
    virtual void GetLocalInterpolation (ElementTransformation &Trans,
                                        DenseMatrix &I) const
@@ -257,11 +257,11 @@ public:
 };
 
 
-class PositiveFiniteElement : public FiniteElement
+class PositiveFiniteElement : public ScalarFiniteElement
 {
 public:
    PositiveFiniteElement(int D, int G, int Do, int O, int F = FunctionSpace::Pk)
-      : FiniteElement(D, G, Do, O, F) { }
+      : ScalarFiniteElement(D, G, Do, O, F) { }
    using FiniteElement::Project;
    virtual void Project(Coefficient &coeff,
                         ElementTransformation &Trans, Vector &dofs) const;
@@ -1729,10 +1729,12 @@ public:
    virtual void Project(const FiniteElement &fe, ElementTransformation &Trans,
                         DenseMatrix &I) const
    { Project_RT(nk, dof2nk, fe, Trans, I); }
+   // Gradient + rotation = Curl: H1 -> H(div)
    virtual void ProjectGrad(const FiniteElement &fe,
                             ElementTransformation &Trans,
                             DenseMatrix &grad) const
    { ProjectGrad_RT(nk, dof2nk, fe, Trans, grad); }
+   // Curl = Gradient + rotation: H1 -> H(div)
    virtual void ProjectCurl(const FiniteElement &fe,
                             ElementTransformation &Trans,
                             DenseMatrix &curl) const
@@ -1809,10 +1811,16 @@ public:
    virtual void Project(const FiniteElement &fe, ElementTransformation &Trans,
                         DenseMatrix &I) const
    { Project_RT(nk, dof2nk, fe, Trans, I); }
+   // Gradient + rotation = Curl: H1 -> H(div)
    virtual void ProjectGrad(const FiniteElement &fe,
                             ElementTransformation &Trans,
                             DenseMatrix &grad) const
    { ProjectGrad_RT(nk, dof2nk, fe, Trans, grad); }
+   // Curl = Gradient + rotation: H1 -> H(div)
+   virtual void ProjectCurl(const FiniteElement &fe,
+                            ElementTransformation &Trans,
+                            DenseMatrix &curl) const
+   { ProjectGrad_RT(nk, dof2nk, fe, Trans, curl); }
 };
 
 

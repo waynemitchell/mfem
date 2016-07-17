@@ -140,8 +140,8 @@ public:
 private:
    BasisType m_type;
    char d_name[32];
-   FiniteElement *L2_Elements[Geometry::NumGeom];
-   FiniteElement *Tr_Elements[Geometry::NumGeom];
+   ScalarFiniteElement *L2_Elements[Geometry::NumGeom];
+   ScalarFiniteElement *Tr_Elements[Geometry::NumGeom];
    int *SegDofOrd[2]; // for rotating segment dofs in 1D
    int *TriDofOrd[6]; // for rotating triangle dofs in 2D
 
