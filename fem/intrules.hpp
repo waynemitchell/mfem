@@ -253,7 +253,7 @@ private:
                                            const bool is_open);
 };
 
-class NumericalQuad1D
+class Quadrature1D
 {
 public:
    enum
@@ -270,7 +270,7 @@ public:
 class IntegrationRules
 {
 private:
-   /// Taken from the NumericalQuad1D class anonymous enum
+   /// Taken from the Quadrature1D class anonymous enum
    /// Determines the type of numerical quadrature used for
    /// segment, square, and cube geometries
    const int quad_type;
@@ -313,7 +313,7 @@ public:
    /// Sets initial sizes for the integration rule arrays, but rules
    /// are defined the first time they are requested with the Get method.
    explicit IntegrationRules(int Ref = 0,
-                             int type = NumericalQuad1D::GaussLegendre);
+                             int type = Quadrature1D::GaussLegendre);
 
    /// Returns an integration rule for given GeomType and Order.
    const IntegrationRule &Get(int GeomType, int Order);

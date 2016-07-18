@@ -6498,12 +6498,12 @@ void Poly_1D::CalcChebyshev(const int p, const double x, double *u, double *d)
 const double *Poly_1D::OpenPoints(const int p, int type)
 {
    // Check the type of points we are using
-   if (open_basis_type == NumericalQuad1D::Invalid)
+   if (open_basis_type == Quadrature1D::Invalid)
    {
       // we can set the type of open points
       // make sure we are requesting valid points
-      if ( (type == NumericalQuad1D::OpenEquallySpaced) ||
-           (type == NumericalQuad1D::GaussLegendre) )
+      if ( (type == Quadrature1D::OpenEquallySpaced) ||
+           (type == Quadrature1D::GaussLegendre) )
       {
          open_basis_type = type;
       }
@@ -6541,12 +6541,12 @@ const double *Poly_1D::OpenPoints(const int p, int type)
 const double *Poly_1D::ClosedPoints(const int p, int type)
 {
    // Check the type of points we are using
-   if (closed_basis_type == NumericalQuad1D::Invalid)
+   if (closed_basis_type == Quadrature1D::Invalid)
    {
       // we can set the type of open points
       // make sure we are requesting valid points
-      if ( (type == NumericalQuad1D::GaussLobatto) ||
-           (type == NumericalQuad1D::ClosedEquallySpaced) )
+      if ( (type == Quadrature1D::GaussLobatto) ||
+           (type == Quadrature1D::ClosedEquallySpaced) )
       {
          closed_basis_type = type;
       }
@@ -6646,26 +6646,16 @@ H1_SegmentElement::H1_SegmentElement(const int p, const int type)
    : NodalFiniteElement(1, Geometry::SEGMENT, p + 1, p, FunctionSpace::Pk),
      dof_map(Dof)
 {
-   if (type == 0)
+   if ( (type != Quadrature1D::GaussLobatto) &&
+           (type != Quadrature1D::ClosedEquallySpaced) )
    {
-      // Gauss-Lobatto nodal points
-      basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::GaussLobatto);
-   }
-   else if (type == 1)
-   {
-      MFEM_ABORT("Asking for a positive basis type in H1 [nondal] segment element");
-   }
-   else if (type == 2)
-   {
-      // equally-spaced, closed nodal points
-      basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::ClosedEquallySpaced);
+      MFEM_ABORT("Unknown point type for H1 segment element.  type= " << type);
    }
    else
-   {
-      MFEM_ABORT("Unknown basis type for H1 segment element.  type= " << type);
-   }
+      pt_type = type;
 
-   const double *cp = poly1d.ClosedPoints(p);
+   basis1d = &poly1d.ClosedBasis(p, pt_type);
+   const double *cp = poly1d.ClosedPoints(p,pt_type);
 
 #ifndef MFEM_THREAD_SAFE
    shape_x.SetSize(p+1);
@@ -6724,7 +6714,7 @@ void H1_SegmentElement::CalcDShape(const IntegrationPoint &ip,
 void H1_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const
 {
    const int p = Order;
-   const double *cp = poly1d.ClosedPoints(p);
+   const double *cp = poly1d.ClosedPoints(p, pt_type);
 
    switch (vertex)
    {
@@ -6753,26 +6743,16 @@ H1_QuadrilateralElement::H1_QuadrilateralElement(const int p, const int type)
    : NodalFiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p,
                         FunctionSpace::Qk), dof_map((p + 1)*(p + 1))
 {
-   if (type == 0)
-   {
-      // Gauss-Lobatto nodal points
-      basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::GaussLobatto);
-   }
-   else if (type == 1)
-   {
-      MFEM_ABORT("Asking for a positive basis type in H1 [nondal] Quadrilateral element");
-   }
-   else if (type == 2)
-   {
-      // equally-spaced, closed nodal points
-      basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::ClosedEquallySpaced);
-   }
-   else
-   {
-      MFEM_ABORT("Unknown basis type for H1 quadrilateral element.  type= " << type);
-   }
+    if ( (type != Quadrature1D::GaussLobatto) &&
+               (type != Quadrature1D::ClosedEquallySpaced) )
+    {
+        MFEM_ABORT("Unknown point type for H1 quadrilateral element.  type= " << type);
+    }
+    else
+      pt_type = type;
 
-   const double *cp = poly1d.ClosedPoints(p);
+   basis1d = &poly1d.ClosedBasis(p, pt_type);
+   const double *cp = poly1d.ClosedPoints(p,pt_type);
 
    const int p1 = p + 1;
 
@@ -6865,7 +6845,7 @@ void H1_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,
 void H1_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
 {
    const int p = Order;
-   const double *cp = poly1d.ClosedPoints(p);
+   const double *cp = poly1d.ClosedPoints(p,pt_type);
 
 #ifdef MFEM_THREAD_SAFE
    Vector shape_x(p+1), shape_y(p+1);
@@ -6916,26 +6896,16 @@ H1_HexahedronElement::H1_HexahedronElement(const int p, const int type)
                         FunctionSpace::Qk),
      dof_map((p + 1)*(p + 1)*(p + 1))
 {
-   if (type == 0)
+    if ( (type != Quadrature1D::GaussLobatto) &&
+               (type != Quadrature1D::ClosedEquallySpaced) )
    {
-      // Gauss-Lobatto nodal points
-      basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::GaussLobatto);
-   }
-   else if (type == 1)
-   {
-      MFEM_ABORT("Asking for a positive basis type in H1 [nondal] hexahderon element");
-   }
-   else if (type == 2)
-   {
-      // equally-spaced, closed nodal points
-      basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::ClosedEquallySpaced);
+      MFEM_ABORT("Unknown point type for H1 hexahdron element.  type= " << type);
    }
    else
-   {
-      MFEM_ABORT("Unknown basis type for H1 hexahedron element.  type= " << type);
-   }
+      pt_type = type;
 
-   const double *cp = poly1d.ClosedPoints(p);
+    basis1d = &poly1d.ClosedBasis(p, pt_type);
+    const double *cp = poly1d.ClosedPoints(p,pt_type);
 
    const int p1 = p + 1;
 
@@ -7106,7 +7076,7 @@ void H1_HexahedronElement::CalcDShape(const IntegrationPoint &ip,
 void H1_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
 {
    const int p = Order;
-   const double *cp = poly1d.ClosedPoints(p);
+   const double *cp = poly1d.ClosedPoints(p,pt_type);
 
 #ifdef MFEM_THREAD_SAFE
    Vector shape_x(p+1), shape_y(p+1);
@@ -8230,27 +8200,22 @@ L2_SegmentElement::L2_SegmentElement(const int p, const int _type)
    const double *op;
 
    type = _type;
-   switch (type)
+   if( (type==Quadrature1D::GaussLegendre) ||
+           (type==Quadrature1D::OpenEquallySpaced) )
    {
-      case 0:
-         basis1d = &poly1d.OpenBasis(p, NumericalQuad1D::GaussLegendre);
-         op = poly1d.OpenPoints(p, NumericalQuad1D::GaussLegendre);
-         break;
-      case 4:
-         basis1d = &poly1d.OpenBasis(p, NumericalQuad1D::OpenEquallySpaced);
-         op = poly1d.OpenPoints(p, NumericalQuad1D::OpenEquallySpaced);
-         break;
-      case 1:
-         basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::GaussLobatto);
-         op = poly1d.ClosedPoints(p, NumericalQuad1D::GaussLobatto );
-         break;
-      case 3:
-         basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::ClosedEquallySpaced);
-         op = poly1d.ClosedPoints(p, NumericalQuad1D::ClosedEquallySpaced);
-         break;
-      default:
+         basis1d = &poly1d.OpenBasis(p, type);
+         op = poly1d.OpenPoints(p, type);
+   }
+   else if( (type==Quadrature1D::GaussLobatto) ||
+           (type==Quadrature1D::ClosedEquallySpaced) )
+   {
+       basis1d = &poly1d.ClosedBasis(p, type);
+       op = poly1d.ClosedPoints(p, type);
+   }
+   else
+   {
          MFEM_ABORT("Attempting to construct an unknown L2_Segment_Element" <<
-                    "Type= " << type);
+                    "Point Type= " << type);
    }
 
 #ifndef MFEM_THREAD_SAFE
@@ -8287,12 +8252,13 @@ void L2_SegmentElement::ProjectDelta(int vertex,
    const int p = Order;
    const double *op;
 
-   switch (type)
-   {
-      case 0: op = poly1d.OpenPoints(p); break;
-      case 1:
-      default: op = poly1d.ClosedPoints(p);
-   }
+  if( (type ==Quadrature1D::GaussLegendre) ||
+          (type ==Quadrature1D::OpenEquallySpaced))
+  {
+      op = poly1d.OpenPoints(p,type);
+  }
+  else
+      op = poly1d.ClosedPoints(p,type);
 
    switch (vertex)
    {
@@ -8365,27 +8331,22 @@ L2_QuadrilateralElement::L2_QuadrilateralElement(const int p, const int _type)
    const double *op;
 
    type = _type;
-   switch (type)
+   if( (type==Quadrature1D::GaussLegendre) ||
+           (type==Quadrature1D::OpenEquallySpaced) )
    {
-      case 0:
-         basis1d = &poly1d.OpenBasis(p, NumericalQuad1D::GaussLegendre);
-         op = poly1d.OpenPoints(p, NumericalQuad1D::GaussLegendre);
-         break;
-      case 4:
-         basis1d = &poly1d.OpenBasis(p, NumericalQuad1D::OpenEquallySpaced);
-         op = poly1d.OpenPoints(p, NumericalQuad1D::OpenEquallySpaced);
-         break;
-      case 1:
-         basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::GaussLobatto);
-         op = poly1d.ClosedPoints(p, NumericalQuad1D::GaussLobatto );
-         break;
-      case 3:
-         basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::ClosedEquallySpaced);
-         op = poly1d.ClosedPoints(p, NumericalQuad1D::ClosedEquallySpaced);
-         break;
-      default:
-         MFEM_ABORT("Attempting to construct an unknown " <<
-                    " L2_Quadrilateral_Element. type= " << type);
+         basis1d = &poly1d.OpenBasis(p, type);
+         op = poly1d.OpenPoints(p, type);
+   }
+   else if( (type==Quadrature1D::GaussLobatto) ||
+           (type==Quadrature1D::ClosedEquallySpaced) )
+   {
+       basis1d = &poly1d.ClosedBasis(p, type);
+       op = poly1d.ClosedPoints(p, type);
+   }
+   else
+   {
+         MFEM_ABORT("Attempting to construct an unknown L2_Quadrilateral_Element" <<
+                    "Point Type= " << type);
    }
 
 #ifndef MFEM_THREAD_SAFE
@@ -8446,12 +8407,14 @@ void L2_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
    const int p = Order;
    const double *op;
 
-   switch (type)
+   if( (type ==Quadrature1D::GaussLegendre) ||
+           (type ==Quadrature1D::OpenEquallySpaced))
    {
-      case 0: op = poly1d.OpenPoints(p); break;
-      case 1:
-      default: op = poly1d.ClosedPoints(p);
+       op = poly1d.OpenPoints(p,type);
    }
+   else
+       op = poly1d.ClosedPoints(p,type);
+
 
 #ifdef MFEM_THREAD_SAFE
    Vector shape_x(p+1), shape_y(p+1);
@@ -8583,28 +8546,22 @@ L2_HexahedronElement::L2_HexahedronElement(const int p, const int _type)
    const double *op;
 
    type = _type;
-   switch (type)
+   if( (type==Quadrature1D::GaussLegendre) ||
+           (type==Quadrature1D::OpenEquallySpaced) )
    {
-      case 0:
-         basis1d = &poly1d.OpenBasis(p, NumericalQuad1D::GaussLegendre);
-         op = poly1d.OpenPoints(p, NumericalQuad1D::GaussLegendre);
-         break;
-      case 4:
-         basis1d = &poly1d.OpenBasis(p, NumericalQuad1D::OpenEquallySpaced);
-         op = poly1d.OpenPoints(p, NumericalQuad1D::OpenEquallySpaced);
-         break;
-      case 1:
-         basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::GaussLobatto);
-         op = poly1d.ClosedPoints(p, NumericalQuad1D::GaussLobatto );
-         break;
-      case 3:
-         basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::ClosedEquallySpaced);
-         op = poly1d.ClosedPoints(p, NumericalQuad1D::ClosedEquallySpaced);
-         break;
-      default:
-         MFEM_ABORT("Attempting to construct an unknown L2_Hexahedron_Element" <<
-                    "Type= " << type );
-
+         basis1d = &poly1d.OpenBasis(p, type);
+         op = poly1d.OpenPoints(p, type);
+   }
+   else if( (type==Quadrature1D::GaussLobatto) ||
+           (type==Quadrature1D::ClosedEquallySpaced) )
+   {
+       basis1d = &poly1d.ClosedBasis(p, type);
+       op = poly1d.ClosedPoints(p, type);
+   }
+   else
+   {
+         MFEM_ABORT("Attempting to construct an unknown L2_Hexahedront_Element" <<
+                    "Point Type= " << type);
    }
 
 #ifndef MFEM_THREAD_SAFE
@@ -8674,12 +8631,13 @@ void L2_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
    const int p = Order;
    const double *op;
 
-   switch (type)
+   if( (type == Quadrature1D::GaussLegendre) ||
+           (type ==Quadrature1D::OpenEquallySpaced))
    {
-      case 0: op = poly1d.OpenPoints(p); break;
-      case 1:
-      default: op = poly1d.ClosedPoints(p);
+       op = poly1d.OpenPoints(p,type);
    }
+   else
+       op = poly1d.ClosedPoints(p,type);
 
 #ifdef MFEM_THREAD_SAFE
    Vector shape_x(p+1), shape_y(p+1);
@@ -8862,11 +8820,11 @@ L2_TriangleElement::L2_TriangleElement(const int p, const int _type)
    type = _type;
    switch (type)
    {
-      case 0:
-         op = poly1d.OpenPoints(p);
+      case Quadrature1D::GaussLegendre:
+         op = poly1d.OpenPoints(p,Quadrature1D::GaussLegendre);
          break;
-      case 1:
-         op = poly1d.ClosedPoints(p);
+      case Quadrature1D::GaussLobatto:
+         op = poly1d.ClosedPoints(p,Quadrature1D::GaussLobatto);
          break;
       default:
          MFEM_ABORT( "Attempting to construct a L2_Triangle element of type "
@@ -9053,11 +9011,11 @@ L2_TetrahedronElement::L2_TetrahedronElement(const int p, const int _type)
    type = _type;
    switch (type)
    {
-      case 0:
-         op = poly1d.OpenPoints(p);
+      case Quadrature1D::GaussLegendre:
+         op = poly1d.OpenPoints(p,Quadrature1D::GaussLegendre);
          break;
-      case 1:
-         op = poly1d.ClosedPoints(p);
+      case Quadrature1D::GaussLobatto:
+         op = poly1d.ClosedPoints(p,Quadrature1D::GaussLobatto);
          break;
       default:
          MFEM_ABORT( "Attempting to construct a L2_TetrahedronElement of type "
@@ -9259,48 +9217,33 @@ const double RT_QuadrilateralElement::nk[8] =
 { 0., -1.,  1., 0.,  0., 1.,  -1., 0. };
 
 RT_QuadrilateralElement::RT_QuadrilateralElement(const int p,
-                                                 const int op_type,
-                                                 const int cp_type)
+                                                 const int cp_type,
+                                                 const int op_type)
    : VectorFiniteElement(2, Geometry::SQUARE, 2*(p + 1)*(p + 2), p + 1,
                          H_DIV, FunctionSpace::Qk),
      dof_map(Dof), dof2nk(Dof)
 {
-   // convert from the CloedBasisType and OpenBasisType of RT_FECollection
-   // also do some error checking
-   int translated_c_type = NumericalQuad1D::Invalid;
-   int translated_o_type = NumericalQuad1D::Invalid;
-
-   if (cp_type == 1)
+   /// We expect RT_FECollection to already have done the error checking
+    /// Make sure we haven't missed anything though
+   if( (cp_type != Quadrature1D::GaussLobatto) &&
+       (cp_type != Quadrature1D::ClosedEquallySpaced) )
    {
-      translated_c_type = NumericalQuad1D::GaussLobatto;
-   }
-   else if (cp_type == 2)
-   {
-      translated_c_type = NumericalQuad1D::ClosedEquallySpaced;
+       MFEM_ABORT("Unknown closed point type for RT_quad element." <<
+               "cp_type= " << cp_type);
    }
 
-   if (op_type == -1)
-   {
-      translated_o_type = NumericalQuad1D::GaussLegendre;
-   }
-   else if (op_type == -2)
-   {
-      translated_o_type = NumericalQuad1D::OpenEquallySpaced;
-   }
+   if( (op_type != Quadrature1D::GaussLegendre) &&
+          (cp_type != Quadrature1D::OpenEquallySpaced) )
+    {
+      MFEM_ABORT("Unknown open point type for RT_quad element." <<
+              "op_type= " << op_type);
+    }
 
-   if (translated_c_type == NumericalQuad1D::Invalid)
-      MFEM_ABORT("Asking for an undefined closed basis type.  cp_type = "
-                 << cp_type);
+   cbasis1d = &poly1d.ClosedBasis(p + 1, cp_type);
+   obasis1d = &poly1d.OpenBasis(p,  op_type);
 
-   if (translated_o_type == NumericalQuad1D::Invalid)
-      MFEM_ABORT( "Asking for an undefined open basis type.  op_type = "
-                  << op_type);
-
-   cbasis1d = &poly1d.ClosedBasis(p + 1, translated_c_type);
-   obasis1d = &poly1d.OpenBasis(p, translated_o_type);
-
-   const double *cp = poly1d.ClosedPoints(p + 1, translated_c_type);
-   const double *op = poly1d.OpenPoints(p, translated_o_type);
+   const double *cp = poly1d.ClosedPoints(p + 1, cp_type);
+   const double *op = poly1d.OpenPoints(p, op_type);
    const int dof2 = Dof/2;
 
 #ifndef MFEM_THREAD_SAFE
@@ -9502,48 +9445,33 @@ const double RT_HexahedronElement::nk[18] =
 { 0.,0.,-1.,  0.,-1.,0.,  1.,0.,0.,  0.,1.,0.,  -1.,0.,0.,  0.,0.,1. };
 
 RT_HexahedronElement::RT_HexahedronElement(const int p,
-                                           const int op_type,
-                                           const int cp_type)
+                                           const int cp_type,
+                                           const int op_type)
    : VectorFiniteElement(3, Geometry::CUBE, 3*(p + 1)*(p + 1)*(p + 2), p + 1,
                          H_DIV, FunctionSpace::Qk),
      dof_map(Dof), dof2nk(Dof)
 {
    // convert from the CloedBasisType and OpenBasisType of RT_FECollection
    // also do some error checking :-)
-   int translated_c_type = NumericalQuad1D::Invalid;
-   int translated_o_type = NumericalQuad1D::Invalid;
+    if( (cp_type != Quadrature1D::GaussLobatto) &&
+       (cp_type != Quadrature1D::ClosedEquallySpaced) )
+    {
+       MFEM_ABORT("Unknown closed point type for RT_hex element." <<
+               "cp_type= " << cp_type);
+    }
 
-   if (cp_type == 1)
-   {
-      translated_c_type = NumericalQuad1D::GaussLobatto;
-   }
-   else if (cp_type == 2)
-   {
-      translated_c_type = NumericalQuad1D::ClosedEquallySpaced;
-   }
+    if( (op_type != Quadrature1D::GaussLegendre) &&
+          (cp_type != Quadrature1D::OpenEquallySpaced) )
+    {
+      MFEM_ABORT("Unknown open point type for RT_hex element." <<
+              "op_type= " << op_type);
+    }
 
-   if (op_type == -1)
-   {
-      translated_o_type = NumericalQuad1D::GaussLegendre;
-   }
-   else if (op_type == -2)
-   {
-      translated_o_type = NumericalQuad1D::OpenEquallySpaced;
-   }
+   cbasis1d = &poly1d.ClosedBasis(p + 1, cp_type);
+   obasis1d = &poly1d.OpenBasis(p , op_type);
 
-   if (translated_c_type == NumericalQuad1D::Invalid)
-      MFEM_ABORT("Asking for an undefined closed basis type.  cp_type = "
-                 << cp_type);
-
-   if (translated_o_type == NumericalQuad1D::Invalid)
-      MFEM_ABORT("Asking for an undefined open basis type.  op_type = "
-                 << op_type);
-
-   cbasis1d = &poly1d.ClosedBasis(p + 1, translated_c_type);
-   obasis1d = &poly1d.OpenBasis(p , translated_o_type);
-
-   const double *cp = poly1d.ClosedPoints(p + 1, translated_c_type);
-   const double *op = poly1d.OpenPoints(p, translated_o_type);
+   const double *cp = poly1d.ClosedPoints(p + 1, cp_type);
+   const double *op = poly1d.OpenPoints(p, op_type);
    const int dof3 = Dof/3;
 
 #ifndef MFEM_THREAD_SAFE
@@ -10187,15 +10115,15 @@ ND_HexahedronElement::ND_HexahedronElement(const int p,
                          H_CURL, FunctionSpace::Qk),
      dof_map(Dof), dof2tk(Dof)
 {
-   if (op_type == -1)
+   if (op_type ==  BasisType::GaussLegendre)
    {
       // Gauss-Legendre open basis
-      obasis1d = &poly1d.OpenBasis(p-1, NumericalQuad1D::GaussLegendre);
+      obasis1d = &poly1d.OpenBasis(p-1, Quadrature1D::GaussLegendre);
    }
-   else if (op_type == -2)
+   else if (op_type ==  BasisType::OpenEquallySpaced)
    {
       //Open equally spaced basis
-      obasis1d = &poly1d.OpenBasis(p-1, NumericalQuad1D::OpenEquallySpaced);
+      obasis1d = &poly1d.OpenBasis(p-1, Quadrature1D::OpenEquallySpaced);
    }
    else
    {
@@ -10203,15 +10131,15 @@ ND_HexahedronElement::ND_HexahedronElement(const int p,
                  op_type);
    }
 
-   if (cp_type == 1)
+   if (cp_type ==  BasisType::GaussLobatto)
    {
       // Gauss-Lobatto closed basis
-      cbasis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::GaussLobatto);
+      cbasis1d = &poly1d.ClosedBasis(p, Quadrature1D::GaussLobatto);
    }
-   else if (cp_type == 2)
+   else if (cp_type ==  BasisType::ClosedEquallySpaced)
    {
       // Equally Spaced closed basis
-      cbasis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::ClosedEquallySpaced);
+      cbasis1d = &poly1d.ClosedBasis(p, Quadrature1D::ClosedEquallySpaced);
    }
    else
    {
@@ -10587,15 +10515,15 @@ ND_QuadrilateralElement::ND_QuadrilateralElement(const int p,
    : VectorFiniteElement(2, Geometry::SQUARE, 2*p*(p + 1), p,
                          H_CURL, FunctionSpace::Qk), dof_map(Dof), dof2tk(Dof)
 {
-   if (op_type == -1)
+   if (op_type == BasisType::GaussLegendre)
    {
       // Gauss-Legendre open basis
-      obasis1d = &poly1d.OpenBasis(p-1, NumericalQuad1D::GaussLegendre);
+      obasis1d = &poly1d.OpenBasis(p-1, Quadrature1D::GaussLegendre);
    }
-   else if (op_type == -2)
+   else if (op_type == BasisType::OpenEquallySpaced)
    {
       //Open equally spaced basis
-      obasis1d = &poly1d.OpenBasis(p-1, NumericalQuad1D::OpenEquallySpaced);
+      obasis1d = &poly1d.OpenBasis(p-1, Quadrature1D::OpenEquallySpaced);
    }
    else
    {
@@ -10603,15 +10531,15 @@ ND_QuadrilateralElement::ND_QuadrilateralElement(const int p,
                  op_type);
    }
 
-   if (cp_type == 1)
+   if (cp_type == BasisType::GaussLobatto)
    {
       // Gauss-Lobatto closed basis
-      cbasis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::GaussLobatto);
+      cbasis1d = &poly1d.ClosedBasis(p, Quadrature1D::GaussLobatto);
    }
-   else if (cp_type == 2)
+   else if (cp_type == BasisType::ClosedEquallySpaced)
    {
       // Equally Spaced closed basis
-      cbasis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::ClosedEquallySpaced);
+      cbasis1d = &poly1d.ClosedBasis(p, Quadrature1D::ClosedEquallySpaced);
    }
    else
    {
@@ -11228,15 +11156,15 @@ ND_SegmentElement::ND_SegmentElement(const int p,
    : VectorFiniteElement(1, Geometry::SEGMENT, p, p - 1,
                          H_CURL, FunctionSpace::Pk), dof2tk(Dof)
 {
-   if (op_type == -1)
+   if (op_type == BasisType::GaussLegendre)
    {
       // Gauss-Legendre open basis
-      obasis1d = &poly1d.OpenBasis(p-1, NumericalQuad1D::GaussLegendre);
+      obasis1d = &poly1d.OpenBasis(p-1, Quadrature1D::GaussLegendre);
    }
-   else if (op_type == -2)
+   else if (op_type ==  BasisType::OpenEquallySpaced)
    {
       // Opend Equally-Spaced basis
-      obasis1d = &poly1d.OpenBasis(p-1, NumericalQuad1D::OpenEquallySpaced);
+      obasis1d = &poly1d.OpenBasis(p-1, Quadrature1D::OpenEquallySpaced);
    }
    else
    {

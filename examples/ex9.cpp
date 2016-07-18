@@ -184,15 +184,17 @@ int main(int argc, char *argv[])
    // IntegrationRules objects other than IntRules to assemble matrices with different element
    // types using alternative numerical quadratures?
    //    e.g. a mesh with square and triangular elements?
-   IntegrationRules moreAwesomeQuadrature(0 , NumericalQuad1D::GaussLobatto);
+   IntegrationRules moreAwesomeQuadrature(0 , Quadrature1D::GaussLobatto);
 
    // Let us now pray that every element is of the same type
    int el_num = 0;
    int geomType = mesh->GetElement(el_num)->GetGeometryType();
-   const IntegrationRule *specialIntRule = &moreAwesomeQuadrature.Get(geomType,
-                                                                      order);
+
    // this should be exact integration (through  6th order elements on 6th order meshes)
-   const double intPolyExactness = 20;
+  const double intPolyExactness = 20;
+
+   const IntegrationRule *specialIntRule =
+           &moreAwesomeQuadrature.Get(geomType, order);
 
    // The mass matrix integration will use Lobatto quadrature
    m.AddDomainIntegrator(new MassIntegrator( specialIntRule ) );

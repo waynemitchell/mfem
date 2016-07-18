@@ -76,16 +76,16 @@ public:
 /// Arbitrary order H1-conforming (continuous) finite elements.
 class H1_FECollection : public FiniteElementCollection
 {
-public:
-   enum BasisType
-   {
-      GaussLobatto = 0, // Nodal basis, with nodes at the Gauss-Lobatto points
-      Positive     = 1,  // Positive basis, Bernstein polynomials
-      ClosedEquallySpaced = 2 // Nodal basis with equally spaced nodes
-   };
+//public:
+//   enum BasisType
+//   {
+//      GaussLobatto = 0, // Nodal basis, with nodes at the Gauss-Lobatto points
+//      Positive     = 1,  // Positive basis, Bernstein polynomials
+//      ClosedEquallySpaced = 2 // Nodal basis with equally spaced nodes
+//   };
 
 protected:
-   BasisType m_type;
+   int m_type;
    char h1_name[32];
    FiniteElement *H1_Elements[Geometry::NumGeom];
    int H1_dof[Geometry::NumGeom];
@@ -93,7 +93,7 @@ protected:
 
 public:
    explicit H1_FECollection(const int p, const int dim = 3,
-                            const int type = GaussLobatto);
+                            const int type = BasisType::GaussLobatto);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return H1_Elements[GeomType]; }
@@ -103,7 +103,7 @@ public:
    virtual const char *Name() const { return h1_name; }
    FiniteElementCollection *GetTraceCollection() const;
 
-   BasisType GetBasisType() const { return m_type; }
+   int GetBasisType() const { return m_type; }
 
    virtual ~H1_FECollection();
 };
@@ -114,7 +114,7 @@ class H1Pos_FECollection : public H1_FECollection
 {
 public:
    explicit H1Pos_FECollection(const int p, const int dim = 3)
-      : H1_FECollection(p, dim, Positive) { }
+      : H1_FECollection(p, dim, BasisType::Positive) { }
 };
 
 /** Arbitrary order "H^{1/2}-conforming" trace finite elements defined on the
@@ -124,24 +124,24 @@ class H1_Trace_FECollection : public H1_FECollection
 {
 public:
    H1_Trace_FECollection(const int p, const int dim,
-                         const int type = GaussLobatto);
+                         const int type = BasisType::GaussLobatto);
 };
 
 /// Arbitrary order "L2-conforming" discontinuous finite elements.
 class L2_FECollection : public FiniteElementCollection
 {
 public:
-   enum BasisType
+/*   enum BasisType
    {
       GaussLegendre = 0, // Nodal basis, with nodes at the Gauss-Legendre points
       GaussLobatto  = 1, // Nodal basis, with nodes at the Gauss-Lobatto points
       Positive      = 2, // Positive basis, Bernstein polynomials
       OpenEquallySpaced = 3,  // Nodal basis, nodes at open equally spaced points
       ClosedEquallySpaced = 4 // Nodal basis, nodes at closed equally spaced points
-   };
+   };*/
 
 private:
-   BasisType m_type;
+   int m_type;
    char d_name[32];
    FiniteElement *L2_Elements[Geometry::NumGeom];
    FiniteElement *Tr_Elements[Geometry::NumGeom];
@@ -149,7 +149,8 @@ private:
    int *TriDofOrd[6]; // for rotating triangle dofs in 2D
 
 public:
-   L2_FECollection(const int p, const int dim, const int type = GaussLegendre);
+   L2_FECollection(const int p, const int dim,
+           const int type = BasisType::GaussLegendre);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return L2_Elements[GeomType]; }
@@ -170,7 +171,7 @@ public:
       return Tr_Elements[GeomType];
    }
 
-   BasisType GetBasisType() const { return m_type; }
+   int GetBasisType() const { return m_type; }
 
    virtual ~L2_FECollection();
 };
@@ -198,7 +199,7 @@ protected:
 
 
 public:
-   enum OpenBasisType
+ /*  enum OpenBasisType
    {
       GaussLegendre = -1, // Nodal basis, with nodes at the Gauss-Legendre points
       OpenEquallySpaced = -2, // Nodal basis, nodes at open equally spaced points
@@ -208,10 +209,11 @@ public:
    {
       GaussLobatto  = 1, // Nodal basis, with nodes at the Gauss-Lobatto points
       ClosedEquallySpaced = 2 // Nodal basis, nodes at closed equally spaced points
-   };
+   };*/
 
    RT_FECollection(const int p, const int dim,
-                   const int op_type = -1, const int cp_type = 1);
+                   const int op_type = BasisType::GaussLegendre,
+                   const int cp_type = BasisType::GaussLobatto );
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return RT_Elements[GeomType]; }
@@ -223,8 +225,7 @@ public:
 
    virtual ~RT_FECollection();
 protected:
-   OpenBasisType ob_type;
-   ClosedBasisType cb_type;
+   int cp_type, op_type;
 };
 
 /** Arbitrary order "H^{-1/2}-conforming" face finite elements defined on the
@@ -257,20 +258,21 @@ protected:
    int *SegDofOrd[2], *TriDofOrd[6], *QuadDofOrd[8];
 
 public:
-   enum OpenBasisType
-   {
-      GaussLegendre = -1, // Nodal basis, with nodes at the Gauss-Legendre points
-      OpenEquallySpaced = -2 , // Nodal basis, nodes at open equally spaced points
-   };
-
-   enum ClosedBasisType
-   {
-      GaussLobatto  = 1, // Nodal basis, with nodes at the Gauss-Lobatto points
-      ClosedEquallySpaced = 2 // Nodal basis, nodes at closed equally spaced points
-   };
+//   enum OpenBasisType
+//   {
+//      GaussLegendre = -1, // Nodal basis, with nodes at the Gauss-Legendre points
+//      OpenEquallySpaced = -2 , // Nodal basis, nodes at open equally spaced points
+//   };
+//
+//   enum ClosedBasisType
+//   {
+//      GaussLobatto  = 1, // Nodal basis, with nodes at the Gauss-Lobatto points
+//      ClosedEquallySpaced = 2 // Nodal basis, nodes at closed equally spaced points
+//   };
 
    ND_FECollection(const int p, const int dim,
-                   const int op_type = -1 , const int cp_type = 1);
+                   const int op_type = BasisType::GaussLegendre,
+                   const int cp_type = BasisType::GaussLobatto);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return ND_Elements[GeomType]; }
