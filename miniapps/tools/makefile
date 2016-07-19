@@ -20,7 +20,7 @@ TEST_MK = $(MFEM_DIR)/config/test.mk
 MFEM_LIB_FILE = mfem_is_not_built
 -include $(CONFIG_MK)
 
-SEQ_MINIAPPS = mobius-strip klein-bottle mesh-explorer
+SEQ_MINIAPPS = display_basis
 PAR_MINIAPPS =
 ifeq ($(MFEM_USE_MPI),NO)
    MINIAPPS = $(SEQ_MINIAPPS)
@@ -29,30 +29,23 @@ else
 endif
 
 .PHONY: all clean clean-build clean-exec
+.PRECIOUS: %.o
+
+COMMON_HPP=../common/fem_extras.hpp ../common/mesh_extras.hpp
+COMMON_O=$(COMMON_HPP:.hpp=.o)
 
 # Remove built-in rule
 %: %.cpp
 
 # Replace the default implicit rule for *.cpp files
-%: %.cpp $(MFEM_LIB_FILE) $(CONFIG_MK)
-	$(MFEM_CXX) $(MFEM_FLAGS) $(@).cpp -o $@ $(MFEM_LIBS)
+%: %.cpp $(COMMON_O) $(MFEM_LIB_FILE) $(CONFIG_MK)
+	$(MFEM_CXX) $(MFEM_FLAGS) $< -o $@ $(COMMON_O) $(MFEM_LIBS)
+
+# Replace the default implicit rule for *.cpp files
+%.o: %.cpp %.hpp $(COMMON_HPP) $(CONFIG_MK)
+	$(MFEM_CXX) $(MFEM_FLAGS) -c $(<) -o $(@)
 
 all: $(MINIAPPS)
-
-MFEM_TESTS = MINIAPPS
-include $(TEST_MK)
-
-# Testing: Parallel vs. serial runs
-%-test-par: %
-	@$(call mfem-test-file,$<, mpirun -np 4, Meshing miniapp,$(<).mesh)
-%-test-seq: %
-	@$(call mfem-test-file,$<,, Meshing miniapp,$(<).mesh)
-
-# Testing: Specific execution options
-mesh-explorer-test-seq:
-	@true
-
-# Testing: "test" target and mfem-test* variables are defined in config/test.mk
 
 # Generate an error message if the MFEM library is not built and exit
 $(MFEM_LIB_FILE):
@@ -61,9 +54,7 @@ $(MFEM_LIB_FILE):
 clean: clean-build clean-exec
 
 clean-build:
-	rm -f *.o *~ mobius-strip klein-bottle mesh-explorer
+	rm -f *.o *~ 
 	rm -rf *.dSYM *.TVD.*breakpoints
 
 clean-exec:
-	@rm -f mobius-strip.mesh klein-bottle.mesh mesh-explorer.mesh
-	@rm -f partitioning.txt

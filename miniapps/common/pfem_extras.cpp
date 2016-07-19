@@ -267,7 +267,7 @@ DivergenceFreeProjector::Update()
 
 void VisualizeField(socketstream &sock, const char *vishost, int visport,
                     ParGridFunction &gf, const char *title,
-                    int x, int y, int w, int h)
+                    int x, int y, int w, int h, bool vec)
 {
    ParMesh &pmesh = *gf.ParFESpace()->GetParMesh();
    MPI_Comm comm = pmesh.GetComm();
@@ -300,7 +300,9 @@ void VisualizeField(socketstream &sock, const char *vishost, int visport,
          sock << "window_title '" << title << "'\n"
               << "window_geometry "
               << x << " " << y << " " << w << " " << h << "\n"
-              << "keys maaAc" << endl;
+              << "keys maaAc";
+         if ( vec ) { sock << "v"; }
+         sock << endl;
       }
 
       if (myid == 0)
