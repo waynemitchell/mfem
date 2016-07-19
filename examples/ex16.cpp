@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/star.mesh";
    int ref_levels = 2;
    int order = 2;
-   int ode_solver_type = 14;
+   int ode_solver_type = 3;
    double t_final = 0.5;
    double dt = 1.0e-2;
    double alpha = 1.0e-2;

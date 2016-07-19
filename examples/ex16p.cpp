@@ -43,14 +43,13 @@ protected:
    ParBilinearForm *K;
 
    HypreParMatrix *Mmat;
+   HypreParMatrix *Kmat;
 
    CGSolver M_solver; // Krylov solver for inverting the mass matrix M
    HypreSmoother M_prec;  // Preconditioner for the mass matrix M
 
    CGSolver K_solver; // Implicit solver for M + dt K
    HypreSmoother K_prec; // Preconditioner for the implicit solver
-
-   Vector u_alpha; // \kappa + \alpha * u at the previous time
 
    double alpha, kappa;
 
@@ -84,7 +83,7 @@ int main(int argc, char *argv[])
    int ser_ref_levels = 2;
    int par_ref_levels = 0;
    int order = 2;
-   int ode_solver_type = 14;
+   int ode_solver_type = 3;
    double t_final = 0.5;
    double dt = 1.0e-2;
    double alpha = 1.0e-2;
@@ -186,19 +185,18 @@ int main(int argc, char *argv[])
       cout << "Number of temperature unknowns: " << fe_size << endl;
    }
 
-   Vector u(fe_size);;
-   ParGridFunction u_gf;
+   ParGridFunction u_gf(&fespace);;
 
    // 7. Set the initial conditions for u. All 
    // boundaries are considered natural.
    FunctionCoefficient u_0(InitialTemperature);
    u_gf.ProjectCoefficient(u_0);
-   u_gf.GetTrueDofs(u);
+   HypreParVector *u = u_gf.GetTrueDofs();
 
    // 8. Initialize the conduction operator and the VisIt visualization 
-   ConductionOperator oper(fespace, alpha, kappa, u);
+   ConductionOperator oper(fespace, alpha, kappa, *u);
 
-   VisItDataCollection visit_dc("Example16-Parallel", mesh);
+   VisItDataCollection visit_dc("Example16-Parallel", pmesh);
    visit_dc.RegisterField("temperature", &u_gf);
    if (visualization)
    {
@@ -220,11 +218,16 @@ int main(int argc, char *argv[])
          last_step = true;
       }
 
-      ode_solver->Step(u, t, dt);
+      ode_solver->Step(*u, t, dt);
+      
+      u_gf = *u;
 
       if (last_step || (ti % vis_steps) == 0)
       {
-         cout << "step " << ti << ", t = " << t << endl;
+         
+         if (myid == 0) {
+            cout << "step " << ti << ", t = " << t << endl;
+         }
 
          if (visualization)
          {
@@ -233,11 +236,11 @@ int main(int argc, char *argv[])
             visit_dc.Save();
          }
       }
-      oper.SetParameters(u);
+      oper.SetParameters(*u);
    }
 
 
-   // 10. Free the used memory.
+   // 10. Free the used me1mory.
    delete ode_solver;
    delete pmesh;
 
@@ -246,25 +249,26 @@ int main(int argc, char *argv[])
    return 0;
 }
 
-ConductionOperator::ConductionOperator(ParFiniteElementSpace &f, double al, double kap, const Vector &u_)
-   : TimeDependentOperator(f.GetVSize(), 0.0), fespace(f), M(NULL), K(NULL), Mmat(NULL), u_alpha(height), z(height)
+ConductionOperator::ConductionOperator(ParFiniteElementSpace &f, double al, double kap, const Vector &u)
+   : TimeDependentOperator(f.GetTrueVSize()), fespace(f), M(NULL), K(NULL), Mmat(NULL), Kmat(NULL),
+     M_solver(f.GetComm()), K_solver(f.GetComm()), z(f.GetTrueVSize())
 {
    const double rel_tol = 1e-8;
-   const int skip_zero_entries = 0;
 
    M = new ParBilinearForm(&fespace);
    M->AddDomainIntegrator(new MassIntegrator());
-   M->Assemble(skip_zero_entries);
-   M->Finalize(skip_zero_entries);
+   M->Assemble();
+   M->Finalize();
    Mmat = M->ParallelAssemble();
 
    M_solver.iterative_mode = false;
    M_solver.SetRelTol(rel_tol);
    M_solver.SetAbsTol(0.0);
-   M_solver.SetMaxIter(30);
-   M_solver.SetPrintLevel(0);
+   M_solver.SetMaxIter(100);
+   M_solver.SetPrintLevel(1);
+   M_prec.SetType(HypreSmoother::Jacobi);
    M_solver.SetPreconditioner(M_prec);
-   M_solver.SetOperator(M->SpMat());
+   M_solver.SetOperator(*Mmat);
 
    alpha = al;
    kappa = kap;
@@ -276,13 +280,16 @@ ConductionOperator::ConductionOperator(ParFiniteElementSpace &f, double al, doub
    K_solver.SetPrintLevel(0);
    K_solver.SetPreconditioner(K_prec);
    
-   SetParameters(u_);
+   SetParameters(u);
 
 }
 
 void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
 {
-   K->Mult(u, z);
+   // Compute:
+   //    du_dt = M^{-1}*-K(u)
+   // for du_dt
+   Kmat->Mult(u, z);
    z.Neg(); // z = -z
    M_solver.Mult(z, du_dt);
 }
@@ -292,11 +299,11 @@ void ConductionOperator::ImplicitSolve(const double dt,
 {
    // Solve the equation:
    //    du_dt = M^{-1}*[-K(u + dt*du_dt)]
-
+   // for du_dt
    SparseMatrix *localT = Add(1.0, M->SpMat(), dt, K->SpMat());
    HypreParMatrix *T = M->ParallelAssemble(localT);
    K_solver.SetOperator(*T);
-   K->Mult(u, z);
+   Kmat->Mult(u, z);
    z.Neg();
    K_solver.Mult(z, du_dt);
    
@@ -305,24 +312,23 @@ void ConductionOperator::ImplicitSolve(const double dt,
 
 }
 
-void ConductionOperator::SetParameters(const Vector &u_)
+void ConductionOperator::SetParameters(const Vector &u)
 {
-   const int skip_zero_entries = 0;
-
+   Vector u_alpha(fespace.GetTrueVSize());
    u_alpha = kappa;
-   u_alpha.Add(alpha, u_);
-
-   delete K;
-
-   K = new ParBilinearForm(&fespace);
-   ParGridFunction u_alpha_gf;
-   u_alpha_gf.GetTrueDofs(u_alpha);
-
+   u_alpha.Add(alpha, u);
+   ParGridFunction u_alpha_gf(&fespace);
+   u_alpha_gf.Distribute(u_alpha);
    GridFunctionCoefficient u_coeff(&u_alpha_gf);
 
+   delete K;
+   delete Kmat;
+
+   K = new ParBilinearForm(&fespace);
    K->AddDomainIntegrator(new DiffusionIntegrator(u_coeff));
-   K->Assemble(skip_zero_entries);
-   K->Finalize(skip_zero_entries);
+   K->Assemble();
+   K->Finalize();
+   Kmat = K->ParallelAssemble();
 
 }
 
@@ -331,6 +337,7 @@ ConductionOperator::~ConductionOperator()
    delete M;
    delete K;
    delete Mmat;
+   delete Kmat;
 }
 
 double InitialTemperature(const Vector &x)
