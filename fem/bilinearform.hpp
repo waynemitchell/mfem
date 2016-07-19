@@ -294,17 +294,17 @@ public:
 };
 
 /**
-   Class for assembling of bilinear forms a(u,v) defined on different
-   trial and test spaces. The assembled matrix A is such that
+   Class for assembling of bilinear forms `a(u,v)` defined on different
+   trial and test spaces. The assembled matrix `A` is such that
 
-   a(u,v) = V^t A U
+       a(u,v) = V^t A U
 
-   where U and V are the vectors representing the function u and v,
-   respectively.  The first argument, u, of a(,) is in the trial space
-   and the second argument, v, is in the test space. Thus,
+   where `U` and `V` are the vectors representing the functions `u` and `v`,
+   respectively.  The first argument, `u`, of `a(,)` is in the trial space
+   and the second argument, `v`, is in the test space. Thus,
 
-   # of rows of A = dimension of the test space and
-   # of cols of A = dimension of the trial space.
+       # of rows of A = dimension of the test space and
+       # of cols of A = dimension of the trial space.
 
    Both trial and test spaces should be defined on the same mesh.
 */
