@@ -10,7 +10,7 @@
 //               non-linear Laplacian C(u) = \nabla \cdot (\kappa + \alpha u) \nabla u.
 //
 //               The example demonstrates the use of nonlinear operators (the
-//               class ConductionOperator defining C(x)), as well as their
+//               class ConductionOperator defining C(u)), as well as their
 //               implicit time integration. Note that implementing the
 //               method ConductionOperator::ImplicitSolve is the only
 //               requirement for high-order implicit (SDIRK) time integration.
@@ -80,6 +80,7 @@ int main(int argc, char *argv[])
    double dt = 1.0e-2;
    double alpha = 1.0e-2;
    double kappa = 0.5;
+   bool visit = false;
    bool visualization = true;
    int vis_steps = 5;
 
@@ -107,6 +108,9 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
+   args.AddOption(&visit, "-visit", "--visit-datafiles", "-no-visit",
+                  "--no-visit-datafiles",
+                  "Save data files for VisIt (visit.llnl.gov) visualization.");
    args.AddOption(&vis_steps, "-vs", "--visualization-steps",
                   "Visualize every n-th timestep.");
    args.Parse();
@@ -171,16 +175,49 @@ int main(int argc, char *argv[])
    FunctionCoefficient u_0(InitialTemperature);
    u_gf.ProjectCoefficient(u_0);
 
-   // 7. Initialize the conduction operator and the VisIt visualization 
+   // 7. Initialize the conduction operator and the visualization 
    ConductionOperator oper(fespace, alpha, kappa, u);
+
+   {
+      ofstream omesh("ex16.mesh");
+      omesh.precision(precision);
+      mesh->Print(omesh);
+      ofstream osol("ex16-init.gf");
+      osol.precision(precision);
+      u_gf.Save(osol);
+   }
 
    VisItDataCollection visit_dc("Example16", mesh);
    visit_dc.RegisterField("temperature", &u_gf);
-   if (visualization)
+   if (visit)
    {
       visit_dc.SetCycle(0);
       visit_dc.SetTime(0.0);
       visit_dc.Save();
+   }
+
+   socketstream sout;
+   if (visualization)
+   {
+      char vishost[] = "localhost";
+      int  visport   = 19916;
+      sout.open(vishost, visport);
+      if (!sout)
+      {
+         cout << "Unable to connect to GLVis server at "
+              << vishost << ':' << visport << endl;
+         visualization = false;
+         cout << "GLVis visualization disabled.\n";
+      }
+      else
+      {
+         sout.precision(precision);
+         sout << "solution\n" << *mesh << u_gf;
+         sout << "pause\n";
+         sout << flush;
+         cout << "GLVis visualization paused."
+              << " Press space (in the GLVis window) to resume it.\n";
+      }
    }
 
    // 8. Perform time-integration (looping over the time iterations, ti, with a
@@ -204,6 +241,12 @@ int main(int argc, char *argv[])
 
          if (visualization)
          {
+            u_gf = u;
+            sout << "solution\n" << *mesh << u_gf << flush;
+         }
+
+         if (visit)
+         {
             visit_dc.SetCycle(ti);
             visit_dc.SetTime(t);
             visit_dc.Save();
@@ -212,6 +255,14 @@ int main(int argc, char *argv[])
       oper.SetParameters(u);
    }
 
+   // 10. Save the final solution. This output can be viewed later using GLVis:
+   //    "glvis -m ex16.mesh -g ex16-final.gf".
+   {
+      u_gf = u;
+      ofstream osol("ex16-final.gf");
+      osol.precision(precision);
+      u_gf.Save(osol);
+   }
 
    // 9. Free the used memory.
    delete ode_solver;

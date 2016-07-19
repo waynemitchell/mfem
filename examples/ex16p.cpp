@@ -10,7 +10,7 @@
 //               non-linear Laplacian C(u) = \nabla \cdot (\kappa + \alpha u) \nabla u.
 //
 //               The example demonstrates the use of nonlinear operators (the
-//               class ConductionOperator defining C(x)), as well as their
+//               class ConductionOperator defining C(u)), as well as their
 //               implicit time integration. Note that implementing the
 //               method ConductionOperator::ImplicitSolve is the only
 //               requirement for high-order implicit (SDIRK) time integration.
@@ -88,6 +88,7 @@ int main(int argc, char *argv[])
    double dt = 1.0e-2;
    double alpha = 1.0e-2;
    double kappa = 0.5;
+   bool visit = false;
    bool visualization = true;
    int vis_steps = 5;
 
@@ -117,6 +118,9 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
+   args.AddOption(&visit, "-visit", "--visit-datafiles", "-no-visit",
+                  "--no-visit-datafiles",
+                  "Save data files for VisIt (visit.llnl.gov) visualization.");
    args.AddOption(&vis_steps, "-vs", "--visualization-steps",
                   "Visualize every n-th timestep.");
    args.Parse();
@@ -205,6 +209,36 @@ int main(int argc, char *argv[])
       visit_dc.Save();
    }
 
+   socketstream sout;
+   if (visualization)
+   {
+      char vishost[] = "localhost";
+      int  visport   = 19916;
+      sout.open(vishost, visport);
+      if (!sout)
+      {
+         if (myid == 0)
+            cout << "Unable to connect to GLVis server at "
+                 << vishost << ':' << visport << endl;
+         visualization = false;
+         if (myid == 0)
+         {
+            cout << "GLVis visualization disabled.\n";
+         }
+      }
+      else
+      {
+         sout << "parallel " << num_procs << " " << myid << "\n";
+         sout.precision(precision);
+         sout << "solution\n" << *pmesh << u_gf;
+         sout << "pause\n";
+         sout << flush;
+         if (myid == 0)
+            cout << "GLVis visualization paused."
+                 << " Press space (in the GLVis window) to resume it.\n";
+      }
+   }
+
    // 9. Perform time-integration (looping over the time iterations, ti, with a
    //    time-step dt).
    ode_solver->Init(oper);
@@ -219,8 +253,6 @@ int main(int argc, char *argv[])
       }
 
       ode_solver->Step(*u, t, dt);
-      
-      u_gf = *u;
 
       if (last_step || (ti % vis_steps) == 0)
       {
@@ -231,6 +263,13 @@ int main(int argc, char *argv[])
 
          if (visualization)
          {
+            u_gf = *u;
+            sout << "parallel " << num_procs << " " << myid << "\n";
+            sout << "solution\n" << *pmesh << u_gf << flush;
+         }
+
+         if (visit)
+         {
             visit_dc.SetCycle(ti);
             visit_dc.SetTime(t);
             visit_dc.Save();
@@ -239,8 +278,18 @@ int main(int argc, char *argv[])
       oper.SetParameters(*u);
    }
 
+   // 10. Save the final solution in parallel. This output can be viewed later
+   //     using GLVis: "glvis -np <np> -m ex16-mesh -g ex16-final".
+   {
+      u_gf = *u;
+      ostringstream sol_name;
+      sol_name << "ex16-final." << setfill('0') << setw(6) << myid;
+      ofstream osol(sol_name.str().c_str());
+      osol.precision(precision);
+      u_gf.Save(osol);
+   }
 
-   // 10. Free the used me1mory.
+   // 11. Free the used me1mory.
    delete ode_solver;
    delete pmesh;
 
