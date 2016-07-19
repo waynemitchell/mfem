@@ -41,11 +41,11 @@ class BasisType
 public:
     enum
     {
-        GaussLegendre,
-        GaussLobatto,
-        Positive,
-        OpenEquallySpaced,
-        ClosedEquallySpaced
+        GaussLegendre = 0,
+        GaussLobatto = 1,
+        Positive = 2,
+        OpenEquallySpaced = 3,
+        ClosedEquallySpaced = 4
     };
 };
 
@@ -1247,11 +1247,16 @@ public:
    };
 
 private:
+//   std::map<Quadrature1D , Array<double* > > open_pts, closed_pts;
+//   std::map<Quadrature1D , Array<Basis* > > open_basis, closed_basis;
+
    Array<double *> open_pts, closed_pts;
    Array<Basis *> open_basis, closed_basis;
 
-   int open_basis_type;
-   int closed_basis_type;
+#ifdef MFEM_DEBUG
+   Array<int> open_basis_type;
+   Array<int> closed_basis_type;
+#endif
 
    static Array2D<int> binom;
 
@@ -1266,9 +1271,7 @@ private:
 
    QuadratureFunctions1D quad_func;
 public:
-   Poly_1D():
-      open_basis_type(Quadrature1D::Invalid),
-      closed_basis_type(Quadrature1D::Invalid) { }
+   Poly_1D(){ }
 
    static const int *Binom(const int p);
 
@@ -1887,7 +1890,8 @@ class ND_HexahedronElement : public VectorFiniteElement
 
 public:
    ND_HexahedronElement(const int p,
-                        const int op_type = -1 , const int cp_type = 1);
+                        const int cp_type = Quadrature1D::GaussLobatto,
+                        const int op_type = Quadrature1D::GaussLegendre);
 
    virtual void CalcVShape(const IntegrationPoint &ip,
                            DenseMatrix &shape) const;
@@ -1939,7 +1943,8 @@ class ND_QuadrilateralElement : public VectorFiniteElement
 
 public:
    ND_QuadrilateralElement(const int p,
-                           const int op_type = -1 , const int cp_type = 1);
+                           const int cp_type = Quadrature1D::GaussLobatto,
+                           const int op_type = Quadrature1D::GaussLegendre);
    virtual void CalcVShape(const IntegrationPoint &ip,
                            DenseMatrix &shape) const;
    virtual void CalcVShape(ElementTransformation &Trans,
@@ -2056,7 +2061,7 @@ class ND_SegmentElement : public VectorFiniteElement
    Array<int> dof2tk;
 
 public:
-   ND_SegmentElement(const int p, const int op_type = -1 );
+   ND_SegmentElement(const int p, const int op_type = Quadrature1D::GaussLegendre );
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const
    { obasis1d->Eval(ip.x, shape); }
    virtual void CalcVShape(const IntegrationPoint &ip,

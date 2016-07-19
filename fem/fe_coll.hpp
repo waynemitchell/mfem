@@ -76,13 +76,6 @@ public:
 /// Arbitrary order H1-conforming (continuous) finite elements.
 class H1_FECollection : public FiniteElementCollection
 {
-//public:
-//   enum BasisType
-//   {
-//      GaussLobatto = 0, // Nodal basis, with nodes at the Gauss-Lobatto points
-//      Positive     = 1,  // Positive basis, Bernstein polynomials
-//      ClosedEquallySpaced = 2 // Nodal basis with equally spaced nodes
-//   };
 
 protected:
    int m_type;
@@ -131,14 +124,7 @@ public:
 class L2_FECollection : public FiniteElementCollection
 {
 public:
-/*   enum BasisType
-   {
-      GaussLegendre = 0, // Nodal basis, with nodes at the Gauss-Legendre points
-      GaussLobatto  = 1, // Nodal basis, with nodes at the Gauss-Lobatto points
-      Positive      = 2, // Positive basis, Bernstein polynomials
-      OpenEquallySpaced = 3,  // Nodal basis, nodes at open equally spaced points
-      ClosedEquallySpaced = 4 // Nodal basis, nodes at closed equally spaced points
-   };*/
+
 
 private:
    int m_type;
@@ -194,26 +180,14 @@ protected:
 
    // Constructor used by the constructor of RT_Trace_FECollection
    RT_FECollection(const int p, const int dim, const int map_type,
-                   const bool signs)
-   { InitFaces(p, dim, map_type, signs); }
+                   const bool signs,
+                   const int _ob_type = Quadrature1D::GaussLegendre);
 
 
 public:
- /*  enum OpenBasisType
-   {
-      GaussLegendre = -1, // Nodal basis, with nodes at the Gauss-Legendre points
-      OpenEquallySpaced = -2, // Nodal basis, nodes at open equally spaced points
-   };
-
-   enum ClosedBasisType
-   {
-      GaussLobatto  = 1, // Nodal basis, with nodes at the Gauss-Lobatto points
-      ClosedEquallySpaced = 2 // Nodal basis, nodes at closed equally spaced points
-   };*/
-
    RT_FECollection(const int p, const int dim,
-                   const int op_type = BasisType::GaussLegendre,
-                   const int cp_type = BasisType::GaussLobatto );
+                   const int _cb_type = BasisType::GaussLobatto,
+                   const int _ob_type = BasisType::GaussLegendre );
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return RT_Elements[GeomType]; }
@@ -235,7 +209,8 @@ class RT_Trace_FECollection : public RT_FECollection
 {
 public:
    RT_Trace_FECollection(const int p, const int dim,
-                         const int map_type = FiniteElement::INTEGRAL);
+                         const int map_type = FiniteElement::INTEGRAL,
+                         const int _ob_type = BasisType::GaussLegendre);
 };
 
 /** Arbitrary order discontinuous finite elements defined on the interface
@@ -258,21 +233,9 @@ protected:
    int *SegDofOrd[2], *TriDofOrd[6], *QuadDofOrd[8];
 
 public:
-//   enum OpenBasisType
-//   {
-//      GaussLegendre = -1, // Nodal basis, with nodes at the Gauss-Legendre points
-//      OpenEquallySpaced = -2 , // Nodal basis, nodes at open equally spaced points
-//   };
-//
-//   enum ClosedBasisType
-//   {
-//      GaussLobatto  = 1, // Nodal basis, with nodes at the Gauss-Lobatto points
-//      ClosedEquallySpaced = 2 // Nodal basis, nodes at closed equally spaced points
-//   };
-
    ND_FECollection(const int p, const int dim,
-                   const int op_type = BasisType::GaussLegendre,
-                   const int cp_type = BasisType::GaussLobatto);
+                   const int cp_type = BasisType::GaussLobatto,
+                   const int op_type = BasisType::GaussLegendre );
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return ND_Elements[GeomType]; }

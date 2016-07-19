@@ -1393,15 +1393,18 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
 {
    const int pm1 = p - 1, pm2 = pm1 - 1, pm3 = pm2 - 1;
 
+   int pt_type = Quadrature1D::Invalid;
    switch(type)
    {
        case BasisType::GaussLobatto:
        {
+           pt_type = Quadrature1D::GaussLobatto;
            m_type = BasisType::GaussLobatto;
            break;
        }
        case BasisType::ClosedEquallySpaced:
        {
+           pt_type = Quadrature1D::ClosedEquallySpaced;
            m_type = BasisType::ClosedEquallySpaced;
            break;
        }
@@ -1450,7 +1453,7 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
       }
       else
       {
-         H1_Elements[Geometry::SEGMENT] = new H1_SegmentElement(p, m_type);
+         H1_Elements[Geometry::SEGMENT] = new H1_SegmentElement(p, pt_type);
       }
 
       SegDofOrd[0] = new int[2*pm1];
@@ -1474,7 +1477,7 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
       else
       {
          H1_Elements[Geometry::TRIANGLE] = new H1_TriangleElement(p);
-         H1_Elements[Geometry::SQUARE] = new H1_QuadrilateralElement(p,m_type);
+         H1_Elements[Geometry::SQUARE] = new H1_QuadrilateralElement(p,pt_type);
       }
 
       const int &TriDof = H1_dof[Geometry::TRIANGLE];
@@ -1530,7 +1533,7 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
          else
          {
             H1_Elements[Geometry::TETRAHEDRON] = new H1_TetrahedronElement(p);
-            H1_Elements[Geometry::CUBE] = new H1_HexahedronElement(p, m_type);
+            H1_Elements[Geometry::CUBE] = new H1_HexahedronElement(p, pt_type);
          }
       }
    }
@@ -1601,7 +1604,7 @@ H1_Trace_FECollection::H1_Trace_FECollection(const int p, const int dim,
 L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
 {
    // Corresponding to the BasisType enum of fe.hpp
-    int pt_type = Quadrature1D::Invalid;
+   int pt_type = Quadrature1D::Invalid;
    switch(type)
    {
        case BasisType::GaussLegendre:
@@ -1792,9 +1795,10 @@ L2_FECollection::~L2_FECollection()
    }
 }
 
-
 RT_FECollection::RT_FECollection(const int p, const int dim,
-                                 const int _cb_type , const int _ob_type)
+                                 const int _cb_type , const int _ob_type):
+         cp_type(Quadrature1D::Invalid),
+         op_type(Quadrature1D::Invalid)
 {
    if (_cb_type == BasisType::GaussLobatto)
    {
@@ -1852,6 +1856,9 @@ RT_FECollection::RT_FECollection(const int p, const int dim,
 void RT_FECollection::InitFaces(const int p, const int dim, const int map_type,
                                 const bool signs)
 {
+   if( op_type == Quadrature1D::Invalid)
+       MFEM_ABORT("Face basis point types not set");
+
    const int pp1 = p + 1, pp2 = p + 2;
 
    for (int g = 0; g < Geometry::NumGeom; g++)
@@ -1996,8 +2003,9 @@ RT_FECollection::~RT_FECollection()
 }
 
 RT_Trace_FECollection::RT_Trace_FECollection(const int p, const int dim,
-                                             const int map_type)
-   : RT_FECollection(p, dim, map_type, true)
+                                             const int map_type,
+                                             const int _ob_type)
+   : RT_FECollection(p, dim, map_type, true, _ob_type)
 {
    if (map_type == FiniteElement::INTEGRAL)
    {
@@ -2010,6 +2018,30 @@ RT_Trace_FECollection::RT_Trace_FECollection(const int p, const int dim,
 
    MFEM_VERIFY(dim == 2 || dim == 3, "Wrong dimension, dim = " << dim);
 }
+
+// This is a special constructor only used by RT_Trace_FECollection
+RT_FECollection::RT_FECollection(const int p, const int dim, const int map_type,
+                   const bool signs,
+                   const int _ob_type):
+                   cp_type(Quadrature1D::Invalid) ,
+                   op_type(Quadrature1D::Invalid)
+{
+   if( _ob_type == BasisType::GaussLegendre)
+   {
+       op_type = Quadrature1D::GaussLegendre;
+   }
+   else if (_ob_type == BasisType::OpenEquallySpaced)
+   {
+       op_type = Quadrature1D::OpenEquallySpaced;
+   }
+   else
+   {
+       MFEM_ABORT("Invalid open basis type for a RT Trace RT_FECollection."
+               << "_ob_type= " << _ob_type);
+   }
+   InitFaces(p, dim, map_type, signs);
+}
+
 
 DG_Interface_FECollection::DG_Interface_FECollection(const int p, const int dim,
                                                      const int map_type)
@@ -2028,7 +2060,7 @@ DG_Interface_FECollection::DG_Interface_FECollection(const int p, const int dim,
 }
 
 ND_FECollection::ND_FECollection(const int p, const int dim,
-                                 const int _op_type, const int _cp_type)
+                                 const int _cp_type, const int _op_type)
 {
    const int pm1 = p - 1, pm2 = p - 2;
 
@@ -2103,8 +2135,8 @@ ND_FECollection::ND_FECollection(const int p, const int dim,
 
    if (dim >= 2)
    {
-      ND_Elements[Geometry::SQUARE] = new ND_QuadrilateralElement(p, op_type,
-                                                                  cp_type);
+      ND_Elements[Geometry::SQUARE] = new ND_QuadrilateralElement(p, cp_type,
+                                                                  op_type);
       ND_dof[Geometry::SQUARE] = 2*p*pm1;
 
       ND_Elements[Geometry::TRIANGLE] = new ND_TriangleElement(p);
@@ -2184,7 +2216,7 @@ ND_FECollection::ND_FECollection(const int p, const int dim,
 
    if (dim >= 3)
    {
-      ND_Elements[Geometry::CUBE] = new ND_HexahedronElement(p, op_type, cp_type);
+      ND_Elements[Geometry::CUBE] = new ND_HexahedronElement(p, cp_type, op_type);
       ND_dof[Geometry::CUBE] = 3*p*pm1*pm1;
 
       ND_Elements[Geometry::TETRAHEDRON] = new ND_TetrahedronElement(p);

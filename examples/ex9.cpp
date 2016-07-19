@@ -164,7 +164,7 @@ int main(int argc, char *argv[])
    ///  Maginot capability example
    // use Lobatto interpolation (basis points)
    // pass in an integer of 1 since L2_FECollection::BasisType::GaussLobatto = 1
-   DG_FECollection fec(order, dim, 1);
+   DG_FECollection fec(order, dim, BasisType::GaussLobatto);
    FiniteElementSpace fes(mesh, &fec);
 
    cout << "Number of unknowns: " << fes.GetVSize() << endl;
@@ -194,7 +194,7 @@ int main(int argc, char *argv[])
   const double intPolyExactness = 20;
 
    const IntegrationRule *specialIntRule =
-           &moreAwesomeQuadrature.Get(geomType, order);
+           &moreAwesomeQuadrature.Get(geomType, intPolyExactness);
 
    // The mass matrix integration will use Lobatto quadrature
    m.AddDomainIntegrator(new MassIntegrator( specialIntRule ) );
