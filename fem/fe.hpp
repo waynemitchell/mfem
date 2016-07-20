@@ -18,6 +18,10 @@
 #include "intrules.hpp"
 #include "geom.hpp"
 
+#include <map>
+// #include <vector>
+
+
 namespace mfem
 {
 
@@ -1247,16 +1251,13 @@ public:
    };
 
 private:
-//   std::map<Quadrature1D , Array<double* > > open_pts, closed_pts;
-//   std::map<Quadrature1D , Array<Basis* > > open_basis, closed_basis;
+   // std::map< int, std::vector<double*> > open_pts;
+   //std::map< int, Array<double*> > open_pts;
+   std::map< int,  Array<double*>* > open_pts;
+   std::map< int , Array<Basis*>* > open_basis;
 
-   Array<double *> open_pts, closed_pts;
-   Array<Basis *> open_basis, closed_basis;
-
-#ifdef MFEM_DEBUG
-   Array<int> open_basis_type;
-   Array<int> closed_basis_type;
-#endif
+   Array<double *> closed_pts; // open_pts;
+   Array<Basis *> closed_basis; // , open_basis;
 
    static Array2D<int> binom;
 
