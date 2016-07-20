@@ -6499,36 +6499,36 @@ void Poly_1D::CalcChebyshev(const int p, const double x, double *u, double *d)
 
 const double *Poly_1D::OpenPoints(const int p, const int type)
 {
-    MFEM_ASSERT( (type != Quadrature1D::Invalid) ||
-                  (type != Quadrature1D::GaussLobatto) ||
-                  (type != Quadrature1D::ClosedEquallySpaced) ,
-            "Requesting to use a closed or invalid quadrature in OpenPoints");
+   MFEM_ASSERT( (type != Quadrature1D::Invalid) ||
+                (type != Quadrature1D::GaussLobatto) ||
+                (type != Quadrature1D::ClosedEquallySpaced) ,
+                "Requesting to use a closed or invalid quadrature in OpenPoints");
 
-    if( open_pts.find(type) == open_pts.end() )
-    {
-        open_pts[type] = new Array<double*>;
+   if ( open_pts.find(type) == open_pts.end() )
+   {
+      open_pts[type] = new Array<double*>;
 #ifdef MFEM_DEBUG
-        if(open_pts.size() > 1)
-        {
-            std::stringstream type_str;
-            type_str << "Points currently in open_pts corresponding to Quadrature1D"
-                    << " enum: ";
+      if (open_pts.size() > 1)
+      {
+         std::stringstream type_str;
+         type_str << "Points currently in open_pts corresponding to Quadrature1D"
+                  << " enum: ";
 
-            // This is not the problem
-            for( std::map< int , Array<double*>* >::iterator map_it
-                    = open_pts.begin(); map_it != open_pts.end(); ++map_it)
-            {
-                type_str << map_it->first << " , ";
-            }
+         // This is not the problem
+         for ( std::map< int , Array<double*>* >::iterator map_it
+               = open_pts.begin(); map_it != open_pts.end(); ++map_it)
+         {
+            type_str << map_it->first << " , ";
+         }
 
-            MFEM_WARNING("Multiple open points detected."
+         MFEM_WARNING("Multiple open points detected."
                       << "This may be OK or User may be breaking De Rham complex"
                       << type_str.str() );
-        }
+      }
 #endif
-    }
+   }
 
-    Array<double*>& pts = *open_pts[type];
+   Array<double*>& pts = *open_pts[type];
 
    if (pts.Size() <= p)
    {
@@ -6551,81 +6551,83 @@ const double *Poly_1D::OpenPoints(const int p, const int type)
 const double *Poly_1D::ClosedPoints(const int p, int type)
 {
    MFEM_ASSERT( (type != Quadrature1D::Invalid) ||
-                 (type != Quadrature1D::GaussLegendre) ||
-                 (type != Quadrature1D::OpenEquallySpaced) ,
-           "Requesting to use a open quadrature in ClosedPoints");
+                (type != Quadrature1D::GaussLegendre) ||
+                (type != Quadrature1D::OpenEquallySpaced) ,
+                "Requesting to use a open quadrature in ClosedPoints");
 
-   if( closed_pts.find(type) == closed_pts.end() )
+   if ( closed_pts.find(type) == closed_pts.end() )
    {
-       closed_pts[type] = new Array<double*>;
+      closed_pts[type] = new Array<double*>;
 
 #ifdef MFEM_DEBUG
-       if(closed_pts.size() > 1)
-       {
-           std::stringstream type_str;
-           type_str << "Points currently in closed_pts corresponding to Quadrature1D"
-                   << " enum: ";
+      if (closed_pts.size() > 1)
+      {
+         std::stringstream type_str;
+         type_str << "Points currently in closed_pts corresponding to Quadrature1D"
+                  << " enum: ";
 
-           // This is not the problem
-           for( std::map< int , Array<double*>* >::iterator map_it
-                   = closed_pts.begin(); map_it != closed_pts.end(); ++map_it)
-           {
-               type_str << map_it->first << " , ";
-           }
+         // This is not the problem
+         for ( std::map< int , Array<double*>* >::iterator map_it
+               = closed_pts.begin(); map_it != closed_pts.end(); ++map_it)
+         {
+            type_str << map_it->first << " , ";
+         }
 
-           MFEM_WARNING("Multiple closed points detected."
-                     << "This may be OK or User may be breaking De Rham complex"
-                     << type_str.str() );
-       }
+         MFEM_WARNING("Multiple closed points detected."
+                      << "This may be OK or User may be breaking De Rham complex"
+                      << type_str.str() );
+      }
 #endif
    }
 
    Array<double*>& pts = *closed_pts[type];
 
-  if (pts.Size() <= p)
-  {
-     int i = pts.Size();
-     pts.SetSize(p + 1);
-     for ( ; i <= p; i++)
-     {
-        pts[i] = NULL;
-     }
-  }
-  if (pts[p] == NULL)
-  {
-     pts[p] = new double[p + 1];
-     quad_func.GivePolyPoints(p+1,pts[p],type);
-  }
+   if (pts.Size() <= p)
+   {
+      int i = pts.Size();
+      pts.SetSize(p + 1);
+      for ( ; i <= p; i++)
+      {
+         pts[i] = NULL;
+      }
+   }
+   if (pts[p] == NULL)
+   {
+      pts[p] = new double[p + 1];
+      quad_func.GivePolyPoints(p+1,pts[p],type);
+   }
 
-  return pts[p];
+   return pts[p];
 }
 
 Poly_1D::Basis &Poly_1D::OpenBasis(const int p, const int type)
 {
-    MFEM_ASSERT( (type != Quadrature1D::Invalid) ||
-                  (type != Quadrature1D::GaussLobatto) ||
-                  (type != Quadrature1D::ClosedEquallySpaced) ,
-            "Requesting to use a closed quadrature in OpenBasis");
+   MFEM_ASSERT( (type != Quadrature1D::Invalid) ||
+                (type != Quadrature1D::GaussLobatto) ||
+                (type != Quadrature1D::ClosedEquallySpaced) ,
+                "Requesting to use a closed quadrature in OpenBasis");
 
-   if( open_basis.find(type) == open_basis.end() )
+   if ( open_basis.find(type) == open_basis.end() )
    {
-       // we haven't been asked for basis or points of this type yet
-       open_basis[type] = new Array<Basis*>() ;
+      // we haven't been asked for basis or points of this type yet
+      open_basis[type] = new Array<Basis*>() ;
 
-       // Complain/warn, but only if we are in debug mode
+      // Complain/warn, but only if we are in debug mode
 #ifdef MFEM_DEBUG
-       if( open_basis.size() != 1)
-       {
-           std::stringstream type_str;
-           type_str << "Entries corresponding to Quadrature1D enum in open_basis so far";
-           for( std::map<int , Array<Basis*>* >::iterator it = open_basis.begin();
-                   it != open_basis.end() ; ++it)
-               type_str << it->first << " , " ;
+      if ( open_basis.size() != 1)
+      {
+         std::stringstream type_str;
+         type_str << "Entries corresponding to Quadrature1D enum in open_basis so far";
+         for ( std::map<int , Array<Basis*>* >::iterator it = open_basis.begin();
+               it != open_basis.end() ; ++it)
+         {
+            type_str << it->first << " , " ;
+         }
 
-           MFEM_WARNING("Multiple open basis detected."
-                   << "This may be OK or User may be breaking De Rham complex"
-                   << type_str.str() );
-       }
+         MFEM_WARNING("Multiple open basis detected."
+                      << "This may be OK or User may be breaking De Rham complex"
+                      << type_str.str() );
+      }
 #endif
    }
 
@@ -6633,12 +6635,12 @@ Poly_1D::Basis &Poly_1D::OpenBasis(const int p, const int type)
 
    if (basis.Size() <= p)
    {
-       int i = basis.Size();
-       basis.SetSize(p + 1);
-       for ( ; i <= p; i++)
-       {
-           basis[i] = NULL;
-       }
+      int i = basis.Size();
+      basis.SetSize(p + 1);
+      for ( ; i <= p; i++)
+      {
+         basis[i] = NULL;
+      }
    }
    if (basis[p] == NULL)
    {
@@ -6650,30 +6652,32 @@ Poly_1D::Basis &Poly_1D::OpenBasis(const int p, const int type)
 
 Poly_1D::Basis &Poly_1D::ClosedBasis(const int p, const int type)
 {
-    MFEM_ASSERT( (type != Quadrature1D::Invalid) ||
-                  (type != Quadrature1D::GaussLegendre) ||
-                  (type != Quadrature1D::OpenEquallySpaced) ,
-            "Requesting to use a open quadrature in ClosedBasis");
+   MFEM_ASSERT( (type != Quadrature1D::Invalid) ||
+                (type != Quadrature1D::GaussLegendre) ||
+                (type != Quadrature1D::OpenEquallySpaced) ,
+                "Requesting to use a open quadrature in ClosedBasis");
 
-   if( closed_basis.find(type) == closed_basis.end() )
+   if ( closed_basis.find(type) == closed_basis.end() )
    {
-       // we haven't been asked for basis or points of this type yet
-       closed_basis[type] = new Array<Basis*>() ;
+      // we haven't been asked for basis or points of this type yet
+      closed_basis[type] = new Array<Basis*>() ;
 
-       // Complain/warn, but only if we are in debug mode
+      // Complain/warn, but only if we are in debug mode
 #ifdef MFEM_DEBUG
-       if( closed_basis.size() != 1)
-       {
-           std::stringstream type_str;
-           type_str << "Entries corresponding to Quadrature1D enum in closed_basis so far";
-           for( std::map<int , Array<Basis*>* >::iterator it = closed_basis.begin();
-                   it != closed_basis.end() ; ++it)
-               type_str << it->first << " , " ;
+      if ( closed_basis.size() != 1)
+      {
+         std::stringstream type_str;
+         type_str << "Entries corresponding to Quadrature1D enum in closed_basis so far";
+         for ( std::map<int , Array<Basis*>* >::iterator it = closed_basis.begin();
+               it != closed_basis.end() ; ++it)
+         {
+            type_str << it->first << " , " ;
+         }
 
-           MFEM_WARNING("Multiple closed basis detected."
-                   << "This may be OK or User may be breaking De Rham complex"
-                   << type_str.str() );
-       }
+         MFEM_WARNING("Multiple closed basis detected."
+                      << "This may be OK or User may be breaking De Rham complex"
+                      << type_str.str() );
+      }
 #endif
    }
 
@@ -6681,12 +6685,12 @@ Poly_1D::Basis &Poly_1D::ClosedBasis(const int p, const int type)
 
    if (basis.Size() <= p)
    {
-       int i = basis.Size();
-       basis.SetSize(p + 1);
-       for ( ; i <= p; i++)
-       {
-           basis[i] = NULL;
-       }
+      int i = basis.Size();
+      basis.SetSize(p + 1);
+      for ( ; i <= p; i++)
+      {
+         basis[i] = NULL;
+      }
    }
    if (basis[p] == NULL)
    {
@@ -6699,41 +6703,49 @@ Poly_1D::Basis &Poly_1D::ClosedBasis(const int p, const int type)
 Poly_1D::~Poly_1D()
 {
    for (std::map<int , Array<double*>*  >::iterator it = open_pts.begin() ;
-           it != open_pts.end() ; ++it )
+        it != open_pts.end() ; ++it )
    {
-       Array<double*>& pts = *it->second;
-       for( int i = 0 ; i < pts.Size() ; ++i )
-           delete [] pts[i];
+      Array<double*>& pts = *it->second;
+      for ( int i = 0 ; i < pts.Size() ; ++i )
+      {
+         delete [] pts[i];
+      }
 
-       delete it->second;
+      delete it->second;
    }
 
    for (std::map<int , Array<Basis*>*  >::iterator it = open_basis.begin() ;
-              it != open_basis.end() ; ++it )
-    {
-       Array<Basis*>& basis = *it->second;
-       for( int i = 0 ; i < basis.Size() ; ++i )
-          delete basis[i];
-
-       delete it->second;
-    }
-
-   for (std::map<int , Array<double*>*  >::iterator it = closed_pts.begin() ;
-              it != closed_pts.end() ; ++it )
-      {
-          Array<double*>& pts = *it->second;
-          for( int i = 0 ; i < pts.Size() ; ++i )
-              delete [] pts[i];
-
-          delete it->second;
-      }
-
-   for (std::map<int , Array<Basis*>*  >::iterator it = closed_basis.begin() ;
-                 it != closed_basis.end() ; ++it )
+        it != open_basis.end() ; ++it )
    {
       Array<Basis*>& basis = *it->second;
-      for( int i = 0 ; i < basis.Size() ; ++i )
+      for ( int i = 0 ; i < basis.Size() ; ++i )
+      {
          delete basis[i];
+      }
+
+      delete it->second;
+   }
+
+   for (std::map<int , Array<double*>*  >::iterator it = closed_pts.begin() ;
+        it != closed_pts.end() ; ++it )
+   {
+      Array<double*>& pts = *it->second;
+      for ( int i = 0 ; i < pts.Size() ; ++i )
+      {
+         delete [] pts[i];
+      }
+
+      delete it->second;
+   }
+
+   for (std::map<int , Array<Basis*>*  >::iterator it = closed_basis.begin() ;
+        it != closed_basis.end() ; ++it )
+   {
+      Array<Basis*>& basis = *it->second;
+      for ( int i = 0 ; i < basis.Size() ; ++i )
+      {
+         delete basis[i];
+      }
 
       delete it->second;
    }
@@ -6748,12 +6760,14 @@ H1_SegmentElement::H1_SegmentElement(const int p, const int type)
      dof_map(Dof)
 {
    if ( (type != Quadrature1D::GaussLobatto) &&
-           (type != Quadrature1D::ClosedEquallySpaced) )
+        (type != Quadrature1D::ClosedEquallySpaced) )
    {
       MFEM_ABORT("Unknown point type for H1 segment element.  type= " << type);
    }
    else
+   {
       pt_type = type;
+   }
 
    basis1d = &poly1d.ClosedBasis(p, pt_type);
    const double *cp = poly1d.ClosedPoints(p,pt_type);
@@ -6844,13 +6858,15 @@ H1_QuadrilateralElement::H1_QuadrilateralElement(const int p, const int type)
    : NodalFiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p,
                         FunctionSpace::Qk), dof_map((p + 1)*(p + 1))
 {
-    if ( (type != Quadrature1D::GaussLobatto) &&
-               (type != Quadrature1D::ClosedEquallySpaced) )
-    {
-        MFEM_ABORT("Unknown point type for H1 quadrilateral element.  type= " << type);
-    }
-    else
+   if ( (type != Quadrature1D::GaussLobatto) &&
+        (type != Quadrature1D::ClosedEquallySpaced) )
+   {
+      MFEM_ABORT("Unknown point type for H1 quadrilateral element.  type= " << type);
+   }
+   else
+   {
       pt_type = type;
+   }
 
    basis1d = &poly1d.ClosedBasis(p, pt_type);
    const double *cp = poly1d.ClosedPoints(p,pt_type);
@@ -6997,16 +7013,18 @@ H1_HexahedronElement::H1_HexahedronElement(const int p, const int type)
                         FunctionSpace::Qk),
      dof_map((p + 1)*(p + 1)*(p + 1))
 {
-    if ( (type != Quadrature1D::GaussLobatto) &&
-               (type != Quadrature1D::ClosedEquallySpaced) )
+   if ( (type != Quadrature1D::GaussLobatto) &&
+        (type != Quadrature1D::ClosedEquallySpaced) )
    {
       MFEM_ABORT("Unknown point type for H1 hexahdron element.  type= " << type);
    }
    else
+   {
       pt_type = type;
+   }
 
-    basis1d = &poly1d.ClosedBasis(p, pt_type);
-    const double *cp = poly1d.ClosedPoints(p,pt_type);
+   basis1d = &poly1d.ClosedBasis(p, pt_type);
+   const double *cp = poly1d.ClosedPoints(p,pt_type);
 
    const int p1 = p + 1;
 
@@ -8301,22 +8319,22 @@ L2_SegmentElement::L2_SegmentElement(const int p, const int _type)
    const double *op;
 
    type = _type;
-   if( (type==Quadrature1D::GaussLegendre) ||
-           (type==Quadrature1D::OpenEquallySpaced) )
+   if ( (type==Quadrature1D::GaussLegendre) ||
+        (type==Quadrature1D::OpenEquallySpaced) )
    {
-         basis1d = &poly1d.OpenBasis(p, type);
-         op = poly1d.OpenPoints(p, type);
+      basis1d = &poly1d.OpenBasis(p, type);
+      op = poly1d.OpenPoints(p, type);
    }
-   else if( (type==Quadrature1D::GaussLobatto) ||
-           (type==Quadrature1D::ClosedEquallySpaced) )
+   else if ( (type==Quadrature1D::GaussLobatto) ||
+             (type==Quadrature1D::ClosedEquallySpaced) )
    {
-       basis1d = &poly1d.ClosedBasis(p, type);
-       op = poly1d.ClosedPoints(p, type);
+      basis1d = &poly1d.ClosedBasis(p, type);
+      op = poly1d.ClosedPoints(p, type);
    }
    else
    {
-         MFEM_ABORT("Attempting to construct an unknown L2_Segment_Element" <<
-                    "Point Type= " << type);
+      MFEM_ABORT("Attempting to construct an unknown L2_Segment_Element" <<
+                 "Point Type= " << type);
    }
 
 #ifndef MFEM_THREAD_SAFE
@@ -8353,13 +8371,15 @@ void L2_SegmentElement::ProjectDelta(int vertex,
    const int p = Order;
    const double *op;
 
-  if( (type == Quadrature1D::GaussLegendre) ||
-          (type == Quadrature1D::OpenEquallySpaced))
-  {
+   if ( (type == Quadrature1D::GaussLegendre) ||
+        (type == Quadrature1D::OpenEquallySpaced))
+   {
       op = poly1d.OpenPoints(p,type);
-  }
-  else
+   }
+   else
+   {
       op = poly1d.ClosedPoints(p,type);
+   }
 
    switch (vertex)
    {
@@ -8432,22 +8452,22 @@ L2_QuadrilateralElement::L2_QuadrilateralElement(const int p, const int _type)
    const double *op;
 
    type = _type;
-   if( (type==Quadrature1D::GaussLegendre) ||
-           (type==Quadrature1D::OpenEquallySpaced) )
+   if ( (type==Quadrature1D::GaussLegendre) ||
+        (type==Quadrature1D::OpenEquallySpaced) )
    {
-         basis1d = &poly1d.OpenBasis(p, type);
-         op = poly1d.OpenPoints(p, type);
+      basis1d = &poly1d.OpenBasis(p, type);
+      op = poly1d.OpenPoints(p, type);
    }
-   else if( (type==Quadrature1D::GaussLobatto) ||
-           (type==Quadrature1D::ClosedEquallySpaced) )
+   else if ( (type==Quadrature1D::GaussLobatto) ||
+             (type==Quadrature1D::ClosedEquallySpaced) )
    {
-       basis1d = &poly1d.ClosedBasis(p, type);
-       op = poly1d.ClosedPoints(p, type);
+      basis1d = &poly1d.ClosedBasis(p, type);
+      op = poly1d.ClosedPoints(p, type);
    }
    else
    {
-         MFEM_ABORT("Attempting to construct an unknown L2_Quadrilateral_Element" <<
-                    "Point Type= " << type);
+      MFEM_ABORT("Attempting to construct an unknown L2_Quadrilateral_Element" <<
+                 "Point Type= " << type);
    }
 
 #ifndef MFEM_THREAD_SAFE
@@ -8508,13 +8528,15 @@ void L2_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
    const int p = Order;
    const double *op;
 
-   if( (type == Quadrature1D::GaussLegendre) ||
-           (type == Quadrature1D::OpenEquallySpaced) )
+   if ( (type == Quadrature1D::GaussLegendre) ||
+        (type == Quadrature1D::OpenEquallySpaced) )
    {
-       op = poly1d.OpenPoints(p,type);
+      op = poly1d.OpenPoints(p,type);
    }
    else
-       op = poly1d.ClosedPoints(p,type);
+   {
+      op = poly1d.ClosedPoints(p,type);
+   }
 
 
 #ifdef MFEM_THREAD_SAFE
@@ -8647,22 +8669,22 @@ L2_HexahedronElement::L2_HexahedronElement(const int p, const int _type)
    const double *op;
 
    type = _type;
-   if( (type==Quadrature1D::GaussLegendre) ||
-           (type==Quadrature1D::OpenEquallySpaced) )
+   if ( (type==Quadrature1D::GaussLegendre) ||
+        (type==Quadrature1D::OpenEquallySpaced) )
    {
-         basis1d = &poly1d.OpenBasis(p, type);
-         op = poly1d.OpenPoints(p, type);
+      basis1d = &poly1d.OpenBasis(p, type);
+      op = poly1d.OpenPoints(p, type);
    }
-   else if( (type==Quadrature1D::GaussLobatto) ||
-           (type==Quadrature1D::ClosedEquallySpaced) )
+   else if ( (type==Quadrature1D::GaussLobatto) ||
+             (type==Quadrature1D::ClosedEquallySpaced) )
    {
-       basis1d = &poly1d.ClosedBasis(p, type);
-       op = poly1d.ClosedPoints(p, type);
+      basis1d = &poly1d.ClosedBasis(p, type);
+      op = poly1d.ClosedPoints(p, type);
    }
    else
    {
-         MFEM_ABORT("Attempting to construct an unknown L2_Hexahedront_Element" <<
-                    "Point Type= " << type);
+      MFEM_ABORT("Attempting to construct an unknown L2_Hexahedront_Element" <<
+                 "Point Type= " << type);
    }
 
 #ifndef MFEM_THREAD_SAFE
@@ -8732,13 +8754,15 @@ void L2_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
    const int p = Order;
    const double *op;
 
-   if( (type == Quadrature1D::GaussLegendre) ||
-           (type ==Quadrature1D::OpenEquallySpaced))
+   if ( (type == Quadrature1D::GaussLegendre) ||
+        (type ==Quadrature1D::OpenEquallySpaced))
    {
-       op = poly1d.OpenPoints(p,type);
+      op = poly1d.OpenPoints(p,type);
    }
    else
-       op = poly1d.ClosedPoints(p,type);
+   {
+      op = poly1d.ClosedPoints(p,type);
+   }
 
 #ifdef MFEM_THREAD_SAFE
    Vector shape_x(p+1), shape_y(p+1);
@@ -9325,20 +9349,20 @@ RT_QuadrilateralElement::RT_QuadrilateralElement(const int p,
      dof_map(Dof), dof2nk(Dof)
 {
    /// We expect RT_FECollection to already have done the error checking
-    /// Make sure we haven't missed anything though
-   if( (cp_type != Quadrature1D::GaussLobatto) &&
-       (cp_type != Quadrature1D::ClosedEquallySpaced) )
+   /// Make sure we haven't missed anything though
+   if ( (cp_type != Quadrature1D::GaussLobatto) &&
+        (cp_type != Quadrature1D::ClosedEquallySpaced) )
    {
-       MFEM_ABORT("Unknown closed point type for RT_quad element." <<
-               "cp_type= " << cp_type);
+      MFEM_ABORT("Unknown closed point type for RT_quad element." <<
+                 "cp_type= " << cp_type);
    }
 
-   if( (op_type != Quadrature1D::GaussLegendre) &&
-          (cp_type != Quadrature1D::OpenEquallySpaced) )
-    {
+   if ( (op_type != Quadrature1D::GaussLegendre) &&
+        (cp_type != Quadrature1D::OpenEquallySpaced) )
+   {
       MFEM_ABORT("Unknown open point type for RT_quad element." <<
-              "op_type= " << op_type);
-    }
+                 "op_type= " << op_type);
+   }
 
    cbasis1d = &poly1d.ClosedBasis(p + 1, cp_type);
    obasis1d = &poly1d.OpenBasis(p,  op_type);
@@ -9554,19 +9578,19 @@ RT_HexahedronElement::RT_HexahedronElement(const int p,
 {
    // convert from the CloedBasisType and OpenBasisType of RT_FECollection
    // also do some error checking :-)
-    if( (cp_type != Quadrature1D::GaussLobatto) &&
-       (cp_type != Quadrature1D::ClosedEquallySpaced) )
-    {
-       MFEM_ABORT("Unknown closed point type for RT_hex element." <<
-               "cp_type= " << cp_type);
-    }
+   if ( (cp_type != Quadrature1D::GaussLobatto) &&
+        (cp_type != Quadrature1D::ClosedEquallySpaced) )
+   {
+      MFEM_ABORT("Unknown closed point type for RT_hex element." <<
+                 "cp_type= " << cp_type);
+   }
 
-    if( (op_type != Quadrature1D::GaussLegendre) &&
-          (cp_type != Quadrature1D::OpenEquallySpaced) )
-    {
+   if ( (op_type != Quadrature1D::GaussLegendre) &&
+        (cp_type != Quadrature1D::OpenEquallySpaced) )
+   {
       MFEM_ABORT("Unknown open point type for RT_hex element." <<
-              "op_type= " << op_type);
-    }
+                 "op_type= " << op_type);
+   }
 
    cbasis1d = &poly1d.ClosedBasis(p + 1, cp_type);
    obasis1d = &poly1d.OpenBasis(p , op_type);
@@ -10217,10 +10241,10 @@ ND_HexahedronElement::ND_HexahedronElement(const int p,
      dof_map(Dof), dof2tk(Dof)
 {
    if ( (cp_type !=  Quadrature1D::GaussLobatto) &&
-           (cp_type != Quadrature1D::ClosedEquallySpaced) )
+        (cp_type != Quadrature1D::ClosedEquallySpaced) )
    {
-       MFEM_ABORT("Unknown closed pt type for ND hexahedron element.  cp_type= " <<
-                        cp_type);
+      MFEM_ABORT("Unknown closed pt type for ND hexahedron element.  cp_type= " <<
+                 cp_type);
    }
    else
    {
@@ -10228,11 +10252,11 @@ ND_HexahedronElement::ND_HexahedronElement(const int p,
       cbasis1d = &poly1d.ClosedBasis(p-1, cp_type);
    }
 
-   if( (op_type != Quadrature1D::GaussLegendre) &&
-           (op_type != Quadrature1D::OpenEquallySpaced) )
+   if ( (op_type != Quadrature1D::GaussLegendre) &&
+        (op_type != Quadrature1D::OpenEquallySpaced) )
    {
-       MFEM_ABORT("Unknown open basis type for ND hexahedron element.  op_type= " <<
-                       op_type);
+      MFEM_ABORT("Unknown open basis type for ND hexahedron element.  op_type= " <<
+                 op_type);
    }
    else
    {
@@ -10610,21 +10634,21 @@ ND_QuadrilateralElement::ND_QuadrilateralElement(const int p,
 
 
    if ( (cp_type != Quadrature1D::GaussLobatto) &&
-           (cp_type != Quadrature1D::ClosedEquallySpaced) )
+        (cp_type != Quadrature1D::ClosedEquallySpaced) )
    {
-       MFEM_ABORT("Unknown closed pt type for ND quadrilateral element.  cp_type= " <<
-                        cp_type);
+      MFEM_ABORT("Unknown closed pt type for ND quadrilateral element.  cp_type= " <<
+                 cp_type);
    }
    else
    {
-       cbasis1d = &poly1d.ClosedBasis(p, cp_type);
+      cbasis1d = &poly1d.ClosedBasis(p, cp_type);
    }
 
    if ( (op_type != Quadrature1D::GaussLegendre) &&
-           (op_type != Quadrature1D::OpenEquallySpaced))
+        (op_type != Quadrature1D::OpenEquallySpaced))
    {
-         MFEM_ABORT("Unknown open pt type for ND quadrilateral element.  op_type= " <<
-                    op_type);
+      MFEM_ABORT("Unknown open pt type for ND quadrilateral element.  op_type= " <<
+                 op_type);
    }
    else
    {
@@ -11241,10 +11265,10 @@ ND_SegmentElement::ND_SegmentElement(const int p,
                          H_CURL, FunctionSpace::Pk), dof2tk(Dof)
 {
    if ((op_type != Quadrature1D::GaussLegendre) &&
-           (op_type != Quadrature1D::OpenEquallySpaced) )
+       (op_type != Quadrature1D::OpenEquallySpaced) )
    {
-         MFEM_ABORT("Unknown open basis type for ND segment element.  op_type= " <<
-                    op_type);
+      MFEM_ABORT("Unknown open basis type for ND segment element.  op_type= " <<
+                 op_type);
    }
    else
    {

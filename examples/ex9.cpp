@@ -191,10 +191,10 @@ int main(int argc, char *argv[])
    int geomType = mesh->GetElement(el_num)->GetGeometryType();
 
    // this should be exact integration (through  6th order elements on 6th order meshes)
-  const double intPolyExactness = 20;
+   const double intPolyExactness = 20;
 
    const IntegrationRule *specialIntRule =
-           &moreAwesomeQuadrature.Get(geomType, intPolyExactness);
+      &moreAwesomeQuadrature.Get(geomType, intPolyExactness);
 
    // The mass matrix integration will use Lobatto quadrature
    m.AddDomainIntegrator(new MassIntegrator( specialIntRule ) );

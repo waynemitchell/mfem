@@ -426,12 +426,14 @@ protected:
       switch (type)
       {
          case BasisType::GaussLegendre:
-             my_fe = new L2_FE_type(P, type);
-             my_fe_1d = (TP && dim != 1) ? new L2_SegmentElement(P, Quadrature1D::GaussLegendre) : NULL;
-             break;
+            my_fe = new L2_FE_type(P, type);
+            my_fe_1d = (TP &&
+                        dim != 1) ? new L2_SegmentElement(P, Quadrature1D::GaussLegendre) : NULL;
+            break;
          case BasisType::GaussLobatto:
             my_fe = new L2_FE_type(P, type);
-            my_fe_1d = (TP && dim != 1) ? new L2_SegmentElement(P, Quadrature1D::GaussLobatto) : NULL;
+            my_fe_1d = (TP &&
+                        dim != 1) ? new L2_SegmentElement(P, Quadrature1D::GaussLobatto) : NULL;
             break;
          case BasisType::Positive:
             my_fe = new L2Pos_FE_type(P);

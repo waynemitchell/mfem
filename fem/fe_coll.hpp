@@ -136,7 +136,7 @@ private:
 
 public:
    L2_FECollection(const int p, const int dim,
-           const int type = BasisType::GaussLegendre);
+                   const int type = BasisType::GaussLegendre);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return L2_Elements[GeomType]; }
