@@ -19,8 +19,6 @@
 #include "geom.hpp"
 
 #include <map>
-// #include <vector>
-
 
 namespace mfem
 {
@@ -1251,13 +1249,8 @@ public:
    };
 
 private:
-   // std::map< int, std::vector<double*> > open_pts;
-   //std::map< int, Array<double*> > open_pts;
-   std::map< int,  Array<double*>* > open_pts;
-   std::map< int , Array<Basis*>* > open_basis;
-
-   Array<double *> closed_pts; // open_pts;
-   Array<Basis *> closed_basis; // , open_basis;
+   std::map< int,  Array<double*>* > closed_pts, open_pts;
+   std::map< int , Array<Basis*>* > closed_basis, open_basis;
 
    static Array2D<int> binom;
 

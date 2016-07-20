@@ -6504,30 +6504,9 @@ const double *Poly_1D::OpenPoints(const int p, const int type)
                   (type != Quadrature1D::ClosedEquallySpaced) ,
             "Requesting to use a closed or invalid quadrature in OpenPoints");
 
-
-    // This will be an Array of double* ???
-    if( (open_pts.find(type) == open_pts.end()) )
+    if( open_pts.find(type) == open_pts.end() )
     {
         open_pts[type] = new Array<double*>;
-
-        // This works
-      //  open_pts[type] = std::vector<double*>(1, NULL);
-
-        // No match for operator=
-        //open_pts[type] = Array<double*>();
-//         open_pts[type] = Array<double*>(0 ,0 );
-
-        // expected a primary expression after ]
-        // open_pts[type]Array<double*>();
-       // open_pts[type]<double*>();
-      //  open_pts[type]();
-
-        // Array copy constructor is private
-       // open_pts[type].SetSize(1, NULL);
-       // open_pts[type].SetSize(1);
-
-        // Also does not work
-//        open_pts.insert(std::pair<int , Array<double*> >( type , Array<double*>() ) );
 #ifdef MFEM_DEBUG
         if(open_pts.size() > 1)
         {
@@ -6549,14 +6528,6 @@ const double *Poly_1D::OpenPoints(const int p, const int type)
 #endif
     }
 
-    // This works
-  //  std::vector<double*> &pts_vec = open_pts[type];
-
-    // This does not
-  //   Array<double*> &pts = open_pts[type];
-
-    // this I used to just try and compile the higher up lines
- //   Array<double*> &pts = open_pts[type];
     Array<double*>& pts = *open_pts[type];
 
    if (pts.Size() <= p)
@@ -6570,7 +6541,6 @@ const double *Poly_1D::OpenPoints(const int p, const int type)
    }
    if (pts[p] == NULL)
    {
-      //double* data = pts[p];
       pts[p] = new double[p + 1];
       quad_func.GivePolyPoints(p+1,pts[p],type);
    }
@@ -6585,22 +6555,49 @@ const double *Poly_1D::ClosedPoints(const int p, int type)
                  (type != Quadrature1D::OpenEquallySpaced) ,
            "Requesting to use a open quadrature in ClosedPoints");
 
-   if (closed_pts.Size() <= p)
+   if( closed_pts.find(type) == closed_pts.end() )
    {
-      int i = closed_pts.Size();
-      closed_pts.SetSize(p + 1);
-      for ( ; i <= p; i++)
-      {
-         closed_pts[i] = NULL;
-      }
-   }
-   if (closed_pts[p] == NULL)
-   {
-      closed_pts[p] = new double[p + 1];
-      quad_func.GivePolyPoints(p+1, closed_pts[p],type);
+       closed_pts[type] = new Array<double*>;
+
+#ifdef MFEM_DEBUG
+       if(closed_pts.size() > 1)
+       {
+           std::stringstream type_str;
+           type_str << "Points currently in closed_pts corresponding to Quadrature1D"
+                   << " enum: ";
+
+           // This is not the problem
+           for( std::map< int , Array<double*>* >::iterator map_it
+                   = closed_pts.begin(); map_it != closed_pts.end(); ++map_it)
+           {
+               type_str << map_it->first << " , ";
+           }
+
+           MFEM_WARNING("Multiple closed points detected."
+                     << "This may be OK or User may be breaking De Rham complex"
+                     << type_str.str() );
+       }
+#endif
    }
 
-   return closed_pts[p];
+   Array<double*>& pts = *closed_pts[type];
+
+  if (pts.Size() <= p)
+  {
+     int i = pts.Size();
+     pts.SetSize(p + 1);
+     for ( ; i <= p; i++)
+     {
+        pts[i] = NULL;
+     }
+  }
+  if (pts[p] == NULL)
+  {
+     pts[p] = new double[p + 1];
+     quad_func.GivePolyPoints(p+1,pts[p],type);
+  }
+
+  return pts[p];
 }
 
 Poly_1D::Basis &Poly_1D::OpenBasis(const int p, const int type)
@@ -6608,7 +6605,7 @@ Poly_1D::Basis &Poly_1D::OpenBasis(const int p, const int type)
     MFEM_ASSERT( (type != Quadrature1D::Invalid) ||
                   (type != Quadrature1D::GaussLobatto) ||
                   (type != Quadrature1D::ClosedEquallySpaced) ,
-            "Reuesting to use a closed quadrature in OpenBasis");
+            "Requesting to use a closed quadrature in OpenBasis");
 
    if( open_basis.find(type) == open_basis.end() )
    {
@@ -6620,12 +6617,12 @@ Poly_1D::Basis &Poly_1D::OpenBasis(const int p, const int type)
        if( open_basis.size() != 1)
        {
            std::stringstream type_str;
-           type_str << "Entries corresponding to Quadrature1D enum in open_pts so far";
+           type_str << "Entries corresponding to Quadrature1D enum in open_basis so far";
            for( std::map<int , Array<Basis*>* >::iterator it = open_basis.begin();
                    it != open_basis.end() ; ++it)
                type_str << it->first << " , " ;
 
-           MFEM_WARNING("Multiple open points detected."
+           MFEM_WARNING("Multiple open basis detected."
                    << "This may be OK or User may be breaking De Rham complex"
                    << type_str.str() );
        }
@@ -6650,40 +6647,53 @@ Poly_1D::Basis &Poly_1D::OpenBasis(const int p, const int type)
 
    return *basis[p];
 }
-/*
-   if (open_basis.Size() <= p)
-   {
-      int i = open_basis.Size();
-      open_basis.SetSize(p + 1);
-      for ( ; i <= p; i++)
-      {
-         open_basis[i] = NULL;
-      }
-   }
-   if (open_basis[p] == NULL)
-   {
-      open_basis[p] = new Basis(p, OpenPoints(p,type));
-   }
-
-   return *open_basis[p];
-} */
 
 Poly_1D::Basis &Poly_1D::ClosedBasis(const int p, const int type)
 {
-   if (closed_basis.Size() <= p)
+    MFEM_ASSERT( (type != Quadrature1D::Invalid) ||
+                  (type != Quadrature1D::GaussLegendre) ||
+                  (type != Quadrature1D::OpenEquallySpaced) ,
+            "Requesting to use a open quadrature in ClosedBasis");
+
+   if( closed_basis.find(type) == closed_basis.end() )
    {
-      int i = closed_basis.Size();
-      closed_basis.SetSize(p + 1);
-      for ( ; i <= p; i++)
-      {
-         closed_basis[i] = NULL;
-      }
+       // we haven't been asked for basis or points of this type yet
+       closed_basis[type] = new Array<Basis*>() ;
+
+       // Complain/warn, but only if we are in debug mode
+#ifdef MFEM_DEBUG
+       if( closed_basis.size() != 1)
+       {
+           std::stringstream type_str;
+           type_str << "Entries corresponding to Quadrature1D enum in closed_basis so far";
+           for( std::map<int , Array<Basis*>* >::iterator it = closed_basis.begin();
+                   it != closed_basis.end() ; ++it)
+               type_str << it->first << " , " ;
+
+           MFEM_WARNING("Multiple closed basis detected."
+                   << "This may be OK or User may be breaking De Rham complex"
+                   << type_str.str() );
+       }
+#endif
    }
-   if (closed_basis[p] == NULL)
+
+   Array<Basis*>& basis = *closed_basis[type];
+
+   if (basis.Size() <= p)
    {
-      closed_basis[p] = new Basis(p, ClosedPoints(p, type));
+       int i = basis.Size();
+       basis.SetSize(p + 1);
+       for ( ; i <= p; i++)
+       {
+           basis[i] = NULL;
+       }
    }
-   return *closed_basis[p];
+   if (basis[p] == NULL)
+   {
+      basis[p] = new Basis(p, ClosedPoints(p,type));
+   }
+
+   return *basis[p];
 }
 
 Poly_1D::~Poly_1D()
@@ -6708,14 +6718,24 @@ Poly_1D::~Poly_1D()
        delete it->second;
     }
 
-   for (int i = 0; i < closed_pts.Size(); i++)
-   {
-      delete [] closed_pts[i];
-   }
+   for (std::map<int , Array<double*>*  >::iterator it = closed_pts.begin() ;
+              it != closed_pts.end() ; ++it )
+      {
+          Array<double*>& pts = *it->second;
+          for( int i = 0 ; i < pts.Size() ; ++i )
+              delete [] pts[i];
 
-   for (int i = 0; i < closed_basis.Size(); i++)
+          delete it->second;
+      }
+
+   for (std::map<int , Array<Basis*>*  >::iterator it = closed_basis.begin() ;
+                 it != closed_basis.end() ; ++it )
    {
-      delete closed_basis[i];
+      Array<Basis*>& basis = *it->second;
+      for( int i = 0 ; i < basis.Size() ; ++i )
+         delete basis[i];
+
+      delete it->second;
    }
 }
 
