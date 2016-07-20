@@ -1300,9 +1300,6 @@ public:
    static double CalcDelta(const int p, const double x)
    { return pow(x, (double) p); }
 
-   static void UniformPoints(const int p, double *x);
-   static void GaussPoints(const int p, double *x);
-   static void GaussLobattoPoints(const int p, double *x);
    static void ChebyshevPoints(const int p, double *x);
 
    /// Compute the terms in the expansion of the binomial (x + y)^p
