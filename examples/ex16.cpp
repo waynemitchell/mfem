@@ -3,11 +3,17 @@
 // Compile with: make ex16
 //
 // Sample runs:
-//    ex16 -s 3 --alpha 0.1 --kappa 0.1
+//    ex16 
+//    ex16 -s 1 -a 0.0 -k 1.0
+//    ex16 -s 2 -a 1.0 -k 0.0
+//    ex16 -s 3 -a 0.5 -k 0.5 -o 4
+//    ex16 -s 14 -dt 1.0e-4 -tf 4.0e-2 -vs 40
+//    ex16 -m ../data/fichera-q2.mesh
+//    ex16 -m ../data/escher.mesh
 //
 // Description:  This examples solves a time dependent nonlinear heat equation
-//               problem of the form du/dt = C(u), where C is a
-//               non-linear Laplacian C(u) = \nabla \cdot (\kappa + \alpha u) \nabla u.
+//               problem of the form du/dt = C(u), where C is a non-linear diffusion 
+//               operator C(u) = \nabla \cdot (\kappa + \alpha u) \nabla u.
 //
 //               The example demonstrates the use of nonlinear operators (the
 //               class ConductionOperator defining C(u)), as well as their
@@ -48,21 +54,19 @@ protected:
    CGSolver K_solver; // Implicit solver for M + dt K
    DSmoother K_prec; // Preconditioner for the implicit solver
 
-   Vector u_alpha; // \kappa + \alpha * u at the previous time
-
    double alpha, kappa;
 
    mutable Vector z; // auxiliary vector
 
 public:
-   ConductionOperator(FiniteElementSpace &f, double alpha, double kappa, const Vector &u_);
+   ConductionOperator(FiniteElementSpace &f, double alpha, double kappa, const Vector &u);
 
    virtual void Mult(const Vector &u, Vector &du_dt) const;
    /** Solve the Backward-Euler equation: k = f(u + dt*k, t), for the unknown k.
        This is the only requirement for high-order SDIRK implicit integration.*/
    virtual void ImplicitSolve(const double dt, const Vector &u, Vector &k);
 
-   void SetParameters(const Vector &u_);
+   void SetParameters(const Vector &u);
 
    virtual ~ConductionOperator();
 };
@@ -241,7 +245,6 @@ int main(int argc, char *argv[])
 
          if (visualization)
          {
-            u_gf = u;
             sout << "solution\n" << *mesh << u_gf << flush;
          }
 
@@ -258,7 +261,6 @@ int main(int argc, char *argv[])
    // 10. Save the final solution. This output can be viewed later using GLVis:
    //    "glvis -m ex16.mesh -g ex16-final.gf".
    {
-      u_gf = u;
       ofstream osol("ex16-final.gf");
       osol.precision(precision);
       u_gf.Save(osol);
@@ -271,8 +273,8 @@ int main(int argc, char *argv[])
    return 0;
 }
 
-ConductionOperator::ConductionOperator(FiniteElementSpace &f, double al, double kap, const Vector &u_)
-   : TimeDependentOperator(f.GetVSize(), 0.0), fespace(f), M(NULL), K(NULL), u_alpha(height), z(height)
+ConductionOperator::ConductionOperator(FiniteElementSpace &f, double al, double kap, const Vector &u)
+   : TimeDependentOperator(f.GetVSize(), 0.0), fespace(f), M(NULL), K(NULL), z(height)
 {
    const double rel_tol = 1e-8;
    const int skip_zero_entries = 0;
@@ -300,12 +302,15 @@ ConductionOperator::ConductionOperator(FiniteElementSpace &f, double al, double 
    K_solver.SetPrintLevel(0);
    K_solver.SetPreconditioner(K_prec);
    
-   SetParameters(u_);
+   SetParameters(u);
 
 }
 
 void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
 {
+   // Compute:
+   //    du_dt = M^{-1}*-K(u)
+   // for du_dt
    K->Mult(u, z);
    z.Neg(); // z = -z
    M_solver.Mult(z, du_dt);
@@ -316,20 +321,22 @@ void ConductionOperator::ImplicitSolve(const double dt,
 {
    // Solve the equation:
    //    du_dt = M^{-1}*[-K(u + dt*du_dt)]
-
+   // for du_dt
    SparseMatrix *T = Add(1.0, M->SpMat(), dt, K->SpMat());
    K_solver.SetOperator(*T);
    K->Mult(u, z);
    z.Neg();
    K_solver.Mult(z, du_dt);
+   delete T;
 }
 
-void ConductionOperator::SetParameters(const Vector &u_)
+void ConductionOperator::SetParameters(const Vector &u)
 {
    const int skip_zero_entries = 0;
 
+   Vector u_alpha(height);
    u_alpha = kappa;
-   u_alpha.Add(alpha, u_);
+   u_alpha.Add(alpha, u);
 
    delete K;
 
@@ -342,7 +349,6 @@ void ConductionOperator::SetParameters(const Vector &u_)
    K->AddDomainIntegrator(new DiffusionIntegrator(u_coeff));
    K->Assemble(skip_zero_entries);
    K->Finalize(skip_zero_entries);
-
 }
 
 ConductionOperator::~ConductionOperator()

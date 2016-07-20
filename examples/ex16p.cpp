@@ -3,11 +3,17 @@
 // Compile with: make ex16p
 //
 // Sample runs:
-//    mpirun -np 4ex16 -s 3 --alpha 0.1 --kappa 0.1
+//    mpirun -np 4 ex16p 
+//    mpirun -np 4 ex16p -s 1 -a 0.0 -k 1.0
+//    mpirun -np 4 ex16p -s 2 -a 1.0 -k 0.0
+//    mpirun -np 8 ex16p -s 3 -a 0.5 -k 0.5 -o 4
+//    mpirun -np 4 ex16p -s 14 -dt 1.0e-4 -tf 4.0e-2 -vs 40
+//    mpirun -np 16 ex16p -m ../data/fichera-q2.mesh
+//    mpirun -np 16 ex16p -m ../data/escher-p2.mesh
 //
 // Description:  This examples solves a time dependent nonlinear heat equation
-//               problem of the form du/dt = C(u), where C is a
-//               non-linear Laplacian C(u) = \nabla \cdot (\kappa + \alpha u) \nabla u.
+//               problem of the form du/dt = C(u), where C is a non-linear diffusion 
+//               operator C(u) = \nabla \cdot (\kappa + \alpha u) \nabla u.
 //
 //               The example demonstrates the use of nonlinear operators (the
 //               class ConductionOperator defining C(u)), as well as their
@@ -56,14 +62,14 @@ protected:
    mutable Vector z; // auxiliary vector
 
 public:
-   ConductionOperator(ParFiniteElementSpace &f, double alpha, double kappa, const Vector &u_);
+   ConductionOperator(ParFiniteElementSpace &f, double alpha, double kappa, const Vector &u);
 
    virtual void Mult(const Vector &u, Vector &du_dt) const;
    /** Solve the Backward-Euler equation: k = f(u + dt*k, t), for the unknown k.
        This is the only requirement for high-order SDIRK implicit integration.*/
    virtual void ImplicitSolve(const double dt, const Vector &u, Vector &k);
 
-   void SetParameters(const Vector &u_);
+   void SetParameters(const Vector &u);
 
    virtual ~ConductionOperator();
 };
@@ -81,7 +87,7 @@ int main(int argc, char *argv[])
    // 2. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
    int ser_ref_levels = 2;
-   int par_ref_levels = 0;
+   int par_ref_levels = 1;
    int order = 2;
    int ode_solver_type = 3;
    double t_final = 0.5;
@@ -127,9 +133,13 @@ int main(int argc, char *argv[])
    if (!args.Good())
    {
       args.PrintUsage(cout);
+      MPI_Finalize();
       return 1;
    }
-   args.PrintOptions(cout);
+
+   if (myid == 0) {
+      args.PrintOptions(cout);
+   }
 
    // 3. Read the serial mesh from the given mesh file on all processors. We can
    //    handle triangular, quadrilateral, tetrahedral and hexahedral meshes
@@ -202,7 +212,7 @@ int main(int argc, char *argv[])
 
    VisItDataCollection visit_dc("Example16-Parallel", pmesh);
    visit_dc.RegisterField("temperature", &u_gf);
-   if (visualization)
+   if (visit)
    {
       visit_dc.SetCycle(0);
       visit_dc.SetTime(0.0);
@@ -256,6 +266,7 @@ int main(int argc, char *argv[])
 
       if (last_step || (ti % vis_steps) == 0)
       {
+         u_gf = *u;  
          
          if (myid == 0) {
             cout << "step " << ti << ", t = " << t << endl;
@@ -263,7 +274,6 @@ int main(int argc, char *argv[])
 
          if (visualization)
          {
-            u_gf = *u;
             sout << "parallel " << num_procs << " " << myid << "\n";
             sout << "solution\n" << *pmesh << u_gf << flush;
          }
@@ -314,7 +324,7 @@ ConductionOperator::ConductionOperator(ParFiniteElementSpace &f, double al, doub
    M_solver.SetRelTol(rel_tol);
    M_solver.SetAbsTol(0.0);
    M_solver.SetMaxIter(100);
-   M_solver.SetPrintLevel(1);
+   M_solver.SetPrintLevel(0);
    M_prec.SetType(HypreSmoother::Jacobi);
    M_solver.SetPreconditioner(M_prec);
    M_solver.SetOperator(*Mmat);
@@ -358,7 +368,6 @@ void ConductionOperator::ImplicitSolve(const double dt,
    
    delete localT;
    delete T;
-
 }
 
 void ConductionOperator::SetParameters(const Vector &u)
