@@ -219,6 +219,18 @@ int main(int argc, char *argv[])
       visit_dc.Save();
    }
 
+   {
+      ostringstream mesh_name, sol_name;
+      mesh_name << "ex16-mesh." << setfill('0') << setw(6) << myid;
+      sol_name << "ex16-init." << setfill('0') << setw(6) << myid;
+      ofstream omesh(mesh_name.str().c_str());
+      omesh.precision(precision);
+      pmesh->Print(omesh);
+      ofstream osol(sol_name.str().c_str());
+      osol.precision(precision);
+      u_gf.Save(osol);
+   }
+
    socketstream sout;
    if (visualization)
    {
