@@ -169,6 +169,9 @@ void SidreDataCollection::SetupMeshBlueprint()
 
 double* SidreDataCollection::GetFieldData(const char *field_name, int sz)
 {
+    // NOTE: WE only handle scalar fields right now
+    //       Need to add support for vector fields as well
+
     namespace sidre = asctoolkit::sidre;
 
     sidre::DataGroup* f = sidre_dc_group->getGroup("fields");
@@ -176,6 +179,17 @@ double* SidreDataCollection::GetFieldData(const char *field_name, int sz)
     {
         sidre::DataGroup* grp = f->createGroup( field_name );
         grp->createViewAndAllocate("values", sidre::DOUBLE_ID, sz);
+    }
+    else
+    {
+        // Need to handle a case where the user is requesting a larger field
+        sidre::DataView* valsView = f->getGroup( field_name)->getView("values");
+        int valSz = valsView->getNumElements();
+
+        if(valSz < sz)
+        {
+            valsView->reallocate(sz);
+        }
     }
 
     return f->getGroup(field_name)->getView("values")->getArray();
@@ -234,6 +248,10 @@ void SidreDataCollection::RegisterField(const char* field_name, GridFunction *gf
       if(!grp->hasView("basis"))
       {
           grp->createViewString("basis", gf->FESpace()->FEColl()->Name());
+      }
+      else
+      {   // overwrite the basis string
+          grp->getView("basis")->setString(gf->FESpace()->FEColl()->Name() );
       }
   }
 
