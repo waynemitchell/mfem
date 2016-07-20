@@ -175,11 +175,17 @@ ifeq ($(MFEM_USE_NETCDF),YES)
    ALL_LIBS += $(NETCDF_LIB)
 endif
 
+# PETSc library configuration
+ifeq ($(MFEM_USE_PETSC),YES)
+   INCFLAGS += -I/$(PETSC_DIR)/$(PETSC_ARCH)/include
+   ALL_LIBS += $(PETSC_LIB)
+endif
+
 # List of all defines that may be enabled in config.hpp and config.mk:
 MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_USE_LAPACK\
  MFEM_THREAD_SAFE MFEM_USE_OPENMP MFEM_USE_MEMALLOC MFEM_TIMER_TYPE\
  MFEM_USE_MESQUITE MFEM_USE_SUITESPARSE MFEM_USE_GECKO MFEM_USE_SUPERLU\
- MFEM_USE_GNUTLS MFEM_USE_NETCDF
+ MFEM_USE_GNUTLS MFEM_USE_NETCDF MFEM_USE_PETSC
 
 # List of makefile variables that will be written to config.mk:
 MFEM_CONFIG_VARS = MFEM_CXX MFEM_CPPFLAGS MFEM_CXXFLAGS MFEM_INC_DIR\
@@ -351,6 +357,7 @@ status info:
 	$(info MFEM_USE_GECKO       = $(MFEM_USE_GECKO))
 	$(info MFEM_USE_GNUTLS      = $(MFEM_USE_GNUTLS))
 	$(info MFEM_USE_NETCDF      = $(MFEM_USE_NETCDF))
+	$(info MFEM_USE_PETSC       = $(MFEM_USE_PETSC))
 	$(info MFEM_CXX             = $(value MFEM_CXX))
 	$(info MFEM_CPPFLAGS        = $(value MFEM_CPPFLAGS))
 	$(info MFEM_CXXFLAGS        = $(value MFEM_CXXFLAGS))
