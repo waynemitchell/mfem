@@ -136,59 +136,27 @@ int main(int argc, char *argv[])
    }
    args.PrintOptions(cout);
 
-
-   // 1.7 Create datastore
-   // see https://rzlc.llnl.gov/confluence/display/MAPP/MFEM+Mesh+Blueprint+Prototype
-   namespace sidre = asctoolkit::sidre;
-   sidre::DataStore ds;
-
-   //asctoolkit::slic::debug::checksAreErrors = true;
-
-   sidre::DataView *elements_connectivity;
-   sidre::DataView *material_attribute_values;
-   sidre::DataView *coordset_values;
-
-
-   DataCollection * dc = NULL;
-   dc = new SidreDataCollection("Example9", ds.getRoot() );
-   sidre::DataGroup* grp = ds.getRoot()->getGroup("Example9");
-
    if (strcmp(sidre_restart, "\0") != 0) {
       sidre_use_restart = true;
    }
 
+
+   // 1.7 Create datastore
+   namespace sidre = asctoolkit::sidre;
+   sidre::DataStore ds;
+   DataCollection * dc = new SidreDataCollection("Example9", ds.getRoot() );
+
+   //asctoolkit::slic::debug::checksAreErrors = true;
+
    // 2. Read the mesh from the given mesh file. We can handle geometrically
    //    periodic meshes in this code.
-   if (sidre_use_restart) {
-      dc->Load(sidre_restart, sidre_restart_protocol);
-      // we should get this from the DataCollection
-      grp = ds.getRoot()->getGroup("Example9");
+   ifstream imesh(mesh_file);
+   if (!imesh)
+   {
+     cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
+     return 2;
    }
-   else {
-
-      // Load mesh into a string and save in datastore
-      ifstream imesh(mesh_file);
-      if (!imesh)
-      {
-        cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
-        return 2;
-      }
-      std::string meshStr((std::istreambuf_iterator<char>(imesh)),
-                           std::istreambuf_iterator<char>());
-      imesh.close();
-
-      dynamic_cast<SidreDataCollection*>(dc)->SetupMeshBlueprint();
-
-      grp->createViewString("aux/orig_mesh_str", meshStr);
-   }
-
-   elements_connectivity = grp->getView("topology/elements/connectivity");
-   material_attribute_values = grp->getView("fields/material_attribute/values");
-   coordset_values = grp->getView("coordset/x");
-   std::istringstream istrMesh(grp->getView("aux/orig_mesh_str")->getString() );
-
-   // initialize the mesh from the istringstream
-   Mesh *mesh = new Mesh(istrMesh, 1, 1);
+   Mesh *mesh = new Mesh(imesh, 1, 1);
 
    // 3. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement, where 'ref_levels' is a
@@ -206,51 +174,13 @@ int main(int argc, char *argv[])
    mesh->GetBoundingBox(bb_min, bb_max, max(order, 1));
 
    // 3.b Change ownership of mesh data
-   int dim = mesh->Dimension();
-   int num_elements = mesh->GetNE();
-   int element_size = 4;
-   int num_indices = num_elements * element_size;
-   int num_vertices = mesh->GetNV();
-   int coordset_len = dim * num_vertices; 
-   
-   if (!sidre_use_restart) {
-      elements_connectivity->allocate(
-                  asctoolkit::sidre::detail::SidreTT<int>::id,
-                  num_indices);
-      material_attribute_values->allocate(
-                  asctoolkit::sidre::detail::SidreTT<int>::id,
-                  num_elements);
-      coordset_values->allocate(
-            asctoolkit::sidre::detail::SidreTT<double>::id,
-            coordset_len);
+   if (sidre_use_restart) {
+      dc->Load(sidre_restart, sidre_restart_protocol);
    }
-   mesh->ChangeElementDataOwnership(elements_connectivity->getArray(),
-      element_size * num_elements, material_attribute_values->getArray(),
-      num_elements, sidre_use_restart);
-   mesh->ChangeVertexDataOwnership(coordset_values->getArray(),
-         dim, coordset_len, sidre_use_restart);
+   sidre::DataGroup* grp = ds.getRoot()->getGroup("Example9");
 
-
-   // Deal with mesh's grid function: nodes
-   // Temp HACK (KW):
-   //  When not restart, copy data from mesh to datastore
-   //  In both cases, set the mesh version to point to this
-   // Remove once we directly load the mesh into the datastore
-   // Note: There is likely a much better way to do this
-    const FiniteElementSpace* nFes = mesh->GetNodalFESpace();
-    int sz = nFes->GetVSize();
-    double* gfData = dc->GetFieldData("nodes", sz);
-
-    if(! sidre_use_restart)
-    {
-      double* meshNodeData = mesh->GetNodes()->GetData();
-      std::memcpy(gfData, meshNodeData, sizeof(double) * sz);
-    }
-
-    mesh->GetNodes()->NewDataAndSize(gfData, sz);
-    dc->RegisterField( "nodes", mesh->GetNodes());
-
-
+   dc->SetMesh(mesh);
+   int dim = mesh->Dimension();
 
    // 4. Define the ODE solver used for time integration. Several explicit
    //    Runge-Kutta methods are available.

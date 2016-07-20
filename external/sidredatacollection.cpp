@@ -19,6 +19,9 @@
 
 #include "../fem/fem.hpp"
 
+#include <string>
+
+
 #include "sidre/sidre.hpp"
 #ifdef MFEM_USE_MPI
   #include "spio/IOManager.hpp"
@@ -76,9 +79,127 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name, asc
 */
 }
 
+
+void SidreDataCollection::SetupMeshBlueprint()
+{
+}
+
 void SidreDataCollection::SetMesh(Mesh *new_mesh)
 {
     DataCollection::SetMesh(new_mesh);
+
+    // uses conduit's mesh blueprint
+
+    namespace sidre = asctoolkit::sidre;
+    sidre::DataGroup* grp = sidre_dc_group;
+
+    sidre::DataView *elements_connectivity;
+    sidre::DataView *material_attribute_values;
+    sidre::DataView *coordset_values;
+
+
+    bool isRestart = grp->hasGroup("topology");
+    if(!isRestart)
+    {
+        /// Setup the mesh blueprint
+
+        // Find the element shape
+        // Note: Assumes homogeneous elements, so only check the first element
+
+        // Note -- the mapping from Element::Type to string is based on the enum Element::Type
+        //   enum Types { POINT, SEGMENT, TRIANGLE, QUADRILATERAL, TETRAHEDRON, HEXAHEDRON};
+        // Note: -- the string names are from conduit's blueprint
+
+        std::string eltTypeStr;
+        switch(new_mesh->GetElement(0)->GetType())
+        {
+        case Element::TRIANGLE:
+            eltTypeStr = "tris";
+            break;
+        case Element::QUADRILATERAL:
+            eltTypeStr = "quads";
+            break;
+        case Element::TETRAHEDRON:
+            eltTypeStr = "tets";
+            break;
+        case Element::HEXAHEDRON:
+            eltTypeStr = "hexs";
+            break;
+        case Element::POINT:
+        case Element::SEGMENT:
+        default:
+            eltTypeStr = "<unsupported in blueprint>";
+            break;
+        }
+
+        grp->createViewString("topology/type", "unstructured");
+        grp->createViewString("topology/elements/shape",eltTypeStr);   // <-- Note: this comes form the mesh
+        grp->createView("topology/elements/connectivity");
+
+        grp->createViewString("coordset/type", "explicit");
+        grp->createView("coordset/x");
+        //grp->createView("coordset/y");
+        //grp->createView("coordset/z");
+
+        grp->createViewString("fields/material_attribute/association", "Element");
+        grp->createView("fields/material_attribute/values");
+
+        grp->createViewScalar("state/cycle", 0);
+        grp->createViewScalar("state/time", 0.);
+        grp->createViewScalar("state/domain", myid);
+    }
+
+
+    int dim = new_mesh->Dimension();
+    int num_elements = new_mesh->GetNE();
+    int element_size = new_mesh->GetElement(0)->GetNVertices();
+    int num_indices = num_elements * element_size;
+    int num_vertices = new_mesh->GetNV();
+    int coordset_len = dim * num_vertices;
+
+    elements_connectivity = grp->getView("topology/elements/connectivity");
+    material_attribute_values = grp->getView("fields/material_attribute/values");
+    coordset_values = grp->getView("coordset/x");
+
+
+    if (!isRestart)
+    {
+       elements_connectivity->allocate(sidre::INT_ID,num_indices);
+       material_attribute_values->allocate(sidre::INT_ID,num_elements);
+       coordset_values->allocate(sidre::DOUBLE_ID,coordset_len);
+    }
+
+    new_mesh->ChangeElementDataOwnership(
+            elements_connectivity->getArray(),
+            element_size * num_elements,
+            material_attribute_values->getArray(),
+            num_elements,
+            isRestart);
+    new_mesh->ChangeVertexDataOwnership(
+            coordset_values->getArray(),
+            dim,
+            coordset_len,
+            isRestart);
+
+    // copy mesh nodes grid function
+
+    //  When not restart, copy data from mesh to datastore
+    //  In both cases, set the mesh version to point to this
+    // Remove once we directly load the mesh into the datastore
+    // Note: There is likely a much better way to do this
+
+    const FiniteElementSpace* nFes = new_mesh->GetNodalFESpace();
+    int sz = nFes->GetVSize();
+    double* gfData = GetFieldData("nodes", sz);
+
+    if(! isRestart)
+    {
+      double* meshNodeData = new_mesh->GetNodes()->GetData();
+      std::memcpy(gfData, meshNodeData, sizeof(double) * sz);
+    }
+
+    new_mesh->GetNodes()->NewDataAndSize(gfData, sz);
+    RegisterField( "nodes", new_mesh->GetNodes());
 }
 
 void SidreDataCollection::Load(const std::string& path, const std::string& protocol)
@@ -145,28 +266,6 @@ void SidreDataCollection::Save()
 }
 
 
-void SidreDataCollection::SetupMeshBlueprint()
-{
-    namespace sidre = asctoolkit::sidre;
-    sidre::DataGroup* grp = sidre_dc_group;
-
-    grp->createViewString("topology/type", "unstructured");
-    grp->createViewString("topology/elements/shape","quads");   // <-- Note: this comes form the mesh
-    grp->createView("topology/elements/connectivity");
-
-    grp->createViewString("coordset/type", "explicit");
-    grp->createView("coordset/x");
-    //grp->createView("coordset/y");
-    //grp->createView("coordset/z");
-
-    grp->createViewString("fields/material_attribute/association", "Element");
-    grp->createView("fields/material_attribute/values");
-
-    grp->createViewScalar("state/cycle", 0);
-    grp->createViewScalar("state/time", 0.);
-    grp->createViewScalar("state/domain", myid);
-}
-
 double* SidreDataCollection::GetFieldData(const char *field_name, int sz)
 {
     // NOTE: WE only handle scalar fields right now
@@ -211,9 +310,8 @@ double* SidreDataCollection::GetFieldData(const char *field_name, int sz, const 
             sidre::DataView* baseV = f->getGroup(base_field)->getView("values");
             sidre::DataBuffer* buff = baseV->getBuffer();
 
-            sidre::DataGroup* f_grp  = f->createGroup(field_name);
-            sidre::DataView*  f_view = f_grp->createView("values", buff )
-                                            ->apply(sidre::DOUBLE_ID, sz, offset, stride);
+            f->createGroup(field_name)->createView("values", buff )
+                                      ->apply(sidre::DOUBLE_ID, sz, offset, stride);
         }
         else
         {
@@ -233,7 +331,7 @@ void SidreDataCollection::RegisterField(const char* field_name, GridFunction *gf
   if( gf != NULL )
   {
       if( !f->hasGroup( field_name ) )
-          sidre::DataGroup* grp = f->createGroup( field_name );
+          f->createGroup( field_name );
 
       sidre::DataGroup* grp = f->getGroup( field_name );
 
