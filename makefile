@@ -177,7 +177,7 @@ endif
 
 # PETSc library configuration
 ifeq ($(MFEM_USE_PETSC),YES)
-   INCFLAGS += -I/$(PETSC_DIR)/$(PETSC_ARCH)/include
+   INCFLAGS += -I$(PETSC_DIR)/include -I$(PETSC_DIR)/$(PETSC_ARCH)/include
    ALL_LIBS += $(PETSC_LIB)
 endif
 
