@@ -93,9 +93,8 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
     namespace sidre = asctoolkit::sidre;
     sidre::DataGroup* grp = sidre_dc_group;
 
-    sidre::DataView *elements_connectivity;
-    sidre::DataView *material_attribute_values;
-    sidre::DataView *coordset_values;
+    int dim = new_mesh->Dimension();
+    MFEM_ASSERT(dim >=1 && dim <= 3, "invalid mesh dimension");
 
 
     bool isRestart = grp->hasGroup("topology");
@@ -137,9 +136,13 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
         grp->createView("topology/elements/connectivity");
 
         grp->createViewString("coordset/type", "explicit");
-        grp->createView("coordset/x");
-        //grp->createView("coordset/y");
-        //grp->createView("coordset/z");
+
+        switch(dim) // Note-- intentional fall through on switch variable
+        {
+        case 3:     grp->createView("coordset/z");
+        case 2:     grp->createView("coordset/y");
+        case 1:     grp->createView("coordset/x");  break;
+        }
 
         grp->createViewString("fields/material_attribute/association", "Element");
         grp->createView("fields/material_attribute/values");
@@ -149,8 +152,9 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
         grp->createViewScalar("state/domain", myid);
     }
 
+    sidre::DataView *elements_connectivity;
+    sidre::DataView *material_attribute_values;
 
-    int dim = new_mesh->Dimension();
     int num_elements = new_mesh->GetNE();
     int element_size = new_mesh->GetElement(0)->GetNVertices();
     int num_indices = num_elements * element_size;
@@ -159,15 +163,32 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
 
     elements_connectivity = grp->getView("topology/elements/connectivity");
     material_attribute_values = grp->getView("fields/material_attribute/values");
-    coordset_values = grp->getView("coordset/x");
-
 
     if (!isRestart)
     {
        elements_connectivity->allocate(sidre::INT_ID,num_indices);
        material_attribute_values->allocate(sidre::INT_ID,num_elements);
-       coordset_values->allocate(sidre::DOUBLE_ID,coordset_len);
+
+       sidre::DataBuffer* coordbuf = grp->getDataStore()
+                                         ->createBuffer(sidre::DOUBLE_ID, coordset_len)
+                                         ->allocate();
+
+       switch(dim) // Note-- intentional fall through on switch variable
+       {
+       case 3:
+           grp->getView("coordset/z")->attachBuffer(coordbuf)
+                                     ->apply(sidre::DOUBLE_ID, num_vertices, 2, dim);
+       case 2:
+           grp->getView("coordset/y")->attachBuffer(coordbuf)
+                                     ->apply(sidre::DOUBLE_ID, num_vertices, 1, dim);
+       case 1:
+           grp->getView("coordset/x")->attachBuffer(coordbuf)
+                                     ->apply(sidre::DOUBLE_ID, num_vertices, 0, dim);
+       }
     }
+
+    // Change ownership of mesh data to sidre
+    double *coord_values = grp->getView("coordset/x")->getBuffer()->getData();
 
     new_mesh->ChangeElementDataOwnership(
             elements_connectivity->getArray(),
@@ -176,7 +197,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
             num_elements,
             isRestart);
     new_mesh->ChangeVertexDataOwnership(
-            coordset_values->getArray(),
+            coord_values,
             dim,
             coordset_len,
             isRestart);

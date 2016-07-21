@@ -2247,7 +2247,7 @@ void Mesh::ChangeBoundaryElementDataOwnership(int *indices,
 
 void Mesh::ChangeVertexDataOwnership(double *vertex_data,
       int dim, size_t len_vertex_data, bool zerocopy) {
-   if (len_vertex_data < NumOfVertices * dim) {
+   if (static_cast<int>(len_vertex_data) < NumOfVertices * dim) {
       throw std::runtime_error("Not enough vertices in external array");
    }
    // this will loop through all the allocated mfem::Vertex objects,
