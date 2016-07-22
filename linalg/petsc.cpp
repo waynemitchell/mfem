@@ -153,7 +153,7 @@ HypreParVector* GetHypreParVector(Vec y)
    ierr = VecGetArrayRead(y,&array);PCHKERRQ(y,ierr);
    ierr = VecGetOwnershipRanges(y,&cols);PCHKERRQ(y,ierr);
    // TODO ASK
-   if (1) //!HYPRE_AssumedPartitionCheck())
+   if (!HYPRE_AssumedPartitionCheck())
    {
       out = new HypreParVector(PetscObjectComm((PetscObject)y),N,(double*)array,(HYPRE_Int*)cols);
    }
@@ -283,9 +283,11 @@ static PetscErrorCode mat_shell_apply(Mat A, Vec x, Vec y)
 
    PetscFunctionBeginUser;
    ierr = MatShellGetContext(A,(void **)&ctx);CHKERRQ(ierr);
-   PetscParVector xx = PetscParVector(x);
-   PetscParVector yy = PetscParVector(y);
-   ctx->Mult(xx,yy);
+   HypreParVector *xx = GetHypreParVector(x);
+   HypreParVector *yy = GetHypreParVector(y);
+   ctx->Mult(*xx,*yy);
+   delete xx;
+   delete yy;
    PetscFunctionReturn(0);
 }
 
@@ -298,9 +300,11 @@ static PetscErrorCode mat_shell_apply_transpose(Mat A, Vec x, Vec y)
 
    PetscFunctionBeginUser;
    ierr = MatShellGetContext(A,(void **)&ctx);CHKERRQ(ierr);
-   PetscParVector xx = PetscParVector(x);
-   PetscParVector yy = PetscParVector(y);
-   ctx->MultTranspose(xx,yy);
+   HypreParVector *xx = GetHypreParVector(x);
+   HypreParVector *yy = GetHypreParVector(y);
+   ctx->MultTranspose(*xx,*yy);
+   delete xx;
+   delete yy;
    PetscFunctionReturn(0);
 }
 
@@ -311,6 +315,7 @@ void PetscParMatrix::MakeWrapper(const HypreParMatrix* hmat)
    MPI_Comm comm = hmat->GetComm();
    ierr = MatCreate(comm,&A);CCHKERRQ(comm,ierr);
    PetscMPIInt myid = 0;
+   // TODO ASK
    if (!HYPRE_AssumedPartitionCheck())
    {
      MPI_Comm_rank(comm,&myid);
