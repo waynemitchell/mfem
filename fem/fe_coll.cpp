@@ -1402,10 +1402,10 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
          m_type = BasisType::GaussLobatto;
          break;
       }
-      case BasisType::ClosedEquallySpaced:
+      case BasisType::ClosedUniform:
       {
-         pt_type = Quadrature1D::ClosedEquallySpaced;
-         m_type = BasisType::ClosedEquallySpaced;
+         pt_type = Quadrature1D::ClosedUniform;
+         m_type = BasisType::ClosedUniform;
          break;
       }
       default:
@@ -1624,16 +1624,16 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
          m_type = BasisType::Positive;
          break;
       }
-      case BasisType::OpenEquallySpaced:
+      case BasisType::OpenUniform:
       {
-         m_type = BasisType::OpenEquallySpaced;
-         pt_type = Quadrature1D::OpenEquallySpaced;
+         m_type = BasisType::OpenUniform;
+         pt_type = Quadrature1D::OpenUniform;
          break;
       }
-      case BasisType::ClosedEquallySpaced:
+      case BasisType::ClosedUniform:
       {
-         m_type = BasisType::ClosedEquallySpaced;
-         pt_type = Quadrature1D::ClosedEquallySpaced;
+         m_type = BasisType::ClosedUniform;
+         pt_type = Quadrature1D::ClosedUniform;
          break;
       }
       default:
@@ -1697,7 +1697,7 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
       else
       {
          // Don't mess with triangle element basis points yet
-         if ((m_type == BasisType::OpenEquallySpaced) ||
+         if ((m_type == BasisType::OpenUniform) ||
              (m_type == BasisType::GaussLegendre))
          {
             L2_Elements[Geometry::TRIANGLE] = new L2_TriangleElement(p,
@@ -1745,7 +1745,7 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
       else
       {
          // Don't mess with tets yet
-         if ( (m_type == BasisType::OpenEquallySpaced) ||
+         if ( (m_type == BasisType::OpenUniform) ||
               (m_type == BasisType::GaussLegendre) )
          {
             L2_Elements[Geometry::TETRAHEDRON] =
@@ -1810,9 +1810,9 @@ RT_FECollection::RT_FECollection(const int p, const int dim,
    {
       cp_type = Quadrature1D::GaussLobatto;
    }
-   else if (_cb_type == BasisType::ClosedEquallySpaced)
+   else if (_cb_type == BasisType::ClosedUniform)
    {
-      cp_type = Quadrature1D::ClosedEquallySpaced;
+      cp_type = Quadrature1D::ClosedUniform;
    }
    else
       MFEM_ABORT("Can't convert _cb_type to a known closed basis point type."
@@ -1822,9 +1822,9 @@ RT_FECollection::RT_FECollection(const int p, const int dim,
    {
       op_type = Quadrature1D::GaussLegendre;
    }
-   else if (_ob_type == BasisType::OpenEquallySpaced)
+   else if (_ob_type == BasisType::OpenUniform)
    {
-      op_type = Quadrature1D::OpenEquallySpaced;
+      op_type = Quadrature1D::OpenUniform;
    }
    else
       MFEM_ABORT("Can't convert _ob_type to a known open basis point type."
@@ -2038,9 +2038,9 @@ RT_FECollection::RT_FECollection(const int p, const int dim, const int map_type,
    {
       op_type = Quadrature1D::GaussLegendre;
    }
-   else if (_ob_type == BasisType::OpenEquallySpaced)
+   else if (_ob_type == BasisType::OpenUniform)
    {
-      op_type = Quadrature1D::OpenEquallySpaced;
+      op_type = Quadrature1D::OpenUniform;
    }
    else
    {
@@ -2101,9 +2101,9 @@ ND_FECollection::ND_FECollection(const int p, const int dim,
    {
       op_type = Quadrature1D::GaussLegendre;
    }
-   else if (_op_type == BasisType::OpenEquallySpaced)
+   else if (_op_type == BasisType::OpenUniform)
    {
-      op_type = Quadrature1D::OpenEquallySpaced;
+      op_type = Quadrature1D::OpenUniform;
    }
    else
    {
@@ -2116,9 +2116,9 @@ ND_FECollection::ND_FECollection(const int p, const int dim,
    {
       cp_type = Quadrature1D::GaussLobatto;
    }
-   else if (_cp_type == BasisType::ClosedEquallySpaced)
+   else if (_cp_type == BasisType::ClosedUniform)
    {
-      cp_type = Quadrature1D::ClosedEquallySpaced;
+      cp_type = Quadrature1D::ClosedUniform;
    }
    else
    {

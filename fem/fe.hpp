@@ -46,8 +46,8 @@ public:
       GaussLegendre = 0,
       GaussLobatto = 1,
       Positive = 2,
-      OpenEquallySpaced = 3,
-      ClosedEquallySpaced = 4
+      OpenUniform = 3,
+      ClosedUniform = 4
    };
 };
 

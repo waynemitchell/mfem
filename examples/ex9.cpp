@@ -161,10 +161,7 @@ int main(int argc, char *argv[])
 
    // 5. Define the discontinuous DG finite element space of the given
    //    polynomial order on the refined mesh.
-   ///  Maginot capability example
-   // use Lobatto interpolation (basis points)
-   // pass in an integer of 1 since L2_FECollection::BasisType::GaussLobatto = 1
-   DG_FECollection fec(order, dim, BasisType::GaussLobatto);
+   DG_FECollection fec(order, dim);
    FiniteElementSpace fes(mesh, &fec);
 
    cout << "Number of unknowns: " << fes.GetVSize() << endl;
@@ -177,27 +174,7 @@ int main(int argc, char *argv[])
    FunctionCoefficient u0(u0_function);
 
    BilinearForm m(&fes);
-
-   // This exercises and demonstrates capability of using atypical IntegrationRules
-   // It also is an example of how having the global variable IntRules may be problematic
-   // --How can the MFEM automatic bilinear form generating functions use
-   // IntegrationRules objects other than IntRules to assemble matrices with different element
-   // types using alternative numerical quadratures?
-   //    e.g. a mesh with square and triangular elements?
-   IntegrationRules moreAwesomeQuadrature(0 , Quadrature1D::GaussLobatto);
-
-   // Let us now pray that every element is of the same type
-   int el_num = 0;
-   int geomType = mesh->GetElement(el_num)->GetGeometryType();
-
-   // this should be exact integration (through  6th order elements on 6th order meshes)
-   const double intPolyExactness = 20;
-
-   const IntegrationRule *specialIntRule =
-      &moreAwesomeQuadrature.Get(geomType, intPolyExactness);
-
-   // The mass matrix integration will use Lobatto quadrature
-   m.AddDomainIntegrator(new MassIntegrator( specialIntRule ) );
+   m.AddDomainIntegrator(new MassIntegrator);
    BilinearForm k(&fes);
    k.AddDomainIntegrator(new ConvectionIntegrator(velocity, -1.0));
    k.AddInteriorFaceIntegrator(

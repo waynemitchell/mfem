@@ -6,6 +6,54 @@
                       |_| |_| |_||_|   \___||_| |_| |_|
 
                                http://mfem.org
+                               
+Different numerical quadrature schemes, different basis point types
+-------------------------------------------------------------------------------
+- The basis point types used by the different finite element collections, for
+  segment, quadrilateral, and hexahederon elements, are now consistent via the
+  global BasisType anonymous enum.  Different basis point type can be selected 
+  via optional integer argument(s) to the finite element Collection constructor.
+      H1 elements can use GaussLobatto or ClosedUniform interpolation points.  
+      --The default is GaussLobatto
+      L2 elements can use either GaussLegendre, GaussLobatto, Positive, 
+      UniformClosed, or UniformOpen
+      --The default is GaussLegendre
+      Raviart-Thomas elements can now use open basis points of either 
+      GaussLegendre or UniformOpen
+      -- The default is GaussLegendre
+      Raviart-Thomas elements can now use closed basis points of either 
+      GaussLobatto or UniformClosed type
+      -- The default is GaussLobatto
+      Nedelec elements can use the same type of basis points as RT elements
+      
+      Examples:
+      RT_FECollection rt_fec(1, 2, 
+            BasisType::GaussLobatto , BasisType::GaussLegendre);
+      RT_FECollection rt_fec_identical(1, 2);
+            
+      L2_FECollection l2_fec(4 , 3);
+      L2_FECollection l2_fec_identical(4 , 3 , BasisType::GaussLegendre);
+      
+- Alternative numerical quadratures for segment, quadrilateral, and hexahedron 
+  integration can now be used with IntegrationRules objects constructed with an
+  optional integer parameter.  Possible values are 
+      Quadrature1D::GaussLegendre (default)
+      Quadrature1D::GaussLobatto
+      Quadrature1D::UniformClosed
+      Quadrature1D::UniformOpen
+      
+  The global IntRules object uses GaussLegendre quadrature (unchanged). To get
+  a GaussLobatto rule for a segment:
+      
+      IntegrationRules lobattoMaker(0 , Quadrature1D::GaussLobatto);
+      const IntegrationRule *ir = lobattoMaker( Geometry::SEGMENT , 5 );
+  
+  The ir pointer will point at a Gauss-Lobatto quadrature with 4 points that
+  exactly integrates 5th degree polynomials.
+   
+- The [sometimes] replicated 1-D quadrature calculating capabilities of the 
+  Poly_1D class and IntegrationRule class have been moved to a helper class,
+  QuadratureFunctions1D and documented more extensively.
 
 Version 3.2, released on June 30, 2016
 ======================================

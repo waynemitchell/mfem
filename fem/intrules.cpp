@@ -292,7 +292,7 @@ void QuadratureFunctions1D::GaussLobatto(const int np, IntegrationRule* ir)
    }
 }
 
-void QuadratureFunctions1D::OpenEquallySpaced(const int np, IntegrationRule* ir)
+void QuadratureFunctions1D::OpenUniform(const int np, IntegrationRule* ir)
 {
    ir->SetSize(np);
 
@@ -319,8 +319,8 @@ void QuadratureFunctions1D::OpenEquallySpaced(const int np, IntegrationRule* ir)
    }
 }
 
-void QuadratureFunctions1D::ClosedEquallySpaced(const int np,
-                                                IntegrationRule* ir)
+void QuadratureFunctions1D::ClosedUniform(const int np,
+                                          IntegrationRule* ir)
 {
    ir->SetSize(np);
    MFEM_ASSERT(np != 1, "");
@@ -358,14 +358,14 @@ void QuadratureFunctions1D::GivePolyPoints(const int np, double *pts ,
          GaussLobatto(np, &ir);
          break;
       }
-      case Quadrature1D::OpenEquallySpaced:
+      case Quadrature1D::OpenUniform:
       {
-         OpenEquallySpaced(np,&ir);
+         OpenUniform(np,&ir);
          break;
       }
-      case Quadrature1D::ClosedEquallySpaced:
+      case Quadrature1D::ClosedUniform:
       {
-         ClosedEquallySpaced(np,&ir);
+         ClosedUniform(np,&ir);
          break;
       }
       default:
@@ -931,18 +931,18 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
             quad_func.GaussLobatto(n, &tmp );
             break;
          }
-         case Quadrature1D::OpenEquallySpaced:
+         case Quadrature1D::OpenUniform:
          {
             // Open Newton Cotes is exact for (np%2) + np
             n = Order + 1;
-            quad_func.OpenEquallySpaced(n, &tmp );
+            quad_func.OpenUniform(n, &tmp );
             break;
          }
-         case Quadrature1D::ClosedEquallySpaced:
+         case Quadrature1D::ClosedUniform:
          {
             // Closed Newton Cotes is exact for np -( (np+1)%2 )
             n = Order + 1;
-            quad_func.ClosedEquallySpaced(n, &tmp );
+            quad_func.ClosedUniform(n, &tmp );
             break;
          }
       }
@@ -981,22 +981,22 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
          quad_func.GaussLobatto(np,  SegmentIntRules[Order] );
          break;
       }
-      case Quadrature1D::OpenEquallySpaced:
+      case Quadrature1D::OpenUniform:
       {
          // Order = degree of polynomial that is exactly integrated
          // Gauss Legendre is exact for 2*np - 1
          int np = Order + 1;
          SegmentIntRules[Order] = new IntegrationRule(np);
-         quad_func.OpenEquallySpaced(np,  SegmentIntRules[Order] );
+         quad_func.OpenUniform(np,  SegmentIntRules[Order] );
          break;
       }
-      case Quadrature1D::ClosedEquallySpaced:
+      case Quadrature1D::ClosedUniform:
       {
          // Order = degree of polynomial that is exactly integrated
          // Gauss Legendre is exact for 2*np - 1
          int np = Order + 1;
          SegmentIntRules[Order] = new IntegrationRule(np);
-         quad_func.ClosedEquallySpaced(np,  SegmentIntRules[Order] );
+         quad_func.ClosedUniform(np,  SegmentIntRules[Order] );
          break;
       }
    }

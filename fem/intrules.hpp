@@ -241,8 +241,8 @@ public:
    /// Functions that actually calculate quadrature rules (points and weights)
    void GaussLegendre(const int np, IntegrationRule* ir);
    void GaussLobatto(const int np, IntegrationRule *ir);
-   void OpenEquallySpaced(const int np, IntegrationRule *ir);
-   void ClosedEquallySpaced(const int np, IntegrationRule *ir);
+   void OpenUniform(const int np, IntegrationRule *ir);
+   void ClosedUniform(const int np, IntegrationRule *ir);
 
    /// A helper function that will play nice with Poly_1D::OpenPoints and
    /// Poly_1D::ClosedPoints
@@ -261,8 +261,8 @@ public:
       Invalid = -1,
       GaussLegendre = 0,
       GaussLobatto = 1,
-      OpenEquallySpaced = 2,
-      ClosedEquallySpaced = 3
+      OpenUniform = 2,
+      ClosedUniform = 3
    };
 };
 
