@@ -76,6 +76,9 @@ public:
    /// Create HypreParVector referencing the data in Vec
    HypreParVector* GetHypreParVector(Vec y);
 
+   /// Create HypreParVector compatible with B or B^T (data not allocated)
+   HypreParVector* GetHypreParVector(Mat B, bool transpose);
+
    /// Returns the global vector in each processor
    Vector* GlobalVector() const;
 
@@ -114,7 +117,7 @@ protected:
    /// Delete all owned data. Does not perform re-initialization with defaults.
    void Destroy();
 
-   /// Creates a wrapper around PetscParMatrix hmat using PETSc's MATSHELL object
+   /// Creates a wrapper around HypreParMatrix using PETSc's MATSHELL object
    void MakeWrapper(const HypreParMatrix* hmat);
 
    friend class PetscSolver;

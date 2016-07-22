@@ -172,6 +172,40 @@ HypreParVector* GetHypreParVector(Vec y)
    return out;
 }
 
+HypreParVector* GetHypreParVector(Mat B,bool transpose)
+{
+   const PetscInt    *cols;
+   PetscInt           N;
+   HypreParVector    *out;
+
+   if (transpose)
+   {
+      ierr = MatGetSize(B,NULL,&N);PCHKERRQ(B,ierr);
+      ierr = MatGetOwnershipRangesColumn(B,&cols);PCHKERRQ(B,ierr);
+   }
+   else
+   {
+      ierr = MatGetSize(B,&N,NULL);PCHKERRQ(B,ierr);
+      ierr = MatGetOwnershipRanges(B,&cols);PCHKERRQ(B,ierr);
+   }
+   // TODO ASK
+   if (!HYPRE_AssumedPartitionCheck())
+   {
+      out = new HypreParVector(PetscObjectComm((PetscObject)B),N,NULL,(HYPRE_Int*)cols);
+   }
+   else
+   {
+      PetscMPIInt myid;
+      HYPRE_Int   range[2];
+
+      MPI_Comm comm = PetscObjectComm((PetscObject)B);
+      MPI_Comm_rank(comm,&myid);
+      range[0] = cols[myid];
+      range[1] = cols[myid+1];
+      out = new HypreParVector(comm,N,NULL,range);
+   }
+   return out;
+}
 
 Vector * PetscParVector::GlobalVector() const
 {
@@ -274,20 +308,30 @@ PetscParMatrix::PetscParMatrix(const HypreParMatrix hmat)
    MFEM_ABORT("Not yet implemented");
 }
 
+typedef struct {
+   HypreParMatrix *op;
+   HypreParVector *xx,*yy;
+} mat_shell_ctx;
+
 #undef __FUNCT__
 #define __FUNCT__ "mat_shell_apply"
 static PetscErrorCode mat_shell_apply(Mat A, Vec x, Vec y)
 {
-   Operator       *ctx;
-   PetscErrorCode ierr;
+   mat_shell_ctx     *ctx;
+   const PetscScalar *a;
+   PetscErrorCode     ierr;
 
    PetscFunctionBeginUser;
-   ierr = MatShellGetContext(A,(void **)&ctx);CHKERRQ(ierr);
-   HypreParVector *xx = GetHypreParVector(x);
-   HypreParVector *yy = GetHypreParVector(y);
-   ctx->Mult(*xx,*yy);
-   delete xx;
-   delete yy;
+   ierr = MatShellGetContext(A,(void **)&ctx);PCHKERRQ(A,ierr);
+   HypreParVector *xx = ctx->xx;
+   HypreParVector *yy = ctx->yy;
+   ierr = VecGetArrayRead(x,&a);PCHKERRQ(x,ierr);
+   xx->SetData((PetscScalar*)a);
+   ierr = VecRestoreArrayRead(x,&a);PCHKERRQ(x,ierr);
+   ierr = VecGetArrayRead(y,&a);PCHKERRQ(x,ierr);
+   yy->SetData((PetscScalar*)a);
+   ierr = VecRestoreArrayRead(y,&a);PCHKERRQ(x,ierr);
+   ctx->op->Mult(*xx,*yy);
    PetscFunctionReturn(0);
 }
 
@@ -295,19 +339,37 @@ static PetscErrorCode mat_shell_apply(Mat A, Vec x, Vec y)
 #define __FUNCT__ "mat_shell_apply_transpose"
 static PetscErrorCode mat_shell_apply_transpose(Mat A, Vec x, Vec y)
 {
-   Operator       *ctx;
-   PetscErrorCode ierr;
+   mat_shell_ctx     *ctx;
+   const PetscScalar *a;
+   PetscErrorCode     ierr;
 
    PetscFunctionBeginUser;
-   ierr = MatShellGetContext(A,(void **)&ctx);CHKERRQ(ierr);
-   HypreParVector *xx = GetHypreParVector(x);
-   HypreParVector *yy = GetHypreParVector(y);
-   ctx->MultTranspose(*xx,*yy);
-   delete xx;
-   delete yy;
+   ierr = MatShellGetContext(A,(void **)&ctx);PCHKERRQ(A,ierr);
+   HypreParVector *xx = ctx->xx;
+   HypreParVector *yy = ctx->yy;
+   ierr = VecGetArrayRead(x,&a);PCHKERRQ(x,ierr);
+   yy->SetData((PetscScalar*)a);
+   ierr = VecRestoreArrayRead(x,&a);PCHKERRQ(x,ierr);
+   ierr = VecGetArrayRead(y,&a);PCHKERRQ(x,ierr);
+   xx->SetData((PetscScalar*)a);
+   ierr = VecRestoreArrayRead(y,&a);PCHKERRQ(x,ierr);
+   ctx->op->MultTranspose(*yy,*xx);
    PetscFunctionReturn(0);
 }
 
+#undef __FUNCT__
+#define __FUNCT__ "mat_shell_destroy"
+static PetscErrorCode mat_shell_destroy(Mat A)
+{
+   mat_shell_ctx  *ctx;
+
+   PetscFunctionBeginUser;
+   ierr = MatShellGetContext(A,(void **)&ctx);PCHKERRQ(A,ierr);
+   delete ctx->xx;
+   delete ctx->yy;
+   delete ctx;
+   PetscFunctionReturn(0);
+}
 #undef __FUNCT__
 
 void PetscParMatrix::MakeWrapper(const HypreParMatrix* hmat)
@@ -324,10 +386,16 @@ void PetscParMatrix::MakeWrapper(const HypreParMatrix* hmat)
    const PetscInt *cols = hmat->ColPart();
    ierr = MatSetSizes(A,rows[myid+1]-rows[myid],cols[myid+1]-cols[myid],PETSC_DECIDE,PETSC_DECIDE);PCHKERRQ(A,ierr);
    ierr = MatSetType(A,MATSHELL);PCHKERRQ(A,ierr);
-   ierr = MatShellSetContext(A,(void *)hmat);PCHKERRQ(A,ierr);
+   mat_shell_ctx *ctx = new mat_shell_ctx;
+   ierr = MatShellSetContext(A,(void *)ctx);PCHKERRQ(A,ierr);
    ierr = MatShellSetOperation(A,MATOP_MULT,(void (*)())mat_shell_apply);PCHKERRQ(A,ierr);
    ierr = MatShellSetOperation(A,MATOP_MULT_TRANSPOSE,(void (*)())mat_shell_apply_transpose);PCHKERRQ(A,ierr);
+   ierr = MatShellSetOperation(A,MATOP_DESTROY,(void (*)())mat_shell_destroy);PCHKERRQ(A,ierr);
    ierr = MatSetUp(A);PCHKERRQ(A,ierr);
+   // create two HypreVectors in domain and range of A without allocating data
+   ctx->xx = GetHypreParVector(A,false);
+   ctx->yy = GetHypreParVector(A,true);
+   ctx->op = const_cast<HypreParMatrix *>(hmat);
    height = hmat->GetNumRows();
    width  = hmat->GetNumCols();
 }
@@ -381,10 +449,10 @@ PetscSolver::PetscSolver(PetscParMatrix &_A)
    SetOperator(_A);
 }
 
-PetscSolver::PetscSolver(HypreParMatrix &_A,bool wrap)
+PetscSolver::PetscSolver(HypreParMatrix &_A,bool wrapin)
 {
    Init();
-   wrap = wrap;
+   wrap = wrapin;
    SetOperator(_A);
 }
 
@@ -450,20 +518,31 @@ void PetscSolver::SetOperator(const Operator &op)
    }
 }
 
+typedef struct {
+   Solver         *op;
+   HypreParVector *xx,*yy;
+} solver_shell_ctx;
+
+
 #undef __FUNCT__
 #define __FUNCT__ "pc_shell_apply"
 static PetscErrorCode pc_shell_apply(PC pc, Vec x, Vec y)
 {
-   Solver         *ctx;
-   PetscErrorCode ierr;
+   solver_shell_ctx  *ctx;
+   const PetscScalar *a;
+   PetscErrorCode     ierr;
 
    PetscFunctionBeginUser;
-   ierr = PCShellGetContext(pc,(void **)&ctx);CHKERRQ(ierr);
-   HypreParVector *xx = GetHypreParVector(x);
-   HypreParVector *yy = GetHypreParVector(y);
-   ctx->Mult(*xx,*yy);
-   delete xx;
-   delete yy;
+   ierr = PCShellGetContext(pc,(void **)&ctx);PCHKERRQ(pc,ierr);
+   HypreParVector *xx = ctx->xx;
+   HypreParVector *yy = ctx->yy;
+   ierr = VecGetArrayRead(x,&a);PCHKERRQ(x,ierr);
+   xx->SetData((PetscScalar*)a);
+   ierr = VecRestoreArrayRead(x,&a);PCHKERRQ(x,ierr);
+   ierr = VecGetArrayRead(y,&a);PCHKERRQ(x,ierr);
+   yy->SetData((PetscScalar*)a);
+   ierr = VecRestoreArrayRead(y,&a);PCHKERRQ(x,ierr);
+   ctx->op->Mult(*xx,*yy);
    PetscFunctionReturn(0);
 }
 
@@ -471,27 +550,62 @@ static PetscErrorCode pc_shell_apply(PC pc, Vec x, Vec y)
 #define __FUNCT__ "pc_shell_apply_transpose"
 static PetscErrorCode pc_shell_apply_transpose(PC pc, Vec x, Vec y)
 {
-   Solver         *ctx;
-   PetscErrorCode ierr;
+   solver_shell_ctx  *ctx;
+   const PetscScalar *a;
+   PetscErrorCode     ierr;
 
    PetscFunctionBeginUser;
-   ierr = PCShellGetContext(pc,(void **)&ctx);CHKERRQ(ierr);
-   HypreParVector *xx = GetHypreParVector(x);
-   HypreParVector *yy = GetHypreParVector(y);
-   ctx->MultTranspose(*xx,*yy);
-   delete xx;
-   delete yy;
+   ierr = PCShellGetContext(pc,(void **)&ctx);PCHKERRQ(pc,ierr);
+   HypreParVector *xx = ctx->xx;
+   HypreParVector *yy = ctx->yy;
+   ierr = VecGetArrayRead(x,&a);PCHKERRQ(x,ierr);
+   yy->SetData((PetscScalar*)a);
+   ierr = VecRestoreArrayRead(x,&a);PCHKERRQ(x,ierr);
+   ierr = VecGetArrayRead(y,&a);PCHKERRQ(x,ierr);
+   xx->SetData((PetscScalar*)a);
+   ierr = VecRestoreArrayRead(y,&a);PCHKERRQ(x,ierr);
+   ctx->op->MultTranspose(*yy,*xx);
    PetscFunctionReturn(0);
 }
 
-// do nothing
 #undef __FUNCT__
 #define __FUNCT__ "pc_shell_setup"
 static PetscErrorCode pc_shell_setup(PC pc)
 {
+   solver_shell_ctx *ctx;
+   Mat              A;
+   PetscErrorCode   ierr;
+
    PetscFunctionBeginUser;
+   // we create the vectors here since the operator is known at this point
+   ierr = PCShellGetContext(pc,(void **)&ctx);PCHKERRQ(pc,ierr);
+   ierr = PCGetOperators(pc,&A,NULL);PCHKERRQ(pc,ierr);
+   if (!ctx->xx)
+   {
+      ctx->xx = GetHypreParVector(A,false);
+   }
+   if (!ctx->yy)
+   {
+      ctx->yy = GetHypreParVector(A,true);
+   }
+   // TODO ask: is there a way to trigger the setup of ctx->op?
    PetscFunctionReturn(0);
 }
+
+#undef __FUNCT__
+#define __FUNCT__ "pc_shell_destroy"
+static PetscErrorCode pc_shell_destroy(PC pc)
+{
+   solver_shell_ctx *ctx;
+
+   PetscFunctionBeginUser;
+   ierr = PCShellGetContext(pc,(void **)&ctx);PCHKERRQ(pc,ierr);
+   delete ctx->xx;
+   delete ctx->yy;
+   delete ctx;
+   PetscFunctionReturn(0);
+}
+
 #undef __FUNCT__
 
 void PetscSolver::SetPreconditioner(Solver &precond)
@@ -501,13 +615,19 @@ void PetscSolver::SetPreconditioner(Solver &precond)
       MFEM_ABORT("PetscSolver::SetPreconditioner (...) : KSP si missing. You should call PetscSolver::SetOperator (...) first");
       return;
    }
-   PC  pc;
+   PC pc;
+
    ierr = KSPGetPC(ksp,&pc);PCHKERRQ(ksp,ierr);
    ierr = PCSetType(pc,PCSHELL);PCHKERRQ(pc,ierr);
-   ierr = PCShellSetContext(pc,(void *)&precond);PCHKERRQ(pc,ierr);
+   solver_shell_ctx *ctx = new solver_shell_ctx;
+   ctx->op = &precond;
+   ctx->xx = NULL;
+   ctx->yy = NULL;
+   ierr = PCShellSetContext(pc,(void *)ctx);PCHKERRQ(pc,ierr);
    ierr = PCShellSetApply(pc,pc_shell_apply);PCHKERRQ(pc,ierr);
    ierr = PCShellSetApplyTranspose(pc,pc_shell_apply_transpose);PCHKERRQ(pc,ierr);
    ierr = PCShellSetSetUp(pc,pc_shell_setup);PCHKERRQ(pc,ierr);
+   ierr = PCShellSetDestroy(pc,pc_shell_destroy);PCHKERRQ(pc,ierr);
 }
 
 void PetscSolver::Mult(const PetscParVector &b, PetscParVector &x) const
