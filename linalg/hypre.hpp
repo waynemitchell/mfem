@@ -302,6 +302,10 @@ public:
    inline HYPRE_Int *RowPart() { return A->row_starts; }
    /// Returns the column partitioning
    inline HYPRE_Int *ColPart() { return A->col_starts; }
+   /// Returns the row partitioning (const version)
+   inline HYPRE_Int *RowPart() const { return A->row_starts; }
+   /// Returns the column partitioning (const version)
+   inline HYPRE_Int *ColPart() const { return A->col_starts; }
    /// Returns the global number of rows
    inline HYPRE_Int M() { return A->global_num_rows; }
    /// Returns the global number of columns

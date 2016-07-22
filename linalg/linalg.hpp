@@ -32,5 +32,6 @@
 
 #include "solvers.hpp"
 #include "superlu.hpp"
+#include "petsc.hpp"
 
 #endif
