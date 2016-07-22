@@ -3,7 +3,7 @@
 // Compile with: make ex16p
 //
 // Sample runs:
-//    mpirun -np 4 ex16p 
+//    mpirun -np 4 ex16p
 //    mpirun -np 4 ex16p -s 1 -a 0.0 -k 1.0
 //    mpirun -np 4 ex16p -s 2 -a 1.0 -k 0.0
 //    mpirun -np 8 ex16p -s 3 -a 0.5 -k 0.5 -o 4
@@ -12,7 +12,7 @@
 //    mpirun -np 16 ex16p -m ../data/escher-p2.mesh
 //
 // Description:  This examples solves a time dependent nonlinear heat equation
-//               problem of the form du/dt = C(u), where C is a non-linear diffusion 
+//               problem of the form du/dt = C(u), where C is a non-linear diffusion
 //               operator C(u) = \nabla \cdot (\kappa + \alpha u) \nabla u.
 //
 //               The example demonstrates the use of nonlinear operators (the
@@ -62,7 +62,8 @@ protected:
    mutable Vector z; // auxiliary vector
 
 public:
-   ConductionOperator(ParFiniteElementSpace &f, double alpha, double kappa, const Vector &u);
+   ConductionOperator(ParFiniteElementSpace &f, double alpha, double kappa,
+                      const Vector &u);
 
    virtual void Mult(const Vector &u, Vector &du_dt) const;
    /** Solve the Backward-Euler equation: k = f(u + dt*k, t), for the unknown k.
@@ -137,7 +138,8 @@ int main(int argc, char *argv[])
       return 1;
    }
 
-   if (myid == 0) {
+   if (myid == 0)
+   {
       args.PrintOptions(cout);
    }
 
@@ -189,25 +191,26 @@ int main(int argc, char *argv[])
       pmesh->UniformRefinement();
    }
 
-   // 7. Define the vector finite element space representing the current and the 
+   // 7. Define the vector finite element space representing the current and the
    //    initial temperature, u_ref.
    H1_FECollection fe_coll(order, dim);
    ParFiniteElementSpace fespace(pmesh, &fe_coll);
 
    int fe_size = fespace.GlobalTrueVSize();
-   if (myid == 0) {
+   if (myid == 0)
+   {
       cout << "Number of temperature unknowns: " << fe_size << endl;
    }
 
    ParGridFunction u_gf(&fespace);;
 
-   // 7. Set the initial conditions for u. All 
+   // 7. Set the initial conditions for u. All
    // boundaries are considered natural.
    FunctionCoefficient u_0(InitialTemperature);
    u_gf.ProjectCoefficient(u_0);
    HypreParVector *u = u_gf.GetTrueDofs();
 
-   // 8. Initialize the conduction operator and the VisIt visualization 
+   // 8. Initialize the conduction operator and the VisIt visualization
    ConductionOperator oper(fespace, alpha, kappa, *u);
 
    VisItDataCollection visit_dc("Example16-Parallel", pmesh);
@@ -278,9 +281,10 @@ int main(int argc, char *argv[])
 
       if (last_step || (ti % vis_steps) == 0)
       {
-         u_gf = *u;  
-         
-         if (myid == 0) {
+         u_gf = *u;
+
+         if (myid == 0)
+         {
             cout << "step " << ti << ", t = " << t << endl;
          }
 
@@ -320,8 +324,10 @@ int main(int argc, char *argv[])
    return 0;
 }
 
-ConductionOperator::ConductionOperator(ParFiniteElementSpace &f, double al, double kap, const Vector &u)
-   : TimeDependentOperator(f.GetTrueVSize()), fespace(f), M(NULL), K(NULL), Mmat(NULL), Kmat(NULL),
+ConductionOperator::ConductionOperator(ParFiniteElementSpace &f, double al,
+                                       double kap, const Vector &u)
+   : TimeDependentOperator(f.GetTrueVSize()), fespace(f), M(NULL), K(NULL),
+     Mmat(NULL), Kmat(NULL),
      M_solver(f.GetComm()), K_solver(f.GetComm()), z(f.GetTrueVSize())
 {
    const double rel_tol = 1e-8;
@@ -350,7 +356,7 @@ ConductionOperator::ConductionOperator(ParFiniteElementSpace &f, double al, doub
    K_solver.SetMaxIter(100);
    K_solver.SetPrintLevel(0);
    K_solver.SetPreconditioner(K_prec);
-   
+
    SetParameters(u);
 
 }
@@ -377,7 +383,7 @@ void ConductionOperator::ImplicitSolve(const double dt,
    Kmat->Mult(u, z);
    z.Neg();
    K_solver.Mult(z, du_dt);
-   
+
    delete localT;
    delete T;
 }
@@ -414,24 +420,28 @@ double InitialTemperature(const Vector &x)
 {
    int dim = x.Size();
    switch (dim)
-      {
+   {
       case 1:
-         if (abs(x(0)) < 0.5) {
+         if (abs(x(0)) < 0.5)
+         {
             return 2.0;
          }
-         else {
+         else
+         {
             return 1.0;
          }
       case 2:
-      case 3:         
-         if (sqrt(x(0)*x(0) + x(1) * x(1)) < 0.5) {
+      case 3:
+         if (sqrt(x(0)*x(0) + x(1) * x(1)) < 0.5)
+         {
             return 2.0;
          }
-         else {
+         else
+         {
             return 1.0;
          }
 
-      }
+   }
    return 1.0;
 }
 
