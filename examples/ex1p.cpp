@@ -213,18 +213,18 @@ int main(int argc, char *argv[])
    // 12b. Use PETSc Krylov solvers to solve the linear system
    PetscInitialize(NULL,NULL,petscrc_file,NULL);
    {
-     // we scope these calls so that the destructors for pX and ppcg
-     // are called before PetscFinalize
-     PetscParVector pX(fespace);
-     PetscSolver *ppcg = new PetscSolver(A,true);
-     ppcg->SetMaxIter(200);
-     ppcg->SetTol(1e-12);
-     ppcg->SetPrintLevel(2); //TODO: dummy call
-     ppcg->SetPreconditioner(*amg);
-     ppcg->Mult(B, pX);
-     delete ppcg;
-  }
-  PetscFinalize();
+      // we scope these calls so that the destructors for pX and ppcg
+      // are called before PetscFinalize
+      PetscParVector pX(fespace);
+      PetscSolver *ppcg = new PetscSolver(A,true);
+      ppcg->SetMaxIter(200);
+      ppcg->SetTol(1e-12);
+      ppcg->SetPrintLevel(2); //TODO: dummy call
+      ppcg->SetPreconditioner(*amg);
+      ppcg->Mult(B, pX);
+      delete ppcg;
+   }
+   PetscFinalize();
 #endif
 
    // 13. Recover the parallel grid function corresponding to X. This is the
