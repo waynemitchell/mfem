@@ -9,6 +9,8 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+// Author: Stefano Zampini <stefano.zampini@gmail.com>
+
 #ifndef MFEM_PETSC
 #define MFEM_PETSC
 
@@ -118,9 +120,23 @@ protected:
    void Destroy();
 
    /// Creates a wrapper around HypreParMatrix using PETSc's MATSHELL object
-   void MakeWrapper(const HypreParMatrix* hmat);
+   /// and returns the Mat in B
+   void MakeWrapper(const HypreParMatrix* hmat, Mat *B);
+
+   /// Converts from HypreParCSR format to PETSc's MATAIJ object
+   /// and returns the Mat in B
+   /// it also returns the arrays that need to be destroyed after B is destroyed
+   /// Destroy them with
+   ///   PetscFree3(dii,djj,da);
+   ///   PetscFree3(oii,ojj,oa);
+   void Convert(const HypreParMatrix* hmat, Mat *B, PetscInt** dii, PetscInt** djj, PetscScalar** da, PetscInt** oii, PetscInt** ojj, PetscScalar** oa);
 
    friend class PetscSolver;
+
+private:
+   // internal arrays that need to be freed
+   PetscInt    *dii,*djj,*oii,*ojj;
+   PetscScalar *da,*oa;
 
 public:
    /// An empty matrix to be used as a reference to an existing matrix
@@ -129,11 +145,15 @@ public:
    /// Calls PETSc's destroy function
    virtual ~PetscParMatrix() { Destroy(); }
 
-   /// Creates PetscParMatrix out of Mat
+   /// Creates PetscParMatrix out of PETSc's Mat
    PetscParMatrix(Mat a);
 
    /// Converts HypreParMatrix to PetscParMatrix
-   PetscParMatrix(const HypreParMatrix a);
+   /// If wrap is false, a PETSc's MATAIJ object
+   /// is created; otherwise, the matvec operations
+   /// of HypreParMatrix are wrapped through PETSc's
+   /// MATSHELL object
+   PetscParMatrix(const HypreParMatrix* a, bool wrap=false);
 
    /// MatMult
    virtual void Mult(const Vector &x, Vector &y) const;
@@ -158,6 +178,9 @@ class PetscSolver : public Solver
 protected:
    /// The Krylov object
    KSP ksp;
+
+   /// The operator
+   PetscParMatrix* A;
 
    /// Right-hand side and solution vector
    mutable PetscParVector *B, *X;

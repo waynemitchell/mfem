@@ -1,4 +1,4 @@
-// Copyright (c) 2010, Lawrence Livermore National Security, LLC. Produced at
+// Copyright (c) 2016, Lawrence Livermore National Security, LLC. Produced at
 // the Lawrence Livermore National Laboratory. LLNL-CODE-443211. All Rights
 // reserved. See file COPYRIGHT for details.
 //
@@ -8,6 +8,8 @@
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
+
+// Author: Stefano Zampini <stefano.zampini@gmail.com>
 
 #include "../config/config.hpp"
 
@@ -22,6 +24,7 @@
 #include <cmath>
 #include <cstdlib>
 
+// Error handling
 // Prints PETSc's stacktrace and then calls MFEM_ABORT
 // We cannot use PETSc's CHKERRQ since it returns a PetscErrorCode
 #define PCHKERRQ(obj,err)                                                  \
@@ -38,6 +41,10 @@
     MFEM_ABORT("Error in PETSc. See stacktrace above."); \
   }
 
+// prototype for auxiliary functions
+static PetscErrorCode MatConvert_hypreParCSR_AIJ(hypre_ParCSRMatrix*,Mat*,PetscInt**,PetscInt**,PetscScalar**,PetscInt**,PetscInt**,PetscScalar**);
+
+// use global scope ierr to check PETSc errors inside mfem calls
 PetscErrorCode ierr;
 
 using namespace std;
@@ -295,17 +302,29 @@ void PetscParMatrix::Init()
 {
    A = NULL;
    X = Y = NULL;
+   dii = djj = oii = ojj = NULL;
+   da = oa = NULL;
+   height = width = 0;
 }
 
 PetscParMatrix::PetscParMatrix()
 {
    Init();
-   height = width = 0;
 }
 
-PetscParMatrix::PetscParMatrix(const HypreParMatrix hmat)
+PetscParMatrix::PetscParMatrix(const HypreParMatrix *hmat, bool wrap)
 {
-   MFEM_ABORT("Not yet implemented");
+   Init();
+   height = hmat->GetNumRows();
+   width  = hmat->GetNumCols();
+   if (wrap)
+   {
+      MakeWrapper(hmat,&A);
+   }
+   else
+   {
+      Convert(hmat,&A,&dii,&djj,&da,&oii,&ojj,&oa);
+   }
 }
 
 typedef struct {
@@ -372,10 +391,17 @@ static PetscErrorCode mat_shell_destroy(Mat A)
 }
 #undef __FUNCT__
 
-void PetscParMatrix::MakeWrapper(const HypreParMatrix* hmat)
+void PetscParMatrix::Convert(const HypreParMatrix* hmat, Mat *A,
+                             PetscInt** dii, PetscInt** djj,PetscScalar** da,
+                             PetscInt** oii, PetscInt** ojj,PetscScalar** oa)
+{
+   ierr = MatConvert_hypreParCSR_AIJ(const_cast<HypreParMatrix&>(*hmat),A,dii,djj,da,oii,ojj,oa);CCHKERRQ(hmat->GetComm(),ierr);
+}
+
+void PetscParMatrix::MakeWrapper(const HypreParMatrix* hmat, Mat *A)
 {
    MPI_Comm comm = hmat->GetComm();
-   ierr = MatCreate(comm,&A);CCHKERRQ(comm,ierr);
+   ierr = MatCreate(comm,A);CCHKERRQ(comm,ierr);
    PetscMPIInt myid = 0;
    // TODO ASK
    if (!HYPRE_AssumedPartitionCheck())
@@ -384,32 +410,32 @@ void PetscParMatrix::MakeWrapper(const HypreParMatrix* hmat)
    }
    const PetscInt *rows = hmat->RowPart();
    const PetscInt *cols = hmat->ColPart();
-   ierr = MatSetSizes(A,rows[myid+1]-rows[myid],cols[myid+1]-cols[myid],PETSC_DECIDE,PETSC_DECIDE);PCHKERRQ(A,ierr);
-   ierr = MatSetType(A,MATSHELL);PCHKERRQ(A,ierr);
+   ierr = MatSetSizes(*A,rows[myid+1]-rows[myid],cols[myid+1]-cols[myid],PETSC_DECIDE,PETSC_DECIDE);PCHKERRQ(A,ierr);
+   ierr = MatSetType(*A,MATSHELL);PCHKERRQ(A,ierr);
    mat_shell_ctx *ctx = new mat_shell_ctx;
-   ierr = MatShellSetContext(A,(void *)ctx);PCHKERRQ(A,ierr);
-   ierr = MatShellSetOperation(A,MATOP_MULT,(void (*)())mat_shell_apply);PCHKERRQ(A,ierr);
-   ierr = MatShellSetOperation(A,MATOP_MULT_TRANSPOSE,(void (*)())mat_shell_apply_transpose);PCHKERRQ(A,ierr);
-   ierr = MatShellSetOperation(A,MATOP_DESTROY,(void (*)())mat_shell_destroy);PCHKERRQ(A,ierr);
-   ierr = MatSetUp(A);PCHKERRQ(A,ierr);
+   ierr = MatShellSetContext(*A,(void *)ctx);PCHKERRQ(A,ierr);
+   ierr = MatShellSetOperation(*A,MATOP_MULT,(void (*)())mat_shell_apply);PCHKERRQ(A,ierr);
+   ierr = MatShellSetOperation(*A,MATOP_MULT_TRANSPOSE,(void (*)())mat_shell_apply_transpose);PCHKERRQ(A,ierr);
+   ierr = MatShellSetOperation(*A,MATOP_DESTROY,(void (*)())mat_shell_destroy);PCHKERRQ(A,ierr);
+   ierr = MatSetUp(*A);PCHKERRQ(*A,ierr);
    // create two HypreVectors in domain and range of A without allocating data
-   ctx->xx = GetHypreParVector(A,false);
-   ctx->yy = GetHypreParVector(A,true);
+   ctx->xx = GetHypreParVector(*A,false);
+   ctx->yy = GetHypreParVector(*A,true);
    ctx->op = const_cast<HypreParMatrix *>(hmat);
-   height = hmat->GetNumRows();
-   width  = hmat->GetNumCols();
 }
 
 void PetscParMatrix::Destroy()
 {
+   MPI_Comm comm = MPI_COMM_NULL;
    if (A)
    {
-      MPI_Comm comm = PetscObjectComm((PetscObject)A);
+      comm = PetscObjectComm((PetscObject)A);
       ierr = MatDestroy(&A);CCHKERRQ(comm,ierr);
    }
-   if ( X != NULL ) { delete X; }
-   if ( Y != NULL ) { delete Y; }
-
+   if (X) { delete X; }
+   if (Y) { delete Y; }
+   if (dii && djj && da) { ierr = PetscFree3(dii,djj,da);CCHKERRQ(comm,ierr); }
+   if (oii && ojj && oa) { ierr = PetscFree3(oii,ojj,oa);CCHKERRQ(comm,ierr); }
 }
 
 PetscParMatrix::PetscParMatrix(Mat a)
@@ -434,6 +460,7 @@ void PetscParMatrix::Mult(const Vector &x, Vector &y) const
 void PetscSolver::Init()
 {
    ksp = NULL;
+   A = NULL;
    B = X = NULL;
    wrap = true;
 }
@@ -467,29 +494,18 @@ void PetscSolver::SetOperator(const Operator &op)
    // update base classes: Operator, Solver, PetscSolver
    MPI_Comm comm;
    PetscInt nheight,nwidth;
-   PetscParMatrix *A = new PetscParMatrix();
    if (hA)
    {
-      comm    = hA->GetComm();
-      nheight = hA->Height();
-      nwidth  = hA->Width();
-      if (wrap)
-      {
-         // Create MATSHELL objec
-         A->MakeWrapper(hA);
-      }
-      else
-      {
-         // Convert into PETSc MPIAIJ forma
-         MFEM_ABORT("To be implemented");
-      }
+      // Create MATSHELL object or convert into PETSc AIJ format
+      A = new PetscParMatrix(hA,wrap);
    }
    else
    {
-      comm    = pA->GetComm();
-      nheight = pA->Height();
-      nwidth  = pA->Width();
+      A = new PetscParMatrix(pA->A);
    }
+   comm    = A->GetComm();
+   nheight = A->Height();
+   nwidth  = A->Width();
    if (ksp)
    {
       if (nheight != height || nwidth != width)
@@ -507,15 +523,7 @@ void PetscSolver::SetOperator(const Operator &op)
    }
    height = nheight;
    width  = nwidth;
-   if (A)
-   {
-      ierr = KSPSetOperators(ksp,A->A,A->A);PCHKERRQ(ksp,ierr);
-      delete A;
-   }
-   else
-   {
-      ierr = KSPSetOperators(ksp,pA->A,pA->A);PCHKERRQ(ksp,ierr);
-   }
+   ierr = KSPSetOperators(ksp,A->A,A->A);PCHKERRQ(ksp,ierr);
 }
 
 typedef struct {
@@ -676,6 +684,7 @@ void PetscSolver::Mult(const Vector &b, Vector &x) const
 
 PetscSolver::~PetscSolver()
 {
+   if (A) { delete A; }
    if (B) { delete B; }
    if (X) { delete X; }
    if (ksp)
@@ -718,6 +727,82 @@ void PetscSolver::SetPrintLevel(int plev)
    }
   // TODO
 }
+}
+
+// This function needs to access PETSc private data to make it faster.
+// Eventually can be moved to PETSc source code.
+#include "petsc/private/matimpl.h"
+#include "_hypre_parcsr_mv.h"
+#undef __FUNCT__
+#define __FUNCT__ "MatConvert_hypreParCSR_AIJ"
+static PetscErrorCode MatConvert_hypreParCSR_AIJ(hypre_ParCSRMatrix* hA,Mat* pA,PetscInt** odii,PetscInt** odjj,PetscScalar** oda,PetscInt** ooii,PetscInt** oojj,PetscScalar** ooa)
+{
+   MPI_Comm        comm = hypre_ParCSRMatrixComm(hA);
+   hypre_CSRMatrix *hdiag,*hoffd;
+   PetscScalar     *da,*oa,*aptr;
+   PetscInt        *dii,*djj,*oii,*ojj,*iptr;
+   PetscInt        i,dnnz,onnz,m,n;
+   PetscMPIInt     size;
+   PetscErrorCode  ierr;
+
+   PetscFunctionBeginUser;
+   hdiag = hypre_ParCSRMatrixDiag(hA);
+   hoffd = hypre_ParCSRMatrixOffd(hA);
+   m     = hypre_CSRMatrixNumRows(hdiag);
+   n     = hypre_CSRMatrixNumCols(hdiag);
+   dnnz  = hypre_CSRMatrixNumNonzeros(hdiag);
+   onnz  = hypre_CSRMatrixNumNonzeros(hoffd);
+   ierr  = PetscMalloc3(m+1,&dii,dnnz,&djj,dnnz,&da);CHKERRQ(ierr);
+   ierr  = PetscMemcpy(dii,hypre_CSRMatrixI(hdiag),(m+1)*sizeof(PetscInt));CHKERRQ(ierr);
+   ierr  = PetscMemcpy(djj,hypre_CSRMatrixJ(hdiag),dnnz*sizeof(PetscInt));CHKERRQ(ierr);
+   ierr  = PetscMemcpy(da,hypre_CSRMatrixData(hdiag),dnnz*sizeof(PetscScalar));CHKERRQ(ierr);
+   /* TODO should we add a case when the J pointer is already sorted? */
+   iptr = djj;
+   aptr = da;
+   for (i=0;i<m;i++)
+   {
+      PetscInt nc = dii[i+1]-dii[i];
+      ierr = PetscSortIntWithScalarArray(nc,iptr,aptr);CHKERRQ(ierr);
+      iptr += nc;
+      aptr += nc;
+   }
+   ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
+   if (size > 1)
+   {
+     PetscInt *offdj,*coffd;
+
+     ierr  = PetscMalloc3(m+1,&oii,onnz,&ojj,onnz,&oa);CHKERRQ(ierr);
+     ierr  = PetscMemcpy(oii,hypre_CSRMatrixI(hoffd),(m+1)*sizeof(PetscInt));CHKERRQ(ierr);
+     offdj = hypre_CSRMatrixJ(hoffd);
+     coffd = hypre_ParCSRMatrixColMapOffd(hA);
+     for (i=0;i<onnz;i++) ojj[i] = coffd[offdj[i]];
+     ierr  = PetscMemcpy(oa,hypre_CSRMatrixData(hoffd),onnz*sizeof(PetscScalar));CHKERRQ(ierr);
+     /* TODO should we add a case when the J pointer is already sorted? */
+     iptr = ojj;
+     aptr = oa;
+     for (i=0;i<m;i++)
+     {
+        PetscInt nc = oii[i+1]-oii[i];
+        ierr = PetscSortIntWithScalarArray(nc,iptr,aptr);CHKERRQ(ierr);
+        iptr += nc;
+        aptr += nc;
+     }
+     ierr = MatCreateMPIAIJWithSplitArrays(comm,m,n,PETSC_DECIDE,PETSC_DECIDE,dii,djj,da,oii,ojj,oa,pA);CCHKERRQ(comm,ierr);
+   }
+   else
+   {
+     oii = ojj = NULL;
+     oa = NULL;
+     ierr = MatCreateSeqAIJWithArrays(comm,m,n,dii,djj,da,pA);CCHKERRQ(comm,ierr);
+   }
+   /* Get back pointers to caller because we need to free those arrays when the matrix is no longer needed */
+   *odii = dii;
+   *odjj = djj;
+   *oda  = da;
+   *ooii = oii;
+   *oojj = ojj;
+   *ooa  = oa;
+   PetscFunctionReturn(0);
 }
 
 #endif
