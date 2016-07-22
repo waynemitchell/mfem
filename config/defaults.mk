@@ -143,7 +143,7 @@ NETCDF_LIB  = -L$(NETCDF_DIR)/lib -lnetcdf -L$(HDF5_DIR)/lib -lhdf5_hl -lhdf5\
 # PETSc library configuration
 PETSC_DIR  ?= @MFEM_DIR@/../petsc
 PETSC_ARCH ?= debug
-PETSC_LIB = # This should be $PETSC_LIB as printed by the PETSC makefile
+PETSC_LIB = $(PETSC_DIR)/$(PETSC_ARCH)/lib -lpetsc # This should be $PETSC_LIB as printed by the PETSC makefile
 
 # If YES, enable some informational messages
 VERBOSE = NO
