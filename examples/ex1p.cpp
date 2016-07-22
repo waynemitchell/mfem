@@ -38,6 +38,9 @@
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
+#ifdef MFEM_USE_PETSC
+#include <petsc.h>
+#endif
 
 using namespace std;
 using namespace mfem;
@@ -55,6 +58,9 @@ int main(int argc, char *argv[])
    int order = 1;
    bool static_cond = false;
    bool visualization = 1;
+#ifdef MFEM_USE_PETSC
+   const char *petscrc_file = NULL;
+#endif
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -67,6 +73,10 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
+#ifdef MFEM_USE_PETSC
+   args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
+                  "PetscOptions file to use.");
+#endif
    args.Parse();
    if (!args.Good())
    {
@@ -198,6 +208,24 @@ int main(int argc, char *argv[])
    pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*amg);
    pcg->Mult(B, X);
+
+#ifdef MFEM_USE_PETSC
+   // 12b. Use PETSc Krylov solvers to solve the linear system
+   PetscInitialize(NULL,NULL,petscrc_file,NULL);
+   {
+     // we scope these calls so that the destructors for pX and ppcg
+     // are called before PetscFinalize
+     PetscParVector pX(fespace);
+     PetscSolver *ppcg = new PetscSolver(A,true);
+     ppcg->SetMaxIter(200);
+     ppcg->SetTol(1e-12);
+     ppcg->SetPrintLevel(2); //TODO: dummy call
+     ppcg->SetPreconditioner(*amg);
+     ppcg->Mult(B, pX);
+     delete ppcg;
+  }
+  PetscFinalize();
+#endif
 
    // 13. Recover the parallel grid function corresponding to X. This is the
    //     local finite element solution on each processor.
