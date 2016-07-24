@@ -904,6 +904,22 @@ void PetscLinearSolver::SetPrintLevel(int plev)
   // TODO
 }
 
+// PetscPCGSolver
+
+PetscPCGSolver::PetscPCGSolver(PetscParMatrix& _A) : PetscLinearSolver(_A)
+{
+   ierr = KSPSetType(ksp,KSPCG);PCHKERRQ(ksp,ierr);
+   // this is to obtain a textbook PCG
+   ierr = KSPSetNormType(ksp,KSP_NORM_NATURAL);PCHKERRQ(ksp,ierr);
+}
+
+PetscPCGSolver::PetscPCGSolver(HypreParMatrix& _A, bool wrap) : PetscLinearSolver(_A,wrap)
+{
+   ierr = KSPSetType(ksp,KSPCG);PCHKERRQ(ksp,ierr);
+   // this is to obtain a textbook PCG
+   ierr = KSPSetNormType(ksp,KSP_NORM_NATURAL);PCHKERRQ(ksp,ierr);
+}
+
 }
 
 #undef __FUNCT__

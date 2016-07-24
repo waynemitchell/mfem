@@ -250,6 +250,14 @@ public:
    virtual ~PetscLinearSolver();
 };
 
+class PetscPCGSolver : public PetscLinearSolver
+{
+public:
+   PetscPCGSolver(PetscParMatrix &_A);
+
+   PetscPCGSolver(HypreParMatrix &_A,bool wrap=true);
+};
+
 }
 
 #endif // MFEM_USE_MPI
