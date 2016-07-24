@@ -172,11 +172,61 @@ HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
 PetscParMatrix *ParBilinearForm::PetscParallelAssemble(SparseMatrix *m)
 {
    // so far it just uses HYPRE + conversion
-   HypreParMatrix* tmat = ParallelAssemble();
-   PetscParMatrix* out = new PetscParMatrix(tmat,false);
-   delete tmat;
-   return out;
+   //HypreParMatrix* tmat = ParallelAssemble();
+   //PetscParMatrix* out = new PetscParMatrix(tmat,false);
+   //delete tmat;
+   //return out;
+   if (m == NULL) { return NULL; }
+
+   MFEM_VERIFY(m->Finalized(), "local matrix needs to be finalized for "
+               "ParallelAssemble");
+
+   PetscParMatrix *A;
+   if (fbfi.Size() == 0)
+   {
+      // construct a parallel block-diagonal wrapper matrix A based on m
+      // TODO: use unassembled format
+      A = new PetscParMatrix(pfes->GetComm(),
+                             pfes->GlobalVSize(), pfes->GetDofOffsets(), m);
+   }
+   else
+   {
+      // TODO
+      MFEM_ABORT("Not yet implemented");
+      // handle the case when 'm' contains offdiagonal
+      //int lvsize = pfes->GetVSize();
+      //const HYPRE_Int *face_nbr_glob_ldof = pfes->GetFaceNbrGlobalDofMap();
+      //HYPRE_Int ldof_offset = pfes->GetMyDofOffset();
+
+      //Array<HYPRE_Int> glob_J(m->NumNonZeroElems());
+      //int *J = m->GetJ();
+      //for (int i = 0; i < glob_J.Size(); i++)
+      //{
+      //   if (J[i] < lvsize)
+      //   {
+      //      glob_J[i] = J[i] + ldof_offset;
+      //   }
+      //   else
+      //   {
+      //      glob_J[i] = face_nbr_glob_ldof[J[i] - lvsize];
+      //   }
+      //}
+
+      //A = new HypreParMatrix(pfes->GetComm(), lvsize, pfes->GlobalVSize(),
+      //                       pfes->GlobalVSize(), m->GetI(), glob_J,
+      //                       m->GetData(), pfes->GetDofOffsets(),
+      //                       pfes->GetDofOffsets());
+   }
+
+   // TODO assemble Dof_TrueDof_Matrix in MATIS format
+   PetscParMatrix *temp = new PetscParMatrix(pfes->Dof_TrueDof_Matrix(),false);
+   PetscParMatrix *rap = RAP(A, temp);
+   delete temp;
+   delete A;
+
+   return rap;
 }
+
 void ParBilinearForm::AssembleSharedFaces(int skip_zeros)
 {
    ParMesh *pmesh = pfes->GetParMesh();
@@ -366,6 +416,7 @@ void ParBilinearForm::FormLinearSystem(
    // eliminated part of the matrix.
    if (static_cond)
    {
+      // TODO
       MFEM_ABORT("STATIC CONDENSATION SUPPORT STILL MISSING");
       //static_cond->ConvertListToReducedTrueDofs(ess_tdof_list, ess_rtdof_list);
       //if (!static_cond->HasEliminatedBC())
@@ -397,6 +448,7 @@ void ParBilinearForm::FormLinearSystem(
    // multipliers, set X = 0.0 for hybridization.
    if (static_cond)
    {
+      // TODO
       // Schur complement reduction to the exposed dofs
       //static_cond->ReduceRHS(b, B);
       //static_cond->ReduceSolution(x, X);
@@ -408,6 +460,7 @@ void ParBilinearForm::FormLinearSystem(
    }
    else if (hybridization)
    {
+      // TODO
       MFEM_ABORT("HYBRIDIZATION SUPPORT STILL MISSING");
       // Reduction to the Lagrange multipliers system
       //HypreParVector true_X(pfes), true_B(pfes);
