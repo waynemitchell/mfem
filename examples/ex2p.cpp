@@ -35,12 +35,17 @@
 //               meshes with curved elements, and the definition of piece-wise
 //               constant and vector coefficient objects. Static condensation is
 //               also illustrated.
+//               The example also shows how to form a linear system using a PETSc
+//               matrix.
 //
 //               We recommend viewing Example 1 before viewing this example.
 
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
+#ifdef MFEM_USE_PETSC
+#include <petsc.h>
+#endif
 
 using namespace std;
 using namespace mfem;
@@ -59,6 +64,10 @@ int main(int argc, char *argv[])
    bool static_cond = false;
    bool visualization = 1;
    bool amg_elast = 0;
+   bool use_petsc = false;
+#ifdef MFEM_USE_PETSC
+   const char *petscrc_file = NULL;
+#endif
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -74,6 +83,13 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
+#ifdef MFEM_USE_PETSC
+   args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "no-petsc",
+                  "--no-petsc",
+                  "Use or not PETSc to solve the linear system.");
+   args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
+                  "PetscOptions file to use.");
+#endif
    args.Parse();
    if (!args.Good())
    {
@@ -88,6 +104,11 @@ int main(int argc, char *argv[])
    {
       args.PrintOptions(cout);
    }
+
+   // 2b. We initialize PETSc
+#ifdef MFEM_USE_PETSC
+   if (use_petsc) PetscInitialize(NULL,NULL,petscrc_file,NULL);
+#endif
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
@@ -230,32 +251,59 @@ int main(int argc, char *argv[])
    if (static_cond) { a->EnableStaticCondensation(); }
    a->Assemble();
 
-   HypreParMatrix A;
    Vector B, X;
-   a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
-   if (myid == 0)
+   if (!use_petsc)
    {
-      cout << "done." << endl;
-      cout << "Size of linear system: " << A.GetGlobalNumRows() << endl;
-   }
+      HypreParMatrix A;
+      a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
+      if (myid == 0)
+      {
+         cout << "done." << endl;
+         cout << "Size of linear system: " << A.GetGlobalNumRows() << endl;
+      }
 
-   // 13. Define and apply a parallel PCG solver for A X = B with the BoomerAMG
-   //     preconditioner from hypre.
-   HypreBoomerAMG *amg = new HypreBoomerAMG(A);
-   if (amg_elast && !a->StaticCondensationIsEnabled())
-   {
-      amg->SetElasticityOptions(fespace);
+      // 13. Define and apply a parallel PCG solver for A X = B with the BoomerAMG
+      //     preconditioner from hypre.
+      HypreBoomerAMG *amg = new HypreBoomerAMG(A);
+      if (amg_elast && !a->StaticCondensationIsEnabled())
+      {
+         amg->SetElasticityOptions(fespace);
+      }
+      else
+      {
+         amg->SetSystemsOptions(dim);
+      }
+      HyprePCG *pcg = new HyprePCG(A);
+      pcg->SetTol(1e-8);
+      pcg->SetMaxIter(500);
+      pcg->SetPrintLevel(2);
+      pcg->SetPreconditioner(*amg);
+      pcg->Mult(B, X);
+      delete pcg;
+      delete amg;
    }
+#ifdef MFEM_USE_PETSC
    else
    {
-      amg->SetSystemsOptions(dim);
+      // 13b. Use PETSc to solve the linear system
+      PetscParMatrix A;
+      // Assemble into PETSc's AIJ format
+      a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
+      if (myid == 0)
+      {
+         cout << "done." << endl;
+         cout << "Size of linear system: " << A.M() << endl;
+      }
+
+      PetscSolver *ppcg = new PetscSolver(A);
+      ppcg->SetMaxIter(500);
+      ppcg->SetTol(1e-8);
+      ppcg->SetPrintLevel(2); //TODO: dummy call
+      //ppcg->SetPreconditioner(*amg);
+      ppcg->Mult(B, X);
+      delete ppcg;
    }
-   HyprePCG *pcg = new HyprePCG(A);
-   pcg->SetTol(1e-8);
-   pcg->SetMaxIter(500);
-   pcg->SetPrintLevel(2);
-   pcg->SetPreconditioner(*amg);
-   pcg->Mult(B, X);
+#endif
 
    // 14. Recover the parallel grid function corresponding to X. This is the
    //     local finite element solution on each processor.
@@ -307,8 +355,6 @@ int main(int argc, char *argv[])
    }
 
    // 18. Free the used memory.
-   delete pcg;
-   delete amg;
    delete a;
    delete b;
    if (fec)
@@ -318,6 +364,10 @@ int main(int argc, char *argv[])
    }
    delete pmesh;
 
+   // We finalize PETSc
+#ifdef MFEM_USE_PETSC
+   if (use_petsc) PetscFinalize();
+#endif
    MPI_Finalize();
 
    return 0;
