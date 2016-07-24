@@ -34,6 +34,8 @@
 //               discrete linear system. We also cover the explicit elimination
 //               of essential boundary conditions, static condensation, and the
 //               optional connection to the GLVis tool for visualization.
+//               The example also shows how PETSc Krylov solvers can be used
+//               by wrapping a HypreParMatrix (or not) and a Solver.
 
 #include "mfem.hpp"
 #include <fstream>
@@ -59,6 +61,7 @@ int main(int argc, char *argv[])
    bool static_cond = false;
    bool visualization = 1;
 #ifdef MFEM_USE_PETSC
+   bool wrap = true;
    const char *petscrc_file = NULL;
 #endif
 
@@ -74,6 +77,9 @@ int main(int argc, char *argv[])
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
 #ifdef MFEM_USE_PETSC
+   args.AddOption(&wrap, "-wrap", "--wrap", "-no-wrap",
+                  "--no-wrap",
+                  "Wrap a HypreParMatrix inside a PetscParMatrix object or convert from HypreParCSR to MATAIJ.");
    args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
                   "PetscOptions file to use.");
 #endif
@@ -214,14 +220,21 @@ int main(int argc, char *argv[])
    PetscInitialize(NULL,NULL,petscrc_file,NULL);
    {
       // we scope these calls so that the destructors for pX and ppcg
-      // are called before PetscFinalize
+      // are called before PetscFinalize.
       PetscParVector pX(fespace);
-      PetscSolver *ppcg = new PetscSolver(A,true);
+      // If wrap is true, wraps the HypreParMatrix action on vectors.
+      // If wrap is false, internally creates an AIJ PETSc's matrix format
+      // to be used with PETSc's preconditioners.
+      PetscSolver *ppcg = new PetscSolver(A,wrap);
       ppcg->SetMaxIter(200);
       ppcg->SetTol(1e-12);
       ppcg->SetPrintLevel(2); //TODO: dummy call
+      // You can specify any Solver to be used as a preconditioner
+      // inside PETSc's Krylov solvers.
       ppcg->SetPreconditioner(*amg);
       ppcg->Mult(B, pX);
+      pX -= X;
+      if (myid == 0) cout << "Error between PETSc and HYPRE: " << pX.Normlinf() << endl;
       delete ppcg;
    }
    PetscFinalize();
