@@ -34,7 +34,7 @@ protected:
    Vec x;
 
    friend class PetscParMatrix;
-   friend class PetscSolver;
+   friend class PetscLinearSolver;
 
    // Set Vector::data and Vector::size from x
    void _SetDataAndSize_();
@@ -124,7 +124,7 @@ protected:
    /// and returns the Mat in B
    void MakeWrapper(const HypreParMatrix* hmat, Mat *B);
 
-   friend class PetscSolver;
+   friend class PetscLinearSolver;
 
 public:
    /// An empty matrix to be used as a reference to an existing matrix
@@ -203,7 +203,7 @@ void EliminateBC(PetscParMatrix &A, PetscParMatrix &Ae,
 
 
 /// Abstract class for PETSc's solvers and preconditioners
-class PetscSolver : public Solver
+class PetscLinearSolver : public Solver
 {
 protected:
    /// The Krylov object
@@ -219,16 +219,16 @@ private:
 
 public:
    /// Initialize protected objects to NULL
-   PetscSolver();
+   PetscLinearSolver();
 
    /// Constructs a solver using a PetscParMatrix
-   PetscSolver(PetscParMatrix &_A);
+   PetscLinearSolver(PetscParMatrix &_A);
 
    /// Constructs a solver using a HypreParMatrix.
    /// If wrap is true, then the MatMult ops of HypreParMatrix are wrapped.
    /// No preconditioner can be automatically constructed from PETSc.
    /// If wrap is false, the HypreParMatrix is converted into PETSc format.
-   PetscSolver(HypreParMatrix &_A,bool wrap=true);
+   PetscLinearSolver(HypreParMatrix &_A,bool wrap=true);
 
    /// Customization
    void SetTol(double tol);
@@ -247,7 +247,7 @@ public:
    virtual void Mult(const PetscParVector &b, PetscParVector &x) const;
    virtual void Mult(const Vector &b, Vector &x) const;
 
-   virtual ~PetscSolver();
+   virtual ~PetscLinearSolver();
 };
 
 }

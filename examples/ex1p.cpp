@@ -225,7 +225,7 @@ int main(int argc, char *argv[])
       // If wrap is true, wraps the HypreParMatrix action on vectors.
       // If wrap is false, internally creates an AIJ PETSc's matrix format
       // to be used with PETSc's preconditioners.
-      PetscSolver *ppcg = new PetscSolver(A,wrap);
+      PetscLinearSolver *ppcg = new PetscLinearSolver(A,wrap);
       ppcg->SetMaxIter(200);
       ppcg->SetTol(1e-12);
       ppcg->SetPrintLevel(2); //TODO: dummy call

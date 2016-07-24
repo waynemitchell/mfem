@@ -627,41 +627,41 @@ void EliminateBC(PetscParMatrix &A, PetscParMatrix &Ae,
    ierr = VecRestoreArrayRead(diag,&array);PCHKERRQ(diag,ierr);
 }
 
-// PetscSolver
-void PetscSolver::Init()
+// PetscLinearSolver
+void PetscLinearSolver::Init()
 {
    ksp = NULL;
    B = X = NULL;
    wrap = false;
 }
 
-PetscSolver::PetscSolver()
+PetscLinearSolver::PetscLinearSolver()
 {
    Init();
 }
 
-PetscSolver::PetscSolver(PetscParMatrix &_A)
+PetscLinearSolver::PetscLinearSolver(PetscParMatrix &_A)
 {
    Init();
    SetOperator(_A);
 }
 
-PetscSolver::PetscSolver(HypreParMatrix &_A,bool wrapin)
+PetscLinearSolver::PetscLinearSolver(HypreParMatrix &_A,bool wrapin)
 {
    Init();
    wrap = wrapin;
    SetOperator(_A);
 }
 
-void PetscSolver::SetOperator(const Operator &op)
+void PetscLinearSolver::SetOperator(const Operator &op)
 {
    HypreParMatrix *hA = const_cast<HypreParMatrix *>(dynamic_cast<const HypreParMatrix *>(&op));
    PetscParMatrix *pA = const_cast<PetscParMatrix *>(dynamic_cast<const PetscParMatrix *>(&op));
    if (!hA && !pA)
    {
-      MFEM_ABORT("PetscSolver::SetOperator : new Operator must be a HypreParMatrix or a PetscParMatrix!");
+      MFEM_ABORT("PetscLinearSolver::SetOperator : new Operator must be a HypreParMatrix or a PetscParMatrix!");
    }
-   // update base classes: Operator, Solver, PetscSolver
+   // update base classes: Operator, Solver, PetscLinearSolver
    MPI_Comm comm;
    PetscInt nheight,nwidth;
    Mat      A;
@@ -792,11 +792,11 @@ static PetscErrorCode pc_shell_destroy(PC pc)
 
 #undef __FUNCT__
 
-void PetscSolver::SetPreconditioner(Solver &precond)
+void PetscLinearSolver::SetPreconditioner(Solver &precond)
 {
    if (!ksp)
    {
-      MFEM_ABORT("PetscSolver::SetPreconditioner (...) : KSP si missing. You should call PetscSolver::SetOperator (...) first");
+      MFEM_ABORT("PetscLinearSolver::SetPreconditioner (...) : KSP si missing. You should call PetscLinearSolver::SetOperator (...) first");
       return;
    }
    PC pc;
@@ -814,11 +814,11 @@ void PetscSolver::SetPreconditioner(Solver &precond)
    ierr = PCShellSetDestroy(pc,pc_shell_destroy);PCHKERRQ(pc,ierr);
 }
 
-void PetscSolver::Mult(const PetscParVector &b, PetscParVector &x) const
+void PetscLinearSolver::Mult(const PetscParVector &b, PetscParVector &x) const
 {
    if (!ksp)
    {
-      MFEM_ABORT("PetscSolver::Mult (...) : KSP si missing");
+      MFEM_ABORT("PetscLinearSolver::Mult (...) : KSP si missing");
       return;
    }
    // allow user customization
@@ -828,11 +828,11 @@ void PetscSolver::Mult(const PetscParVector &b, PetscParVector &x) const
    ierr = KSPSolve(ksp,b.x,x.x);PCHKERRQ(ksp,ierr);
 }
 
-void PetscSolver::Mult(const Vector &b, Vector &x) const
+void PetscLinearSolver::Mult(const Vector &b, Vector &x) const
 {
    if (!ksp)
    {
-      MFEM_ABORT("PetscSolver::Mult (...) : KSP is missing");
+      MFEM_ABORT("PetscLinearSolver::Mult (...) : KSP is missing");
       return;
    }
    if (!B)
@@ -858,7 +858,7 @@ void PetscSolver::Mult(const Vector &b, Vector &x) const
    X -> ResetData();
 }
 
-PetscSolver::~PetscSolver()
+PetscLinearSolver::~PetscLinearSolver()
 {
    if (B) { delete B; }
    if (X) { delete X; }
@@ -870,11 +870,11 @@ PetscSolver::~PetscSolver()
    }
 }
 
-void PetscSolver::SetTol(double tol)
+void PetscLinearSolver::SetTol(double tol)
 {
    if (!ksp)
    {
-      MFEM_ABORT("PetscSolver::SetTol (...) : KSP is missing");
+      MFEM_ABORT("PetscLinearSolver::SetTol (...) : KSP is missing");
       return;
    }
    // PETSC_DEFAULT does not change any other
@@ -882,11 +882,11 @@ void PetscSolver::SetTol(double tol)
    ierr = KSPSetTolerances(ksp,tol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);PCHKERRQ(ksp,ierr)
 }
 
-void PetscSolver::SetMaxIter(int max_iter)
+void PetscLinearSolver::SetMaxIter(int max_iter)
 {
    if (!ksp)
    {
-      MFEM_ABORT("PetscSolver::SetTol (...) : KSP is missing");
+      MFEM_ABORT("PetscLinearSolver::SetTol (...) : KSP is missing");
       return;
    }
    // PETSC_DEFAULT does not change any other
@@ -894,11 +894,11 @@ void PetscSolver::SetMaxIter(int max_iter)
    ierr = KSPSetTolerances(ksp,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT,max_iter);PCHKERRQ(ksp,ierr)
 }
 
-void PetscSolver::SetPrintLevel(int plev)
+void PetscLinearSolver::SetPrintLevel(int plev)
 {
    if (!ksp)
    {
-      MFEM_ABORT("PetscSolver::SetTol (...) : KSP is missing");
+      MFEM_ABORT("PetscLinearSolver::SetTol (...) : KSP is missing");
       return;
    }
   // TODO
