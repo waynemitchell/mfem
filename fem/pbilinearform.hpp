@@ -18,6 +18,7 @@
 
 #include <mpi.h>
 #include "../linalg/hypre.hpp"
+#include "../linalg/petsc.hpp"
 #include "pfespace.hpp"
 #include "pgridfunc.hpp"
 #include "bilinearform.hpp"
@@ -33,6 +34,7 @@ protected:
    mutable ParGridFunction X, Y; // used in TrueAddMult
 
    HypreParMatrix *p_mat, *p_mat_e;
+   PetscParMatrix *pp_mat, *pp_mat_e;
 
    bool keep_nbr_block;
 
@@ -43,11 +45,11 @@ protected:
 
 public:
    ParBilinearForm(ParFiniteElementSpace *pf)
-      : BilinearForm(pf), pfes(pf), p_mat(NULL), p_mat_e(NULL)
+      : BilinearForm(pf), pfes(pf), p_mat(NULL), p_mat_e(NULL), pp_mat(NULL), pp_mat_e(NULL)
    { keep_nbr_block = false; }
 
    ParBilinearForm(ParFiniteElementSpace *pf, ParBilinearForm *bf)
-      : BilinearForm(pf, bf), pfes(pf), p_mat(NULL), p_mat_e(NULL)
+      : BilinearForm(pf, bf), pfes(pf), p_mat(NULL), p_mat_e(NULL), pp_mat(NULL), pp_mat_e(NULL)
    { keep_nbr_block = false; }
 
    /** When set to true and the ParBilinearForm has interior face integrators,
@@ -62,11 +64,17 @@ public:
    /// Returns the matrix assembled on the true dofs, i.e. P^t A P.
    HypreParMatrix *ParallelAssemble() { return ParallelAssemble(mat); }
 
+   /// Returns the matrix assembled on the true dofs, i.e. P^t A P as a PetscParMatrix.
+   PetscParMatrix *PetscParallelAssemble() { return PetscParallelAssemble(mat); }
+
    /// Returns the eliminated matrix assembled on the true dofs, i.e. P^t A_e P.
    HypreParMatrix *ParallelAssembleElim() { return ParallelAssemble(mat_e); }
 
    /// Return the matrix m assembled on the true dofs, i.e. P^t A P
    HypreParMatrix *ParallelAssemble(SparseMatrix *m);
+
+   /// Return the matrix m assembled on the true dofs, i.e. P^t A P as a PetscParMatrix.
+   PetscParMatrix *PetscParallelAssemble(SparseMatrix *m);
 
    /** Eliminate essential boundary DOFs from a parallel assembled system.
        The array 'bdr_attr_is_ess' marks boundary attributes that constitute
@@ -133,6 +141,11 @@ public:
                          HypreParMatrix &A, Vector &X, Vector &B,
                          int copy_interior = 0);
 
+   /// Form linear system matrix for PETSc solvers
+   void FormLinearSystem(Array<int> &ess_tdof_list, Vector &x, Vector &b,
+                         PetscParMatrix &A, Vector &X, Vector &B,
+                         int copy_interior = 0);
+
    /** Call this method after solving a linear system constructed using the
        FormLinearSystem method to recover the solution as a ParGridFunction-size
        vector in x. Use the same arguments as in the FormLinearSystem call. */
@@ -140,7 +153,7 @@ public:
 
    virtual void Update(FiniteElementSpace *nfes = NULL);
 
-   virtual ~ParBilinearForm() { delete p_mat_e; delete p_mat; }
+   virtual ~ParBilinearForm() { delete p_mat_e; delete p_mat; delete pp_mat; delete pp_mat_e; }
 };
 
 /// Class for parallel bilinear form

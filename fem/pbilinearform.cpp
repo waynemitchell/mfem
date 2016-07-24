@@ -169,6 +169,14 @@ HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
    return rap;
 }
 
+PetscParMatrix *ParBilinearForm::PetscParallelAssemble(SparseMatrix *m)
+{
+   // so far it just uses HYPRE + conversion
+   HypreParMatrix* tmat = ParallelAssemble();
+   PetscParMatrix* out = new PetscParMatrix(tmat,false);
+   delete tmat;
+   return out;
+}
 void ParBilinearForm::AssembleSharedFaces(int skip_zeros)
 {
    ParMesh *pmesh = pfes->GetParMesh();
@@ -292,6 +300,10 @@ void ParBilinearForm::FormLinearSystem(
       mat = NULL;
       delete mat_e;
       mat_e = NULL;
+   //{
+   //  PetscParMatrix pA(p_mat,false);
+   //  MatView(const_cast<PetscParMatrix&>(pA),NULL);
+   //}
       p_mat_e = p_mat->EliminateRowsCols(ess_tdof_list);
    }
 
@@ -334,6 +346,95 @@ void ParBilinearForm::FormLinearSystem(
       if (!copy_interior) { X.SetSubVectorComplement(ess_tdof_list, 0.0); }
       A.MakeRef(*p_mat);
    }
+   //{
+   //  PetscParMatrix pA(p_mat,false);
+   //  PetscParMatrix pAe(p_mat_e,false);
+   //  MatView(const_cast<PetscParMatrix&>(pA),NULL);
+   //  MatView(const_cast<PetscParMatrix&>(pAe),NULL);
+   //}
+}
+
+void ParBilinearForm::FormLinearSystem(
+   Array<int> &ess_tdof_list, Vector &x, Vector &b,
+   PetscParMatrix &A, Vector &X, Vector &B, int copy_interior)
+{
+   HypreParMatrix &P = *pfes->Dof_TrueDof_Matrix();
+   const SparseMatrix &R = *pfes->GetRestrictionMatrix();
+   Array<int> ess_rtdof_list;
+
+   // Finish the matrix assembly and perform BC elimination, storing the
+   // eliminated part of the matrix.
+   if (static_cond)
+   {
+      MFEM_ABORT("STATIC CONDENSATION SUPPORT STILL MISSING");
+      //static_cond->ConvertListToReducedTrueDofs(ess_tdof_list, ess_rtdof_list);
+      //if (!static_cond->HasEliminatedBC())
+      //{
+      //   static_cond->Finalize();
+      //   static_cond->EliminateReducedTrueDofs(ess_rtdof_list, 0);
+      //}
+   }
+   else if (mat)
+   {
+      MFEM_VERIFY(pp_mat == NULL && pp_mat_e == NULL,
+                  "The ParBilinearForm must be updated with Update() before "
+                  "re-assembling the ParBilinearForm.");
+      Finalize();
+      pp_mat = PetscParallelAssemble();
+      //{
+      //  MatView(const_cast<PetscParMatrix&>(*pp_mat),NULL);
+      //}
+      delete mat;
+      mat = NULL;
+      delete mat_e;
+      mat_e = NULL;
+      pp_mat_e = pp_mat->EliminateRowsCols(ess_tdof_list);
+   }
+
+   // Transform the system and perform the elimination in B, based on the
+   // essential BC values from x. Restrict the BC part of x in X, and set the
+   // non-BC part to zero. Since there is no good initial guess for the Lagrange
+   // multipliers, set X = 0.0 for hybridization.
+   if (static_cond)
+   {
+      // Schur complement reduction to the exposed dofs
+      //static_cond->ReduceRHS(b, B);
+      //static_cond->ReduceSolution(x, X);
+      //EliminateBC(static_cond->GetParallelMatrix(),
+      //            static_cond->GetParallelMatrixElim(),
+      //            ess_rtdof_list, X, B);
+      //if (!copy_interior) { X.SetSubVectorComplement(ess_rtdof_list, 0.0); }
+      //A.MakeRef(static_cond->GetParallelMatrix());
+   }
+   else if (hybridization)
+   {
+      MFEM_ABORT("HYBRIDIZATION SUPPORT STILL MISSING");
+      // Reduction to the Lagrange multipliers system
+      //HypreParVector true_X(pfes), true_B(pfes);
+      //P.MultTranspose(b, true_B);
+      //R.Mult(x, true_X);
+      //EliminateBC(*p_mat, *p_mat_e, ess_tdof_list, true_X, true_B);
+      //R.MultTranspose(true_B, b);
+      //hybridization->ReduceRHS(true_B, B);
+      //X.SetSize(B.Size());
+      //X = 0.0;
+      //A.MakeRef(hybridization->GetParallelMatrix());
+   }
+   else
+   {
+      // Variational restriction with P
+      X.SetSize(pfes->TrueVSize());
+      B.SetSize(X.Size());
+      P.MultTranspose(b, B);
+      R.Mult(x, X);
+      EliminateBC(*pp_mat, *pp_mat_e, ess_tdof_list, X, B);
+      if (!copy_interior) { X.SetSubVectorComplement(ess_tdof_list, 0.0); }
+      A.MakeRef(*pp_mat);
+   }
+   //{
+   //  MatView(const_cast<PetscParMatrix&>(*pp_mat),NULL);
+   //  MatView(const_cast<PetscParMatrix&>(*pp_mat_e),NULL);
+   //}
 }
 
 void ParBilinearForm::RecoverFEMSolution(
@@ -378,6 +479,9 @@ void ParBilinearForm::Update(FiniteElementSpace *nfes)
    delete p_mat;
    delete p_mat_e;
    p_mat = p_mat_e = NULL;
+   delete pp_mat;
+   delete pp_mat_e;
+   pp_mat = pp_mat_e = NULL;
 }
 
 
