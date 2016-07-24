@@ -60,8 +60,9 @@ public:
    /// Creates vector compatible with (i.e. in the domain of) A or A^T
    explicit PetscParVector(const PetscParMatrix &A, int transpose = 0);
 
-   /// Creates vector wrapping y
-   explicit PetscParVector(Vec y);
+   /// Creates PetscParVector out of PETSc's Mat
+   /// If ref is true, we increase the reference count of the PETSc's Vec object
+   explicit PetscParVector(Vec y, bool ref=false);
 
    /// Create a true dof parallel vector on a given ParFiniteElementSpace
    explicit PetscParVector(ParFiniteElementSpace *pfes);
@@ -123,20 +124,7 @@ protected:
    /// and returns the Mat in B
    void MakeWrapper(const HypreParMatrix* hmat, Mat *B);
 
-   /// Converts from HypreParCSR format to PETSc's MATAIJ object
-   /// and returns the Mat in B
-   /// it also returns the arrays that need to be destroyed after B is destroyed
-   /// Destroy them with
-   ///   PetscFree3(dii,djj,da);
-   ///   PetscFree3(oii,ojj,oa);
-   void Convert(const HypreParMatrix* hmat, Mat *B, PetscInt** dii, PetscInt** djj, PetscScalar** da, PetscInt** oii, PetscInt** ojj, PetscScalar** oa);
-
    friend class PetscSolver;
-
-private:
-   // internal arrays that need to be freed
-   PetscInt    *dii,*djj,*oii,*ojj;
-   PetscScalar *da,*oa;
 
 public:
    /// An empty matrix to be used as a reference to an existing matrix
@@ -146,7 +134,8 @@ public:
    virtual ~PetscParMatrix() { Destroy(); }
 
    /// Creates PetscParMatrix out of PETSc's Mat
-   PetscParMatrix(Mat a);
+   /// If ref is true, we increase the reference count of PETSc's Mat object
+   PetscParMatrix(Mat a, bool ref=false);
 
    /// Converts HypreParMatrix to PetscParMatrix
    /// If wrap is false, a PETSc's MATAIJ object
@@ -155,8 +144,17 @@ public:
    /// MATSHELL object
    PetscParMatrix(const HypreParMatrix* a, bool wrap=false);
 
-   /// MatMult
-   virtual void Mult(const Vector &x, Vector &y) const;
+   // MatMultAdd operations
+   void Mult(double a, const Vector &x, double b, Vector &y) const;
+
+   // MatMultTransoseAdd operations
+   void MultTranspose(double a, const Vector &x, double b, Vector &y) const;
+
+   virtual void Mult(const Vector &x, Vector &y) const
+   { Mult(1.0, x, 0.0, y); }
+
+   virtual void MultTranspose(const Vector &x, Vector &y) const
+   { MultTranspose(1.0, x, 0.0, y); }
 
    /// MPI communicator
    MPI_Comm GetComm() const { return PetscObjectComm((PetscObject)A); }
@@ -164,13 +162,45 @@ public:
    /// Typecasting to PETSc's Mat
    operator Mat() { return A; }
 
+   /// Returns the local number of rows
+   PetscInt GetNumRows();
+
+   /// Returns the local number of columns
+   PetscInt GetNumCols();
+
    /// Returns the global number of rows
    PetscInt M();
 
    /// Returns the global number of columns
    PetscInt N();
 
+   /// Returns the inner vector in the domain of A (it creates it if needed)
+   PetscParVector* GetX() const;
+
+   /// Returns the inner vector in the range of A (it creates it if needed)
+   PetscParVector* GetY() const;
+
+   /** Eliminate rows and columns from the matrix, and rows from the vector B.
+       Modify B with the BC values in X. */
+   void EliminateRowsCols(const Array<int> &rows_cols, const HypreParVector &X,
+                          HypreParVector &B);
+
+    /** Eliminate rows and columns from the matrix and store the eliminated
+       elements in a new matrix Ae (returned), so that the modified matrix and
+       Ae sum to the original matrix. */
+   PetscParMatrix* EliminateRowsCols(const Array<int> &rows_cols);
+
+   /// Takes a reference to another PetscParMatrix
+   void MakeRef(const PetscParMatrix &master);
+
 };
+
+/** Eliminate essential BC specified by 'ess_dof_list' from the solution X to
+    the r.h.s. B. Here A is a matrix with eliminated BC, while Ae is such that
+    (A+Ae) is the original (Neumann) matrix before elimination. */
+void EliminateBC(PetscParMatrix &A, PetscParMatrix &Ae,
+                 const Array<int> &ess_dof_list, const Vector &X, Vector &B);
+
 
 /// Abstract class for PETSc's solvers and preconditioners
 class PetscSolver : public Solver
@@ -178,9 +208,6 @@ class PetscSolver : public Solver
 protected:
    /// The Krylov object
    KSP ksp;
-
-   /// The operator
-   PetscParMatrix* A;
 
    /// Right-hand side and solution vector
    mutable PetscParVector *B, *X;
@@ -197,13 +224,16 @@ public:
    /// Constructs a solver using a PetscParMatrix
    PetscSolver(PetscParMatrix &_A);
 
+   /// Constructs a solver using a HypreParMatrix.
+   /// If wrap is true, then the MatMult ops of HypreParMatrix are wrapped.
+   /// No preconditioner can be automatically constructed from PETSc.
+   /// If wrap is false, the HypreParMatrix is converted into PETSc format.
+   PetscSolver(HypreParMatrix &_A,bool wrap=true);
+
    /// Customization
    void SetTol(double tol);
    void SetMaxIter(int max_iter);
    void SetPrintLevel(int plev);
-
-   /// Constructs a solver using a HypreParMatrix. If wrap is true, then the MatMult ops of HypreParMatrix are wrapped. No preconditioner can be automatically constructed from PETSc. If wrap is false, the HypreParMatrix is converted into PETSc format.
-   PetscSolver(HypreParMatrix &_A,bool wrap=true);
 
    /// Set the solver to be used as a preconditioner
    void SetPreconditioner(Solver &precond);

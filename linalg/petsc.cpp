@@ -27,6 +27,7 @@
 // Error handling
 // Prints PETSc's stacktrace and then calls MFEM_ABORT
 // We cannot use PETSc's CHKERRQ since it returns a PetscErrorCode
+// TODO this can be improved
 #define PCHKERRQ(obj,err)                                                  \
   if ((err)) {                                                             \
     PetscError(PetscObjectComm((PetscObject)obj),__LINE__,_MFEM_FUNC_NAME, \
@@ -42,7 +43,7 @@
   }
 
 // prototype for auxiliary functions
-static PetscErrorCode MatConvert_hypreParCSR_AIJ(hypre_ParCSRMatrix*,Mat*,PetscInt**,PetscInt**,PetscScalar**,PetscInt**,PetscInt**,PetscScalar**);
+static PetscErrorCode MatConvert_hypreParCSR_AIJ(hypre_ParCSRMatrix*,Mat*);
 
 // use global scope ierr to check PETSc errors inside mfem calls
 PetscErrorCode ierr;
@@ -125,9 +126,12 @@ PetscParVector::PetscParVector(const PetscParMatrix &A,
    _SetDataAndSize_();
 }
 
-PetscParVector::PetscParVector(Vec y) : Vector()
+PetscParVector::PetscParVector(Vec y, bool ref) : Vector()
 {
-   ierr = PetscObjectReference((PetscObject)y);PCHKERRQ(y,ierr);
+   if (ref)
+   {
+      ierr = PetscObjectReference((PetscObject)y);PCHKERRQ(y,ierr);
+   }
    x = y;
    _SetDataAndSize_();
 }
@@ -284,6 +288,20 @@ void PetscParVector::Print(const char *fname) const
 
 // PetscParMatrix methods
 
+PetscInt PetscParMatrix::GetNumRows()
+{
+   PetscInt N;
+   ierr = MatGetLocalSize(A,&N,NULL);PCHKERRQ(A,ierr);
+   return N;
+}
+
+PetscInt PetscParMatrix::GetNumCols()
+{
+   PetscInt N;
+   ierr = MatGetLocalSize(A,NULL,&N);PCHKERRQ(A,ierr);
+   return N;
+}
+
 PetscInt PetscParMatrix::M()
 {
    PetscInt N;
@@ -302,8 +320,6 @@ void PetscParMatrix::Init()
 {
    A = NULL;
    X = Y = NULL;
-   dii = djj = oii = ojj = NULL;
-   da = oa = NULL;
    height = width = 0;
 }
 
@@ -323,7 +339,7 @@ PetscParMatrix::PetscParMatrix(const HypreParMatrix *hmat, bool wrap)
    }
    else
    {
-      Convert(hmat,&A,&dii,&djj,&da,&oii,&ojj,&oa);
+      ierr = MatConvert_hypreParCSR_AIJ(const_cast<HypreParMatrix&>(*hmat),&A);CCHKERRQ(hmat->GetComm(),ierr);
    }
 }
 
@@ -391,13 +407,7 @@ static PetscErrorCode mat_shell_destroy(Mat A)
 }
 #undef __FUNCT__
 
-void PetscParMatrix::Convert(const HypreParMatrix* hmat, Mat *A,
-                             PetscInt** dii, PetscInt** djj,PetscScalar** da,
-                             PetscInt** oii, PetscInt** ojj,PetscScalar** oa)
-{
-   ierr = MatConvert_hypreParCSR_AIJ(const_cast<HypreParMatrix&>(*hmat),A,dii,djj,da,oii,ojj,oa);CCHKERRQ(hmat->GetComm(),ierr);
-}
-
+// TODO ASK Should it take a reference to hmat?
 void PetscParMatrix::MakeWrapper(const HypreParMatrix* hmat, Mat *A)
 {
    MPI_Comm comm = hmat->GetComm();
@@ -427,42 +437,202 @@ void PetscParMatrix::MakeWrapper(const HypreParMatrix* hmat, Mat *A)
 void PetscParMatrix::Destroy()
 {
    MPI_Comm comm = MPI_COMM_NULL;
-   if (A)
+   if (A != NULL)
    {
-      comm = PetscObjectComm((PetscObject)A);
+      ierr = PetscObjectGetComm((PetscObject)A,&comm);PCHKERRQ(A,ierr);
       ierr = MatDestroy(&A);CCHKERRQ(comm,ierr);
    }
    if (X) { delete X; }
    if (Y) { delete Y; }
-   if (dii && djj && da) { ierr = PetscFree3(dii,djj,da);CCHKERRQ(comm,ierr); }
-   if (oii && ojj && oa) { ierr = PetscFree3(oii,ojj,oa);CCHKERRQ(comm,ierr); }
 }
 
-PetscParMatrix::PetscParMatrix(Mat a)
+PetscParMatrix::PetscParMatrix(Mat a, bool ref)
 {
-   if (!a)
+   if (ref)
    {
-      MFEM_ABORT("PetscParMatrix::PetscParMatrix(Mat) : Mat si missing");
+      ierr = PetscObjectReference((PetscObject)a);PCHKERRQ(a,ierr);
    }
-   ierr = PetscObjectReference((PetscObject)a);PCHKERRQ(a,ierr);
    Init();
    A = a;
-   height = M();
-   width = N();
+   height = GetNumRows();
+   width = GetNumCols();
 }
 
-void PetscParMatrix::Mult(const Vector &x, Vector &y) const
+// Computes y = alpha * A  * x + beta * y
+//       or y = alpha * A^T* x + beta * y
+static void MatMultKernel(Mat A,PetscScalar a,Vec X,PetscScalar b,Vec Y,bool transpose)
 {
-   MFEM_ABORT("Not yet implemented.");
+   PetscErrorCode (*f)(Mat,Vec,Vec);
+   PetscErrorCode (*fadd)(Mat,Vec,Vec,Vec);
+   if (transpose)
+   {
+      f = MatMultTranspose;
+      fadd = MatMultTransposeAdd;
+   }
+   else
+   {
+      f = MatMult;
+      fadd = MatMultAdd;
+   }
+   if (a != 0.)
+   {
+      if (b == 1.)
+      {
+         ierr = VecScale(X,a);PCHKERRQ(A,ierr);
+         ierr = (*fadd)(A,X,Y,Y);PCHKERRQ(A,ierr);
+         ierr = VecScale(X,1./a);PCHKERRQ(A,ierr);
+      }
+      else if (b != 0.)
+      {
+         ierr = VecScale(X,a);PCHKERRQ(A,ierr);
+         ierr = VecScale(Y,b);PCHKERRQ(A,ierr);
+         ierr = (*fadd)(A,X,Y,Y);PCHKERRQ(A,ierr);
+         ierr = VecScale(X,1./a);PCHKERRQ(A,ierr);
+      }
+      else
+      {
+         ierr = (*f)(A,X,Y);PCHKERRQ(A,ierr);
+         if (a != 1.)
+         {
+            ierr = VecScale(Y,a);PCHKERRQ(A,ierr);
+         }
+      }
+   }
+   else
+   {
+      if (b == 1.)
+      {
+         // do nothing
+      }
+      else if (b != 0.)
+      {
+         ierr = VecScale(Y,b);PCHKERRQ(A,ierr);
+      }
+      else
+      {
+         ierr = VecSet(Y,0.);PCHKERRQ(A,ierr);
+      }
+   }
+}
+
+void PetscParMatrix::MakeRef(const PetscParMatrix &master)
+{
+   ierr = PetscObjectReference((PetscObject)master.A);PCHKERRQ(master.A,ierr);
+   Destroy();
+   Init();
+   A = master.A;
+   height = master.height;
+   width = master.width;
+}
+
+PetscParVector * PetscParMatrix::GetX() const
+{
+   if (!X)
+   {
+      MFEM_VERIFY(A,"Mat not present");
+      X = new PetscParVector(*this,false);PCHKERRQ(A,ierr);
+   }
+   return X;
+}
+
+PetscParVector * PetscParMatrix::GetY() const
+{
+   if (!Y)
+   {
+      MFEM_VERIFY(A,"Mat not present");
+      Y = new PetscParVector(*this,true);PCHKERRQ(A,ierr);
+   }
+   return Y;
+}
+
+void PetscParMatrix::Mult(double a, const Vector &x, double b, Vector &y) const
+{
+   MFEM_ASSERT(x.Size() == Width(), "invalid x.Size() = " << x.Size()
+               << ", expected size = " << Width());
+   MFEM_ASSERT(y.Size() == Height(), "invalid y.Size() = " << y.Size()
+               << ", expected size = " << Height());
+
+   PetscParVector *XX = GetX();
+   PetscParVector *YY = GetY();
+   XX->SetData(x.GetData());
+   YY->SetData(y.GetData());
+   MatMultKernel(A,a,XX->x,b,YY->x,false);
+   XX->ResetData();
+   YY->ResetData();
+}
+
+void PetscParMatrix::MultTranspose(double a, const Vector &x, double b, Vector &y) const
+{
+   MFEM_ASSERT(x.Size() == Height(), "invalid x.Size() = " << x.Size()
+               << ", expected size = " << Height());
+   MFEM_ASSERT(y.Size() == Width(), "invalid y.Size() = " << y.Size()
+               << ", expected size = " << Width());
+
+   PetscParVector *XX = GetX();
+   PetscParVector *YY = GetY();
+   YY->SetData(x.GetData());
+   XX->SetData(y.GetData());
+   MatMultKernel(A,a,YY->x,b,XX->x,true);
+   XX->ResetData();
+   YY->ResetData();
+}
+
+PetscParMatrix* PetscParMatrix::EliminateRowsCols(const Array<int> &rows_cols)
+{
+   Mat             Ae;
+   const PetscInt *data;
+   PetscInt        M,N,i,n,*idxs,rst;
+
+   ierr = MatGetSize(A,&M,&N);PCHKERRQ(A,ierr);
+   MFEM_VERIFY(M == N,"Rectangular case unsupported");
+   ierr = MatGetOwnershipRange(A,&rst,NULL);PCHKERRQ(A,ierr);
+   ierr = MatDuplicate(A,MAT_COPY_VALUES,&Ae);PCHKERRQ(A,ierr);
+   ierr = MatSetOption(A,MAT_NO_OFF_PROC_ZERO_ROWS,PETSC_TRUE);PCHKERRQ(A,ierr);
+   // rows need to be in global numbering
+   n = rows_cols.Size();
+   data = rows_cols.GetData();
+   ierr = PetscMalloc1(n,&idxs);PCHKERRQ(A,ierr);
+   for (i=0;i<n;i++) idxs[i] = data[i] + rst;
+   ierr = MatZeroRowsColumns(A,n,idxs,1.,NULL,NULL);PCHKERRQ(A,ierr);
+   ierr = PetscFree(idxs);PCHKERRQ(A,ierr);
+   ierr = MatAXPY(Ae,-1.,A,SAME_NONZERO_PATTERN);PCHKERRQ(A,ierr);
+   return new PetscParMatrix(Ae);
+}
+
+void PetscParMatrix::EliminateRowsCols(const Array<int> &rows_cols,
+                                       const HypreParVector &X,
+                                       HypreParVector &B)
+{
+   MFEM_ABORT("To be implemented");
+}
+
+void EliminateBC(PetscParMatrix &A, PetscParMatrix &Ae,
+                 const Array<int> &ess_dof_list,
+                 const Vector &X, Vector &B)
+{
+   const PetscScalar *array;
+   Mat pA = const_cast<PetscParMatrix&>(A);
+
+   // B -= Ae*X
+   Ae.Mult(-1.0, X, 1.0, B);
+
+   Vec diag = const_cast<PetscParVector&>((*A.GetX()));
+   ierr = MatGetDiagonal(pA,diag);PCHKERRQ(pA,ierr);
+   ierr = VecGetArrayRead(diag,&array);PCHKERRQ(diag,ierr);
+   for (int i = 0; i < ess_dof_list.Size(); i++)
+   {
+      int r = ess_dof_list[i];
+      B(r) = array[r] * X(r);
+   }
+   ierr = VecRestoreArrayRead(diag,&array);PCHKERRQ(diag,ierr);
 }
 
 // PetscSolver
 void PetscSolver::Init()
 {
    ksp = NULL;
-   A = NULL;
    B = X = NULL;
-   wrap = true;
+   wrap = false;
 }
 
 PetscSolver::PetscSolver()
@@ -494,36 +664,42 @@ void PetscSolver::SetOperator(const Operator &op)
    // update base classes: Operator, Solver, PetscSolver
    MPI_Comm comm;
    PetscInt nheight,nwidth;
+   Mat      A;
+   bool     delete_pA = false;
    if (hA)
    {
-      // Create MATSHELL object or convert into PETSc AIJ format
-      A = new PetscParMatrix(hA,wrap);
+      // Create MATSHELL object or convert
+      // into PETSc AIJ format depending on wrap
+      pA = new PetscParMatrix(hA,wrap);
+      delete_pA = true;
+
    }
-   else
-   {
-      A = new PetscParMatrix(pA->A);
-   }
-   comm    = A->GetComm();
-   nheight = A->Height();
-   nwidth  = A->Width();
+   A = pA->A;
+   ierr = PetscObjectGetComm((PetscObject)A,&comm);PCHKERRQ(A,ierr);
+   ierr = MatGetSize(A,&nheight,&nwidth);PCHKERRQ(A,ierr);
    if (ksp)
    {
       if (nheight != height || nwidth != width)
       {
+         // reinit without destroying the KSP
          ierr = KSPReset(ksp);PCHKERRQ(ksp,ierr);
          if (X) delete X;
          if (B) delete B;
          B = X = NULL;
-         wrap = true;
+         wrap = false;
       }
    }
    else
    {
       ierr = KSPCreate(comm,&ksp);CCHKERRQ(comm,ierr);
    }
+   ierr = KSPSetOperators(ksp,A,A);PCHKERRQ(ksp,ierr);
+   if (delete_pA)
+   {
+      delete pA;
+   }
    height = nheight;
    width  = nwidth;
-   ierr = KSPSetOperators(ksp,A->A,A->A);PCHKERRQ(ksp,ierr);
 }
 
 typedef struct {
@@ -663,14 +839,14 @@ void PetscSolver::Mult(const Vector &b, Vector &x) const
    {
       Mat pA;
       ierr = KSPGetOperators(ksp,&pA,NULL);PCHKERRQ(ksp,ierr);
-      PetscParMatrix A = PetscParMatrix(pA);
+      PetscParMatrix A = PetscParMatrix(pA,true);
       B = new PetscParVector(A,true);
    }
    if (!X)
    {
       Mat pA;
       ierr = KSPGetOperators(ksp,&pA,NULL);PCHKERRQ(ksp,ierr);
-      PetscParMatrix A = PetscParMatrix(pA);
+      PetscParMatrix A = PetscParMatrix(pA,true);
       X = new PetscParVector(A,false);
    }
    B -> SetData(b.GetData());
@@ -684,12 +860,12 @@ void PetscSolver::Mult(const Vector &b, Vector &x) const
 
 PetscSolver::~PetscSolver()
 {
-   if (A) { delete A; }
    if (B) { delete B; }
    if (X) { delete X; }
    if (ksp)
    {
-      MPI_Comm comm = PetscObjectComm((PetscObject)ksp);
+      MPI_Comm comm;
+      ierr = PetscObjectGetComm((PetscObject)ksp,&comm);PCHKERRQ(ksp,ierr);
       ierr = KSPDestroy(&ksp);CCHKERRQ(comm,ierr);
    }
 }
@@ -727,15 +903,25 @@ void PetscSolver::SetPrintLevel(int plev)
    }
   // TODO
 }
+
 }
 
-// This function needs to access PETSc private data to make it faster.
-// Eventually can be moved to PETSc source code.
-#include "petsc/private/matimpl.h"
+#undef __FUNCT__
+#define __FUNCT__ "array_container_destroy"
+static PetscErrorCode array_container_destroy(void *ptr)
+{
+   PetscErrorCode ierr;
+
+   PetscFunctionBeginUser;
+   ierr = PetscFree(ptr);CHKERRQ(ierr);
+   PetscFunctionReturn(0);
+}
+
+// This function can be eventually moved to PETSc source code.
 #include "_hypre_parcsr_mv.h"
 #undef __FUNCT__
 #define __FUNCT__ "MatConvert_hypreParCSR_AIJ"
-static PetscErrorCode MatConvert_hypreParCSR_AIJ(hypre_ParCSRMatrix* hA,Mat* pA,PetscInt** odii,PetscInt** odjj,PetscScalar** oda,PetscInt** ooii,PetscInt** oojj,PetscScalar** ooa)
+static PetscErrorCode MatConvert_hypreParCSR_AIJ(hypre_ParCSRMatrix* hA,Mat* pA)
 {
    MPI_Comm        comm = hypre_ParCSRMatrixComm(hA);
    hypre_CSRMatrix *hdiag,*hoffd;
@@ -752,7 +938,9 @@ static PetscErrorCode MatConvert_hypreParCSR_AIJ(hypre_ParCSRMatrix* hA,Mat* pA,
    n     = hypre_CSRMatrixNumCols(hdiag);
    dnnz  = hypre_CSRMatrixNumNonzeros(hdiag);
    onnz  = hypre_CSRMatrixNumNonzeros(hoffd);
-   ierr  = PetscMalloc3(m+1,&dii,dnnz,&djj,dnnz,&da);CHKERRQ(ierr);
+   ierr  = PetscMalloc1(m+1,&dii);CHKERRQ(ierr);
+   ierr  = PetscMalloc1(dnnz,&djj);CHKERRQ(ierr);
+   ierr  = PetscMalloc1(dnnz,&da);CHKERRQ(ierr);
    ierr  = PetscMemcpy(dii,hypre_CSRMatrixI(hdiag),(m+1)*sizeof(PetscInt));CHKERRQ(ierr);
    ierr  = PetscMemcpy(djj,hypre_CSRMatrixJ(hdiag),dnnz*sizeof(PetscInt));CHKERRQ(ierr);
    ierr  = PetscMemcpy(da,hypre_CSRMatrixData(hdiag),dnnz*sizeof(PetscScalar));CHKERRQ(ierr);
@@ -771,7 +959,9 @@ static PetscErrorCode MatConvert_hypreParCSR_AIJ(hypre_ParCSRMatrix* hA,Mat* pA,
    {
      PetscInt *offdj,*coffd;
 
-     ierr  = PetscMalloc3(m+1,&oii,onnz,&ojj,onnz,&oa);CHKERRQ(ierr);
+     ierr  = PetscMalloc1(m+1,&oii);CHKERRQ(ierr);
+     ierr  = PetscMalloc1(onnz,&ojj);CHKERRQ(ierr);
+     ierr  = PetscMalloc1(onnz,&oa);CHKERRQ(ierr);
      ierr  = PetscMemcpy(oii,hypre_CSRMatrixI(hoffd),(m+1)*sizeof(PetscInt));CHKERRQ(ierr);
      offdj = hypre_CSRMatrixJ(hoffd);
      coffd = hypre_ParCSRMatrixColMapOffd(hA);
@@ -795,13 +985,32 @@ static PetscErrorCode MatConvert_hypreParCSR_AIJ(hypre_ParCSRMatrix* hA,Mat* pA,
      oa = NULL;
      ierr = MatCreateSeqAIJWithArrays(comm,m,n,dii,djj,da,pA);CCHKERRQ(comm,ierr);
    }
-   /* Get back pointers to caller because we need to free those arrays when the matrix is no longer needed */
-   *odii = dii;
-   *odjj = djj;
-   *oda  = da;
-   *ooii = oii;
-   *oojj = ojj;
-   *ooa  = oa;
+   /* We are responsible to free the CSR arrays.
+      However, since we can take references of a PetscParMatrix
+      but we cannot take reference of PETSc arrays,
+      we need to create a PetscContainer object
+      to take reference of these arrays in
+      reference objects */
+   void *ptrs[6] = {dii,djj,da,oii,ojj,oa};
+   const char *names[6] = {"_mfem_csr_dii",
+                           "_mfem_csr_djj",
+                           "_mfem_csr_da",
+                           "_mfem_csr_oii",
+                           "_mfem_csr_ojj",
+                           "_mfem_csr_oa"};
+   for (i=0;i<6;i++)
+   {
+      if (ptrs[i])
+      {
+         PetscContainer c;
+
+         ierr = PetscContainerCreate(comm,&c);CCHKERRQ(comm,ierr);
+         ierr = PetscContainerSetPointer(c,ptrs[i]);PCHKERRQ(c,ierr);
+         ierr = PetscContainerSetUserDestroy(c,array_container_destroy);PCHKERRQ(c,ierr);
+         ierr = PetscObjectCompose((PetscObject)(*pA),names[i],(PetscObject)c);PCHKERRQ(c,ierr);
+         ierr = PetscContainerDestroy(&c);CCHKERRQ(comm,ierr);
+      }
+   }
    PetscFunctionReturn(0);
 }
 
