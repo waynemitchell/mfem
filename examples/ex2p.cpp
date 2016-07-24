@@ -295,7 +295,7 @@ int main(int argc, char *argv[])
          cout << "Size of linear system: " << A.M() << endl;
       }
 
-      PetscSolver *ppcg = new PetscSolver(A);
+      PetscPCGSolver *ppcg = new PetscPCGSolver(A);
       ppcg->SetMaxIter(500);
       ppcg->SetTol(1e-8);
       ppcg->SetPrintLevel(2); //TODO: dummy call
