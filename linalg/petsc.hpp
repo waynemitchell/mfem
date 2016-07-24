@@ -144,6 +144,23 @@ public:
    /// MATSHELL object
    PetscParMatrix(const HypreParMatrix* a, bool wrap=false);
 
+   /** Creates block-diagonal square parallel matrix. Diagonal is given by diag
+       which must be in CSR format (finalized). The new PetscParMatrix does not
+       take ownership of any of the input arrays.
+       If assembled is false, a MATIS object is (subdomain wise assembly)
+       Otherwise, a MATAIJ (parallel distributed CSR) is used */
+   PetscParMatrix(MPI_Comm comm, PetscInt glob_size, PetscInt *row_starts,
+                  SparseMatrix *diag, bool assembled=true);
+
+   /** Creates block-diagonal rectangular parallel matrix. Diagonal is given by
+       diag which must be in CSR format (finalized). The new PetscParMatrix does
+       not take ownership of any of the input arrays.
+       If assembled is false, a MATIS object is (subdomain wise assembly)
+       Otherwise, a MATAIJ (parallel distributed CSR) is used */
+   PetscParMatrix(MPI_Comm comm, PetscInt global_num_rows,
+                  PetscInt global_num_cols, PetscInt *row_starts,
+                  PetscInt *col_starts, SparseMatrix *diag, bool assembled=true);
+
    // MatMultAdd operations
    void Mult(double a, const Vector &x, double b, Vector &y) const;
 
@@ -194,6 +211,9 @@ public:
    void MakeRef(const PetscParMatrix &master);
 
 };
+
+/// Returns the matrix P^t * A * P
+PetscParMatrix * RAP(PetscParMatrix *A, PetscParMatrix *P);
 
 /** Eliminate essential BC specified by 'ess_dof_list' from the solution X to
     the r.h.s. B. Here A is a matrix with eliminated BC, while Ae is such that

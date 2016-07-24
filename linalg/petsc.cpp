@@ -343,6 +343,116 @@ PetscParMatrix::PetscParMatrix(const HypreParMatrix *hmat, bool wrap)
    }
 }
 
+PetscParMatrix::PetscParMatrix(MPI_Comm comm, PetscInt glob_size,
+                               PetscInt *row_starts, SparseMatrix *diag, bool assembled)
+   : Operator(diag->Height(), diag->Width())
+{
+   Init();
+   PetscInt lsize,start;
+   // TODO ASK
+   PetscMPIInt myid = 0;
+   if (!HYPRE_AssumedPartitionCheck())
+   {
+      ierr = MPI_Comm_rank(comm,&myid);CCHKERRQ(comm,ierr);
+   }
+   lsize = row_starts[myid+1]-row_starts[myid];
+   start = row_starts[myid];
+   IS is;
+   ierr = ISCreateStride(comm,diag->Height(),start,1,&is);CCHKERRQ(comm,ierr);
+   ISLocalToGlobalMapping l2g;
+   ierr = ISLocalToGlobalMappingCreateIS(is,&l2g);PCHKERRQ(is,ierr);
+   ierr = ISDestroy(&is);CCHKERRQ(comm,ierr);
+
+   // Create the PETSc object (MATIS format)
+   ierr = MatCreate(comm,&A);CCHKERRQ(comm,ierr);
+   ierr = MatSetSizes(A,lsize,lsize,PETSC_DECIDE,PETSC_DECIDE);PCHKERRQ(A,ierr);
+   ierr = MatSetType(A,MATIS);PCHKERRQ(A,ierr);
+   ierr = MatSetLocalToGlobalMapping(A,l2g,l2g);PCHKERRQ(A,ierr);
+   ierr = ISLocalToGlobalMappingDestroy(&l2g);PCHKERRQ(A,ierr)
+
+   // Copy SparseMatrix into PETSc SeqAIJ format
+   Mat lA;
+   ierr = MatISGetLocalMat(A,&lA);PCHKERRQ(A,ierr);
+   ierr = MatSeqAIJSetPreallocationCSR(lA,diag->GetI(),diag->GetJ(),diag->GetData());PCHKERRQ(lA,ierr);
+
+   // Assemble into MPIAIJ format if requested
+   if (assembled)
+   {
+     Mat B;
+
+     ierr = MatISGetMPIXAIJ(A,MAT_INITIAL_MATRIX,&B);PCHKERRQ(A,ierr);
+     ierr = MatDestroy(&A);PCHKERRQ(B,ierr);
+     A = B;
+   }
+
+   // Tell PETSc the matrix is ready to be used
+   ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);PCHKERRQ(A,ierr);
+   ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);PCHKERRQ(A,ierr);
+}
+
+PetscParMatrix::PetscParMatrix(MPI_Comm comm, PetscInt global_num_rows,
+                  PetscInt global_num_cols, PetscInt *row_starts,
+                  PetscInt *col_starts, SparseMatrix *diag, bool assembled)
+   : Operator(diag->Height(), diag->Width())
+{
+   Init();
+   PetscInt lrsize,lcsize,rstart,cstart;
+   // TODO ASK
+   PetscMPIInt myid = 0;
+   if (!HYPRE_AssumedPartitionCheck())
+   {
+      ierr = MPI_Comm_rank(comm,&myid);CCHKERRQ(comm,ierr);
+   }
+   lrsize = row_starts[myid+1]-row_starts[myid];
+   rstart = row_starts[myid];
+   lcsize = col_starts[myid+1]-col_starts[myid];
+   cstart = col_starts[myid];
+
+   IS is;
+   ierr = ISCreateStride(comm,diag->Height(),rstart,1,&is);CCHKERRQ(comm,ierr);
+   ISLocalToGlobalMapping rl2g,cl2g;
+   ierr = ISLocalToGlobalMappingCreateIS(is,&rl2g);PCHKERRQ(is,ierr);
+   ierr = ISDestroy(&is);CCHKERRQ(comm,ierr);
+   if (row_starts != col_starts)
+   {
+      ierr = ISCreateStride(comm,diag->Width(),cstart,1,&is);CCHKERRQ(comm,ierr);
+      ierr = ISLocalToGlobalMappingCreateIS(is,&cl2g);PCHKERRQ(is,ierr);
+      ierr = ISDestroy(&is);CCHKERRQ(comm,ierr);
+   }
+   else
+   {
+      ierr = PetscObjectReference((PetscObject)rl2g);PCHKERRQ(rl2g,ierr);
+      cl2g = rl2g;
+   }
+
+   // Create the PETSc object (MATIS format)
+   ierr = MatCreate(comm,&A);CCHKERRQ(comm,ierr);
+   ierr = MatSetSizes(A,lrsize,lcsize,PETSC_DECIDE,PETSC_DECIDE);PCHKERRQ(A,ierr);
+   ierr = MatSetType(A,MATIS);PCHKERRQ(A,ierr);
+   ierr = MatSetLocalToGlobalMapping(A,rl2g,cl2g);PCHKERRQ(A,ierr);
+   ierr = ISLocalToGlobalMappingDestroy(&rl2g);PCHKERRQ(A,ierr)
+   ierr = ISLocalToGlobalMappingDestroy(&cl2g);PCHKERRQ(A,ierr)
+
+   // Copy SparseMatrix into PETSc SeqAIJ format
+   Mat lA;
+   ierr = MatISGetLocalMat(A,&lA);PCHKERRQ(A,ierr);
+   ierr = MatSeqAIJSetPreallocationCSR(lA,diag->GetI(),diag->GetJ(),diag->GetData());PCHKERRQ(lA,ierr);
+
+   // Assemble into MPIAIJ format if requested
+   if (assembled)
+   {
+     Mat B;
+
+     ierr = MatISGetMPIXAIJ(A,MAT_INITIAL_MATRIX,&B);PCHKERRQ(A,ierr);
+     ierr = MatDestroy(&A);PCHKERRQ(B,ierr);
+     A = B;
+   }
+
+   // Tell PETSc the matrix is ready to be used
+   ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);PCHKERRQ(A,ierr);
+   ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);PCHKERRQ(A,ierr);
+}
+
 typedef struct {
    HypreParMatrix *op;
    HypreParVector *xx,*yy;
@@ -575,6 +685,14 @@ void PetscParMatrix::MultTranspose(double a, const Vector &x, double b, Vector &
    MatMultKernel(A,a,YY->x,b,XX->x,true);
    XX->ResetData();
    YY->ResetData();
+}
+
+PetscParMatrix * RAP(PetscParMatrix *A, PetscParMatrix *P)
+{
+   Mat B;
+
+   ierr = MatPtAP(*A,*P,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&B);CCHKERRQ(A->GetComm(),ierr);
+   return new PetscParMatrix(B);
 }
 
 PetscParMatrix* PetscParMatrix::EliminateRowsCols(const Array<int> &rows_cols)
@@ -973,33 +1091,33 @@ static PetscErrorCode MatConvert_hypreParCSR_AIJ(hypre_ParCSRMatrix* hA,Mat* pA)
    ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
    if (size > 1)
    {
-     PetscInt *offdj,*coffd;
+      PetscInt *offdj,*coffd;
 
-     ierr  = PetscMalloc1(m+1,&oii);CHKERRQ(ierr);
-     ierr  = PetscMalloc1(onnz,&ojj);CHKERRQ(ierr);
-     ierr  = PetscMalloc1(onnz,&oa);CHKERRQ(ierr);
-     ierr  = PetscMemcpy(oii,hypre_CSRMatrixI(hoffd),(m+1)*sizeof(PetscInt));CHKERRQ(ierr);
-     offdj = hypre_CSRMatrixJ(hoffd);
-     coffd = hypre_ParCSRMatrixColMapOffd(hA);
-     for (i=0;i<onnz;i++) ojj[i] = coffd[offdj[i]];
-     ierr  = PetscMemcpy(oa,hypre_CSRMatrixData(hoffd),onnz*sizeof(PetscScalar));CHKERRQ(ierr);
-     /* TODO should we add a case when the J pointer is already sorted? */
-     iptr = ojj;
-     aptr = oa;
-     for (i=0;i<m;i++)
-     {
-        PetscInt nc = oii[i+1]-oii[i];
-        ierr = PetscSortIntWithScalarArray(nc,iptr,aptr);CHKERRQ(ierr);
-        iptr += nc;
-        aptr += nc;
-     }
-     ierr = MatCreateMPIAIJWithSplitArrays(comm,m,n,PETSC_DECIDE,PETSC_DECIDE,dii,djj,da,oii,ojj,oa,pA);CCHKERRQ(comm,ierr);
+      ierr  = PetscMalloc1(m+1,&oii);CHKERRQ(ierr);
+      ierr  = PetscMalloc1(onnz,&ojj);CHKERRQ(ierr);
+      ierr  = PetscMalloc1(onnz,&oa);CHKERRQ(ierr);
+      ierr  = PetscMemcpy(oii,hypre_CSRMatrixI(hoffd),(m+1)*sizeof(PetscInt));CHKERRQ(ierr);
+      offdj = hypre_CSRMatrixJ(hoffd);
+      coffd = hypre_ParCSRMatrixColMapOffd(hA);
+      for (i=0;i<onnz;i++) ojj[i] = coffd[offdj[i]];
+      ierr  = PetscMemcpy(oa,hypre_CSRMatrixData(hoffd),onnz*sizeof(PetscScalar));CHKERRQ(ierr);
+      /* TODO should we add a case when the J pointer is already sorted? */
+      iptr = ojj;
+      aptr = oa;
+      for (i=0;i<m;i++)
+      {
+         PetscInt nc = oii[i+1]-oii[i];
+         ierr = PetscSortIntWithScalarArray(nc,iptr,aptr);CHKERRQ(ierr);
+         iptr += nc;
+         aptr += nc;
+      }
+      ierr = MatCreateMPIAIJWithSplitArrays(comm,m,n,PETSC_DECIDE,PETSC_DECIDE,dii,djj,da,oii,ojj,oa,pA);CCHKERRQ(comm,ierr);
    }
    else
    {
-     oii = ojj = NULL;
-     oa = NULL;
-     ierr = MatCreateSeqAIJWithArrays(comm,m,n,dii,djj,da,pA);CCHKERRQ(comm,ierr);
+      oii = ojj = NULL;
+      oa = NULL;
+      ierr = MatCreateSeqAIJWithArrays(comm,m,n,dii,djj,da,pA);CCHKERRQ(comm,ierr);
    }
    /* We are responsible to free the CSR arrays.
       However, since we can take references of a PetscParMatrix
@@ -1016,16 +1134,13 @@ static PetscErrorCode MatConvert_hypreParCSR_AIJ(hypre_ParCSRMatrix* hA,Mat* pA)
                            "_mfem_csr_oa"};
    for (i=0;i<6;i++)
    {
-      if (ptrs[i])
-      {
-         PetscContainer c;
+      PetscContainer c;
 
-         ierr = PetscContainerCreate(comm,&c);CCHKERRQ(comm,ierr);
-         ierr = PetscContainerSetPointer(c,ptrs[i]);PCHKERRQ(c,ierr);
-         ierr = PetscContainerSetUserDestroy(c,array_container_destroy);PCHKERRQ(c,ierr);
-         ierr = PetscObjectCompose((PetscObject)(*pA),names[i],(PetscObject)c);PCHKERRQ(c,ierr);
-         ierr = PetscContainerDestroy(&c);CCHKERRQ(comm,ierr);
-      }
+      ierr = PetscContainerCreate(comm,&c);CCHKERRQ(comm,ierr);
+      ierr = PetscContainerSetPointer(c,ptrs[i]);PCHKERRQ(c,ierr);
+      ierr = PetscContainerSetUserDestroy(c,array_container_destroy);PCHKERRQ(c,ierr);
+      ierr = PetscObjectCompose((PetscObject)(*pA),names[i],(PetscObject)c);PCHKERRQ(c,ierr);
+      ierr = PetscContainerDestroy(&c);CCHKERRQ(comm,ierr);
    }
    PetscFunctionReturn(0);
 }
