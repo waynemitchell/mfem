@@ -316,7 +316,6 @@ void NodalFiniteElement::ProjectDiv(
    }
 }
 
-
 void PositiveFiniteElement::Project(
    Coefficient &coeff, ElementTransformation &Trans, Vector &dofs) const
 {

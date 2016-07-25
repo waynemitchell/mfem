@@ -241,6 +241,7 @@ all: lib
 	$(MAKE) -C miniapps/common
 	$(MAKE) -C miniapps/meshing
 	$(MAKE) -C miniapps/electromagnetics
+	$(MAKE) -C miniapps/tools
 	$(MAKE) -C miniapps/performance
 
 -include deps.mk

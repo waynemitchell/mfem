@@ -65,8 +65,8 @@ int update_basis(vector<socketstream*> & sock, const VisWinLayout & vwl,
 int main(int argc, char *argv[])
 {
    // 1. Parse command-line options.
-   Element::Type eType = Element::SEGMENT;
-   // Element::Type eType = Element::TRIANGLE;
+   // Element::Type eType = Element::SEGMENT;
+   Element::Type eType = Element::TRIANGLE;
    // Element::Type eType = Element::QUADRILATERAL;
    // Element::Type eType = Element::TETRAHEDRON;
    // Element::Type eType = Element::HEXAHEDRON;
@@ -133,7 +133,8 @@ int main(int argc, char *argv[])
            "q) Quit\n"
            "e) Change Element Type\n"
            "b) Change Basis Type\n";
-      if ( bType == 'h' || bType == 'n' || bType == 'r' || bType == 'l' )
+      if ( bType == 'h' || bType == 'p' || bType == 'n' || bType == 'r' ||
+           bType == 'l' || bType == 'f' || bType == 'g' )
       {
          cout << "o) Change Basis Order\n";
       }
@@ -194,6 +195,7 @@ int main(int argc, char *argv[])
          char bChar = 0;
          cout << "valid basis types:\n";
          cout << "h) H1 Finite Element\n";
+         // cout << "p) H1 Positive Finite Element\n";
          if ( elemIs2D(eType) || elemIs3D(eType) )
          {
             cout << "n) Nedelec Finite Element\n";
@@ -204,15 +206,25 @@ int main(int argc, char *argv[])
          {
             cout << "c) Crouzeix-Raviart Finite Element\n";
          }
+         cout << "f) Fixed Order Continuous Finite Element\n";
+         if ( elemIs2D(eType) )
+         {
+            cout << "g) Gauss Discontinuous Finite Element\n";
+         }
          cout << "enter new basis type --> " << flush;
          cin >> bChar;
-         if ( bChar == 'h' || bChar == 'l' ||
+         if ( bChar == 'h' || bChar == 'p' || bChar == 'l' || bChar == 'f' ||
               ((bChar == 'n' || bChar == 'r') &&
                (elemIs2D(eType) || elemIs3D(eType))) ||
-              (bChar == 'c' && (elemIs1D(eType) || elemIs2D(eType))) )
+              (bChar == 'c' && (elemIs1D(eType) || elemIs2D(eType))) ||
+              (bChar == 'g' && elemIs2D(eType)))
          {
             bType = bChar;
             if ( bType == 'h' )
+            {
+               mType = FiniteElement::VALUE;
+            }
+            else if ( bType == 'p' )
             {
                mType = FiniteElement::VALUE;
             }
@@ -235,6 +247,22 @@ int main(int argc, char *argv[])
             else if ( bType == 'c' )
             {
                bOrder = 1;
+               mType  = FiniteElement::VALUE;
+            }
+            else if ( bType == 'f' )
+            {
+               if ( bOrder < 1 || bOrder > 3)
+               {
+                  bOrder = 1;
+               }
+               mType  = FiniteElement::VALUE;
+            }
+            else if ( bType == 'g' )
+            {
+               if ( bOrder < 1 || bOrder > 2)
+               {
+                  bOrder = 1;
+               }
                mType  = FiniteElement::VALUE;
             }
             print_char = true;
@@ -265,11 +293,29 @@ int main(int argc, char *argv[])
       if (mk == 'o')
       {
          int oInt = 1;
-         int oMin = ( bType == 'h' || bType == 'n' )?1:0;
-         cout << "basis function order must be >= " << oMin << endl;
+         int oMin = ( bType == 'h' || bType == 'p' || bType == 'n' ||
+                      bType == 'f' || bType == 'g')?1:0;
+         int oMax = -1;
+         switch (bType)
+         {
+            case 'g':
+               oMax = 2;
+               break;
+            case 'f':
+               oMax = 3;
+               break;
+            default:
+               oMax = -1;
+         }
+         cout << "basis function order must be >= " << oMin;
+         if ( oMax >= 0 )
+         {
+            cout << " and <= " << oMax;
+         }
+         cout << endl;
          cout << "enter new basis function order --> " << flush;
          cin >> oInt;
-         if ( oInt >= oMin )
+         if ( oInt >= oMin && oInt <= (oMax>=0)?oMax:oInt )
          {
             bOrder = oInt;
             print_char = true;
@@ -347,6 +393,9 @@ basisTypeStr(char bType)
       case 'h':
          return "Continuous (H1)";
          break;
+      case 'p':
+         return "Continuous Positive (H1)";
+         break;
       case 'n':
          return "Nedelec";
          break;
@@ -355,6 +404,12 @@ basisTypeStr(char bType)
          break;
       case 'l':
          return "Discontinuous (L2)";
+         break;
+      case 'f':
+         return "Fixed Order Continuous";
+         break;
+      case 'g':
+         return "Gaussian Discontinuous";
          break;
       case 'c':
          return "Crouzeix-Raviart";
@@ -368,20 +423,22 @@ basisTypeStr(char bType)
 bool
 basisIs1D(char bType)
 {
-   return bType == 'h' || bType == 'l' || bType == 'c';
+   return bType == 'h' || bType == 'p' || bType == 'l' || bType == 'c' ||
+          bType == 'f';
 }
 
 bool
 basisIs2D(char bType)
 {
-   return bType == 'h' || bType == 'n' || bType == 'r' || bType == 'l' ||
-          bType == 'c';
+   return bType == 'h' || bType == 'p' || bType == 'n' || bType == 'r' ||
+          bType == 'l' || bType == 'c' || bType == 'f' || bType == 'g';
 }
 
 bool
 basisIs3D(char bType)
 {
-   return bType == 'h' || bType == 'n' || bType == 'r' || bType == 'L';
+   return bType == 'h' || bType == 'p' || bType == 'n' || bType == 'r' ||
+          bType == 'f' || bType == 'l';
 }
 
 string
@@ -440,6 +497,10 @@ update_basis(vector<socketstream*> & sock,  const VisWinLayout & vwl,
          FEC = new H1_FECollection(bOrder, dim);
          vec = false;
          break;
+      case 'p':
+         FEC = new H1Pos_FECollection(bOrder, dim);
+         vec = false;
+         break;
       case 'n':
          FEC = new ND_FECollection(bOrder, dim);
          vec = true;
@@ -456,12 +517,39 @@ update_basis(vector<socketstream*> & sock,  const VisWinLayout & vwl,
       case 'c':
          FEC = new CrouzeixRaviartFECollection();
          break;
+      case 'f':
+         if ( bOrder == 1 )
+         {
+            FEC = new LinearFECollection();
+         }
+         else if ( bOrder == 2 )
+         {
+            FEC = new QuadraticFECollection();
+         }
+         else if ( bOrder == 3 )
+         {
+            FEC = new CubicFECollection();
+         }
+         break;
+      case 'g':
+         if ( bOrder == 1 )
+         {
+            FEC = new GaussLinearDiscont2DFECollection();
+         }
+         else if ( bOrder == 2 )
+         {
+            FEC = new GaussQuadraticDiscont2DFECollection();
+         }
+         break;
       case 'd':
          FEC = new DG_Interface_FECollection(bOrder, dim);
          vec = true;
          break;
    }
-
+   if ( FEC == NULL)
+   {
+      return 1;
+   }
    // cout << "Building Finite Element Space" << endl;
    FiniteElementSpace FESpace(mesh, FEC);
 
@@ -476,38 +564,19 @@ update_basis(vector<socketstream*> & sock,  const VisWinLayout & vwl,
 
    int offx = vwl.w+10, offy = vwl.h+45; // window offsets
 
-   // cout << "Setting up sockets" << endl;
    int nsock = sock.size();
-   /*
-   // This scheme often fails to reopen random windows
    for (int i=0; i<nsock; i++)
-   {
-      *sock[i] << "keys q";
-   }
-   for (int i=ndof; i<nsock; i++)
-   {
-      delete sock[i];
-   }
-   */
-   // This scheme fails to change fields in preexisting windows when the
-   // field type changes from scalar to vector
-   for (int i=ndof; i<nsock; i++)
    {
       *sock[i] << "keys q";
       delete sock[i];
    }
 
    sock.resize(ndof);
-   for (int i=nsock; i<ndof; i++)
+   for (int i=0; i<ndof; i++)
    {
       sock[i] = new socketstream; sock[i]->precision(8);
    }
-   /*
-   char mk;
-   cout << "pause...";
-   cin >> mk;
-   */
-   // cout << "Building Grid Functions" << endl;
+
    GridFunction **    x = new GridFunction*[ndof];
    for (int i=0; i<ndof; i++)
    {
@@ -534,7 +603,6 @@ update_basis(vector<socketstream*> & sock,  const VisWinLayout & vwl,
       }
    }
 
-   // cout << "Visualizing Basis Functions" << endl;
    for (int i=0; i<ndof; i++)
    {
       ostringstream oss;

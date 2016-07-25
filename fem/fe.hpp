@@ -262,9 +262,12 @@ class PositiveFiniteElement : public ScalarFiniteElement
 public:
    PositiveFiniteElement(int D, int G, int Do, int O, int F = FunctionSpace::Pk)
       : ScalarFiniteElement(D, G, Do, O, F) { }
+
    using FiniteElement::Project;
+
    virtual void Project(Coefficient &coeff,
                         ElementTransformation &Trans, Vector &dofs) const;
+
    virtual void Project(const FiniteElement &fe, ElementTransformation &Trans,
                         DenseMatrix &I) const;
 };
