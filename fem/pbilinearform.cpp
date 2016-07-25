@@ -169,6 +169,7 @@ HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
    return rap;
 }
 
+#ifdef MFEM_USE_PETSC
 // this function is almost a verbatim copy of the one before
 // we may want to glue them together?
 PetscParMatrix *ParBilinearForm::PetscParallelAssemble(SparseMatrix *m)
@@ -209,7 +210,7 @@ PetscParMatrix *ParBilinearForm::PetscParallelAssemble(SparseMatrix *m)
       }
 
       // TODO : add PetscParMatrix constructor for this
-      hA = new HypreParMatrix(pfes->GetComm(), lvsize, pfes->GlobalVSize(),
+      HypreParMatrix *hA = new HypreParMatrix(pfes->GetComm(), lvsize, pfes->GlobalVSize(),
                              pfes->GlobalVSize(), m->GetI(), glob_J,
                              m->GetData(), pfes->GetDofOffsets(),
                              pfes->GetDofOffsets());
@@ -225,6 +226,7 @@ PetscParMatrix *ParBilinearForm::PetscParallelAssemble(SparseMatrix *m)
 
    return rap;
 }
+#endif
 
 void ParBilinearForm::AssembleSharedFaces(int skip_zeros)
 {
@@ -331,6 +333,7 @@ void ParBilinearForm::FormLinearSystem(
    // eliminated part of the matrix.
    if (static_cond)
    {
+      static_cond->SetUsePetsc(false);
       static_cond->ConvertListToReducedTrueDofs(ess_tdof_list, ess_rtdof_list);
       if (!static_cond->HasEliminatedBC())
       {
@@ -403,6 +406,7 @@ void ParBilinearForm::FormLinearSystem(
    //}
 }
 
+#ifdef MFEM_USE_PETSC
 void ParBilinearForm::FormLinearSystem(
    Array<int> &ess_tdof_list, Vector &x, Vector &b,
    PetscParMatrix &A, Vector &X, Vector &B, int copy_interior)
@@ -416,13 +420,13 @@ void ParBilinearForm::FormLinearSystem(
    if (static_cond)
    {
       // TODO
-      MFEM_ABORT("STATIC CONDENSATION SUPPORT STILL MISSING");
-      //static_cond->ConvertListToReducedTrueDofs(ess_tdof_list, ess_rtdof_list);
-      //if (!static_cond->HasEliminatedBC())
-      //{
-      //   static_cond->Finalize();
-      //   static_cond->EliminateReducedTrueDofs(ess_rtdof_list, 0);
-      //}
+      static_cond->SetUsePetsc();
+      static_cond->ConvertListToReducedTrueDofs(ess_tdof_list, ess_rtdof_list);
+      if (!static_cond->HasEliminatedBC())
+      {
+         static_cond->Finalize();
+         static_cond->EliminateReducedTrueDofs(ess_rtdof_list, 0);
+      }
    }
    else if (mat)
    {
@@ -447,15 +451,14 @@ void ParBilinearForm::FormLinearSystem(
    // multipliers, set X = 0.0 for hybridization.
    if (static_cond)
    {
-      // TODO
-      // Schur complement reduction to the exposed dofs
-      //static_cond->ReduceRHS(b, B);
-      //static_cond->ReduceSolution(x, X);
-      //EliminateBC(static_cond->GetParallelMatrix(),
-      //            static_cond->GetParallelMatrixElim(),
-      //            ess_rtdof_list, X, B);
-      //if (!copy_interior) { X.SetSubVectorComplement(ess_rtdof_list, 0.0); }
-      //A.MakeRef(static_cond->GetParallelMatrix());
+      //Schur complement reduction to the exposed dofs
+      static_cond->ReduceRHS(b, B);
+      static_cond->ReduceSolution(x, X);
+      EliminateBC(static_cond->GetPetscParallelMatrix(),
+                  static_cond->GetPetscParallelMatrixElim(),
+                  ess_rtdof_list, X, B);
+      if (!copy_interior) { X.SetSubVectorComplement(ess_rtdof_list, 0.0); }
+      A.MakeRef(static_cond->GetPetscParallelMatrix());
    }
    else if (hybridization)
    {
@@ -488,6 +491,7 @@ void ParBilinearForm::FormLinearSystem(
    //  MatView(const_cast<PetscParMatrix&>(*pp_mat_e),NULL);
    //}
 }
+#endif
 
 void ParBilinearForm::RecoverFEMSolution(
    const Vector &X, const Vector &b, Vector &x)

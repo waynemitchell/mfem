@@ -36,11 +36,13 @@ StaticCondensation::StaticCondensation(FiniteElementSpace *fespace)
       tr_fes = tr_pfes;
    }
    pS = pS_e = NULL;
+   ppS = ppS_e = NULL;
 #endif
    S = S_e = NULL;
    symm = false;
    A_data = NULL;
    A_ipiv = NULL;
+   usepetsc = false;
 
    Array<int> vdofs;
    const int NE = fes->GetNE();
@@ -106,6 +108,8 @@ StaticCondensation::~StaticCondensation()
 #ifdef MFEM_USE_MPI
    delete pS_e;
    delete pS;
+   delete ppS;
+   delete ppS_e;
 #endif
    delete S_e;
    delete S;
@@ -262,23 +266,59 @@ void StaticCondensation::Finalize()
       if (!S) { return; }  // already finalized
       S->Finalize();
       if (S_e) { S_e->Finalize(); }
-      HypreParMatrix *dS =
-         new HypreParMatrix(tr_pfes->GetComm(), tr_pfes->GlobalVSize(),
-                            tr_pfes->GetDofOffsets(), S);
-      pS = RAP(dS, tr_pfes->Dof_TrueDof_Matrix());
-      delete dS;
+#ifdef MFEM_USE_PETSC
+      PetscParMatrix *ptemp = NULL;
+      // TODO add assembled flag to static_cond object
+      bool assembled = true;
+#endif
+      if (!usepetsc)
+      {
+        HypreParMatrix *dS =
+           new HypreParMatrix(tr_pfes->GetComm(), tr_pfes->GlobalVSize(),
+                              tr_pfes->GetDofOffsets(), S);
+        pS = RAP(dS, tr_pfes->Dof_TrueDof_Matrix());
+        delete dS;
+      }
+#ifdef MFEM_USE_PETSC
+      else
+      {
+         PetscParMatrix *dS =
+            new PetscParMatrix(tr_pfes->GetComm(), tr_pfes->GlobalVSize(),
+                               tr_pfes->GetDofOffsets(), S, assembled);
+         ptemp = new PetscParMatrix(tr_pfes->Dof_TrueDof_Matrix(),false,assembled);
+         ppS = RAP(dS, ptemp);
+         delete dS;
+      }
+#endif
       delete S;
       S = NULL;
       if (S_e)
       {
-         HypreParMatrix *dS_e =
-            new HypreParMatrix(tr_pfes->GetComm(), tr_pfes->GlobalVSize(),
-                               tr_pfes->GetDofOffsets(), S_e);
-         pS_e = RAP(dS_e, tr_pfes->Dof_TrueDof_Matrix());
-         delete dS_e;
+         if (!usepetsc)
+         {
+            HypreParMatrix *dS_e =
+               new HypreParMatrix(tr_pfes->GetComm(), tr_pfes->GlobalVSize(),
+                                  tr_pfes->GetDofOffsets(), S_e);
+            pS_e = RAP(dS_e, tr_pfes->Dof_TrueDof_Matrix());
+            delete dS_e;
+         }
+#ifdef MFEM_USE_PETSC
+         else
+         {
+            // TODO add assembled flag
+            PetscParMatrix *dS_e =
+               new PetscParMatrix(tr_pfes->GetComm(), tr_pfes->GlobalVSize(),
+                                  tr_pfes->GetDofOffsets(), S_e, assembled);
+            ppS_e = RAP(dS_e, ptemp);
+            delete dS_e;
+         }
+#endif
          delete S_e;
          S_e = NULL;
       }
+#ifdef MFEM_USE_PETSC
+      if (ptemp) delete ptemp;
+#endif
 #endif
    }
 }
@@ -300,8 +340,18 @@ void StaticCondensation::EliminateReducedTrueDofs(
    else // parallel and finalized
    {
 #ifdef MFEM_USE_MPI
-      MFEM_ASSERT(pS_e == NULL, "essential b.c. already eliminated");
-      pS_e = pS->EliminateRowsCols(ess_rtdof_list);
+      if (!usepetsc)
+      {
+         MFEM_ASSERT(pS_e == NULL, "essential b.c. already eliminated");
+         pS_e = pS->EliminateRowsCols(ess_rtdof_list);
+      }
+#ifdef MFEM_USE_PETSC
+      else
+      {
+         MFEM_ASSERT(ppS_e == NULL, "essential b.c. already eliminated");
+         ppS_e = ppS->EliminateRowsCols(ess_rtdof_list);
+      }
+#endif
 #endif
    }
 }

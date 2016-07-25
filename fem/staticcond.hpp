@@ -75,6 +75,11 @@ class StaticCondensation
 #ifdef MFEM_USE_MPI
    ParFiniteElementSpace *pfes, *tr_pfes;
    HypreParMatrix *pS, *pS_e;
+#ifdef MFEM_USE_PETSC
+   PetscParMatrix *ppS, *ppS_e;
+#else
+   HypreParMatrix *ppS, *ppS_e;
+#endif
    bool Parallel() const { return (tr_pfes != NULL); }
 #else
    bool Parallel() const { return false; }
@@ -84,6 +89,7 @@ class StaticCondensation
    Array<int> A_offsets, A_ipiv_offsets;
    double *A_data;
    int *A_ipiv;
+   bool usepetsc;
 
 public:
    /// Construct a StaticCondensation object.
@@ -129,11 +135,12 @@ public:
    /** Return true if essential boundary conditions have been eliminated from
        the Schur complement matrix. */
    bool HasEliminatedBC() const
+
    {
 #ifndef MFEM_USE_MPI
       return S_e;
 #else
-      return S_e || pS_e;
+      return S_e || pS_e || ppS_e;
 #endif
    }
 
@@ -149,6 +156,13 @@ public:
 
    /// Return the eliminated part of the parallel Schur complement matrix.
    HypreParMatrix &GetParallelMatrixElim() { return *pS_e; }
+#ifdef MFEM_USE_PETSC
+   /// Return the parallel Schur complement matrix (PetscParMatrix).
+   PetscParMatrix &GetPetscParallelMatrix() { return *ppS; }
+
+   /// Return the eliminated part of the parallel Schur complement matrix (PetscParMatrix).
+   PetscParMatrix &GetPetscParallelMatrixElim() { return *ppS_e; }
+#endif
 #endif
 
    /** Given a RHS vector for the full linear system, compute the RHS for the
@@ -180,6 +194,18 @@ public:
        full linear system, compute the solution of the full system 'sol'. */
    void ComputeSolution(const Vector &b, const Vector &sc_sol,
                         Vector &sol) const;
+
+   /** Turn on or off the usage of PETSc */
+   void SetUsePetsc(bool use = true)
+   {
+#ifndef MFEM_USE_PETSC
+      if (true) MFEM_ABORT("You did not configured MFEM with PETSc support");
+      usepetsc = false;
+#else
+      usepetsc = use;
+#endif
+   }
+
 };
 
 }
