@@ -36,6 +36,9 @@
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
+#ifdef MFEM_USE_PETSC
+#include <petsc.h>
+#endif
 
 using namespace std;
 using namespace mfem;
@@ -59,6 +62,10 @@ int main(int argc, char *argv[])
    int order = 1;
    bool static_cond = false;
    bool visualization = 1;
+   bool use_petsc = false;
+#ifdef MFEM_USE_PETSC
+   const char *petscrc_file = NULL;
+#endif
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -72,7 +79,13 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
-
+#ifdef MFEM_USE_PETSC
+   args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "no-petsc",
+                  "--no-petsc",
+                  "Use or not PETSc to solve the linear system.");
+   args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
+                  "PetscOptions file to use.");
+#endif
    args.Parse();
    if (!args.Good())
    {
@@ -87,6 +100,10 @@ int main(int argc, char *argv[])
    {
       args.PrintOptions(cout);
    }
+   // 2b. We initialize PETSc
+#ifdef MFEM_USE_PETSC
+   if (use_petsc) PetscInitialize(NULL,NULL,petscrc_file,NULL);
+#endif
    kappa = freq * M_PI;
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
@@ -181,26 +198,51 @@ int main(int argc, char *argv[])
    if (static_cond) { a->EnableStaticCondensation(); }
    a->Assemble();
 
-   HypreParMatrix A;
    Vector B, X;
-   a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
-
-   if (myid == 0)
+   if (!use_petsc)
    {
-      cout << "Size of linear system: " << A.GetGlobalNumRows() << endl;
-   }
+      HypreParMatrix A;
+      a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
 
-   // 12. Define and apply a parallel PCG solver for AX=B with the AMS
-   //     preconditioner from hypre.
-   ParFiniteElementSpace *prec_fespace =
-      (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);
-   HypreSolver *ams = new HypreAMS(A, prec_fespace);
-   HyprePCG *pcg = new HyprePCG(A);
-   pcg->SetTol(1e-12);
-   pcg->SetMaxIter(500);
-   pcg->SetPrintLevel(2);
-   pcg->SetPreconditioner(*ams);
-   pcg->Mult(B, X);
+      if (myid == 0)
+      {
+         cout << "Size of linear system: " << A.GetGlobalNumRows() << endl;
+      }
+
+      // 12. Define and apply a parallel PCG solver for AX=B with the AMS
+      //     preconditioner from hypre.
+      ParFiniteElementSpace *prec_fespace =
+         (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);
+      HypreSolver *ams = new HypreAMS(A, prec_fespace);
+      HyprePCG *pcg = new HyprePCG(A);
+      pcg->SetTol(1e-12);
+      pcg->SetMaxIter(500);
+      pcg->SetPrintLevel(2);
+      pcg->SetPreconditioner(*ams);
+      pcg->Mult(B, X);
+      delete pcg;
+      delete ams;
+   }
+#ifdef MFEM_USE_PETSC
+   else
+   {
+      PetscParMatrix A;
+      a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
+
+      if (myid == 0)
+      {
+         cout << "Size of linear system: " << A.M() << endl;
+      }
+
+      // 12. Define and apply a parallel PCG solver.
+      PetscPCGSolver *pcg = new PetscPCGSolver(A);
+      pcg->SetTol(1e-12);
+      pcg->SetMaxIter(500);
+      pcg->SetPrintLevel(2);
+      pcg->Mult(B, X);
+      delete pcg;
+   }
+#endif
 
    // 13. Recover the parallel grid function corresponding to X. This is the
    //     local finite element solution on each processor.
@@ -243,8 +285,6 @@ int main(int argc, char *argv[])
    }
 
    // 17. Free the used memory.
-   delete pcg;
-   delete ams;
    delete a;
    delete sigma;
    delete muinv;
@@ -253,6 +293,9 @@ int main(int argc, char *argv[])
    delete fec;
    delete pmesh;
 
+#ifdef MFEM_USE_PETSC
+   if (use_petsc) PetscFinalize();
+#endif
    MPI_Finalize();
 
    return 0;
