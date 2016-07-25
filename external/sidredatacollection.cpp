@@ -31,10 +31,6 @@ namespace mfem
 {
 
 // class SidreDataCollection implementation
-// This version is a prototype of adding needed MFEM data to Sidre as mostly 'external' data.
-// There are some exceptions - individual scalars are copied into Sidre, as long as we know the
-// data does not change during a run.  There are some drawbacks to trying to do most data as 'external'
-// to Sidre. (For future discussion)
 SidreDataCollection::SidreDataCollection(const std::string& collection_name, asctoolkit::sidre::DataGroup* dg)
   : mfem::DataCollection(collection_name.c_str()), parent_datagroup(dg)
 {
@@ -42,7 +38,11 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name, asc
 
   sidre_dc_group = dg->createGroup( collection_name );
 
-  /*
+  sidre_dc_group->createViewScalar("state/cycle", 0);
+  sidre_dc_group->createViewScalar("state/time", 0.);
+  sidre_dc_group->createViewScalar("state/domain", myid);
+
+/*
   // Create group for mesh
   sidre::DataGroup * mesh_grp = sidre_dc_group->createGroup("topology");
   addMesh(mesh_grp);
@@ -147,9 +147,6 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
         grp->createViewString("fields/material_attribute/association", "Element");
         grp->createView("fields/material_attribute/values");
 
-        grp->createViewScalar("state/cycle", 0);
-        grp->createViewScalar("state/time", 0.);
-        grp->createViewScalar("state/domain", myid);
     }
 
     sidre::DataView *elements_connectivity;
