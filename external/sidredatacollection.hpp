@@ -74,15 +74,6 @@ public:
 private:
   // Private helper functions
 
-  // why can't this be const? (the ElementAllocator)
-  void addElements(asctoolkit::sidre::DataGroup * group, ElementAllocator*);
-
-  void addField(asctoolkit::sidre::DataGroup * grp, mfem::GridFunction* gf);
-
-  void addMesh( asctoolkit::sidre::DataGroup * grp);
-
-  void addVertices(asctoolkit::sidre::DataGroup * grp);
-
   asctoolkit::sidre::DataGroup * sidre_dc_group;
 
 };
