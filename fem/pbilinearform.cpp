@@ -169,13 +169,10 @@ HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
    return rap;
 }
 
+// this function is almost a verbatim copy of the one before
+// we may want to glue them together?
 PetscParMatrix *ParBilinearForm::PetscParallelAssemble(SparseMatrix *m)
 {
-   // so far it just uses HYPRE + conversion
-   //HypreParMatrix* tmat = ParallelAssemble();
-   //PetscParMatrix* out = new PetscParMatrix(tmat,false);
-   //delete tmat;
-   //return out;
    // TODO: make it a parameter for ParBilinearForm
    bool assembled = true;
    if (m == NULL) { return NULL; }
@@ -192,31 +189,32 @@ PetscParMatrix *ParBilinearForm::PetscParallelAssemble(SparseMatrix *m)
    }
    else
    {
-      // TODO
-      MFEM_ABORT("Not yet implemented");
       // handle the case when 'm' contains offdiagonal
-      //int lvsize = pfes->GetVSize();
-      //const HYPRE_Int *face_nbr_glob_ldof = pfes->GetFaceNbrGlobalDofMap();
-      //HYPRE_Int ldof_offset = pfes->GetMyDofOffset();
+      int lvsize = pfes->GetVSize();
+      const HYPRE_Int *face_nbr_glob_ldof = pfes->GetFaceNbrGlobalDofMap();
+      HYPRE_Int ldof_offset = pfes->GetMyDofOffset();
 
-      //Array<HYPRE_Int> glob_J(m->NumNonZeroElems());
-      //int *J = m->GetJ();
-      //for (int i = 0; i < glob_J.Size(); i++)
-      //{
-      //   if (J[i] < lvsize)
-      //   {
-      //      glob_J[i] = J[i] + ldof_offset;
-      //   }
-      //   else
-      //   {
-      //      glob_J[i] = face_nbr_glob_ldof[J[i] - lvsize];
-      //   }
-      //}
+      Array<HYPRE_Int> glob_J(m->NumNonZeroElems());
+      int *J = m->GetJ();
+      for (int i = 0; i < glob_J.Size(); i++)
+      {
+         if (J[i] < lvsize)
+         {
+            glob_J[i] = J[i] + ldof_offset;
+         }
+         else
+         {
+            glob_J[i] = face_nbr_glob_ldof[J[i] - lvsize];
+         }
+      }
 
-      //A = new HypreParMatrix(pfes->GetComm(), lvsize, pfes->GlobalVSize(),
-      //                       pfes->GlobalVSize(), m->GetI(), glob_J,
-      //                       m->GetData(), pfes->GetDofOffsets(),
-      //                       pfes->GetDofOffsets());
+      // TODO : add PetscParMatrix constructor for this
+      hA = new HypreParMatrix(pfes->GetComm(), lvsize, pfes->GlobalVSize(),
+                             pfes->GlobalVSize(), m->GetI(), glob_J,
+                             m->GetData(), pfes->GetDofOffsets(),
+                             pfes->GetDofOffsets());
+      A = new PetscParMatrix(hA,false,assembled);
+      delete hA;
    }
 
    // TODO assemble Dof_TrueDof_Matrix in MATIS format?

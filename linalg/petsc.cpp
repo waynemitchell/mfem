@@ -469,6 +469,13 @@ PetscParMatrix::PetscParMatrix(MPI_Comm comm, PetscInt global_num_rows,
    width  = lcsize;
 }
 
+// TODO ADD
+//PetscParMatrix::PetscParMatrix(MPI_Comm comm, int nrows, PetscInt glob_nrows,
+//                  PetscInt glob_ncols, int *I, PetscInt *J,
+//                  double *data, PetscInt *rows, PetscInt *cols)
+//{
+//}
+
 typedef struct {
    HypreParMatrix *op;
    HypreParVector *xx,*yy;
