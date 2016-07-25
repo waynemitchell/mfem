@@ -124,7 +124,7 @@ public:
    // The result replaces the rhs b.
    // We substitute x_hat = b_x + dt v_hat and solve
    // (M + dt S + dt^2 grad_H) v_hat = M b_v - dt grad_H b_x.
-   virtual void SolveJacobian(Vector *b, Vector *y, Vector *tmp, double dt);
+   virtual void SolveJacobian(Vector *b, Vector *y, double dt);
 
    // Compute y = H(x + dt (v + dt k)) + M k + S (v + dt k).
    virtual void Mult(const Vector &k, Vector &y) const;
@@ -444,8 +444,7 @@ void BackwardEulerOperator::SetParameters(double gamma_, const Vector *v_,
    gamma=gamma_;  v = v_;  x = x_;
 }
 
-void BackwardEulerOperator::SolveJacobian(Vector *b, Vector *y, Vector *tmp,
-                                          double dt)
+void BackwardEulerOperator::SolveJacobian(Vector *b, Vector *y, double dt)
 {
    int sc = b->Size() / 2;
    Vector x(y->GetData() + sc, sc);

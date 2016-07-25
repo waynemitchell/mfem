@@ -140,10 +140,9 @@ static int WrapLinearCVSolve(CVodeMem cv_mem, N_Vector b,
    ConnectMFEMVector(ycur, solve_y);
    ConnectMFEMVector(b, solve_b);
 
-   // TODO: we dont need so many arguments.
    mfem::SundialsLinearSolveOperator *op =
          static_cast<mfem::SundialsLinearSolveOperator *>(cv_mem->cv_lmem);
-   op->SolveJacobian(&solve_b, &solve_y, &solve_y, cv_mem->cv_gamma);
+   op->SolveJacobian(&solve_b, &solve_y, cv_mem->cv_gamma);
    return 0;
 }
 
@@ -230,17 +229,13 @@ static int WrapLinearARKSolve(ARKodeMem ark_mem, N_Vector b,
                               N_Vector weight, N_Vector ycur,
                               N_Vector fcur)
 {
-   // TODO: try without the if.
-   if (ark_mem->ark_tn > 0)
-   {
-      mfem::Vector solve_y, solve_b;
-      ConnectMFEMVector(ycur, solve_y);
-      ConnectMFEMVector(b, solve_b);
+   mfem::Vector solve_y, solve_b;
+   ConnectMFEMVector(ycur, solve_y);
+   ConnectMFEMVector(b, solve_b);
 
-      mfem::SundialsLinearSolveOperator *op =
-            static_cast<mfem::SundialsLinearSolveOperator *>(ark_mem->ark_lmem);
-      op->SolveJacobian(&solve_b, &solve_y, &solve_y, ark_mem->ark_gamma);
-   }
+   mfem::SundialsLinearSolveOperator *op =
+         static_cast<mfem::SundialsLinearSolveOperator *>(ark_mem->ark_lmem);
+   op->SolveJacobian(&solve_b, &solve_y, ark_mem->ark_gamma);
    return 0;
 }
 

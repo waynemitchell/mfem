@@ -285,7 +285,7 @@ class SundialsLinearSolveOperator : public Operator
 public:
    SundialsLinearSolveOperator(int s) : Operator(s)
    { }
-   virtual void SolveJacobian(Vector* b, Vector* y, Vector* tmp, double dt) = 0;
+   virtual void SolveJacobian(Vector* b, Vector* y, double dt) = 0;
 };
 
 class KinSolWrapper
