@@ -285,9 +285,9 @@ int main(int argc, char *argv[])
 #ifdef MFEM_USE_PETSC
    else
    {
-      // 13b. Use PETSc to solve the linear system
+      // 13b. Use PETSc to solve the linear system.
+      //      Assemble a PETSc matrix, so that PETSc solvers can be used natively.
       PetscParMatrix A;
-      // Assemble into PETSc's AIJ format
       a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
       if (myid == 0)
       {
@@ -295,13 +295,12 @@ int main(int argc, char *argv[])
          cout << "Size of linear system: " << A.M() << endl;
       }
 
-      PetscPCGSolver *ppcg = new PetscPCGSolver(A);
-      ppcg->SetMaxIter(500);
-      ppcg->SetTol(1e-8);
-      ppcg->SetPrintLevel(2); //TODO: dummy call
-      //ppcg->SetPreconditioner(*amg);
-      ppcg->Mult(B, X);
-      delete ppcg;
+      PetscPCGSolver *pcg = new PetscPCGSolver(A);
+      pcg->SetMaxIter(500);
+      pcg->SetTol(1e-8);
+      pcg->SetPrintLevel(2); //TODO: dummy call
+      pcg->Mult(B, X);
+      delete pcg;
    }
 #endif
 
