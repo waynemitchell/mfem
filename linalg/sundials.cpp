@@ -32,36 +32,53 @@
 
 using namespace std;
 
-// Connects v to mfem_v.
-static void ConnectNVector(mfem::Vector &mfem_v, N_Vector &v)
+// Creates N_Vector nv linked to the data in mv.
+static void ConnectNVector(mfem::Vector &mv, N_Vector &nv)
 {
-   v = N_VMake_Serial(mfem_v.Size(),
-                      static_cast<realtype *>(mfem_v.GetData()));
-   MFEM_ASSERT(static_cast<void *>(v) != NULL, "N_VMake_Serial() failed!");
+   nv = N_VMake_Serial(mv.Size(),
+                      static_cast<realtype *>(mv.GetData()));
+   MFEM_ASSERT(static_cast<void *>(nv) != NULL, "N_VMake_Serial() failed!");
 }
 
-// Connects the parallel v to mfem_v.
-static void ConnectParNVector(mfem::Vector &mfem_v, N_Vector &v)
+// Creates a parallel N_Vector nv linked to the data in mv.
+static void ConnectParNVector(mfem::Vector &mv, N_Vector &nv)
 {
 #ifdef MFEM_USE_MPI
-   mfem::HypreParVector *hv = dynamic_cast<mfem::HypreParVector *>(&mfem_v);
-   MFEM_VERIFY(hv != NULL, "Could not cast to HypreParVector!");
-   v = N_VMake_ParHyp(hv->StealParVector());
+   mfem::HypreParVector *hpv = dynamic_cast<mfem::HypreParVector *>(&mv);
+   MFEM_VERIFY(hpv != NULL, "Could not cast to HypreParVector!");
+   nv = N_VMake_ParHyp(hpv->StealParVector());
 #else
-   MFEM_ABORT("This function should be called only with a parallel build.");
+   MFEM_ABORT("This function should be called only with a parallel build!");
 #endif
+}
+
+// Creates MFEM Vector mv linked to the data in nv.
+static void ConnectMFEMVector(N_Vector &nv, mfem::Vector &mv)
+{
+   if (N_VGetVectorID(nv) == SUNDIALS_NVEC_SERIAL)
+   {
+      mv.NewDataAndSize(NV_DATA_S(nv), NV_LENGTH_S(nv));
+   }
+   else if (N_VGetVectorID(nv) == SUNDIALS_NVEC_PARHYP)
+   {
+#ifdef MFEM_USE_MPI
+      mfem::HypreParVector hpv(N_VGetVector_ParHyp(nv));
+      mv.NewDataAndSize(hpv.GetData(), hpv.Size());
+#else
+      MFEM_ABORT("The serial MFEM build somehow produced a parallel N_Vector!");
+#endif
+   }
+   else
+   {
+      MFEM_ABORT("Unknown N_Vector type.");
+   }
 }
 
 static int SundialsMult(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 {
-   // Creates mfem Vectors linked to the data in y and in ydot.
-#ifndef MFEM_USE_MPI
-   mfem::Vector mfem_y(NV_DATA_S(y), NV_LENGTH_S(y));
-   mfem::Vector mfem_ydot(NV_DATA_S(ydot), NV_LENGTH_S(ydot));
-#else
-   mfem::HypreParVector mfem_y(N_VGetVector_ParHyp(y));
-   mfem::HypreParVector mfem_ydot(N_VGetVector_ParHyp(ydot));
-#endif
+   mfem::Vector mfem_y, mfem_ydot;
+   ConnectMFEMVector(y, mfem_y);
+   ConnectMFEMVector(ydot, mfem_ydot);
 
    // Compute y' = f(t, y).
    mfem::TimeDependentOperator *f =
@@ -74,14 +91,9 @@ static int SundialsMult(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 // Computes the non-linear operator action F(u).
 static int KinSolMult(N_Vector u, N_Vector fu, void *user_data)
 {
-   // Creates mfem Vectors linked to the data in y and in ydot.
-#ifndef MFEM_USE_MPI
-   mfem::Vector mfem_u(NV_DATA_S(u), NV_LENGTH_S(u));
-   mfem::Vector mfem_fu(NV_DATA_S(fu), NV_LENGTH_S(fu));
-#else
-   mfem::HypreParVector mfem_u(N_VGetVector_ParHyp(u));
-   mfem::HypreParVector mfem_fu(N_VGetVector_ParHyp(fu));
-#endif
+   mfem::Vector mfem_u, mfem_fu;
+   ConnectMFEMVector(u, mfem_u);
+   ConnectMFEMVector(fu, mfem_fu);
 
    // Computes the non-linear action F(u).
    static_cast<mfem::Operator *>(user_data)->Mult(mfem_u, mfem_fu);
@@ -94,15 +106,10 @@ static int KinSolMult(N_Vector u, N_Vector fu, void *user_data)
 static int KinSolJacAction(N_Vector v, N_Vector Jv, N_Vector u,
                            booleantype *new_u, void *user_data)
 {
-#ifndef MFEM_USE_MPI
-   mfem::Vector mfem_u(NV_DATA_S(u), NV_LENGTH_S(u));
-   mfem::Vector mfem_v(NV_DATA_S(v), NV_LENGTH_S(v));
-   mfem::Vector mfem_Jv(NV_DATA_S(Jv), NV_LENGTH_S(Jv));
-#else
-   mfem::HypreParVector mfem_u(N_VGetVector_ParHyp(u));
-   mfem::HypreParVector mfem_v(N_VGetVector_ParHyp(v));
-   mfem::HypreParVector mfem_Jv(N_VGetVector_ParHyp(Jv));
-#endif
+   mfem::Vector mfem_u, mfem_v, mfem_Jv;
+   ConnectMFEMVector(u, mfem_u);
+   ConnectMFEMVector(v, mfem_v);
+   ConnectMFEMVector(Jv, mfem_Jv);
 
    mfem::Operator &J =
          static_cast<mfem::Operator *>(user_data)->GetGradient(mfem_u);
@@ -129,21 +136,14 @@ static int WrapLinearCVSolve(CVodeMem cv_mem, N_Vector b,
                              N_Vector weight, N_Vector ycur,
                              N_Vector fcur)
 {
-#ifndef MFEM_USE_MPI
-   mfem::Vector solve_y(NV_DATA_S(ycur), NV_LENGTH_S(ycur));
-   mfem::Vector solve_f(NV_DATA_S(fcur), NV_LENGTH_S(fcur));
-   mfem::Vector solve_b(NV_DATA_S(b), NV_LENGTH_S(b));
-#else
-   mfem::HypreParVector solve_y(N_VGetVector_ParHyp(ycur));
-   mfem::HypreParVector solve_f(N_VGetVector_ParHyp(fcur));
-   mfem::HypreParVector solve_b(N_VGetVector_ParHyp(b));
-#endif
+   mfem::Vector solve_y, solve_b;
+   ConnectMFEMVector(ycur, solve_y);
+   ConnectMFEMVector(b, solve_b);
 
    // TODO: we dont need so many arguments.
    mfem::SundialsLinearSolveOperator *op =
          static_cast<mfem::SundialsLinearSolveOperator *>(cv_mem->cv_lmem);
    op->SolveJacobian(&solve_b, &solve_y, &solve_y, cv_mem->cv_gamma);
-
    return 0;
 }
 
@@ -230,17 +230,12 @@ static int WrapLinearARKSolve(ARKodeMem ark_mem, N_Vector b,
                               N_Vector weight, N_Vector ycur,
                               N_Vector fcur)
 {
-   if (ark_mem->ark_tn>0)
+   // TODO: try without the if.
+   if (ark_mem->ark_tn > 0)
    {
-#ifndef MFEM_USE_MPI
-      mfem::Vector solve_y(NV_DATA_S(ycur), NV_LENGTH_S(ycur));
-      mfem::Vector solve_f(NV_DATA_S(fcur), NV_LENGTH_S(fcur));
-      mfem::Vector solve_b(NV_DATA_S(b), NV_LENGTH_S(b));
-#else
-      mfem::HypreParVector solve_y(N_VGetVector_ParHyp(ycur));
-      mfem::HypreParVector solve_f(N_VGetVector_ParHyp(fcur));
-      mfem::HypreParVector solve_b(N_VGetVector_ParHyp(b));
-#endif
+      mfem::Vector solve_y, solve_b;
+      ConnectMFEMVector(ycur, solve_y);
+      ConnectMFEMVector(b, solve_b);
 
       mfem::SundialsLinearSolveOperator *op =
             static_cast<mfem::SundialsLinearSolveOperator *>(ark_mem->ark_lmem);
@@ -322,13 +317,7 @@ void CVODESolver::SetSStolerances(realtype reltol, realtype abstol)
 
 void CVODESolver::Step(Vector &x, double &t, double &dt)
 {
-#ifndef MFEM_USE_MPI
-   NV_DATA_S(y) = x.GetData();
-#else
-   HypreParVector *hx = dynamic_cast<HypreParVector *>(&x);
-   MFEM_ASSERT(hx != NULL, "Could not cast to HypreParVector!");
-   y = N_VMake_ParHyp(hx->StealParVector());
-#endif
+   (*connectNV)(x, y);
 
    // Perform the step.
    realtype tout = t + dt;
@@ -429,13 +418,7 @@ void ARKODESolver::SetSStolerances(realtype reltol, realtype abstol)
 
 void ARKODESolver::Step(Vector &x, double &t, double &dt)
 {
-#ifndef MFEM_USE_MPI
-      NV_DATA_S(y) = x.GetData();
-#else
-   HypreParVector *hx = dynamic_cast<HypreParVector *>(&x);
-   MFEM_ASSERT(hx != NULL, "Could not cast to HypreParVector!");
-   y = N_VMake_ParHyp(hx->StealParVector());
-#endif
+   (*connectNV)(x, y);
 
    // Step.
    realtype tout = t + dt;

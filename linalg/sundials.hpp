@@ -279,8 +279,7 @@ public:
 };
 
 /// Interface for custom Jacobian inversion in Sundials.
-/// The Jacobian problem has the form
-///  I - dt inv(M) J(y) = b.
+/// The Jacobian problem has the form I - dt inv(M) J(y) = b.
 class SundialsLinearSolveOperator : public Operator
 {
 public:
