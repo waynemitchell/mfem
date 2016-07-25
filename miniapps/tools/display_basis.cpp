@@ -65,14 +65,13 @@ int update_basis(vector<socketstream*> & sock, const VisWinLayout & vwl,
 int main(int argc, char *argv[])
 {
    // 1. Parse command-line options.
-   // Element::Type eType = Element::SEGMENT;
-   Element::Type eType = Element::TRIANGLE;
-   // Element::Type eType = Element::QUADRILATERAL;
-   // Element::Type eType = Element::TETRAHEDRON;
-   // Element::Type eType = Element::HEXAHEDRON;
+   Element::Type eType  = Element::TRIANGLE;
    char          bType  = 'h';
    int           bOrder = 2;
    int           mType  = 0;
+
+   int eInt = -1;
+   int bInt = -1;
 
    VisWinLayout vwl;
    vwl.nx = 5;
@@ -84,6 +83,14 @@ int main(int argc, char *argv[])
    bool visit = false;
 
    OptionsParser args(argc, argv);
+   args.AddOption(&eInt, "-e", "--elem-type",
+                  "Element Type: (1-Segment, 2-Triangle, 3-Quadrilateral, "
+                  "4-Tetrahedron, 5-Hexahedron)");
+   args.AddOption(&bInt, "-b", "--basis-type",
+                  "Basis Function Type (0-H1, 1-Nedelec, 2-Raviart-Thomas, "
+                  "3-L2, 4-Fixed Order Cont., 5-Gaussian Discontinuous (2D), "
+                  "6-Crouzeix-Raviart)");
+   args.AddOption(&bOrder, "-o", "--order", "Basis function order");
    args.AddOption(&t_, "-t", "--trans",
                   "Coordinate transformation");
    args.AddOption(&vwl.nx, "-nx", "--num-win-x",
@@ -109,6 +116,36 @@ int main(int argc, char *argv[])
    {
       args.PrintOptions(cout);
    }
+   if ( eInt > 0 && eInt < 6 )
+   {
+      eType = (Element::Type)eInt;
+   }
+   switch (bInt)
+   {
+      case 0:
+         bType = 'h';
+         break;
+      case 1:
+         bType = 'n';
+         break;
+      case 2:
+         bType = 'r';
+         break;
+      case 3:
+         bType = 'l';
+         break;
+      case 4:
+         bType = 'f';
+         break;
+      case 5:
+         bType = 'g';
+         break;
+      case 6:
+         bType = 'c';
+         break;
+      default:
+         bType = 'h';
+   }
 
    // 2. Define sockets for visualization
    vector<socketstream*> sock;
@@ -125,7 +162,10 @@ int main(int argc, char *argv[])
          cout << "Basis function order:  " << bOrder << endl;
          cout << "Map Type:              " << mapTypeStr(mType) << endl;
       }
-      update_basis(sock, vwl, eType, bType, bOrder, mType);
+      if ( update_basis(sock, vwl, eType, bType, bOrder, mType) )
+      {
+         cerr << "Invalid combination of basis info (try again)" << endl;
+      }
 
       print_char = false;
       cout << endl;
@@ -152,7 +192,7 @@ int main(int argc, char *argv[])
       }
       if (mk == 'e')
       {
-         int eInt = 0;
+         eInt = 0;
          cout << "valid element types:\n";
          if ( basisIs1D(bType) )
          {
@@ -580,7 +620,7 @@ update_basis(vector<socketstream*> & sock,  const VisWinLayout & vwl,
    GridFunction **    x = new GridFunction*[ndof];
    for (int i=0; i<ndof; i++)
    {
-      x[i]    = new GridFunction(&FESpace);
+      x[i]  = new GridFunction(&FESpace);
       *x[i] = 0.0;
       if ( vdofs[i] < 0 )
       {
@@ -592,7 +632,9 @@ update_basis(vector<socketstream*> & sock,  const VisWinLayout & vwl,
       }
    }
 
-   for (int j=0; j<bOrder; j++)
+   int ref = 0;
+   int exOrder = ( bType == 'p' && false )?3:0;
+   while ( 1<<ref < bOrder + exOrder || ref == 0 )
    {
       mesh->UniformRefinement();
       FESpace.Update();
@@ -601,6 +643,7 @@ update_basis(vector<socketstream*> & sock,  const VisWinLayout & vwl,
       {
          x[i]->Update();
       }
+      ref++;
    }
 
    for (int i=0; i<ndof; i++)
