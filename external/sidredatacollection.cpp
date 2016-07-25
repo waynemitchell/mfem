@@ -68,33 +68,8 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
 
         // Find the element shape
         // Note: Assumes homogeneous elements, so only check the first element
-
-        // Note -- the mapping from Element::Type to string is based on the enum Element::Type
-        //   enum Types { POINT, SEGMENT, TRIANGLE, QUADRILATERAL, TETRAHEDRON, HEXAHEDRON};
-        // Note: -- the string names are from conduit's blueprint
-
-        std::string eltTypeStr;
-        switch(new_mesh->GetElement(0)->GetType())
-        {
-        case Element::TRIANGLE:
-            eltTypeStr = "tris";
-            break;
-        case Element::QUADRILATERAL:
-            eltTypeStr = "quads";
-            break;
-        case Element::TETRAHEDRON:
-            eltTypeStr = "tets";
-            break;
-        case Element::HEXAHEDRON:
-            eltTypeStr = "hexs";
-            break;
-        case Element::POINT:
-        case Element::SEGMENT:
-        default:
-            eltTypeStr = "<unsupported in blueprint>";
-            break;
-        }
-
+        std::string eltTypeStr = getElementName( static_cast<Element::Type>( new_mesh->GetElement(0)->GetType() ) );
+        
         grp->createViewString("topology/type", "unstructured");
         grp->createViewString("topology/elements/shape",eltTypeStr);   // <-- Note: this comes form the mesh
         grp->createView("topology/elements/connectivity");
@@ -336,6 +311,44 @@ void SidreDataCollection::RegisterField(const char* field_name, GridFunction *gf
   }
 
   DataCollection::RegisterField(field_name, gf);
+}
+
+std::string SidreDataCollection::getElementName(Element::Type elementEnum)
+{
+   // Note -- the mapping from Element::Type to string is based on the enum Element::Type
+   //   enum Types { POINT, SEGMENT, TRIANGLE, QUADRILATERAL, TETRAHEDRON, HEXAHEDRON};
+   // Note: -- the string names are from conduit's blueprint
+
+   switch(elementEnum)
+   {
+      case Element::POINT:
+         return "point";
+         break;
+
+      case Element::SEGMENT:
+         return "segment";
+         break;
+
+      case Element::TRIANGLE:
+         return "tris";
+         break;
+
+      case Element::QUADRILATERAL:
+         return "quads";
+         break;
+
+      case Element::TETRAHEDRON:
+         return "tets";
+         break;
+
+      case Element::HEXAHEDRON:
+         return "hexs";
+         break;
+
+      default:
+         return "unknown";
+   }
+
 }
 
 } // end namespace mfem

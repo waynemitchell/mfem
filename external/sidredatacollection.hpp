@@ -76,6 +76,7 @@ private:
 
   asctoolkit::sidre::DataGroup * sidre_dc_group;
 
+  std::string getElementName( Element::Type elementEnum );
 };
 
 } // end namespace mfem
