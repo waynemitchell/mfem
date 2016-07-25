@@ -316,6 +316,39 @@ void NodalFiniteElement::ProjectDiv(
    }
 }
 
+void PositiveFiniteElement::PositiveLocalInterpolation (
+   ElementTransformation &Trans, DenseMatrix &I,
+   const PositiveFiniteElement &fine_fe) const
+{
+   double v[3];
+   Vector vv (v, Dim);
+   IntegrationPoint f_ip;
+
+#ifdef MFEM_THREAD_SAFE
+   Vector c_shape(Dof);
+#endif
+
+   MFEM_ASSERT(MapType == fine_fe.GetMapType(), "");
+
+   for (int i = 0; i < fine_fe.Dof; i++)
+   {
+      Trans.Transform (fine_fe.Nodes.IntPoint (i), vv);
+      f_ip.Set(v, Dim);
+      CalcShape (f_ip, c_shape);
+      for (int j = 0; j < Dof; j++)
+         if (fabs (I (i,j) = c_shape (j)) < 1.0e-12)
+         {
+            I (i,j) = 0.0;
+         }
+   }
+   if (MapType == INTEGRAL)
+   {
+      // assuming Trans is linear; this should be ok for all refinement types
+      Trans.SetIntPoint(&Geometries.GetCenter(GeomType));
+      I *= Trans.Weight();
+   }
+}
+
 void PositiveFiniteElement::Project(
    Coefficient &coeff, ElementTransformation &Trans, Vector &dofs) const
 {
@@ -7125,11 +7158,13 @@ H1Pos_SegmentElement::H1Pos_SegmentElement(const int p)
       Nodes.IntPoint(i+1).x = double(i)/p;
       dof_map[i] = i+1;
    }
+   cout << "Leaving H1Pos_Segment" << endl;
 }
 
 void H1Pos_SegmentElement::CalcShape(const IntegrationPoint &ip,
                                      Vector &shape) const
 {
+   cout << "Entering H1Pos_Segment::CalcShape" << endl;
    const int p = Order;
 
 #ifdef MFEM_THREAD_SAFE
@@ -7145,11 +7180,13 @@ void H1Pos_SegmentElement::CalcShape(const IntegrationPoint &ip,
    {
       shape(i+1) = shape_x(i);
    }
+   cout << "Leaving H1Pos_Segment::CalcShape" << endl;
 }
 
 void H1Pos_SegmentElement::CalcDShape(const IntegrationPoint &ip,
                                       DenseMatrix &dshape) const
 {
+   cout << "Entering H1Pos_Segment::CalcDShape" << endl;
    const int p = Order;
 
 #ifdef MFEM_THREAD_SAFE
@@ -7165,6 +7202,7 @@ void H1Pos_SegmentElement::CalcDShape(const IntegrationPoint &ip,
    {
       dshape(i+1,0) = dshape_x(i);
    }
+   cout << "Leaving H1Pos_Segment::CalcDShape" << endl;
 }
 
 void H1Pos_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const

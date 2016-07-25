@@ -259,9 +259,28 @@ public:
 
 class PositiveFiniteElement : public ScalarFiniteElement
 {
+protected:
+   void PositiveLocalInterpolation (ElementTransformation &Trans,
+                                    DenseMatrix &I,
+                                    const PositiveFiniteElement &fine_fe) const;
+
+#ifndef MFEM_THREAD_SAFE
+   mutable Vector c_shape;
+#endif
+
 public:
-   PositiveFiniteElement(int D, int G, int Do, int O, int F = FunctionSpace::Pk)
-      : ScalarFiniteElement(D, G, Do, O, F) { }
+   PositiveFiniteElement(int D, int G, int Do, int O,
+                         int F = FunctionSpace::Pk) :
+#ifdef MFEM_THREAD_SAFE
+      ScalarFiniteElement(D, G, Do, O, F)
+#else
+      ScalarFiniteElement(D, G, Do, O, F), c_shape(Do)
+#endif
+   { }
+
+   virtual void GetLocalInterpolation (ElementTransformation &Trans,
+                                       DenseMatrix &I) const
+   { PositiveLocalInterpolation (Trans, I, *this); }
 
    using FiniteElement::Project;
 

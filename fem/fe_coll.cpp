@@ -2135,6 +2135,11 @@ Local_FECollection::Local_FECollection(const char *fe_name)
       GeomType = Geometry::SQUARE;
       Local_Element = new H1_QuadrilateralElement(atoi(fe_name + 7));
    }
+   else if (!strncmp(fe_name, "H1Pos_", 6))
+   {
+      GeomType = Geometry::SQUARE;
+      Local_Element = new H1Pos_QuadrilateralElement(atoi(fe_name + 10));
+   }
    else if (!strncmp(fe_name, "L2_", 3))
    {
       GeomType = Geometry::SQUARE;

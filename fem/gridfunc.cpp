@@ -2505,6 +2505,10 @@ GridFunction *Extrude1DGridFunction(Mesh *mesh, Mesh *mesh2d,
    {
       solfec2d = new H1_FECollection(atoi(name + 7), 2);
    }
+   else if (!strncmp(name, "H1Pos_", 6))
+   {
+      solfec2d = new H1Pos_FECollection(atoi(name + 10), 2);
+   }
    else if (!strncmp(name, "L2_T", 4))
    {
       solfec2d = new L2_FECollection(atoi(name + 10), 2);
