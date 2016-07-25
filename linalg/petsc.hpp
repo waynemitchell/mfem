@@ -121,28 +121,28 @@ protected:
    void Destroy();
 
    /// Creates a wrapper around HypreParMatrix using PETSc's MATSHELL object
-   /// and returns the Mat in B
+   /// and returns the Mat in B.
    void MakeWrapper(const HypreParMatrix* hmat, Mat *B);
 
    friend class PetscLinearSolver;
 
 public:
-   /// An empty matrix to be used as a reference to an existing matrix
+   /// An empty matrix to be used as a reference to an existing matrix.
    PetscParMatrix();
 
-   /// Calls PETSc's destroy function
+   /// Calls PETSc's destroy function.
    virtual ~PetscParMatrix() { Destroy(); }
 
-   /// Creates PetscParMatrix out of PETSc's Mat
-   /// If ref is true, we increase the reference count of PETSc's Mat object
+   /// Creates PetscParMatrix out of PETSc's Mat.
+   /// If ref is true, we increase the reference count of PETSc's Mat object.
    PetscParMatrix(Mat a, bool ref=false);
 
    /// Converts HypreParMatrix to PetscParMatrix
-   /// If wrap is false, a PETSc's MATAIJ object
-   /// is created; otherwise, the matvec operations
-   /// of HypreParMatrix are wrapped through PETSc's
-   /// MATSHELL object
-   PetscParMatrix(const HypreParMatrix* a, bool wrap=false);
+   /// If wrap is false, a PETSc's MATAIJ (resp. MATIS) object
+   /// is created if assembled is true (resp. false).
+   /// If wrap is true, the matvec operations of the HypreParMatrix are wrapped
+   /// through PETSc's MATSHELL object.
+   PetscParMatrix(const HypreParMatrix* a, bool wrap=false, bool assembled=true);
 
    /** Creates block-diagonal square parallel matrix. Diagonal is given by diag
        which must be in CSR format (finalized). The new PetscParMatrix does not

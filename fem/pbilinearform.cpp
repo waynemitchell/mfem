@@ -176,6 +176,8 @@ PetscParMatrix *ParBilinearForm::PetscParallelAssemble(SparseMatrix *m)
    //PetscParMatrix* out = new PetscParMatrix(tmat,false);
    //delete tmat;
    //return out;
+   // TODO: make it a parameter for ParBilinearForm
+   bool assembled = true;
    if (m == NULL) { return NULL; }
 
    MFEM_VERIFY(m->Finalized(), "local matrix needs to be finalized for "
@@ -185,9 +187,8 @@ PetscParMatrix *ParBilinearForm::PetscParallelAssemble(SparseMatrix *m)
    if (fbfi.Size() == 0)
    {
       // construct a parallel block-diagonal wrapper matrix A based on m
-      // TODO: use unassembled format
       A = new PetscParMatrix(pfes->GetComm(),
-                             pfes->GlobalVSize(), pfes->GetDofOffsets(), m);
+                             pfes->GlobalVSize(), pfes->GetDofOffsets(), m, assembled);
    }
    else
    {
@@ -218,8 +219,8 @@ PetscParMatrix *ParBilinearForm::PetscParallelAssemble(SparseMatrix *m)
       //                       pfes->GetDofOffsets());
    }
 
-   // TODO assemble Dof_TrueDof_Matrix in MATIS format
-   PetscParMatrix *temp = new PetscParMatrix(pfes->Dof_TrueDof_Matrix(),false);
+   // TODO assemble Dof_TrueDof_Matrix in MATIS format?
+   PetscParMatrix *temp = new PetscParMatrix(pfes->Dof_TrueDof_Matrix(),false,assembled);
    PetscParMatrix *rap = RAP(A, temp);
    delete temp;
    delete A;
