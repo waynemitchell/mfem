@@ -34,8 +34,11 @@ protected:
    mutable ParGridFunction X, Y; // used in TrueAddMult
 
    HypreParMatrix *p_mat, *p_mat_e;
+#ifdef MFEM_USE_PETSC
    PetscParMatrix *pp_mat, *pp_mat_e;
-
+#else // just to not pollute the hpp file with lots of ifdefs
+   HypreParMatrix *pp_mat, *pp_mat_e;
+#endif
    bool keep_nbr_block;
 
    // called when (mat == NULL && fbfi.Size() > 0)
@@ -64,8 +67,10 @@ public:
    /// Returns the matrix assembled on the true dofs, i.e. P^t A P.
    HypreParMatrix *ParallelAssemble() { return ParallelAssemble(mat); }
 
+#ifdef MFEM_USE_PETSC
    /// Returns the matrix assembled on the true dofs, i.e. P^t A P as a PetscParMatrix.
    PetscParMatrix *PetscParallelAssemble() { return PetscParallelAssemble(mat); }
+#endif
 
    /// Returns the eliminated matrix assembled on the true dofs, i.e. P^t A_e P.
    HypreParMatrix *ParallelAssembleElim() { return ParallelAssemble(mat_e); }
@@ -73,8 +78,10 @@ public:
    /// Return the matrix m assembled on the true dofs, i.e. P^t A P
    HypreParMatrix *ParallelAssemble(SparseMatrix *m);
 
+#ifdef MFEM_USE_PETSC
    /// Return the matrix m assembled on the true dofs, i.e. P^t A P as a PetscParMatrix.
    PetscParMatrix *PetscParallelAssemble(SparseMatrix *m);
+#endif
 
    /** Eliminate essential boundary DOFs from a parallel assembled system.
        The array 'bdr_attr_is_ess' marks boundary attributes that constitute
@@ -141,10 +148,12 @@ public:
                          HypreParMatrix &A, Vector &X, Vector &B,
                          int copy_interior = 0);
 
+#ifdef MFEM_USE_PETSC
    /// Form linear system matrix for PETSc solvers
    void FormLinearSystem(Array<int> &ess_tdof_list, Vector &x, Vector &b,
                          PetscParMatrix &A, Vector &X, Vector &B,
                          int copy_interior = 0);
+#endif
 
    /** Call this method after solving a linear system constructed using the
        FormLinearSystem method to recover the solution as a ParGridFunction-size
