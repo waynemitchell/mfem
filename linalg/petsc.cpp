@@ -44,6 +44,7 @@
 
 // prototype for auxiliary functions
 static PetscErrorCode MatConvert_hypreParCSR_AIJ(hypre_ParCSRMatrix*,Mat*);
+static PetscErrorCode MatConvert_hypreParCSR_IS(hypre_ParCSRMatrix*,Mat*);
 
 // use global scope ierr to check PETSc errors inside mfem calls
 PetscErrorCode ierr;
@@ -328,24 +329,32 @@ PetscParMatrix::PetscParMatrix()
    Init();
 }
 
-PetscParMatrix::PetscParMatrix(const HypreParMatrix *hmat, bool wrap)
+PetscParMatrix::PetscParMatrix(const HypreParMatrix *hmat, bool wrap, bool assembled)
 {
    Init();
    height = hmat->GetNumRows();
    width  = hmat->GetNumCols();
    if (wrap)
    {
+      MFEM_VERIFY(assembled,"PetscParMatrix::PetscParMatrix(const HypreParMatrix*,bool,bool)" <<
+                            "Cannot wrap in PETSc's unassembled format")
       MakeWrapper(hmat,&A);
    }
    else
    {
-      ierr = MatConvert_hypreParCSR_AIJ(const_cast<HypreParMatrix&>(*hmat),&A);CCHKERRQ(hmat->GetComm(),ierr);
+      if (assembled)
+      {
+         ierr = MatConvert_hypreParCSR_AIJ(const_cast<HypreParMatrix&>(*hmat),&A);CCHKERRQ(hmat->GetComm(),ierr);
+      }
+      else
+      {
+         ierr = MatConvert_hypreParCSR_IS(const_cast<HypreParMatrix&>(*hmat),&A);CCHKERRQ(hmat->GetComm(),ierr);
+      }
    }
 }
 
 PetscParMatrix::PetscParMatrix(MPI_Comm comm, PetscInt glob_size,
                                PetscInt *row_starts, SparseMatrix *diag, bool assembled)
-   : Operator(diag->Height(), diag->Width())
 {
    Init();
    PetscInt lsize,start;
@@ -388,12 +397,15 @@ PetscParMatrix::PetscParMatrix(MPI_Comm comm, PetscInt glob_size,
    // Tell PETSc the matrix is ready to be used
    ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);PCHKERRQ(A,ierr);
    ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);PCHKERRQ(A,ierr);
+
+   // update base class
+   height = lsize;
+   width  = lsize;
 }
 
 PetscParMatrix::PetscParMatrix(MPI_Comm comm, PetscInt global_num_rows,
                   PetscInt global_num_cols, PetscInt *row_starts,
                   PetscInt *col_starts, SparseMatrix *diag, bool assembled)
-   : Operator(diag->Height(), diag->Width())
 {
    Init();
    PetscInt lrsize,lcsize,rstart,cstart;
@@ -451,6 +463,10 @@ PetscParMatrix::PetscParMatrix(MPI_Comm comm, PetscInt global_num_rows,
    // Tell PETSc the matrix is ready to be used
    ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);PCHKERRQ(A,ierr);
    ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);PCHKERRQ(A,ierr);
+
+   // update base class
+   height = lrsize;
+   width  = lcsize;
 }
 
 typedef struct {
@@ -689,9 +705,42 @@ void PetscParMatrix::MultTranspose(double a, const Vector &x, double b, Vector &
 
 PetscParMatrix * RAP(PetscParMatrix *A, PetscParMatrix *P)
 {
-   Mat B;
+   Mat       pA = *A,pP = *P;
+   Mat       B;
+   PetscBool Aismatis,Aisaij,Pismatis,Pisaij;
 
-   ierr = MatPtAP(*A,*P,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&B);CCHKERRQ(A->GetComm(),ierr);
+   MFEM_VERIFY(A->Width() == P->Height(),"Petsc RAP: Number of local cols of A " << A->Width() <<
+                                            " differs from number of local rows of P " << P->Height());
+   MFEM_VERIFY(A->Height() == P->Height(),"Petsc RAP: Number of local rows of A " << A->Height() <<
+                                            " differs from number of local rows of P " << P->Height());
+   ierr = PetscObjectTypeCompare((PetscObject)pA,MATIS,&Aismatis);PCHKERRQ(pA,ierr);
+   ierr = PetscObjectTypeCompare((PetscObject)pA,MATAIJ,&Aisaij);PCHKERRQ(pA,ierr);
+   ierr = PetscObjectTypeCompare((PetscObject)pP,MATIS,&Pismatis);PCHKERRQ(pA,ierr);
+   ierr = PetscObjectTypeCompare((PetscObject)pP,MATAIJ,&Pisaij);PCHKERRQ(pA,ierr);
+   if (Aismatis && Pismatis) // handle special case (this code will eventually go into PETSc)
+   {
+     Mat                    lA,lP,lB;
+     ISLocalToGlobalMapping cl2gP;
+     PetscInt               lsize;
+
+     ierr = MatGetLocalToGlobalMapping(pP,NULL,&cl2gP);PCHKERRQ(pA,ierr);
+     ierr = MatGetLocalSize(pP,NULL,&lsize);PCHKERRQ(pA,ierr);
+     ierr = MatCreate(A->GetComm(),&B);PCHKERRQ(pA,ierr);
+     ierr = MatSetSizes(B,lsize,lsize,PETSC_DECIDE,PETSC_DECIDE);PCHKERRQ(B,ierr);
+     ierr = MatSetType(B,MATIS);PCHKERRQ(B,ierr);
+     ierr = MatSetLocalToGlobalMapping(B,cl2gP,cl2gP);PCHKERRQ(B,ierr);
+     ierr = MatISGetLocalMat(pA,&lA);PCHKERRQ(pA,ierr);
+     ierr = MatISGetLocalMat(pP,&lP);PCHKERRQ(pA,ierr);
+     ierr = MatPtAP(lA,lP,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&lB);PCHKERRQ(lA,ierr);
+     ierr = MatISSetLocalMat(B,lB);PCHKERRQ(lB,ierr);
+     ierr = MatDestroy(&lB);PCHKERRQ(lA,ierr);
+     ierr = MatAssemblyBegin(B,MAT_FINAL_ASSEMBLY);PCHKERRQ(B,ierr);
+     ierr = MatAssemblyEnd(B,MAT_FINAL_ASSEMBLY);PCHKERRQ(B,ierr);
+   }
+   else // it raises an error if the PtAP is not supported in PETSc
+   {
+      ierr = MatPtAP(pA,pP,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&B);PCHKERRQ(pA,ierr);
+   }
    return new PetscParMatrix(B);
 }
 
@@ -1051,7 +1100,7 @@ static PetscErrorCode array_container_destroy(void *ptr)
    PetscFunctionReturn(0);
 }
 
-// This function can be eventually moved to PETSc source code.
+// TODO: These functions can be eventually moved to PETSc source code.
 #include "_hypre_parcsr_mv.h"
 #undef __FUNCT__
 #define __FUNCT__ "MatConvert_hypreParCSR_AIJ"
@@ -1142,6 +1191,68 @@ static PetscErrorCode MatConvert_hypreParCSR_AIJ(hypre_ParCSRMatrix* hA,Mat* pA)
       ierr = PetscObjectCompose((PetscObject)(*pA),names[i],(PetscObject)c);PCHKERRQ(c,ierr);
       ierr = PetscContainerDestroy(&c);CCHKERRQ(comm,ierr);
    }
+   PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "MatConvert_hypreParCSR_IS"
+static PetscErrorCode MatConvert_hypreParCSR_IS(hypre_ParCSRMatrix* hA,Mat* pA)
+{
+   Mat                    lA;
+   ISLocalToGlobalMapping rl2g,cl2g;
+   IS                     is;
+   hypre_CSRMatrix        *locA;
+   PetscInt               min,max,lr,lc,nnz,i,ll,*jj,*aux;
+   MPI_Comm               comm = hypre_ParCSRMatrixComm(hA);
+   PetscErrorCode         ierr;
+
+   PetscFunctionBeginUser;
+   /* merge diag and offdiag part */
+   locA = hypre_MergeDiagAndOffd(hA);
+   nnz  = hypre_CSRMatrixNumNonzeros(locA);
+
+   /* generate l2g maps for rows and cols */
+   lr   = hypre_CSRMatrixNumRows(hypre_ParCSRMatrixDiag(hA));
+   ierr = ISCreateStride(comm,lr,hypre_ParCSRMatrixFirstRowIndex(hA),1,&is);CCHKERRQ(comm,ierr);
+   ierr = ISLocalToGlobalMappingCreateIS(is,&rl2g);PCHKERRQ(is,ierr);
+   ierr = ISDestroy(&is);CCHKERRQ(comm,ierr);
+   min  = PETSC_MAX_INT;
+   max  = 0;
+   jj   = hypre_CSRMatrixJ(locA);
+   for (i=0;i<nnz;i++,jj++)
+     if (*jj < min) min = *jj;
+     else if (*jj > max) max = *jj;
+   max = PetscMax(min,max);
+   ierr = PetscCalloc1(max-min+1,&aux);CHKERRQ(ierr);
+   jj   = hypre_CSRMatrixJ(locA);
+   for (i=0;i<nnz;i++,jj++) aux[*jj-min] = *jj+1;
+   for (i=0,ll=0;i<max-min+1;i++) if (aux[i]) aux[ll++] = aux[i]-1;
+   ierr = ISCreateGeneral(comm,ll,aux,PETSC_OWN_POINTER,&is);CHKERRQ(ierr);
+   ierr = ISLocalToGlobalMappingCreateIS(is,&cl2g);PCHKERRQ(is,ierr);
+   ierr = ISDestroy(&is);CCHKERRQ(comm,ierr);
+
+   /* create MATIS object */
+   lc   = hypre_CSRMatrixNumCols(hypre_ParCSRMatrixDiag(hA));
+   ierr = MatCreate(comm,pA);CHKERRQ(ierr);
+   ierr = MatSetSizes(*pA,lr,lc,PETSC_DECIDE,PETSC_DECIDE);CHKERRQ(ierr);
+   ierr = MatSetType(*pA,MATIS);CHKERRQ(ierr);
+   ierr = MatSetLocalToGlobalMapping(*pA,rl2g,cl2g);CHKERRQ(ierr);
+   ierr = ISLocalToGlobalMappingDestroy(&rl2g);CHKERRQ(ierr);
+
+   /* compute local matrix */
+   ierr = PetscMalloc1(nnz,&jj);CHKERRQ(ierr);
+   ierr = ISGlobalToLocalMappingApply(cl2g,IS_GTOLM_MASK,nnz,hypre_CSRMatrixJ(locA),NULL,jj);CHKERRQ(ierr);
+   ierr = ISLocalToGlobalMappingDestroy(&cl2g);CHKERRQ(ierr);
+   ierr = MatISGetLocalMat(*pA,&lA);CHKERRQ(ierr);
+   ierr = MatSeqAIJSetPreallocationCSR(lA,hypre_CSRMatrixI(locA),jj,hypre_CSRMatrixData(locA));PCHKERRQ(lA,ierr);
+
+   /* finalize Mat */
+   ierr = MatAssemblyBegin(*pA,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+   ierr = MatAssemblyEnd(*pA,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+
+   /* free */
+   hypre_CSRMatrixDestroy(locA);
+   ierr = PetscFree(jj);CHKERRQ(ierr);
    PetscFunctionReturn(0);
 }
 
