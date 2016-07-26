@@ -37,6 +37,9 @@
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
+#ifdef MFEM_USE_PETSC
+#include <petsc.h>
+#endif
 
 using namespace std;
 using namespace mfem;
@@ -61,6 +64,11 @@ int main(int argc, char *argv[])
    bool static_cond = false;
    bool hybridization = false;
    bool visualization = 1;
+   bool use_petsc = false;
+#ifdef MFEM_USE_PETSC
+   const char *petscrc_file = NULL;
+   bool use_unassembled = false;
+#endif
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -78,6 +86,16 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
+#ifdef MFEM_USE_PETSC
+   args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "no-petsc",
+                  "--no-petsc",
+                  "Use or not PETSc to solve the linear system.");
+   args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
+                  "PetscOptions file to use.");
+   args.AddOption(&use_unassembled, "-unassembled", "--unassembled", "no-unassembled",
+                  "--no-unassembled",
+                  "Use or not PETSc unassembled matrix format.");
+#endif
    args.Parse();
    if (!args.Good())
    {
@@ -93,6 +111,10 @@ int main(int argc, char *argv[])
       args.PrintOptions(cout);
    }
    kappa = freq * M_PI;
+   // 2b. We initialize PETSc
+#ifdef MFEM_USE_PETSC
+   if (use_petsc) PetscInitialize(NULL,NULL,petscrc_file,NULL);
+#endif
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
@@ -199,35 +221,61 @@ int main(int argc, char *argv[])
    }
    a->Assemble();
 
-   HypreParMatrix A;
    Vector B, X;
-   a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
-
-   HYPRE_Int glob_size = A.GetGlobalNumRows();
-   if (myid == 0)
+   if (!use_petsc)
    {
-      cout << "Size of linear system: " << glob_size << endl;
-   }
+      HypreParMatrix A;
+      a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
 
-   // 12. Define and apply a parallel PCG solver for A X = B with the 2D AMS or
-   //     the 3D ADS preconditioners from hypre. If using hybridization, the
-   //     system is preconditioned with hypre's BoomerAMG.
-   HypreSolver *prec = NULL;
-   CGSolver *pcg = new CGSolver(A.GetComm());
-   pcg->SetOperator(A);
-   pcg->SetRelTol(1e-12);
-   pcg->SetMaxIter(500);
-   pcg->SetPrintLevel(1);
-   if (hybridization) { prec = new HypreBoomerAMG(A); }
+      HYPRE_Int glob_size = A.GetGlobalNumRows();
+      if (myid == 0)
+      {
+         cout << "Size of linear system: " << glob_size << endl;
+      }
+
+      // 12. Define and apply a parallel PCG solver for A X = B with the 2D AMS or
+      //     the 3D ADS preconditioners from hypre. If using hybridization, the
+      //     system is preconditioned with hypre's BoomerAMG.
+      HypreSolver *prec = NULL;
+      CGSolver *pcg = new CGSolver(A.GetComm());
+      pcg->SetOperator(A);
+      pcg->SetRelTol(1e-12);
+      pcg->SetMaxIter(500);
+      pcg->SetPrintLevel(1);
+      if (hybridization) { prec = new HypreBoomerAMG(A); }
+      else
+      {
+         ParFiniteElementSpace *prec_fespace =
+            (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);
+         if (dim == 2)   { prec = new HypreAMS(A, prec_fespace); }
+         else            { prec = new HypreADS(A, prec_fespace); }
+      }
+      pcg->SetPreconditioner(*prec);
+      pcg->Mult(B, X);
+      delete pcg;
+      delete prec;
+   }
+#ifdef MFEM_USE_PETSC
    else
    {
-      ParFiniteElementSpace *prec_fespace =
-         (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);
-      if (dim == 2)   { prec = new HypreAMS(A, prec_fespace); }
-      else            { prec = new HypreADS(A, prec_fespace); }
+      PetscParMatrix A;
+      if (use_unassembled) a->SetUseUnassembledFormat();
+      a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
+
+      if (myid == 0)
+      {
+         cout << "Size of linear system: " << A.M() << endl;
+      }
+
+      // 12. Define and apply a parallel PCG solver.
+      PetscPCGSolver *pcg = new PetscPCGSolver(A);
+      pcg->SetTol(1e-12);
+      pcg->SetMaxIter(500);
+      pcg->SetPrintLevel(1); //TODO
+      pcg->Mult(B, X);
+      delete pcg;
    }
-   pcg->SetPreconditioner(*prec);
-   pcg->Mult(B, X);
+#endif
 
    // 13. Recover the parallel grid function corresponding to X. This is the
    //     local finite element solution on each processor.
@@ -270,8 +318,6 @@ int main(int argc, char *argv[])
    }
 
    // 17. Free the used memory.
-   delete pcg;
-   delete prec;
    delete hfes;
    delete hfec;
    delete a;
@@ -282,6 +328,9 @@ int main(int argc, char *argv[])
    delete fec;
    delete pmesh;
 
+#ifdef MFEM_USE_PETSC
+   if (use_petsc) PetscFinalize();
+#endif
    MPI_Finalize();
 
    return 0;
