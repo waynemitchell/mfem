@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
    int ode_solver_type = 4;
    double t_final = 10.0;
    double dt = 0.01;
-   bool visualization = true;
+   bool visualization = false;
    bool visit = false;
    int vis_steps = 100;
 

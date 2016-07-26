@@ -72,23 +72,19 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
         
         // Add mesh topology
         grp->createViewString("topology/mesh/type", "unstructured");
-        grp->createViewString("topology/mesh/elements/shape",eltTypeStr);   // <-- Note: this comes form the mesh
+        grp->createViewString("topology/mesh/elements/shape",eltTypeStr);
         grp->createView("topology/mesh/elements/connectivity");
 
         // Add mesh boundary topology
         grp->createViewString("topology/boundary/type", "unstructured");
-        grp->createViewString("topology/boundary/elements/shape",eltTypeStr);   // <-- Note: this comes form the mesh
+        grp->createViewString("topology/boundary/elements/shape",eltTypeStr);
         grp->createView("topology/boundary/elements/connectivity");
  
         // Add coordinate set
         grp->createViewString("coordset/type", "explicit");
-
-        switch(dim) // Note-- intentional fall through on switch variable
-        {
-        case 3:     grp->createView("coordset/z");
-        case 2:     grp->createView("coordset/y");
-        case 1:     grp->createView("coordset/x");  break;
-        }
+        grp->createView("coordset/values/x");
+        if(dim >= 2) { grp->createView("coordset/values/y"); }
+        if(dim >= 3) { grp->createView("coordset/values/z"); }
 
         // Add mesh elements material attribute field
         grp->createViewString("fields/mesh_material_attribute/association", "Element");
@@ -106,9 +102,12 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
     sidre::DataView *mesh_material_attribute_values;
     sidre::DataView *bnd_material_attribute_values;
 
+    // Note: The coordinates in mfem always have three components
+    const int NUM_COORDS = 3;
+
     int element_size = new_mesh->GetElement(0)->GetNVertices();
     int num_vertices = new_mesh->GetNV();
-    int coordset_len = dim * num_vertices;
+    int coordset_len = NUM_COORDS * num_vertices;
 
     int mesh_num_elements = new_mesh->GetNE();
     int bnd_num_elements = new_mesh->GetNBE();
@@ -116,37 +115,48 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
     int bnd_num_indices = bnd_num_elements * element_size;
 
     mesh_elements_connectivity = grp->getView("topology/mesh/elements/connectivity");
-    bnd_elements_connectivity = grp->getView("topology/boundary/elements/connectivity");
     mesh_material_attribute_values = grp->getView("fields/mesh_material_attribute/values");
+
+    const bool has_bdry_elts = (bnd_num_elements > 0);
+
+    bnd_elements_connectivity = grp->getView("topology/boundary/elements/connectivity");
     bnd_material_attribute_values = grp->getView("fields/boundary_material_attribute/values");
 
     if (!isRestart)
     {
        mesh_elements_connectivity->allocate(sidre::INT_ID,mesh_num_indices);
        mesh_material_attribute_values->allocate(sidre::INT_ID,mesh_num_elements);
-       bnd_elements_connectivity->allocate(sidre::INT_ID,bnd_num_indices);
-       bnd_material_attribute_values->allocate(sidre::INT_ID,bnd_num_elements);
+
+       if(has_bdry_elts)
+       {
+         bnd_elements_connectivity->allocate(sidre::INT_ID,bnd_num_indices);
+         bnd_material_attribute_values->allocate(sidre::INT_ID,bnd_num_elements);
+       }
 
        sidre::DataBuffer* coordbuf = grp->getDataStore()
                                          ->createBuffer(sidre::DOUBLE_ID, coordset_len)
                                          ->allocate();
 
-       switch(dim) // Note-- intentional fall through on switch variable
-       {
-       case 3:
-           grp->getView("coordset/z")->attachBuffer(coordbuf)
-                                     ->apply(sidre::DOUBLE_ID, num_vertices, 2, dim);
-       case 2:
-           grp->getView("coordset/y")->attachBuffer(coordbuf)
-                                     ->apply(sidre::DOUBLE_ID, num_vertices, 1, dim);
-       case 1:
-           grp->getView("coordset/x")->attachBuffer(coordbuf)
-                                     ->apply(sidre::DOUBLE_ID, num_vertices, 0, dim);
+       grp->getView("coordset/values/x")
+          ->attachBuffer(coordbuf)
+          ->apply(sidre::DOUBLE_ID, num_vertices, 0, NUM_COORDS);
+
+       if(dim >= 2) {
+           grp->getView("coordset/values/y")
+              ->attachBuffer(coordbuf)
+              ->apply(sidre::DOUBLE_ID, num_vertices, 1, NUM_COORDS);
        }
+
+       if(dim >= 3) {
+           grp->getView("coordset/values/z")
+              ->attachBuffer(coordbuf)
+              ->apply(sidre::DOUBLE_ID, num_vertices, 2, NUM_COORDS);
+       }
+
     }
 
     // Change ownership of mesh data to sidre
-    double *coord_values = grp->getView("coordset/x")->getBuffer()->getData();
+    double *coord_values = grp->getView("coordset/values/x")->getBuffer()->getData();
 
     new_mesh->ChangeElementDataOwnership(
             mesh_elements_connectivity->getArray(),
@@ -155,12 +165,15 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
             mesh_num_elements,
             isRestart);
 
-    new_mesh->ChangeBoundaryElementDataOwnership(
-            bnd_elements_connectivity->getArray(),
-            element_size * bnd_num_elements,
-            bnd_material_attribute_values->getArray(),
-            bnd_num_elements,
-            isRestart);
+
+    if(has_bdry_elts) {
+        new_mesh->ChangeBoundaryElementDataOwnership(
+                bnd_elements_connectivity->getArray(),
+                element_size * bnd_num_elements,
+                bnd_material_attribute_values->getArray(),
+                bnd_num_elements,
+                isRestart);
+    }
 
     new_mesh->ChangeVertexDataOwnership(
             coord_values,
