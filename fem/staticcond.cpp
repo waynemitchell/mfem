@@ -272,11 +272,11 @@ void StaticCondensation::Finalize()
 #endif
       if (!usepetsc)
       {
-        HypreParMatrix *dS =
-           new HypreParMatrix(tr_pfes->GetComm(), tr_pfes->GlobalVSize(),
-                              tr_pfes->GetDofOffsets(), S);
-        pS = RAP(dS, tr_pfes->Dof_TrueDof_Matrix());
-        delete dS;
+         HypreParMatrix *dS =
+            new HypreParMatrix(tr_pfes->GetComm(), tr_pfes->GlobalVSize(),
+                               tr_pfes->GetDofOffsets(), S);
+         pS = RAP(dS, tr_pfes->Dof_TrueDof_Matrix());
+         delete dS;
       }
 #ifdef MFEM_USE_PETSC
       else
@@ -315,7 +315,7 @@ void StaticCondensation::Finalize()
          S_e = NULL;
       }
 #ifdef MFEM_USE_PETSC
-      if (ptemp) delete ptemp;
+      if (ptemp) { delete ptemp; }
 #endif
 #endif
    }

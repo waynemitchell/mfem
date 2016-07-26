@@ -52,11 +52,13 @@ protected:
 
 public:
    ParBilinearForm(ParFiniteElementSpace *pf)
-      : BilinearForm(pf), pfes(pf), p_mat(NULL), p_mat_e(NULL), pp_mat(NULL), pp_mat_e(NULL)
+      : BilinearForm(pf), pfes(pf), p_mat(NULL), p_mat_e(NULL), pp_mat(NULL),
+        pp_mat_e(NULL)
    { keep_nbr_block = false, unassembled = false; }
 
    ParBilinearForm(ParFiniteElementSpace *pf, ParBilinearForm *bf)
-      : BilinearForm(pf, bf), pfes(pf), p_mat(NULL), p_mat_e(NULL), pp_mat(NULL), pp_mat_e(NULL)
+      : BilinearForm(pf, bf), pfes(pf), p_mat(NULL), p_mat_e(NULL), pp_mat(NULL),
+        pp_mat_e(NULL)
    { keep_nbr_block = false, unassembled = false; }
 
    /** When set to true and the ParBilinearForm has interior face integrators,
@@ -70,7 +72,7 @@ public:
    void SetUseUnassembledFormat(bool use = true)
    {
 #ifndef MFEM_USE_PETSC
-      if (true) MFEM_ABORT("You did not configured MFEM with PETSc support");
+      if (true) { MFEM_ABORT("You did not configured MFEM with PETSc support"); }
       unassembled = false;
 #else
       unassembled = use;

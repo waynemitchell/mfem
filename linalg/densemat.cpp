@@ -3594,7 +3594,7 @@ void LUFactors::Factor(int m)
 {
 #ifdef MFEM_USE_LAPACK
    int info = 0;
-   if (m) dgetrf_(&m, &m, data, &m, ipiv, &info);
+   if (m) { dgetrf_(&m, &m, data, &m, ipiv, &info); }
    MFEM_VERIFY(!info, "LAPACK: error in DGETRF ")
 #else
    // compiling without LAPACK
@@ -3727,7 +3727,7 @@ void LUFactors::Solve(int m, int n, double *X) const
 #ifdef MFEM_USE_LAPACK
    char trans = 'N';
    int  info = 0;
-   if (m > 0 && n > 0) dgetrs_(&trans, &m, &n, data, &m, ipiv, X, &m, &info);
+   if (m > 0 && n > 0) { dgetrs_(&trans, &m, &n, data, &m, ipiv, X, &m, &info); }
    MFEM_VERIFY(!info, "LAPACK: error in DGETRS")
 #else
    // compiling without LAPACK

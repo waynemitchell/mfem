@@ -90,7 +90,8 @@ int main(int argc, char *argv[])
                   "Use or not PETSc to solve the linear system.");
    args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
                   "PetscOptions file to use.");
-   args.AddOption(&use_unassembled, "-unassembled", "--unassembled", "no-unassembled",
+   args.AddOption(&use_unassembled, "-unassembled", "--unassembled",
+                  "no-unassembled",
                   "--no-unassembled",
                   "Use or not PETSc unassembled matrix format.");
 #endif
@@ -111,7 +112,7 @@ int main(int argc, char *argv[])
 
    // 2b. We initialize PETSc
 #ifdef MFEM_USE_PETSC
-   if (use_petsc) PetscInitialize(NULL,NULL,petscrc_file,NULL);
+   if (use_petsc) { PetscInitialize(NULL,NULL,petscrc_file,NULL); }
 #endif
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
@@ -292,7 +293,7 @@ int main(int argc, char *argv[])
       // 13b. Use PETSc to solve the linear system.
       //      Assemble a PETSc matrix, so that PETSc solvers can be used natively.
       PetscParMatrix A;
-      if (use_unassembled) a->SetUseUnassembledFormat();
+      if (use_unassembled) { a->SetUseUnassembledFormat(); }
       a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
       if (myid == 0)
       {
@@ -370,7 +371,7 @@ int main(int argc, char *argv[])
 
    // We finalize PETSc
 #ifdef MFEM_USE_PETSC
-   if (use_petsc) PetscFinalize();
+   if (use_petsc) { PetscFinalize(); }
 #endif
    MPI_Finalize();
 

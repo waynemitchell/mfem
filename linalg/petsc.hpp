@@ -202,9 +202,9 @@ public:
    void EliminateRowsCols(const Array<int> &rows_cols, const HypreParVector &X,
                           HypreParVector &B);
 
-    /** Eliminate rows and columns from the matrix and store the eliminated
-       elements in a new matrix Ae (returned), so that the modified matrix and
-       Ae sum to the original matrix. */
+   /** Eliminate rows and columns from the matrix and store the eliminated
+      elements in a new matrix Ae (returned), so that the modified matrix and
+      Ae sum to the original matrix. */
    PetscParMatrix* EliminateRowsCols(const Array<int> &rows_cols);
 
    /// Takes a reference to another PetscParMatrix

@@ -234,7 +234,7 @@ int main(int argc, char *argv[])
       ppcg->SetPreconditioner(*amg);
       ppcg->Mult(B, pX);
       pX -= X;
-      if (myid == 0) cout << "Error between PETSc and HYPRE: " << pX.Normlinf() << endl;
+      if (myid == 0) { cout << "Error between PETSc and HYPRE: " << pX.Normlinf() << endl; }
       delete ppcg;
    }
    PetscFinalize();

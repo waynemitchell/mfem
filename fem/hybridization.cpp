@@ -678,9 +678,11 @@ void Hybridization::ComputeH()
 #ifdef MFEM_USE_PETSC
       else
       {
-         PetscParMatrix *dH = new PetscParMatrix(c_pfes->GetComm(), c_pfes->GlobalVSize(),
-                           c_pfes->GetDofOffsets(), H, !unassembled);
-         PetscParMatrix *pP = new PetscParMatrix(P_pc ? P_pc : c_pfes->Dof_TrueDof_Matrix(),false,!unassembled);
+         PetscParMatrix *dH = new PetscParMatrix(c_pfes->GetComm(),
+                                                 c_pfes->GlobalVSize(),
+                                                 c_pfes->GetDofOffsets(), H, !unassembled);
+         PetscParMatrix *pP = new PetscParMatrix(P_pc ? P_pc :
+                                                 c_pfes->Dof_TrueDof_Matrix(),false,!unassembled);
          ppH = RAP(dH, pP);
          delete dH;
          delete pP;
@@ -839,8 +841,8 @@ void Hybridization::ReduceRHS(const Vector &b, Vector &b_r) const
    {
       Vector bl(pC ? pC->Height() : Ct->Width());
       pC ? pC->Mult(bf, bl) : Ct->MultTranspose(bf, bl);
-      if (pH) b_r.SetSize(pH->Height());
-      else if (ppH) b_r.SetSize(ppH->Height());
+      if (pH) { b_r.SetSize(pH->Height()); }
+      else if (ppH) { b_r.SetSize(ppH->Height()); }
       (P_pc ? P_pc : c_pfes->Dof_TrueDof_Matrix())->MultTranspose(bl, b_r);
    }
 #else

@@ -208,16 +208,18 @@ PetscParMatrix *ParBilinearForm::PetscParallelAssemble(SparseMatrix *m)
       }
 
       // TODO : add PetscParMatrix constructor for this
-      HypreParMatrix *hA = new HypreParMatrix(pfes->GetComm(), lvsize, pfes->GlobalVSize(),
-                             pfes->GlobalVSize(), m->GetI(), glob_J,
-                             m->GetData(), pfes->GetDofOffsets(),
-                             pfes->GetDofOffsets());
+      HypreParMatrix *hA = new HypreParMatrix(pfes->GetComm(), lvsize,
+                                              pfes->GlobalVSize(),
+                                              pfes->GlobalVSize(), m->GetI(), glob_J,
+                                              m->GetData(), pfes->GetDofOffsets(),
+                                              pfes->GetDofOffsets());
       A = new PetscParMatrix(hA,false,!unassembled);
       delete hA;
    }
 
    // TODO assemble Dof_TrueDof_Matrix in MATIS format?
-   PetscParMatrix *temp = new PetscParMatrix(pfes->Dof_TrueDof_Matrix(),false,!unassembled);
+   PetscParMatrix *temp = new PetscParMatrix(pfes->Dof_TrueDof_Matrix(),false,
+                                             !unassembled);
    PetscParMatrix *rap = RAP(A, temp);
    delete temp;
    delete A;
@@ -328,8 +330,8 @@ void ParBilinearForm::FormLinearSystem(
    Array<int> ess_rtdof_list;
 
    // Make sure PETSc settings are disabled
-   if (hybridization) hybridization->SetUsePetsc(false);
-   if (static_cond)   static_cond->SetUsePetsc(false);
+   if (hybridization) { hybridization->SetUsePetsc(false); }
+   if (static_cond) { static_cond->SetUsePetsc(false); }
 
    // Finish the matrix assembly and perform BC elimination, storing the
    // eliminated part of the matrix.
