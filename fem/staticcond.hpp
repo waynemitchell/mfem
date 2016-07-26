@@ -90,6 +90,7 @@ class StaticCondensation
    double *A_data;
    int *A_ipiv;
    bool usepetsc;
+   bool unassembled;
 
 public:
    /// Construct a StaticCondensation object.
@@ -203,6 +204,18 @@ public:
       usepetsc = false;
 #else
       usepetsc = use;
+#endif
+   }
+
+   /// Assemble the matrix in "unassembled format" for non-overlapping DD
+   /// Only significant with PETSc backend
+   void SetUseUnassembledFormat(bool use = true)
+   {
+#ifndef MFEM_USE_PETSC
+      if (true) MFEM_ABORT("You did not configured MFEM with PETSc support");
+      unassembled = false;
+#else
+      unassembled = use;
 #endif
    }
 

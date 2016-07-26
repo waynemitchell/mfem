@@ -43,6 +43,7 @@ StaticCondensation::StaticCondensation(FiniteElementSpace *fespace)
    A_data = NULL;
    A_ipiv = NULL;
    usepetsc = false;
+   unassembled = false;
 
    Array<int> vdofs;
    const int NE = fes->GetNE();
@@ -268,8 +269,6 @@ void StaticCondensation::Finalize()
       if (S_e) { S_e->Finalize(); }
 #ifdef MFEM_USE_PETSC
       PetscParMatrix *ptemp = NULL;
-      // TODO add assembled flag to static_cond object
-      bool assembled = true;
 #endif
       if (!usepetsc)
       {
@@ -284,8 +283,8 @@ void StaticCondensation::Finalize()
       {
          PetscParMatrix *dS =
             new PetscParMatrix(tr_pfes->GetComm(), tr_pfes->GlobalVSize(),
-                               tr_pfes->GetDofOffsets(), S, assembled);
-         ptemp = new PetscParMatrix(tr_pfes->Dof_TrueDof_Matrix(),false,assembled);
+                               tr_pfes->GetDofOffsets(), S, !unassembled);
+         ptemp = new PetscParMatrix(tr_pfes->Dof_TrueDof_Matrix(),false,!unassembled);
          ppS = RAP(dS, ptemp);
          delete dS;
       }
@@ -305,10 +304,9 @@ void StaticCondensation::Finalize()
 #ifdef MFEM_USE_PETSC
          else
          {
-            // TODO add assembled flag
             PetscParMatrix *dS_e =
                new PetscParMatrix(tr_pfes->GetComm(), tr_pfes->GlobalVSize(),
-                                  tr_pfes->GetDofOffsets(), S_e, assembled);
+                                  tr_pfes->GetDofOffsets(), S_e, !unassembled);
             ppS_e = RAP(dS_e, ptemp);
             delete dS_e;
          }
