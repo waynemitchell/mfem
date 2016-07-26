@@ -174,8 +174,6 @@ HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
 // we may want to glue them together?
 PetscParMatrix *ParBilinearForm::PetscParallelAssemble(SparseMatrix *m)
 {
-   // TODO: make it a parameter for ParBilinearForm
-   bool assembled = true;
    if (m == NULL) { return NULL; }
 
    MFEM_VERIFY(m->Finalized(), "local matrix needs to be finalized for "
@@ -186,7 +184,7 @@ PetscParMatrix *ParBilinearForm::PetscParallelAssemble(SparseMatrix *m)
    {
       // construct a parallel block-diagonal wrapper matrix A based on m
       A = new PetscParMatrix(pfes->GetComm(),
-                             pfes->GlobalVSize(), pfes->GetDofOffsets(), m, assembled);
+                             pfes->GlobalVSize(), pfes->GetDofOffsets(), m, !unassembled);
    }
    else
    {
@@ -214,12 +212,12 @@ PetscParMatrix *ParBilinearForm::PetscParallelAssemble(SparseMatrix *m)
                              pfes->GlobalVSize(), m->GetI(), glob_J,
                              m->GetData(), pfes->GetDofOffsets(),
                              pfes->GetDofOffsets());
-      A = new PetscParMatrix(hA,false,assembled);
+      A = new PetscParMatrix(hA,false,!unassembled);
       delete hA;
    }
 
    // TODO assemble Dof_TrueDof_Matrix in MATIS format?
-   PetscParMatrix *temp = new PetscParMatrix(pfes->Dof_TrueDof_Matrix(),false,assembled);
+   PetscParMatrix *temp = new PetscParMatrix(pfes->Dof_TrueDof_Matrix(),false,!unassembled);
    PetscParMatrix *rap = RAP(A, temp);
    delete temp;
    delete A;
@@ -329,11 +327,14 @@ void ParBilinearForm::FormLinearSystem(
    const SparseMatrix &R = *pfes->GetRestrictionMatrix();
    Array<int> ess_rtdof_list;
 
+   // Make sure PETSc settings are disabled
+   if (hybridization) hybridization->SetUsePetsc(false);
+   if (static_cond)   static_cond->SetUsePetsc(false);
+
    // Finish the matrix assembly and perform BC elimination, storing the
    // eliminated part of the matrix.
    if (static_cond)
    {
-      static_cond->SetUsePetsc(false);
       static_cond->ConvertListToReducedTrueDofs(ess_tdof_list, ess_rtdof_list);
       if (!static_cond->HasEliminatedBC())
       {
@@ -352,10 +353,6 @@ void ParBilinearForm::FormLinearSystem(
       mat = NULL;
       delete mat_e;
       mat_e = NULL;
-   //{
-   //  PetscParMatrix pA(p_mat,false);
-   //  MatView(const_cast<PetscParMatrix&>(pA),NULL);
-   //}
       p_mat_e = p_mat->EliminateRowsCols(ess_tdof_list);
    }
 
@@ -398,12 +395,6 @@ void ParBilinearForm::FormLinearSystem(
       if (!copy_interior) { X.SetSubVectorComplement(ess_tdof_list, 0.0); }
       A.MakeRef(*p_mat);
    }
-   //{
-   //  PetscParMatrix pA(p_mat,false);
-   //  PetscParMatrix pAe(p_mat_e,false);
-   //  MatView(const_cast<PetscParMatrix&>(pA),NULL);
-   //  MatView(const_cast<PetscParMatrix&>(pAe),NULL);
-   //}
 }
 
 #ifdef MFEM_USE_PETSC
@@ -415,12 +406,22 @@ void ParBilinearForm::FormLinearSystem(
    const SparseMatrix &R = *pfes->GetRestrictionMatrix();
    Array<int> ess_rtdof_list;
 
+   // Make sure PETSc settings are enabled
+   if (hybridization)
+   {
+      hybridization->SetUseUnassembledFormat(unassembled);
+      hybridization->SetUsePetsc();
+   }
+   if (static_cond)
+   {
+      static_cond->SetUseUnassembledFormat(unassembled);
+      static_cond->SetUsePetsc();
+   }
+
    // Finish the matrix assembly and perform BC elimination, storing the
    // eliminated part of the matrix.
    if (static_cond)
    {
-      // TODO
-      static_cond->SetUsePetsc();
       static_cond->ConvertListToReducedTrueDofs(ess_tdof_list, ess_rtdof_list);
       if (!static_cond->HasEliminatedBC())
       {
@@ -435,9 +436,6 @@ void ParBilinearForm::FormLinearSystem(
                   "re-assembling the ParBilinearForm.");
       Finalize();
       pp_mat = PetscParallelAssemble();
-      //{
-      //  MatView(const_cast<PetscParMatrix&>(*pp_mat),NULL);
-      //}
       delete mat;
       mat = NULL;
       delete mat_e;
@@ -462,18 +460,16 @@ void ParBilinearForm::FormLinearSystem(
    }
    else if (hybridization)
    {
-      // TODO
-      MFEM_ABORT("HYBRIDIZATION SUPPORT STILL MISSING");
       // Reduction to the Lagrange multipliers system
-      //HypreParVector true_X(pfes), true_B(pfes);
-      //P.MultTranspose(b, true_B);
-      //R.Mult(x, true_X);
-      //EliminateBC(*p_mat, *p_mat_e, ess_tdof_list, true_X, true_B);
-      //R.MultTranspose(true_B, b);
-      //hybridization->ReduceRHS(true_B, B);
-      //X.SetSize(B.Size());
-      //X = 0.0;
-      //A.MakeRef(hybridization->GetParallelMatrix());
+      PetscParVector true_X(pfes), true_B(pfes);
+      P.MultTranspose(b, true_B);
+      R.Mult(x, true_X);
+      EliminateBC(*pp_mat, *pp_mat_e, ess_tdof_list, true_X, true_B);
+      R.MultTranspose(true_B, b);
+      hybridization->ReduceRHS(true_B, B);
+      X.SetSize(B.Size());
+      X = 0.0;
+      A.MakeRef(hybridization->GetPetscParallelMatrix());
    }
    else
    {
@@ -486,10 +482,6 @@ void ParBilinearForm::FormLinearSystem(
       if (!copy_interior) { X.SetSubVectorComplement(ess_tdof_list, 0.0); }
       A.MakeRef(*pp_mat);
    }
-   //{
-   //  MatView(const_cast<PetscParMatrix&>(*pp_mat),NULL);
-   //  MatView(const_cast<PetscParMatrix&>(*pp_mat_e),NULL);
-   //}
 }
 #endif
 

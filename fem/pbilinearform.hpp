@@ -41,6 +41,10 @@ protected:
 #endif
    bool keep_nbr_block;
 
+   // assemble the matrix in "unassembled format" for non-overlapping DD
+   // significant only with PETSc backend
+   bool unassembled;
+
    // called when (mat == NULL && fbfi.Size() > 0)
    void pAllocMat();
 
@@ -49,17 +53,29 @@ protected:
 public:
    ParBilinearForm(ParFiniteElementSpace *pf)
       : BilinearForm(pf), pfes(pf), p_mat(NULL), p_mat_e(NULL), pp_mat(NULL), pp_mat_e(NULL)
-   { keep_nbr_block = false; }
+   { keep_nbr_block = false, unassembled = false; }
 
    ParBilinearForm(ParFiniteElementSpace *pf, ParBilinearForm *bf)
       : BilinearForm(pf, bf), pfes(pf), p_mat(NULL), p_mat_e(NULL), pp_mat(NULL), pp_mat_e(NULL)
-   { keep_nbr_block = false; }
+   { keep_nbr_block = false, unassembled = false; }
 
    /** When set to true and the ParBilinearForm has interior face integrators,
        the local SparseMatrix will include the rows (in addition to the columns)
        corresponding to face-neighbor dofs. The default behavior is to disregard
        those rows. Must be called before the first Assemble call. */
    void KeepNbrBlock(bool knb = true) { keep_nbr_block = knb; }
+
+   /// Assemble the matrix in "unassembled format" for non-overlapping DD
+   /// Only significant with PETSc backend
+   void SetUseUnassembledFormat(bool use = true)
+   {
+#ifndef MFEM_USE_PETSC
+      if (true) MFEM_ABORT("You did not configured MFEM with PETSc support");
+      unassembled = false;
+#else
+      unassembled = use;
+#endif
+   }
 
    /// Assemble the local matrix
    void Assemble(int skip_zeros = 1);
