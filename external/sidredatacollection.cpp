@@ -20,6 +20,7 @@
 #include "../fem/fem.hpp"
 
 #include <string>
+#include <cstdio>       // for snprintf()
 
 
 #include "sidre/sidre.hpp"
@@ -41,6 +42,8 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name, asc
   sidre_dc_group->createViewScalar("state/cycle", 0);
   sidre_dc_group->createViewScalar("state/time", 0.);
   sidre_dc_group->createViewScalar("state/domain", myid);
+
+  sidre_dc_group->createGroup("array_data");
 }
 
 
@@ -83,13 +86,9 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
  
         // Add coordinate set
         grp->createViewString("coordsets/mesh/type", "explicit");
-
-        switch(dim) // Note-- intentional fall through on switch variable
-        {
-        case 3:     grp->createView("coordsets/mesh/z");
-        case 2:     grp->createView("coordsets/mesh/y");
-        case 1:     grp->createView("coordsets/mesh/x");  break;
-        }
+        grp->createView("coordsets/mesh/values/x");
+        if(dim >= 2) { grp->createView("coordsets/mesh/values/y"); }
+        if(dim >= 3) { grp->createView("coordsets/mesh/values/z"); }
 
         // Add mesh elements material attribute field
         grp->createViewString("fields/mesh_material_attribute/association", "Element");
@@ -109,9 +108,12 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
     sidre::DataView *mesh_material_attribute_values;
     sidre::DataView *bnd_material_attribute_values;
 
+    // Note: The coordinates in mfem always have three components
+    const int NUM_COORDS = 3;
+
     int element_size = new_mesh->GetElement(0)->GetNVertices();
     int num_vertices = new_mesh->GetNV();
-    int coordset_len = dim * num_vertices;
+    int coordset_len = NUM_COORDS * num_vertices;
 
     int mesh_num_elements = new_mesh->GetNE();
     int bnd_num_elements = new_mesh->GetNBE();
@@ -134,22 +136,26 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
                                          ->createBuffer(sidre::DOUBLE_ID, coordset_len)
                                          ->allocate();
 
-       switch(dim) // Note-- intentional fall through on switch variable
-       {
-       case 3:
-           grp->getView("coordsets/mesh/z")->attachBuffer(coordbuf)
-                                     ->apply(sidre::DOUBLE_ID, num_vertices, 2, dim);
-       case 2:
-           grp->getView("coordsets/mesh/y")->attachBuffer(coordbuf)
-                                     ->apply(sidre::DOUBLE_ID, num_vertices, 1, dim);
-       case 1:
-           grp->getView("coordsets/mesh/x")->attachBuffer(coordbuf)
-                                     ->apply(sidre::DOUBLE_ID, num_vertices, 0, dim);
+       grp->getView("coordsets/mesh/values/x")
+          ->attachBuffer(coordbuf)
+          ->apply(sidre::DOUBLE_ID, num_vertices, 0, NUM_COORDS);
+
+       if(dim >= 2) {
+           grp->getView("coordsets/mesh/values/y")
+              ->attachBuffer(coordbuf)
+              ->apply(sidre::DOUBLE_ID, num_vertices, 1, NUM_COORDS);
        }
+
+       if(dim >= 3) {
+           grp->getView("coordsets/mesh/values/z")
+              ->attachBuffer(coordbuf)
+              ->apply(sidre::DOUBLE_ID, num_vertices, 2, NUM_COORDS);
+       }
+
     }
 
     // Change ownership of mesh data to sidre
-    double *coord_values = grp->getView("coordsets/mesh/x")->getBuffer()->getData();
+    double *coord_values = grp->getView("coordsets/mesh/values/x")->getBuffer()->getData();
 
     new_mesh->ChangeElementDataOwnership(
             mesh_elements_connectivity->getArray(),
@@ -387,6 +393,29 @@ void SidreDataCollection::Save()
 }
 
 
+bool SidreDataCollection::HasFieldData(const char *field_name)
+{
+    namespace sidre = asctoolkit::sidre;
+
+    if( ! sidre_dc_group->getGroup("array_data")->hasView(field_name) )
+    {
+        return false;
+    }
+
+    sidre::DataView *view = sidre_dc_group->getGroup("array_data")
+                                          ->getView(field_name);
+
+    if( view == NULL)
+        return false;
+
+    if(! view->isApplied())
+        return false;
+
+    double* data = view->getArray();
+    return (data != NULL);
+}
+
+
 double* SidreDataCollection::GetFieldData(const char *field_name, int sz)
 {
     // NOTE: WE only handle scalar fields right now
@@ -394,17 +423,15 @@ double* SidreDataCollection::GetFieldData(const char *field_name, int sz)
 
     namespace sidre = asctoolkit::sidre;
 
-    sidre::DataGroup* f = sidre_dc_group->getGroup("fields");
-    if( ! f->hasGroup( field_name ) )
+    sidre::DataGroup* f = sidre_dc_group->getGroup("array_data");
+    if( ! f->hasView( field_name ) )
     {
-        sidre::DataGroup* grp = f->createGroup( field_name );
-        grp->createViewString("topology", "mesh");
-        grp->createViewAndAllocate("values", sidre::DOUBLE_ID, sz);
+        f->createViewAndAllocate(field_name, sidre::DOUBLE_ID, sz);
     }
     else
     {
         // Need to handle a case where the user is requesting a larger field
-        sidre::DataView* valsView = f->getGroup( field_name)->getView("values");
+        sidre::DataView* valsView = f->getView( field_name);
         int valSz = valsView->getNumElements();
 
         if(valSz < sz)
@@ -413,7 +440,7 @@ double* SidreDataCollection::GetFieldData(const char *field_name, int sz)
         }
     }
 
-    return f->getGroup(field_name)->getView("values")->getArray();
+    return f->getView(field_name)->getArray();
 }
 
 double* SidreDataCollection::GetFieldData(const char *field_name, int sz, const char *base_field, int offset, int stride)
@@ -424,16 +451,13 @@ double* SidreDataCollection::GetFieldData(const char *field_name, int sz, const 
     // If not present, try to create it as a different view into /fields/<base_field>/values
     //      with the given sz, stride and offset
 
-    sidre::DataGroup* f = sidre_dc_group->getGroup("fields");
-    if( ! f->hasGroup( field_name ) )
+    sidre::DataGroup* f = sidre_dc_group->getGroup("array_data");
+    if( ! f->hasView( field_name ) )
     {
-        if( f->hasGroup( base_field) && f->getGroup(base_field)->hasView( "values" ) )
+        if( f->hasView( base_field) && f->getView(base_field) )
         {
-            sidre::DataView* baseV = f->getGroup(base_field)->getView("values");
-            sidre::DataBuffer* buff = baseV->getBuffer();
-
-            f->createGroup(field_name)->createView("values", buff )
-                                      ->apply(sidre::DOUBLE_ID, sz, offset, stride);
+            sidre::DataBuffer* buff = f->getView(base_field)->getBuffer();
+            f->createView(field_name, buff )->apply(sidre::DOUBLE_ID, sz, offset, stride);
         }
         else
         {
@@ -441,7 +465,7 @@ double* SidreDataCollection::GetFieldData(const char *field_name, int sz, const 
         }
     }
 
-    return f->getGroup(field_name)->getView("values")->getArray();
+    return f->getView(field_name)->getArray();
 }
 
 
@@ -452,19 +476,13 @@ void SidreDataCollection::RegisterField(const char* field_name, GridFunction *gf
 
   if( gf != NULL )
   {
+      // (Create on demand) and) access the group of the field
       if( !f->hasGroup( field_name ) )
           f->createGroup( field_name );
-
       sidre::DataGroup* grp = f->getGroup( field_name );
 
-      // Set the gf data as external if it is not already in the datastore
-      if(!grp->hasView("values"))
-      {
-          grp->createView("values", sidre::DOUBLE_ID, gf->Size())
-             ->setExternalDataPtr( gf->GetData());
-      }
 
-      // Set the basis string using the gf's finite element space
+      // Set the basis string using the gf's finite element space, overwrite if necessary
       if(!grp->hasView("basis"))
       {
           grp->createViewString("basis", gf->FESpace()->FEColl()->Name());
@@ -472,6 +490,95 @@ void SidreDataCollection::RegisterField(const char* field_name, GridFunction *gf
       else
       {   // overwrite the basis string
           grp->getView("basis")->setString(gf->FESpace()->FEColl()->Name() );
+      }
+
+      // Set the topology.  This is always 'mesh' except for a special case with the boundary material attributes field.
+      grp->createViewString("topology", "mesh");
+
+      // Set the data -- either scalar or vector-valued
+
+      bool const isScalarValued = (gf->FESpace()->GetVDim() == 1);
+      if(isScalarValued)
+      {
+          // First check if we have the data
+          if(grp->hasView("values") )
+          {
+              MFEM_ASSERT( grp->getView("values")->getArray() == gf->GetData(),
+                           "Allocated array has different size than gridfunction");
+          }
+          else
+          {
+              const int sz = gf->FESpace()->GetVSize();
+              if( HasFieldData(field_name))
+              {
+                  sidre::DataView *vals = sidre_dc_group->getGroup("array_data")
+                                                        ->getView(field_name);
+                  sidre::DataBuffer* buff = vals->getBuffer();
+                  grp->createView("values",buff)->apply(sidre::DOUBLE_ID, sz);
+              }
+              else
+              {
+                  // Handle case where we have gotten a grid function,
+                  // but are not managing its data
+
+                  grp->createView("values", sidre::DOUBLE_ID, sz)
+                     ->setExternalDataPtr( gf->GetData());
+              }
+          }
+
+      }
+      else // vector valued
+      {
+          int vdim = gf->FESpace()->GetVDim();
+          int ndof = gf->FESpace()->GetNDofs();
+          Ordering::Type ordering = gf->FESpace()->GetOrdering();
+
+          if(grp->hasGroup("values") )
+          {
+              // Check that the sizes are correct, need to modify below line for vector-valued data
+              //MFEM_ASSERT( grp->getView("values")->getArray() == gf->GetData(),
+              //             "Allocated array has different size than gridfunction");
+          }
+          else
+          {
+              if(HasFieldData(field_name))
+              {
+                  sidre::DataView *vals = sidre_dc_group->getGroup("array_data")
+                                                        ->getView(field_name);
+                  sidre::DataBuffer* buff = vals->getBuffer();
+
+                  const int FLD_SZ = 20;
+                  char fidxName[FLD_SZ];
+                  int offset =0;
+                  int stride = 0;
+
+                  for(int i=0; i<vdim; ++i)
+                  {
+                      std::snprintf(fidxName, FLD_SZ, "values/x%d", i);
+
+                      switch(ordering)
+                      {
+                      case Ordering::byNODES:
+                          offset = i * ndof;
+                          stride = 1;
+                          break;
+                      case Ordering::byVDIM:
+                          offset = i;
+                          stride = vdim;
+                          break;
+                      }
+
+                      grp->createView(fidxName, buff)
+                         ->apply(sidre::DOUBLE_ID, ndof, offset, stride);
+                  }
+
+              }
+              else
+              {
+                  // Handle case where we have gotten a vector-valued grid function
+                  // but we are not managing its data
+              }
+          }
       }
   }
 

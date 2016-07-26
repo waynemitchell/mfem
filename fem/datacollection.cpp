@@ -146,7 +146,7 @@ double* DataCollection::GetFieldData(const char *field_name, int sz)
 
 
    // Otherwise, if the data does not exist, and sz > 0, allocate it
-   if( managed_field_data_map.find(field_name) == managed_field_data_map.end())
+   if(!HasFieldData(field_name))
    {
        if(sz <= 0)
           return NULL;
@@ -167,7 +167,7 @@ double* DataCollection::GetFieldData(const char *field_name, int sz, const char 
     }
 
     // Else, if we are explicitly managing its memory, return a pointer
-    if( managed_field_data_map.find(field_name) == managed_field_data_map.end())
+    if( HasFieldData(field_name))
     {
         return managed_field_data_map[field_name];
     }
@@ -181,7 +181,7 @@ double* DataCollection::GetFieldData(const char *field_name, int sz, const char 
     }
 
     // Else, check if we are explicitly managing base_field and return offset
-    if( managed_field_data_map.find(base_field) == managed_field_data_map.end())
+    if( HasFieldData(base_field) )
     {
         return managed_field_data_map[base_field] + offset;
     }
@@ -189,6 +189,18 @@ double* DataCollection::GetFieldData(const char *field_name, int sz, const char 
     // At this point, we give up
     return NULL;
 
+}
+
+
+bool DataCollection::HasFieldData(const char *field_name)
+{
+    if(HasField(field_name))
+        return true;
+
+    if(managed_field_data_map.find(field_name) == managed_field_data_map.end())
+        return false;
+
+    return (managed_field_data_map[field_name] != NULL);
 }
 
 

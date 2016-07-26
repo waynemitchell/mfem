@@ -108,6 +108,8 @@ public:
    virtual double* GetFieldData(const char *field_name, int sz, const char *base_field, int offset = 0, int stride = 1);
 
 
+   virtual bool HasFieldData(const char *field_name);
+
    /// Get a pointer to the mesh in the collection
    Mesh *GetMesh() { return mesh; }
    /// Set/change the mesh associated with the collection
