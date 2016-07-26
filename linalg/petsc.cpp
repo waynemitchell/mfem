@@ -353,14 +353,14 @@ PetscParMatrix::PetscParMatrix(const HypreParMatrix *hmat, bool wrap,
                                bool assembled)
 {
    Init();
-   height = hmat->GetNumRows();
-   width  = hmat->GetNumCols();
+   height = hmat->Height();
+   width  = hmat->Width();
    if (wrap)
    {
       MFEM_VERIFY(assembled,
                   "PetscParMatrix::PetscParMatrix(const HypreParMatrix*,bool,bool)" <<
                   "Cannot wrap in PETSc's unassembled format")
-      MakeWrapper(hmat,&A);
+      MakeWrapper(hmat->GetComm(),hmat,&A);
    }
    else
    {
@@ -375,6 +375,14 @@ PetscParMatrix::PetscParMatrix(const HypreParMatrix *hmat, bool wrap,
          CCHKERRQ(hmat->GetComm(),ierr);
       }
    }
+}
+
+PetscParMatrix::PetscParMatrix(MPI_Comm comm, const Operator *op)
+{
+   Init();
+   height = op->Height();
+   width  = op->Width();
+   MakeWrapper(comm,op,&A);
 }
 
 PetscParMatrix::PetscParMatrix(MPI_Comm comm, PetscInt glob_size,
@@ -495,7 +503,7 @@ PetscParMatrix::PetscParMatrix(MPI_Comm comm, PetscInt global_num_rows,
    width  = lcsize;
 }
 
-// TODO ADD
+// TODO ADD THIS CONSTRUCTOR
 //PetscParMatrix::PetscParMatrix(MPI_Comm comm, int nrows, PetscInt glob_nrows,
 //                  PetscInt glob_ncols, int *I, PetscInt *J,
 //                  double *data, PetscInt *rows, PetscInt *cols)
@@ -504,8 +512,7 @@ PetscParMatrix::PetscParMatrix(MPI_Comm comm, PetscInt global_num_rows,
 
 typedef struct
 {
-   HypreParMatrix *op;
-   HypreParVector *xx,*yy;
+   Operator *op;
 } mat_shell_ctx;
 
 #undef __FUNCT__
@@ -513,20 +520,13 @@ typedef struct
 static PetscErrorCode mat_shell_apply(Mat A, Vec x, Vec y)
 {
    mat_shell_ctx     *ctx;
-   const PetscScalar *a;
    PetscErrorCode     ierr;
 
    PetscFunctionBeginUser;
    ierr = MatShellGetContext(A,(void **)&ctx); PCHKERRQ(A,ierr);
-   HypreParVector *xx = ctx->xx;
-   HypreParVector *yy = ctx->yy;
-   ierr = VecGetArrayRead(x,&a); PCHKERRQ(x,ierr);
-   xx->SetData((PetscScalar*)a);
-   ierr = VecRestoreArrayRead(x,&a); PCHKERRQ(x,ierr);
-   ierr = VecGetArrayRead(y,&a); PCHKERRQ(x,ierr);
-   yy->SetData((PetscScalar*)a);
-   ierr = VecRestoreArrayRead(y,&a); PCHKERRQ(x,ierr);
-   ctx->op->Mult(*xx,*yy);
+   PetscParVector xx(x,true);
+   PetscParVector yy(y,true);
+   ctx->op->Mult(xx,yy);
    PetscFunctionReturn(0);
 }
 
@@ -535,20 +535,13 @@ static PetscErrorCode mat_shell_apply(Mat A, Vec x, Vec y)
 static PetscErrorCode mat_shell_apply_transpose(Mat A, Vec x, Vec y)
 {
    mat_shell_ctx     *ctx;
-   const PetscScalar *a;
    PetscErrorCode     ierr;
 
    PetscFunctionBeginUser;
    ierr = MatShellGetContext(A,(void **)&ctx); PCHKERRQ(A,ierr);
-   HypreParVector *xx = ctx->xx;
-   HypreParVector *yy = ctx->yy;
-   ierr = VecGetArrayRead(x,&a); PCHKERRQ(x,ierr);
-   yy->SetData((PetscScalar*)a);
-   ierr = VecRestoreArrayRead(x,&a); PCHKERRQ(x,ierr);
-   ierr = VecGetArrayRead(y,&a); PCHKERRQ(x,ierr);
-   xx->SetData((PetscScalar*)a);
-   ierr = VecRestoreArrayRead(y,&a); PCHKERRQ(x,ierr);
-   ctx->op->MultTranspose(*yy,*xx);
+   PetscParVector xx(x,true);
+   PetscParVector yy(y,true);
+   ctx->op->MultTranspose(xx,yy);
    PetscFunctionReturn(0);
 }
 
@@ -560,42 +553,28 @@ static PetscErrorCode mat_shell_destroy(Mat A)
 
    PetscFunctionBeginUser;
    ierr = MatShellGetContext(A,(void **)&ctx); PCHKERRQ(A,ierr);
-   delete ctx->xx;
-   delete ctx->yy;
    delete ctx;
    PetscFunctionReturn(0);
 }
 #undef __FUNCT__
 
-// TODO ASK Should it take a reference to hmat?
-void PetscParMatrix::MakeWrapper(const HypreParMatrix* hmat, Mat *A)
+// TODO This should take a reference but how?
+void PetscParMatrix::MakeWrapper(MPI_Comm comm, const Operator* op, Mat *A)
 {
-   MPI_Comm comm = hmat->GetComm();
+   mat_shell_ctx *ctx = new mat_shell_ctx;
    ierr = MatCreate(comm,A); CCHKERRQ(comm,ierr);
-   PetscMPIInt myid = 0;
-   // TODO ASK
-   if (!HYPRE_AssumedPartitionCheck())
-   {
-      MPI_Comm_rank(comm,&myid);
-   }
-   const PetscInt *rows = hmat->RowPart();
-   const PetscInt *cols = hmat->ColPart();
-   ierr = MatSetSizes(*A,rows[myid+1]-rows[myid],cols[myid+1]-cols[myid],
+   ierr = MatSetSizes(*A,op->Height(),op->Width(),
                       PETSC_DECIDE,PETSC_DECIDE); PCHKERRQ(A,ierr);
    ierr = MatSetType(*A,MATSHELL); PCHKERRQ(A,ierr);
-   mat_shell_ctx *ctx = new mat_shell_ctx;
    ierr = MatShellSetContext(*A,(void *)ctx); PCHKERRQ(A,ierr);
-   ierr = MatShellSetOperation(*A,MATOP_MULT,(void (*)())mat_shell_apply);
-   PCHKERRQ(A,ierr);
+   ierr = MatShellSetOperation(*A,MATOP_MULT,
+                               (void (*)())mat_shell_apply); PCHKERRQ(A,ierr);
    ierr = MatShellSetOperation(*A,MATOP_MULT_TRANSPOSE,
                                (void (*)())mat_shell_apply_transpose); PCHKERRQ(A,ierr);
-   ierr = MatShellSetOperation(*A,MATOP_DESTROY,(void (*)())mat_shell_destroy);
-   PCHKERRQ(A,ierr);
+   ierr = MatShellSetOperation(*A,MATOP_DESTROY,
+                               (void (*)())mat_shell_destroy); PCHKERRQ(A,ierr);
    ierr = MatSetUp(*A); PCHKERRQ(*A,ierr);
-   // create two HypreVectors in domain and range of A without allocating data
-   ctx->xx = GetHypreParVector(*A,false);
-   ctx->yy = GetHypreParVector(*A,true);
-   ctx->op = const_cast<HypreParMatrix *>(hmat);
+   ctx->op = const_cast<Operator *>(op);
 }
 
 void PetscParMatrix::Destroy()

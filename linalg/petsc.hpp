@@ -120,9 +120,10 @@ protected:
    /// Delete all owned data. Does not perform re-initialization with defaults.
    void Destroy();
 
-   /// Creates a wrapper around HypreParMatrix using PETSc's MATSHELL object
-   /// and returns the Mat in B.
-   void MakeWrapper(const HypreParMatrix* hmat, Mat *B);
+   /// Creates a wrapper around a mfem::Operator op using PETSc's MATSHELL object
+   /// and returns the Mat in B. This does not take any reference to op, that
+   /// should not be destroyed until B is needed.
+   void MakeWrapper(MPI_Comm comm, const Operator* op, Mat *B);
 
    friend class PetscLinearSolver;
 
@@ -141,8 +142,15 @@ public:
    /// If wrap is false, a PETSc's MATAIJ (resp. MATIS) object
    /// is created if assembled is true (resp. false).
    /// If wrap is true, the matvec operations of the HypreParMatrix are wrapped
-   /// through PETSc's MATSHELL object.
+   /// through PETSc's MATSHELL object. In this case, the HypreParMatrix should
+   /// not be destroyed before the PetscParMatrix; assembled is not referenced.
    PetscParMatrix(const HypreParMatrix* a, bool wrap=false, bool assembled=true);
+
+   /// Converts any mfem::Operator op implementing Mult and MultTranspose
+   /// into a PetscParMatrix. The Operator destructor should not be called
+   /// before the one of the PetscParMatrix. The user is responsible to destroy
+   /// the Operator.
+   PetscParMatrix(MPI_Comm comm, const Operator* op);
 
    /** Creates block-diagonal square parallel matrix. Diagonal is given by diag
        which must be in CSR format (finalized). The new PetscParMatrix does not
