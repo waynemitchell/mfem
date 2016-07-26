@@ -738,7 +738,11 @@ void Hybridization::Finalize()
 #ifndef MFEM_USE_MPI
    if (!H) { ComputeH(); }
 #else
+#ifdef MFEM_USE_PETSC
    if (!H && ((!usepetsc && !pH) || (usepetsc && !ppH))) { ComputeH(); }
+#else
+   if (!H && !pH) { ComputeH(); }
+#endif
 #endif
 }
 
@@ -842,7 +846,9 @@ void Hybridization::ReduceRHS(const Vector &b, Vector &b_r) const
       Vector bl(pC ? pC->Height() : Ct->Width());
       pC ? pC->Mult(bf, bl) : Ct->MultTranspose(bf, bl);
       if (pH) { b_r.SetSize(pH->Height()); }
+#ifdef MFEM_USE_PETSC
       else if (ppH) { b_r.SetSize(ppH->Height()); }
+#endif
       (P_pc ? P_pc : c_pfes->Dof_TrueDof_Matrix())->MultTranspose(bl, b_r);
    }
 #else
