@@ -243,11 +243,13 @@ protected:
 private:
    bool wrap; // internal flag to handle HypreParMatrix conversion or not
 
+   MPI_Comm _comm; // MPI communicator
+
    void Init();
 
 public:
    /// Initialize protected objects to NULL
-   PetscLinearSolver();
+   PetscLinearSolver(MPI_Comm comm);
 
    /// Constructs a solver using a PetscParMatrix
    PetscLinearSolver(PetscParMatrix &_A);

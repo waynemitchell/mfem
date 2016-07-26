@@ -828,14 +828,16 @@ void PetscLinearSolver::Init()
    wrap = false;
 }
 
-PetscLinearSolver::PetscLinearSolver()
+PetscLinearSolver::PetscLinearSolver(MPI_Comm comm)
 {
    Init();
+   ierr = KSPCreate(comm,&ksp); CCHKERRQ(comm,ierr);
 }
 
 PetscLinearSolver::PetscLinearSolver(PetscParMatrix &_A)
 {
    Init();
+   ierr = KSPCreate(_A.GetComm(),&ksp); CCHKERRQ(_A.GetComm(),ierr);
    SetOperator(_A);
 }
 
@@ -843,6 +845,7 @@ PetscLinearSolver::PetscLinearSolver(HypreParMatrix &_A,bool wrapin)
 {
    Init();
    wrap = wrapin;
+   ierr = KSPCreate(_A.GetComm(),&ksp); CCHKERRQ(_A.GetComm(),ierr);
    SetOperator(_A);
 }
 
@@ -852,15 +855,10 @@ void PetscLinearSolver::SetOperator(const Operator &op)
                         (dynamic_cast<const HypreParMatrix *>(&op));
    PetscParMatrix *pA = const_cast<PetscParMatrix *>
                         (dynamic_cast<const PetscParMatrix *>(&op));
-   if (!hA && !pA)
-   {
-      MFEM_ABORT("PetscLinearSolver::SetOperator : new Operator must be a HypreParMatrix or a PetscParMatrix!");
-   }
+   Operator       *oA = const_cast<Operator *>
+                        (dynamic_cast<const Operator *>(&op));
    // update base classes: Operator, Solver, PetscLinearSolver
-   MPI_Comm comm;
-   PetscInt nheight,nwidth;
-   Mat      A;
-   bool     delete_pA = false;
+   bool delete_pA = false;
    if (hA)
    {
       // Create MATSHELL object or convert
@@ -869,14 +867,27 @@ void PetscLinearSolver::SetOperator(const Operator &op)
       delete_pA = true;
 
    }
-   A = pA->A;
-   ierr = PetscObjectGetComm((PetscObject)A,&comm); PCHKERRQ(A,ierr);
+   else if (oA) // fallback to general operator
+   {
+      // Create MATSHELL object
+      pA = new PetscParMatrix(PetscObjectComm((PetscObject)ksp),oA);
+      delete_pA = true;
+   }
+   // raise error if this is not supported
+   if (!pA)
+   {
+      MFEM_ABORT("PetscLinearSolver::SetOperator : Unsupported operation!");
+   }
+
+   Mat A = pA->A;
+   PetscInt nheight,nwidth;
    ierr = MatGetSize(A,&nheight,&nwidth); PCHKERRQ(A,ierr);
    if (ksp)
    {
       if (nheight != height || nwidth != width)
       {
          // reinit without destroying the KSP
+         // communicator remains the same
          ierr = KSPReset(ksp); PCHKERRQ(ksp,ierr);
          if (X) { delete X; }
          if (B) { delete B; }
@@ -884,23 +895,17 @@ void PetscLinearSolver::SetOperator(const Operator &op)
          wrap = false;
       }
    }
-   else
-   {
-      ierr = KSPCreate(comm,&ksp); CCHKERRQ(comm,ierr);
-   }
    ierr = KSPSetOperators(ksp,A,A); PCHKERRQ(ksp,ierr);
-   if (delete_pA)
-   {
-      delete pA;
-   }
+   // allow user customization
+   ierr = KSPSetFromOptions(ksp); PCHKERRQ(ksp,ierr);
+   if (delete_pA) { delete pA; }
    height = nheight;
    width  = nwidth;
 }
 
 typedef struct
 {
-   Solver         *op;
-   HypreParVector *xx,*yy;
+   Solver *op;
 } solver_shell_ctx;
 
 
@@ -909,20 +914,13 @@ typedef struct
 static PetscErrorCode pc_shell_apply(PC pc, Vec x, Vec y)
 {
    solver_shell_ctx  *ctx;
-   const PetscScalar *a;
    PetscErrorCode     ierr;
 
    PetscFunctionBeginUser;
    ierr = PCShellGetContext(pc,(void **)&ctx); PCHKERRQ(pc,ierr);
-   HypreParVector *xx = ctx->xx;
-   HypreParVector *yy = ctx->yy;
-   ierr = VecGetArrayRead(x,&a); PCHKERRQ(x,ierr);
-   xx->SetData((PetscScalar*)a);
-   ierr = VecRestoreArrayRead(x,&a); PCHKERRQ(x,ierr);
-   ierr = VecGetArrayRead(y,&a); PCHKERRQ(x,ierr);
-   yy->SetData((PetscScalar*)a);
-   ierr = VecRestoreArrayRead(y,&a); PCHKERRQ(x,ierr);
-   ctx->op->Mult(*xx,*yy);
+   PetscParVector xx(x,true);
+   PetscParVector yy(y,true);
+   ctx->op->Mult(xx,yy);
    PetscFunctionReturn(0);
 }
 
@@ -931,20 +929,13 @@ static PetscErrorCode pc_shell_apply(PC pc, Vec x, Vec y)
 static PetscErrorCode pc_shell_apply_transpose(PC pc, Vec x, Vec y)
 {
    solver_shell_ctx  *ctx;
-   const PetscScalar *a;
    PetscErrorCode     ierr;
 
    PetscFunctionBeginUser;
    ierr = PCShellGetContext(pc,(void **)&ctx); PCHKERRQ(pc,ierr);
-   HypreParVector *xx = ctx->xx;
-   HypreParVector *yy = ctx->yy;
-   ierr = VecGetArrayRead(x,&a); PCHKERRQ(x,ierr);
-   yy->SetData((PetscScalar*)a);
-   ierr = VecRestoreArrayRead(x,&a); PCHKERRQ(x,ierr);
-   ierr = VecGetArrayRead(y,&a); PCHKERRQ(x,ierr);
-   xx->SetData((PetscScalar*)a);
-   ierr = VecRestoreArrayRead(y,&a); PCHKERRQ(x,ierr);
-   ctx->op->MultTranspose(*yy,*xx);
+   PetscParVector xx(x,true);
+   PetscParVector yy(y,true);
+   ctx->op->MultTranspose(xx,yy);
    PetscFunctionReturn(0);
 }
 
@@ -952,22 +943,11 @@ static PetscErrorCode pc_shell_apply_transpose(PC pc, Vec x, Vec y)
 #define __FUNCT__ "pc_shell_setup"
 static PetscErrorCode pc_shell_setup(PC pc)
 {
-   solver_shell_ctx *ctx;
-   Mat              A;
-   PetscErrorCode   ierr;
+   //solver_shell_ctx *ctx;
+   //Mat              A;
+   //PetscErrorCode   ierr;
 
    PetscFunctionBeginUser;
-   // we create the vectors here since the operator is known at this point
-   ierr = PCShellGetContext(pc,(void **)&ctx); PCHKERRQ(pc,ierr);
-   ierr = PCGetOperators(pc,&A,NULL); PCHKERRQ(pc,ierr);
-   if (!ctx->xx)
-   {
-      ctx->xx = GetHypreParVector(A,false);
-   }
-   if (!ctx->yy)
-   {
-      ctx->yy = GetHypreParVector(A,true);
-   }
    // TODO ask: is there a way to trigger the setup of ctx->op?
    PetscFunctionReturn(0);
 }
@@ -980,29 +960,21 @@ static PetscErrorCode pc_shell_destroy(PC pc)
 
    PetscFunctionBeginUser;
    ierr = PCShellGetContext(pc,(void **)&ctx); PCHKERRQ(pc,ierr);
-   delete ctx->xx;
-   delete ctx->yy;
    delete ctx;
    PetscFunctionReturn(0);
 }
 
 #undef __FUNCT__
 
+// TODO: this is not complaint with mfem API
 void PetscLinearSolver::SetPreconditioner(Solver &precond)
 {
-   if (!ksp)
-   {
-      MFEM_ABORT("PetscLinearSolver::SetPreconditioner (...) : KSP si missing. You should call PetscLinearSolver::SetOperator (...) first");
-      return;
-   }
    PC pc;
 
    ierr = KSPGetPC(ksp,&pc); PCHKERRQ(ksp,ierr);
    ierr = PCSetType(pc,PCSHELL); PCHKERRQ(pc,ierr);
    solver_shell_ctx *ctx = new solver_shell_ctx;
    ctx->op = &precond;
-   ctx->xx = NULL;
-   ctx->yy = NULL;
    ierr = PCShellSetContext(pc,(void *)ctx); PCHKERRQ(pc,ierr);
    ierr = PCShellSetApply(pc,pc_shell_apply); PCHKERRQ(pc,ierr);
    ierr = PCShellSetApplyTranspose(pc,pc_shell_apply_transpose); PCHKERRQ(pc,ierr);
@@ -1012,14 +984,6 @@ void PetscLinearSolver::SetPreconditioner(Solver &precond)
 
 void PetscLinearSolver::Mult(const PetscParVector &b, PetscParVector &x) const
 {
-   if (!ksp)
-   {
-      MFEM_ABORT("PetscLinearSolver::Mult (...) : KSP si missing");
-      return;
-   }
-   // allow user customization
-   ierr = KSPSetFromOptions(ksp); PCHKERRQ(ksp,ierr);
-   ierr = KSPSetUp(ksp); PCHKERRQ(ksp,ierr);
    ierr = KSPSetInitialGuessNonzero(ksp,PetscBool(iterative_mode));
    PCHKERRQ(ksp,ierr);
    ierr = KSPSolve(ksp,b.x,x.x); PCHKERRQ(ksp,ierr);
@@ -1027,11 +991,6 @@ void PetscLinearSolver::Mult(const PetscParVector &b, PetscParVector &x) const
 
 void PetscLinearSolver::Mult(const Vector &b, Vector &x) const
 {
-   if (!ksp)
-   {
-      MFEM_ABORT("PetscLinearSolver::Mult (...) : KSP is missing");
-      return;
-   }
    if (!B)
    {
       Mat pA;
@@ -1057,14 +1016,11 @@ void PetscLinearSolver::Mult(const Vector &b, Vector &x) const
 
 PetscLinearSolver::~PetscLinearSolver()
 {
+   MPI_Comm comm;
+   ierr = PetscObjectGetComm((PetscObject)ksp,&comm); PCHKERRQ(ksp,ierr);
+   ierr = KSPDestroy(&ksp); CCHKERRQ(comm,ierr);
    if (B) { delete B; }
    if (X) { delete X; }
-   if (ksp)
-   {
-      MPI_Comm comm;
-      ierr = PetscObjectGetComm((PetscObject)ksp,&comm); PCHKERRQ(ksp,ierr);
-      ierr = KSPDestroy(&ksp); CCHKERRQ(comm,ierr);
-   }
 }
 
 void PetscLinearSolver::SetTol(double tol)
