@@ -8,43 +8,59 @@ using namespace std;
 using namespace mfem;
 using namespace mfem::miniapps;
 
-static int t_ = 0;
-
-void transformation(const Vector &p, Vector &v)
-{
-   int dim = p.Size();
-   v.SetSize(dim);
-
-   switch (t_)
-   {
-      case 1:
-         v[0] = 0.5 * p[0];
-         if ( dim > 1 )
-         {
-            v[0] += 0.125*(sqrt(5.0) - 1.0) * p[1];
-            v[1] = sqrt(0.0625 * (5.0 + sqrt(5.0))) * p[1];
-         }
-         if ( dim > 2 ) { v[2] = 0.5 * p[2]; }
-         break;
-      case 2:
-         v[0] = 0.125 * (sqrt(5.0) - 1.0) * p[0];
-         if ( dim > 1 )
-         {
-            v[0] -= 0.125*(sqrt(5.0) + 1.0) * p[1];
-            v[1] = 0.125 * sqrt(0.5 * (5.0 + sqrt(5.0))) *
-                   (2.0 * p[0] + (sqrt(5.0) - 1.0) * p[1]);
-         }
-         if ( dim > 2 ) { v[2] = 0.5 * p[2]; }
-         break;
-   }
-}
-
+// Data structure used to collect visualization window layout parameters
 struct VisWinLayout
 {
    int nx;
    int ny;
    int w;
    int h;
+};
+
+// Data structure used to define simple coordinate transformations
+struct DeformationData
+{
+   double uniformScale;
+
+   int    squeezeAxis;
+   double squeezeFactor;
+
+   int    shearAxis;
+   Vector shearVec;
+};
+
+/** The Deformation class implements three simple coordinate transformations:
+    Uniform Scaling:
+      u = a v for a scalar constant 'a'
+
+    Compression or Squeeze (along a coordinate axis):
+          / 1/b 0 \            / 1/b 0  0 \     for a scalar constant b
+      u = \ 0   b / v   or u = |  0  c  0 | v,  and c = sqrt(b)
+                               \  0  0  c /     the axis can also be chosen
+
+    Shear:
+      u = v + v_i * s where 's' is the shear vector
+                        and 'i' is the shear axis
+*/
+class Deformation : public VectorCoefficient
+{
+public:
+
+   enum DefType {INVALID, UNIFORM, SQUEEZE, SHEAR};
+
+   Deformation(int dim, DefType dType, const DeformationData & data)
+      : VectorCoefficient(dim), dim_(dim), dType_(dType), data_(data) {}
+
+   void Eval(Vector &v, ElementTransformation &T, const IntegrationPoint &ip);
+
+private:
+   void Def1D(const Vector & u, Vector & v);
+   void Def2D(const Vector & u, Vector & v);
+   void Def3D(const Vector & u, Vector & v);
+
+   int     dim_;
+   DefType dType_;
+   const DeformationData & data_;
 };
 
 string   elemTypeStr(const Element::Type & eType);
@@ -60,11 +76,12 @@ inline bool basisIs3D(char bType);
 string mapTypeStr(int mType);
 
 int update_basis(vector<socketstream*> & sock, const VisWinLayout & vwl,
-                 Element::Type e, char bType, int bOrder, int mType);
+                 Element::Type e, char bType, int bOrder, int mType,
+                 Deformation::DefType dType, const DeformationData & defData);
 
 int main(int argc, char *argv[])
 {
-   // 1. Parse command-line options.
+   // Parse command-line options.
    Element::Type eType  = Element::TRIANGLE;
    char          bType  = 'h';
    int           bOrder = 2;
@@ -79,8 +96,13 @@ int main(int argc, char *argv[])
    vwl.w  = 250;
    vwl.h  = 250;
 
+   Deformation::DefType dType = Deformation::INVALID;
+   DeformationData defData;
+
    bool visualization = true;
    bool visit = false;
+
+   vector<socketstream*> sock;
 
    OptionsParser args(argc, argv);
    args.AddOption(&eInt, "-e", "--elem-type",
@@ -91,8 +113,6 @@ int main(int argc, char *argv[])
                   "3-L2, 4-Fixed Order Cont., 5-Gaussian Discontinuous (2D), "
                   "6-Crouzeix-Raviart)");
    args.AddOption(&bOrder, "-o", "--order", "Basis function order");
-   args.AddOption(&t_, "-t", "--trans",
-                  "Coordinate transformation");
    args.AddOption(&vwl.nx, "-nx", "--num-win-x",
                   "Number of Viz windows in X");
    args.AddOption(&vwl.ny, "-ny", "--num-win-y",
@@ -147,10 +167,7 @@ int main(int argc, char *argv[])
          bType = 'h';
    }
 
-   // 2. Define sockets for visualization
-   vector<socketstream*> sock;
-
-   // 3. Collect user input
+   // Collect user input
    bool print_char = true;
    while (true)
    {
@@ -162,7 +179,8 @@ int main(int argc, char *argv[])
          cout << "Basis function order:  " << bOrder << endl;
          cout << "Map Type:              " << mapTypeStr(mType) << endl;
       }
-      if ( update_basis(sock, vwl, eType, bType, bOrder, mType) )
+      if ( update_basis(sock, vwl, eType, bType, bOrder, mType,
+                        dType, defData) )
       {
          cerr << "Invalid combination of basis info (try again)" << endl;
       }
@@ -171,6 +189,7 @@ int main(int argc, char *argv[])
       cout << endl;
       cout << "What would you like to do?\n"
            "q) Quit\n"
+           "c) Close Windows and Quit\n"
            "e) Change Element Type\n"
            "b) Change Basis Type\n";
       if ( bType == 'h' || bType == 'p' || bType == 'n' || bType == 'r' ||
@@ -182,12 +201,21 @@ int main(int argc, char *argv[])
       {
          cout << "m) Change Map Type\n";
       }
+      cout << "t) Transform Element\n";
       cout << "--> " << flush;
       char mk;
       cin >> mk;
 
       if (mk == 'q')
       {
+         break;
+      }
+      if (mk == 'c')
+      {
+         for (unsigned int i=0; i<sock.size(); i++)
+         {
+            *sock[i] << "keys q";
+         }
          break;
       }
       if (mk == 'e')
@@ -221,7 +249,14 @@ int main(int argc, char *argv[])
                    (elemIs2D((Element::Type)eInt) && basisIs2D(bType)) ||
                    (elemIs3D((Element::Type)eInt) && basisIs3D(bType)) )
          {
+            if ( (elemIs1D((Element::Type)eInt) && !elemIs1D(eType)) ||
+                 (elemIs2D((Element::Type)eInt) && !elemIs2D(eType)) ||
+                 (elemIs3D((Element::Type)eInt) && !elemIs3D(eType)) )
+            {
+               dType = Deformation::INVALID;
+            }
             eType = (Element::Type)eInt;
+
             print_char = true;
          }
          else
@@ -235,6 +270,8 @@ int main(int argc, char *argv[])
          char bChar = 0;
          cout << "valid basis types:\n";
          cout << "h) H1 Finite Element\n";
+         // the following is a hidden option because refinement fails
+         // with PositiveFiniteElements
          // cout << "p) H1 Positive Finite Element\n";
          if ( elemIs2D(eType) || elemIs3D(eType) )
          {
@@ -365,17 +402,74 @@ int main(int argc, char *argv[])
             cout << "invalid basis order \"" << oInt << "\"." << endl;
          }
       }
+      if (mk == 't')
+      {
+         cout << "transformation options:\n";
+         cout << "r) reset to reference element\n";
+         cout << "u) uniform scaling\n";
+         if ( elemIs2D(eType) || elemIs3D(eType) )
+         {
+            cout << "c) compression\n";
+            cout << "s) shear\n";
+         }
+         cout << "enter transformation type --> " << flush;
+         char tk;
+         cin >> tk;
+         if (tk == 'r')
+         {
+            dType = Deformation::INVALID;
+         }
+         else if (tk == 'u')
+         {
+            cout << "enter scaling constant --> " << flush;
+            cin >> defData.uniformScale;
+            if ( defData.uniformScale > 0.0 )
+            {
+               dType = Deformation::UNIFORM;
+            }
+         }
+         else if (tk == 'c' && !elemIs1D(eType))
+         {
+            cout << "enter compression factor --> " << flush;
+            cin >> defData.squeezeFactor;
+            cout << "enter compression axis --> " << flush;
+            cin >> defData.squeezeAxis;
+
+            int dim = elemIs2D(eType)?2:3;
+            if ( defData.squeezeFactor > 0.0 &&
+                 (defData.squeezeAxis >= 0 && defData.squeezeAxis < dim))
+            {
+               dType = Deformation::SQUEEZE;
+            }
+         }
+         else if (tk == 's' && !elemIs1D(eType))
+         {
+            cout << "enter shear vector (components separated by spaces) --> "
+                 << flush;
+            int dim = elemIs2D(eType)?2:3;
+            defData.shearVec.SetSize(dim);
+            for (int i=0; i<dim; i++)
+            {
+               cin >> defData.shearVec[i];
+            }
+            cout << "enter shear axis --> " << flush;
+            cin >> defData.shearAxis;
+
+            if ( defData.shearAxis >= 0 && defData.shearAxis < dim )
+            {
+               dType = Deformation::SHEAR;
+            }
+         }
+      }
    }
 
-   // 4. Delete sockets
-   cout << "Exiting" << endl;
-
+   // Cleanup
    for (unsigned int i=0; i<sock.size(); i++)
    {
       delete sock[i];
    }
 
-   // 5. Exit
+   // Exit
    return 0;
 }
 
@@ -504,9 +598,88 @@ mapTypeStr(int mType)
    }
 }
 
+void
+Deformation::Eval(Vector &v, ElementTransformation &T,
+                  const IntegrationPoint &ip)
+{
+   Vector u(dim_);
+   T.Transform(ip, u);
+
+   switch (dim_)
+   {
+      case 1:
+         Def1D(u, v);
+         break;
+      case 2:
+         Def2D(u, v);
+         break;
+      case 3:
+         Def3D(u, v);
+         break;
+   }
+}
+
+void
+Deformation::Def1D(const Vector & u, Vector & v)
+{
+   v = u;
+   if ( dType_ == UNIFORM )
+   {
+      v *= data_.uniformScale;
+   }
+}
+
+void
+Deformation::Def2D(const Vector & u, Vector & v)
+{
+   switch (dType_)
+   {
+      case UNIFORM:
+         v = u;
+         v *= data_.uniformScale;
+         break;
+      case SQUEEZE:
+         v = u;
+         v[ data_.squeezeAxis     ] /= data_.squeezeFactor;
+         v[(data_.squeezeAxis+1)%2] *= data_.squeezeFactor;
+         break;
+      case SHEAR:
+         v = u;
+         v.Add(v[data_.shearAxis], data_.shearVec);
+         break;
+      default:
+         v = u;
+   }
+}
+
+void
+Deformation::Def3D(const Vector & u, Vector & v)
+{
+   switch (dType_)
+   {
+      case UNIFORM:
+         v = u;
+         v *= data_.uniformScale;
+         break;
+      case SQUEEZE:
+         v = u;
+         v[ data_.squeezeAxis     ] /= data_.squeezeFactor;
+         v[(data_.squeezeAxis+1)%2] *= sqrt(data_.squeezeFactor);
+         v[(data_.squeezeAxis+2)%2] *= sqrt(data_.squeezeFactor);
+         break;
+      case SHEAR:
+         v = u;
+         v.Add(v[data_.shearAxis], data_.shearVec);
+         break;
+      default:
+         v = u;
+   }
+}
+
 int
 update_basis(vector<socketstream*> & sock,  const VisWinLayout & vwl,
-             Element::Type e, char bType, int bOrder, int mType)
+             Element::Type e, char bType, int bOrder, int mType,
+             Deformation::DefType dType, const DeformationData & defData)
 {
    bool vec = false;
 
@@ -521,15 +694,13 @@ update_basis(vector<socketstream*> & sock,  const VisWinLayout & vwl,
    }
    mesh = new Mesh(imesh, 1, 1);
    int dim = mesh->Dimension();
-   // int geom = mesh->GetElementBaseGeometry(0);
-   // int sdim = mesh->SpaceDimension();
 
-   if ( t_ > 0 )
+   if ( dType != Deformation::INVALID )
    {
-      mesh->Transform(transformation);
+      Deformation defCoef(dim, dType, defData);
+      mesh->Transform(defCoef);
    }
 
-   // cout << "Building Finite Element Collection" << endl;
    FiniteElementCollection * FEC = NULL;
    switch (bType)
    {
@@ -581,19 +752,14 @@ update_basis(vector<socketstream*> & sock,  const VisWinLayout & vwl,
             FEC = new GaussQuadraticDiscont2DFECollection();
          }
          break;
-      case 'd':
-         FEC = new DG_Interface_FECollection(bOrder, dim);
-         vec = true;
-         break;
    }
    if ( FEC == NULL)
    {
       return 1;
    }
-   // cout << "Building Finite Element Space" << endl;
+
    FiniteElementSpace FESpace(mesh, FEC);
 
-   // int ndof = FESpace.GetFE(0)->GetDof();
    int ndof = FESpace.GetVSize();
 
    Array<int> vdofs;
@@ -604,8 +770,7 @@ update_basis(vector<socketstream*> & sock,  const VisWinLayout & vwl,
 
    int offx = vwl.w+10, offy = vwl.h+45; // window offsets
 
-   int nsock = sock.size();
-   for (int i=0; i<nsock; i++)
+   for (unsigned int i=0; i<sock.size(); i++)
    {
       *sock[i] << "keys q";
       delete sock[i];
@@ -617,7 +782,7 @@ update_basis(vector<socketstream*> & sock,  const VisWinLayout & vwl,
       sock[i] = new socketstream; sock[i]->precision(8);
    }
 
-   GridFunction **    x = new GridFunction*[ndof];
+   GridFunction ** x = new GridFunction*[ndof];
    for (int i=0; i<ndof; i++)
    {
       x[i]  = new GridFunction(&FESpace);
@@ -633,7 +798,9 @@ update_basis(vector<socketstream*> & sock,  const VisWinLayout & vwl,
    }
 
    int ref = 0;
-   int exOrder = ( bType == 'p' && false )?3:0;
+   int exOrder = 0;
+   if ( bType == 'n' ) { exOrder++; }
+   if ( bType == 'r' ) { exOrder += 2; }
    while ( 1<<ref < bOrder + exOrder || ref == 0 )
    {
       mesh->UniformRefinement();
