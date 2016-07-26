@@ -77,7 +77,12 @@ protected:
 #ifdef MFEM_USE_MPI
    HypreParMatrix *pC, *P_pc; // for parallel non-conforming meshes
    HypreParMatrix *pH;
+#ifdef MFEM_USE_PETSC
+   PetscParMatrix *ppH;
 #endif
+#endif
+   bool usepetsc;
+   bool unassembled;
 
    void ConstructC();
 
@@ -127,6 +132,10 @@ public:
 #ifdef MFEM_USE_MPI
    /// Return the parallel hybridized matrix.
    HypreParMatrix &GetParallelMatrix() { return *pH; }
+#ifdef MFEM_USE_PETSC
+   /// Return the parallel hybridized matrix (PetscParMatrix case).
+   PetscParMatrix &GetPetscParallelMatrix() { return *ppH; }
+#endif
 #endif
 
    /** Perform the reduction of the given r.h.s. vector, b, to a r.h.s vector,
@@ -146,6 +155,30 @@ public:
        un-modified. If that is not the case, a new Hybridization object must be
        created. */
    void Reset();
+
+   /** Turn on or off the usage of PETSc */
+   void SetUsePetsc(bool use = true)
+   {
+#ifndef MFEM_USE_PETSC
+      if (true) MFEM_ABORT("You did not configured MFEM with PETSc support");
+      usepetsc = false;
+#else
+      usepetsc = use;
+#endif
+   }
+
+   /// Assemble the matrix in "unassembled format" for non-overlapping DD
+   /// Only significant with PETSc backend
+   void SetUseUnassembledFormat(bool use = true)
+   {
+#ifndef MFEM_USE_PETSC
+      if (true) MFEM_ABORT("You did not configured MFEM with PETSc support");
+      unassembled = false;
+#else
+      unassembled = use;
+#endif
+   }
+
 };
 
 }

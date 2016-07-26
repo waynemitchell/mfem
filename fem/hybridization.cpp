@@ -30,11 +30,14 @@ namespace mfem
 Hybridization::Hybridization(FiniteElementSpace *fespace,
                              FiniteElementSpace *c_fespace)
    : fes(fespace), c_fes(c_fespace), c_bfi(NULL), Ct(NULL), H(NULL),
-     Af_data(NULL), Af_ipiv(NULL)
+     Af_data(NULL), Af_ipiv(NULL), usepetsc(false), unassembled(false)
 {
 #ifdef MFEM_USE_MPI
    pC = P_pc = NULL;
    pH = NULL;
+#ifdef MFEM_USE_PETSC
+   ppH = NULL;
+#endif
 #endif
 }
 
@@ -44,6 +47,9 @@ Hybridization::~Hybridization()
    delete P_pc;
    delete pC;
    delete pH;
+#ifdef MFEM_USE_PETSC
+   delete ppH;
+#endif
 #endif
    delete [] Af_ipiv;
    delete [] Af_data;
@@ -663,11 +669,23 @@ void Hybridization::ComputeH()
       H->Finalize();
       if (!c_pfes) { return; }
 
+      if (!usepetsc)
       {
          HypreParMatrix dH(c_pfes->GetComm(), c_pfes->GlobalVSize(),
                            c_pfes->GetDofOffsets(), H);
          pH = RAP(&dH, P_pc ? P_pc : c_pfes->Dof_TrueDof_Matrix());
       }
+#ifdef MFEM_USE_PETSC
+      else
+      {
+         PetscParMatrix *dH = new PetscParMatrix(c_pfes->GetComm(), c_pfes->GlobalVSize(),
+                           c_pfes->GetDofOffsets(), H, !unassembled);
+         PetscParMatrix *pP = new PetscParMatrix(P_pc ? P_pc : c_pfes->Dof_TrueDof_Matrix(),false,!unassembled);
+         ppH = RAP(dH, pP);
+         delete dH;
+         delete pP;
+      }
+#endif
       delete H;
       H = NULL;
    }
@@ -696,7 +714,17 @@ void Hybridization::ComputeH()
          delete V;
          lpH = ParMult(pC, &pV);
       }
-      pH = RAP(lpH, P_pc);
+      if (!usepetsc)
+      {
+         pH = RAP(lpH, P_pc);
+      }
+#ifdef MFEM_USE_PETSC
+      else
+      {
+         MFEM_VERIFY(!unassembled,"To be implemented");
+         ppH = new PetscParMatrix(RAP(lpH, P_pc),false,false);
+      }
+#endif
       delete lpH;
    }
 #endif
@@ -708,7 +736,7 @@ void Hybridization::Finalize()
 #ifndef MFEM_USE_MPI
    if (!H) { ComputeH(); }
 #else
-   if (!H && !pH) { ComputeH(); }
+   if (!H && ((!usepetsc && !pH) || (usepetsc && !ppH))) { ComputeH(); }
 #endif
 }
 
@@ -811,7 +839,8 @@ void Hybridization::ReduceRHS(const Vector &b, Vector &b_r) const
    {
       Vector bl(pC ? pC->Height() : Ct->Width());
       pC ? pC->Mult(bf, bl) : Ct->MultTranspose(bf, bl);
-      b_r.SetSize(pH->Height());
+      if (pH) b_r.SetSize(pH->Height());
+      else if (ppH) b_r.SetSize(ppH->Height());
       (P_pc ? P_pc : c_pfes->Dof_TrueDof_Matrix())->MultTranspose(bl, b_r);
    }
 #else
@@ -866,6 +895,10 @@ void Hybridization::Reset()
 #ifdef MFEM_USE_MPI
    delete pH;
    pH = NULL;
+#ifdef MFEM_USE_PETSC
+   delete ppH;
+   ppH = NULL;
+#endif
 #endif
 }
 
