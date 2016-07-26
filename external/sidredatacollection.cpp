@@ -60,8 +60,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
     int dim = new_mesh->Dimension();
     MFEM_ASSERT(dim >=1 && dim <= 3, "invalid mesh dimension");
 
-
-    bool isRestart = grp->hasGroup("topology");
+    bool isRestart = grp->hasGroup("topologies");
     if(!isRestart)
     {
         /// Setup the mesh blueprint
@@ -71,32 +70,36 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
         std::string eltTypeStr = getElementName( static_cast<Element::Type>( new_mesh->GetElement(0)->GetType() ) );
         
         // Add mesh topology
-        grp->createViewString("topology/mesh/type", "unstructured");
-        grp->createViewString("topology/mesh/elements/shape",eltTypeStr);   // <-- Note: this comes form the mesh
-        grp->createView("topology/mesh/elements/connectivity");
+        grp->createViewString("topologies/mesh/type", "unstructured");
+        grp->createViewString("topologies/mesh/elements/shape",eltTypeStr);   // <-- Note: this comes form the mesh
+        grp->createView("topologies/mesh/elements/connectivity");
+        grp->createViewString("topologies/mesh/coordset", "mesh");
 
         // Add mesh boundary topology
-        grp->createViewString("topology/boundary/type", "unstructured");
-        grp->createViewString("topology/boundary/elements/shape",eltTypeStr);   // <-- Note: this comes form the mesh
-        grp->createView("topology/boundary/elements/connectivity");
+        grp->createViewString("topologies/boundary/type", "unstructured");
+        grp->createViewString("topologies/boundary/elements/shape",eltTypeStr);   // <-- Note: this comes form the mesh
+        grp->createView("topologies/boundary/elements/connectivity");
+        grp->createViewString("topologies/boundary/coordset", "mesh");
  
         // Add coordinate set
-        grp->createViewString("coordset/type", "explicit");
+        grp->createViewString("coordsets/mesh/type", "explicit");
 
         switch(dim) // Note-- intentional fall through on switch variable
         {
-        case 3:     grp->createView("coordset/z");
-        case 2:     grp->createView("coordset/y");
-        case 1:     grp->createView("coordset/x");  break;
+        case 3:     grp->createView("coordsets/mesh/z");
+        case 2:     grp->createView("coordsets/mesh/y");
+        case 1:     grp->createView("coordsets/mesh/x");  break;
         }
 
         // Add mesh elements material attribute field
         grp->createViewString("fields/mesh_material_attribute/association", "Element");
         grp->createView("fields/mesh_material_attribute/values");
+        grp->createViewString("fields/mesh_material_attribute/topology", "mesh");
 
         // Add boundary elements material attribute field
         grp->createViewString("fields/boundary_material_attribute/association", "Element");
         grp->createView("fields/boundary_material_attribute/values");
+        grp->createViewString("fields/boundary_material_attribute/topology", "boundary");
     }
 
     // NOTE: This code can be consolidated to a single 'addElements' helper function.
@@ -115,8 +118,8 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
     int mesh_num_indices = mesh_num_elements * element_size;
     int bnd_num_indices = bnd_num_elements * element_size;
 
-    mesh_elements_connectivity = grp->getView("topology/mesh/elements/connectivity");
-    bnd_elements_connectivity = grp->getView("topology/boundary/elements/connectivity");
+    mesh_elements_connectivity = grp->getView("topologies/mesh/elements/connectivity");
+    bnd_elements_connectivity = grp->getView("topologies/boundary/elements/connectivity");
     mesh_material_attribute_values = grp->getView("fields/mesh_material_attribute/values");
     bnd_material_attribute_values = grp->getView("fields/boundary_material_attribute/values");
 
@@ -134,19 +137,19 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
        switch(dim) // Note-- intentional fall through on switch variable
        {
        case 3:
-           grp->getView("coordset/z")->attachBuffer(coordbuf)
+           grp->getView("coordsets/mesh/z")->attachBuffer(coordbuf)
                                      ->apply(sidre::DOUBLE_ID, num_vertices, 2, dim);
        case 2:
-           grp->getView("coordset/y")->attachBuffer(coordbuf)
+           grp->getView("coordsets/mesh/y")->attachBuffer(coordbuf)
                                      ->apply(sidre::DOUBLE_ID, num_vertices, 1, dim);
        case 1:
-           grp->getView("coordset/x")->attachBuffer(coordbuf)
+           grp->getView("coordsets/mesh/x")->attachBuffer(coordbuf)
                                      ->apply(sidre::DOUBLE_ID, num_vertices, 0, dim);
        }
     }
 
     // Change ownership of mesh data to sidre
-    double *coord_values = grp->getView("coordset/x")->getBuffer()->getData();
+    double *coord_values = grp->getView("coordsets/mesh/x")->getBuffer()->getData();
 
     new_mesh->ChangeElementDataOwnership(
             mesh_elements_connectivity->getArray(),
@@ -188,7 +191,138 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
     new_mesh->GetNodes()->NewDataAndSize(gfData, sz);
     RegisterField( "nodes", new_mesh->GetNodes());
 }
+/*
+void SidreDataCollection::CopyMesh(std::string name, Mesh *new_mesh)
+{
+    namespace sidre = asctoolkit::sidre;
+    sidre::DataGroup* grp = sidre_dc_group;
 
+    int dim = new_mesh->Dimension();
+
+    /// Setup the mesh blueprint
+
+    // Find the element shape
+    // Note: Assumes homogeneous elements, so only check the first element
+    std::string eltTypeStr = getElementName( static_cast<Element::Type>( new_mesh->GetElement(0)->GetType() ) );
+        
+    // Add mesh topology
+    grp->createViewString("topologies/" + name + "_mesh/type", "unstructured");
+    grp->createViewString("topologies/initial_mesh/elements/shape",eltTypeStr);   // <-- Note: this comes form the mesh
+    grp->createView("topologies/initial_mesh/elements/connectivity");
+
+    // Add mesh boundary topology
+    grp->createViewString("topologies/initial_boundary/type", "unstructured");
+    grp->createViewString("topologies/initial_boundary/elements/shape",eltTypeStr);   // <-- Note: this comes form the mesh
+    grp->createView("topologies/initial_boundary/elements/connectivity");
+ 
+    // Add coordinate set
+    grp->createViewString("coordsets/type", "explicit");
+
+    switch(dim) // Note-- intentional fall through on switch variable
+    {
+        case 3:     grp->createView("coordsets/z");
+        case 2:     grp->createView("coordsets/y");
+        case 1:     grp->createView("coordsets/x");  break;
+    }
+
+    // Add mesh elements material attribute field
+    grp->createViewString("fields/mesh_material_attribute/association", "Element");
+    grp->createView("fields/mesh_material_attribute/values");
+
+    // Add boundary elements material attribute field
+    grp->createViewString("fields/boundary_material_attribute/association", "Element");
+    grp->createView("fields/boundary_material_attribute/values");
+
+    // NOTE: This code can be consolidated to a single 'addElements' helper function.
+    // It could be called twice - once for each topology to be added.
+    sidre::DataView *mesh_elements_connectivity;
+    sidre::DataView *bnd_elements_connectivity;
+    sidre::DataView *mesh_material_attribute_values;
+    sidre::DataView *bnd_material_attribute_values;
+
+    int element_size = new_mesh->GetElement(0)->GetNVertices();
+    int num_vertices = new_mesh->GetNV();
+    int coordset_len = dim * num_vertices;
+
+    int mesh_num_elements = new_mesh->GetNE();
+    int bnd_num_elements = new_mesh->GetNBE();
+    int mesh_num_indices = mesh_num_elements * element_size;
+    int bnd_num_indices = bnd_num_elements * element_size;
+
+    mesh_elements_connectivity = grp->getView("topologies/mesh/elements/connectivity");
+    bnd_elements_connectivity = grp->getView("topologies/boundary/elements/connectivity");
+    mesh_material_attribute_values = grp->getView("fields/mesh_material_attribute/values");
+    bnd_material_attribute_values = grp->getView("fields/boundary_material_attribute/values");
+
+    if (!isRestart)
+    {
+       mesh_elements_connectivity->allocate(sidre::INT_ID,mesh_num_indices);
+       mesh_material_attribute_values->allocate(sidre::INT_ID,mesh_num_elements);
+       bnd_elements_connectivity->allocate(sidre::INT_ID,bnd_num_indices);
+       bnd_material_attribute_values->allocate(sidre::INT_ID,bnd_num_elements);
+
+       sidre::DataBuffer* coordbuf = grp->getDataStore()
+                                         ->createBuffer(sidre::DOUBLE_ID, coordset_len)
+                                         ->allocate();
+
+       switch(dim) // Note-- intentional fall through on switch variable
+       {
+       case 3:
+           grp->getView("coordsets/z")->attachBuffer(coordbuf)
+                                     ->apply(sidre::DOUBLE_ID, num_vertices, 2, dim);
+       case 2:
+           grp->getView("coordsets/y")->attachBuffer(coordbuf)
+                                     ->apply(sidre::DOUBLE_ID, num_vertices, 1, dim);
+       case 1:
+           grp->getView("coordsets/x")->attachBuffer(coordbuf)
+                                     ->apply(sidre::DOUBLE_ID, num_vertices, 0, dim);
+       }
+    }
+
+    // Change ownership of mesh data to sidre
+    double *coord_values = grp->getView("coordsets/x")->getBuffer()->getData();
+
+    new_mesh->ChangeElementDataOwnership(
+            mesh_elements_connectivity->getArray(),
+            element_size * mesh_num_elements,
+            mesh_material_attribute_values->getArray(),
+            mesh_num_elements,
+            isRestart);
+
+    new_mesh->ChangeBoundaryElementDataOwnership(
+            bnd_elements_connectivity->getArray(),
+            element_size * bnd_num_elements,
+            bnd_material_attribute_values->getArray(),
+            bnd_num_elements,
+            isRestart);
+
+    new_mesh->ChangeVertexDataOwnership(
+            coord_values,
+            dim,
+            coordset_len,
+            isRestart);
+
+    // copy mesh nodes grid function
+
+    //  When not restart, copy data from mesh to datastore
+    //  In both cases, set the mesh version to point to this
+    // Remove once we directly load the mesh into the datastore
+    // Note: There is likely a much better way to do this
+
+    const FiniteElementSpace* nFes = new_mesh->GetNodalFESpace();
+    int sz = nFes->GetVSize();
+    double* gfData = GetFieldData("nodes", sz);
+
+    if(! isRestart)
+    {
+      double* meshNodeData = new_mesh->GetNodes()->GetData();
+      std::memcpy(gfData, meshNodeData, sizeof(double) * sz);
+    }
+
+    new_mesh->GetNodes()->NewDataAndSize(gfData, sz);
+    RegisterField( "nodes", new_mesh->GetNodes());
+}
+*/
 void SidreDataCollection::Load(const std::string& path, const std::string& protocol)
 {
 	std::cout << "Loading Sidre checkpoint: " << path << " using protocol: " << protocol << std::endl;
@@ -264,6 +398,7 @@ double* SidreDataCollection::GetFieldData(const char *field_name, int sz)
     if( ! f->hasGroup( field_name ) )
     {
         sidre::DataGroup* grp = f->createGroup( field_name );
+        grp->createViewString("topology", "mesh");
         grp->createViewAndAllocate("values", sidre::DOUBLE_ID, sz);
     }
     else
