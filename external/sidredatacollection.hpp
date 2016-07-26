@@ -71,6 +71,10 @@ public:
    * Returns null if base_field does not exist
    */
   double* GetFieldData(const char *field_name, int sz, const char *base_field, int offset = 0, int stride = 1);
+
+
+  bool HasFieldData(const char *field_name);
+
 private:
   // Private helper functions
 
