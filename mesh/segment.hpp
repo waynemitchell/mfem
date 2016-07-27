@@ -27,6 +27,7 @@ protected:
    //int *indices;
 
 public:
+   typedef Geometry::Constants<Geometry::SEGMENT> geom_t;
    static const size_t NUM_INDICES = 2;
 
    Segment() : Element(Geometry::SEGMENT, NULL, 2, NULL) { }

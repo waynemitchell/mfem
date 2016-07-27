@@ -28,8 +28,7 @@ protected:
 
 public:
    static const size_t NUM_INDICES = 8;
-   static const int edges[12][2];
-   static const int faces[6][4];  // same as Mesh::hex_faces
+   typedef Geometry::Constants<Geometry::CUBE> geom_t;
 
    Hexahedron() : Element(Geometry::CUBE, NULL, 8, NULL) { };
    Hexahedron(int_ptr_pair p) 
@@ -56,13 +55,13 @@ public:
    virtual int GetNEdges() const { return 12; }
 
    virtual const int *GetEdgeVertices(int ei) const
-   { return edges[ei]; }
+   { return geom_t::Edges[ei]; }
 
    virtual int GetNFaces(int &nFaceVertices) const
    { nFaceVertices = 4; return 6; }
 
    virtual const int *GetFaceVertices(int fi) const
-   { return faces[fi]; }
+   { return geom_t::FaceVert[fi]; }
 
    virtual Element *Duplicate(Mesh *m) const
    { return new Hexahedron(indices, attribute); }

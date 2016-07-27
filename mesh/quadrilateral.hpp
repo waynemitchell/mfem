@@ -14,7 +14,6 @@
 
 #include "../config/config.hpp"
 #include "element.hpp"
-#include "allocator.hpp"
 
 namespace mfem
 {
@@ -24,10 +23,8 @@ class Quadrilateral : public Element
 {
 protected:
 
-   static const int edges[4][2];
-
-
 public:
+   typedef Geometry::Constants<Geometry::SQUARE> geom_t;
    static const size_t NUM_INDICES = 4;
 
    Quadrilateral() : Element(Geometry::SQUARE, NULL, 4, NULL) {}
@@ -63,7 +60,7 @@ public:
    virtual int GetNEdges() const { return (4); }
 
    virtual const int *GetEdgeVertices(int ei) const
-   { return (edges[ei]); }
+   { return geom_t::Edges[ei]; }
 
    virtual int GetNFaces(int &nFaceVertices) const
    { nFaceVertices = 0; return 0; }

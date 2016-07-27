@@ -47,6 +47,8 @@ public:
 
    void PrintSizes();
 
+   void Assemble();
+
    void Update();
 
    void Solve();

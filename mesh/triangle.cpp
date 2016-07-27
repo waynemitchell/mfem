@@ -14,8 +14,6 @@
 namespace mfem
 {
 
-const int Triangle::edges[3][2] = {{0, 1}, {1, 2}, {2, 0}};
-
 Triangle::Triangle(const int *ind, int attr, int_ptr_pair p) 
    : Element(Geometry::TRIANGLE, p.first, 3, p.second)
 {

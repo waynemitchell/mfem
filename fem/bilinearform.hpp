@@ -38,6 +38,10 @@ protected:
    /// FE space on which the form lives.
    FiniteElementSpace *fes;
 
+   /// Indicates the Mesh::sequence corresponding to the current state of the
+   /// BilinearForm.
+   long sequence;
+
    int extern_bfs;
 
    /// Set of Domain Integrators to be applied.
@@ -69,7 +73,8 @@ protected:
    // may be used in the construction of derived classes
    BilinearForm() : Matrix (0)
    {
-      fes = NULL; mat = mat_e = NULL; extern_bfs = 0; element_matrices = NULL;
+      fes = NULL; sequence = -1;
+      mat = mat_e = NULL; extern_bfs = 0; element_matrices = NULL;
       static_cond = NULL; hybridization = NULL;
       precompute_sparsity = 0;
    }
@@ -95,7 +100,7 @@ public:
 
    /// Return the trace FE space associated with static condensation.
    FiniteElementSpace *SCFESpace() const
-   { return static_cond->GetTraceFESpace(); }
+   { return static_cond ? static_cond->GetTraceFESpace() : NULL; }
 
    /** Enable hybridization; for details see the description for class
        Hybridization in fem/hybridization.hpp. This method should be called
@@ -238,6 +243,8 @@ public:
    void ComputeElementMatrix(int i, DenseMatrix &elmat);
    void AssembleElementMatrix(int i, const DenseMatrix &elmat,
                               Array<int> &vdofs, int skip_zeros = 1);
+   void AssembleBdrElementMatrix(int i, const DenseMatrix &elmat,
+                                 Array<int> &vdofs, int skip_zeros = 1);
 
    /** Eliminate essential boundary DOFs from the system. The array
        'bdr_attr_is_ess' marks boundary attributes that constitute the essential
@@ -287,17 +294,17 @@ public:
 };
 
 /**
-   Class for assembling of bilinear forms a(u,v) defined on different
-   trial and test spaces. The assembled matrix A is such that
+   Class for assembling of bilinear forms `a(u,v)` defined on different
+   trial and test spaces. The assembled matrix `A` is such that
 
-   a(u,v) = V^t A U
+       a(u,v) = V^t A U
 
-   where U and V are the vectors representing the function u and v,
-   respectively.  The first argument, u, of a(,) is in the trial space
-   and the second argument, v, is in the test space. Thus,
+   where `U` and `V` are the vectors representing the functions `u` and `v`,
+   respectively.  The first argument, `u`, of `a(,)` is in the trial space
+   and the second argument, `v`, is in the test space. Thus,
 
-   # of rows of A = dimension of the test space and
-   # of cols of A = dimension of the trial space.
+       # of rows of A = dimension of the test space and
+       # of cols of A = dimension of the trial space.
 
    Both trial and test spaces should be defined on the same mesh.
 */
@@ -386,33 +393,33 @@ public:
 
 /**
    Class for constructing the matrix representation of a linear operator,
-   v = L u, from one FiniteElementSpace (domain) to another FiniteElementSpace
-   (range). The constructed matrix A is such that
+   `v = L u`, from one FiniteElementSpace (domain) to another FiniteElementSpace
+   (range). The constructed matrix `A` is such that
 
-   V = A U
+       V = A U
 
-   where U and V are the vectors of degrees of freedom representing the
-   functions u and v, respectively. The dimensions of A are
+   where `U` and `V` are the vectors of degrees of freedom representing the
+   functions `u` and `v`, respectively. The dimensions of `A` are
 
-   number of rows of A = dimension of the range space and
-   number of cols of A = dimension of the domain space.
+       number of rows of A = dimension of the range space and
+       number of cols of A = dimension of the domain space.
 
    This class is very similar to MixedBilinearForm. One difference is that
-   the linear operator L is defined using a special kind of
+   the linear operator `L` is defined using a special kind of
    BilinearFormIntegrator (we reuse its functionality instead of defining a
    new class). The other difference with the MixedBilinearForm class is that
    the "assembly" process overwrites the global matrix entries using the
    local element matrices instead of adding them.
 
-   Note that if we define the bilinear form b(u,v) := (Lu,v) using an inner
-   product in the range space, then its matrix representation, B, is
+   Note that if we define the bilinear form `b(u,v) := (Lu,v)` using an inner
+   product in the range space, then its matrix representation, `B`, is
 
-   B = M A, (since V^t B U = b(u,v) = (Lu,v) = V^t M A U)
+       B = M A, (since V^t B U = b(u,v) = (Lu,v) = V^t M A U)
 
-   where M denotes the mass matrix for the inner product in the range space:
-   V1^t M V2 = (v1,v2). Similarly, if c(u,w) := (Lu,Lw) then
+   where `M` denotes the mass matrix for the inner product in the range space:
+   `V1^t M V2 = (v1,v2)`. Similarly, if `c(u,w) := (Lu,Lw)` then
 
-   C = A^t M A.
+       C = A^t M A.
 */
 class DiscreteLinearOperator : public MixedBilinearForm
 {

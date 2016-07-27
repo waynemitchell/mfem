@@ -28,8 +28,9 @@ protected:
 
 public:
    static const size_t NUM_INDICES = 1;
+   typedef Geometry::Constants<Geometry::POINT> geom_t;
 
-   Point() : Element(Geometry::POINT, NULL, 1, NULL) { }
+   Point() : Element(Geometry::POINT, NULL, 1, NULL) {}
    Point(int_ptr_pair p) : Element(Geometry::POINT, p.first, 1, p.second) { }
 
    /// Constructs triangle by specifying the indices and the attribute.

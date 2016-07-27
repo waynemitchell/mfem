@@ -39,13 +39,14 @@ protected:
 
 public:
 
-   /// Default constructor for Vector. Sets size = 0 and data = NULL
+   /// Default constructor for Vector. Sets size = 0 and data = NULL.
    Vector () { allocsize = size = 0; data = 0; }
 
    /// Copy constructor
    Vector(const Vector &);
 
-   /// Creates vector of size s.
+   /// @brief Creates vector of size s.
+   /// @warning Entries are not initialized to zero!
    explicit Vector (int s);
 
    /// Creates a vector referencing an array of doubles, owned by someone else.
@@ -61,7 +62,8 @@ public:
    /// Load a vector from an input stream.
    void Load(std::istream &in) { int s; in >> s; Load (in, s); }
 
-   /// Resizes the vector if the new size is different
+   /// @brief Resize the vector if the new size is different.
+   /// @warning New entries are not initialized!
    void SetSize(int s);
 
    void SetData(double *d) { data = d; }

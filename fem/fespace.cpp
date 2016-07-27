@@ -22,6 +22,36 @@ using namespace std;
 namespace mfem
 {
 
+template <> void Ordering::
+DofsToVDofs<Ordering::byNODES>(int ndofs, int vdim, Array<int> &dofs)
+{
+   // static method
+   int size = dofs.Size();
+   dofs.SetSize(size*vdim);
+   for (int vd = 1; vd < vdim; vd++)
+   {
+      for (int i = 0; i < size; i++)
+      {
+         dofs[i+size*vd] = Map<byNODES>(ndofs, vdim, dofs[i], vd);
+      }
+   }
+}
+
+template <> void Ordering::
+DofsToVDofs<Ordering::byVDIM>(int ndofs, int vdim, Array<int> &dofs)
+{
+   // static method
+   int size = dofs.Size();
+   dofs.SetSize(size*vdim);
+   for (int vd = vdim-1; vd >= 0; vd--)
+   {
+      for (int i = 0; i < size; i++)
+      {
+         dofs[i+size*vd] = Map<byVDIM>(ndofs, vdim, dofs[i], vd);
+      }
+   }
+}
+
 int FiniteElementSpace::GetOrder(int i) const
 {
    int GeomType = mesh->GetElementBaseGeometry(i);
@@ -36,47 +66,16 @@ int FiniteElementSpace::GetFaceOrder(int i) const
 
 void FiniteElementSpace::DofsToVDofs (Array<int> &dofs, int ndofs) const
 {
-   int i, j, size;
-
    if (vdim == 1) { return; }
    if (ndofs < 0) { ndofs = this->ndofs; }
 
-   size = dofs.Size();
-   dofs.SetSize (size * vdim);
-
    if (ordering == Ordering::byNODES)
    {
-      for (i = 1; i < vdim; i++)
-      {
-         for (j = 0; j < size; j++)
-         {
-            if (dofs[j] < 0)
-            {
-               dofs[size * i + j] = -1 - ( ndofs * i + (-1-dofs[j]) );
-            }
-            else
-            {
-               dofs[size * i + j] = ndofs * i + dofs[j];
-            }
-         }
-      }
+      Ordering::DofsToVDofs<Ordering::byNODES>(ndofs, vdim, dofs);
    }
    else
    {
-      for (i = vdim-1; i >= 0; i--)
-      {
-         for (j = 0; j < size; j++)
-         {
-            if (dofs[j] < 0)
-            {
-               dofs[size * i + j] = -1 - ( (-1-dofs[j]) * vdim + i );
-            }
-            else
-            {
-               dofs[size * i + j] = dofs[j] * vdim + i;
-            }
-         }
-      }
+      Ordering::DofsToVDofs<Ordering::byVDIM>(ndofs, vdim, dofs);
    }
 }
 
@@ -89,30 +88,14 @@ void FiniteElementSpace::DofsToVDofs(int vd, Array<int> &dofs, int ndofs) const
    {
       for (int i = 0; i < dofs.Size(); i++)
       {
-         int dof = dofs[i];
-         if (dof < 0)
-         {
-            dofs[i] = -1 - ((-1-dof) + vd * ndofs);
-         }
-         else
-         {
-            dofs[i] = dof + vd * ndofs;
-         }
+         dofs[i] = Ordering::Map<Ordering::byNODES>(ndofs, vdim, dofs[i], vd);
       }
    }
    else
    {
       for (int i = 0; i < dofs.Size(); i++)
       {
-         int dof = dofs[i];
-         if (dof < 0)
-         {
-            dofs[i] = -1 - ((-1-dof) * vdim + vd);
-         }
-         else
-         {
-            dofs[i] = dof * vdim + vd;
-         }
+         dofs[i] = Ordering::Map<Ordering::byVDIM>(ndofs, vdim, dofs[i], vd);
       }
    }
 }
@@ -124,25 +107,11 @@ int FiniteElementSpace::DofToVDof(int dof, int vd, int ndofs) const
 
    if (ordering == Ordering::byNODES)
    {
-      if (dof < 0)
-      {
-         return -1 - ((-1-dof) + vd * ndofs);
-      }
-      else
-      {
-         return dof + vd * ndofs;
-      }
+      return Ordering::Map<Ordering::byNODES>(ndofs, vdim, dof, vd);
    }
    else
    {
-      if (dof < 0)
-      {
-         return -1 - ((-1-dof) * vdim + vd);
-      }
-      else
-      {
-         return dof * vdim + vd;
-      }
+      return Ordering::Map<Ordering::byVDIM>(ndofs, vdim, dof, vd);
    }
 }
 
@@ -521,6 +490,9 @@ void FiniteElementSpace::GetConformingInterpolation()
    MFEM_VERIFY(dynamic_cast<ParFiniteElementSpace*>(this) == NULL,
                "This method should not be used with a ParFiniteElementSpace!");
 #endif
+   if (cP_is_set) { return; }
+   cP_is_set = true;
+
    // For each slave DOF, the dependency matrix will contain a row that
    // expresses the slave DOF as a linear combination of its immediate master
    // DOFs. Rows of independent DOFs will remain empty.
@@ -697,14 +669,14 @@ void FiniteElementSpace::MakeVDimMatrix(SparseMatrix &mat) const
 const SparseMatrix* FiniteElementSpace::GetConformingProlongation()
 {
    if (Conforming()) { return NULL; }
-   if (!cP) { GetConformingInterpolation(); }
+   if (!cP_is_set) { GetConformingInterpolation(); }
    return cP;
 }
 
 const SparseMatrix* FiniteElementSpace::GetConformingRestriction()
 {
    if (Conforming()) { return NULL; }
-   if (!cR) { GetConformingInterpolation(); }
+   if (!cP_is_set) { GetConformingInterpolation(); }
    return cR;
 }
 
@@ -933,6 +905,7 @@ FiniteElementSpace::FiniteElementSpace(Mesh *mesh,
          }
          UpdateNURBS();
          cP = cR = NULL;
+         cP_is_set = false;
          T = NULL;
          own_T = true;
       }
@@ -999,6 +972,7 @@ void FiniteElementSpace::Construct()
    fdofs = NULL;
    cP = NULL;
    cR = NULL;
+   cP_is_set = false;
    T = NULL;
    own_T = true;
 
@@ -1450,7 +1424,7 @@ void FiniteElementSpace::Update(bool want_transform)
    {
       return; // mesh and space are in sync, no-op
    }
-   if (mesh->GetSequence() != sequence + 1)
+   if (want_transform && mesh->GetSequence() != sequence + 1)
    {
       MFEM_ABORT("Error in update sequence. Space needs to be updated after "
                  "each mesh modification.");

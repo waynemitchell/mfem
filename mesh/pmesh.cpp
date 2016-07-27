@@ -537,7 +537,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
                case Element::TRIANGLE:
                   sface_lface[sface_counter] = (*faces_tbl)(v[0], v[1], v[2]);
                   // mark the shared face for refinement by reorienting
-                  // it according to the refinement flag in the tetradron
+                  // it according to the refinement flag in the tetrahedron
                   // to which this shared face belongs to.
                   {
                      int lface = sface_lface[sface_counter];
@@ -778,6 +778,49 @@ int ParMesh::GetFaceSplittings(Element *face, const DSTable &v_to_v,
    return number_of_splittings;
 }
 
+void ParMesh::GenerateOffsets(int N, HYPRE_Int loc_sizes[],
+                              Array<HYPRE_Int> *offsets[]) const
+{
+   if (HYPRE_AssumedPartitionCheck())
+   {
+      Array<HYPRE_Int> temp(N);
+      MPI_Scan(loc_sizes, temp.GetData(), N, HYPRE_MPI_INT, MPI_SUM, MyComm);
+      for (int i = 0; i < N; i++)
+      {
+         offsets[i]->SetSize(3);
+         (*offsets[i])[0] = temp[i] - loc_sizes[i];
+         (*offsets[i])[1] = temp[i];
+      }
+      MPI_Bcast(temp.GetData(), N, HYPRE_MPI_INT, NRanks-1, MyComm);
+      for (int i = 0; i < N; i++)
+      {
+         (*offsets[i])[2] = temp[i];
+         // check for overflow
+         MFEM_VERIFY((*offsets[i])[0] >= 0 && (*offsets[i])[1] >= 0,
+                     "overflow in offsets");
+      }
+   }
+   else
+   {
+      Array<HYPRE_Int> temp(N*NRanks);
+      MPI_Allgather(loc_sizes, N, HYPRE_MPI_INT, temp.GetData(), N,
+                    HYPRE_MPI_INT, MyComm);
+      for (int i = 0; i < N; i++)
+      {
+         Array<HYPRE_Int> &offs = *offsets[i];
+         offs.SetSize(NRanks+1);
+         offs[0] = 0;
+         for (int j = 0; j < NRanks; j++)
+         {
+            offs[j+1] = offs[j] + temp[i+N*j];
+         }
+         // Check for overflow
+         MFEM_VERIFY(offs[MyRank] >= 0 && offs[MyRank+1] >= 0,
+                     "overflow in offsets");
+      }
+   }
+}
+
 void ParMesh::GetFaceNbrElementTransformation(
    int i, IsoparametricTransformation *ElTr)
 {
@@ -859,7 +902,7 @@ void ParMesh::ExchangeFaceNbrData()
 
    if (Nonconforming())
    {
-      // with ParNCMesh we can set up face neigbors without communication
+      // with ParNCMesh we can set up face neighbors without communication
       pncmesh->GetFaceNeighbors(*this);
       have_face_nbr_data = true;
 
@@ -1212,7 +1255,7 @@ void ParMesh::ExchangeFaceNbrData()
             if  (lf->GetGeometryType() == Geometry::TRIANGLE)
             {
                // apply the nbr_ori to sf_v to get nbr_v
-               const int *perm = tri_orientations[nbr_ori];
+               const int *perm = tri_t::Orient[nbr_ori];
                for (int j = 0; j < 3; j++)
                {
                   nbr_v[perm[j]] = sf_v[j];
@@ -1223,7 +1266,7 @@ void ParMesh::ExchangeFaceNbrData()
             else
             {
                // apply the nbr_ori to sf_v to get nbr_v
-               const int *perm = quad_orientations[nbr_ori];
+               const int *perm = quad_t::Orient[nbr_ori];
                for (int j = 0; j < 4; j++)
                {
                   nbr_v[perm[j]] = sf_v[j];
@@ -1401,7 +1444,7 @@ ElementTransformation* ParMesh::GetGhostFaceTransformation(
       const FiniteElement* face_el =
          Nodes->FESpace()->GetTraceElement(FETr->Elem1No, face_geom);
 
-#if 0 // TODO: handle the case of non-nodal Nodes
+#if 0 // TODO: handle the case of non-interpolatory Nodes
       DenseMatrix I;
       face_el->Project(Transformation.GetFE(), FETr->Loc1.Transf, I);
       MultABt(Transformation.GetPointMat(), I, pm_face);
@@ -1415,7 +1458,8 @@ ElementTransformation* ParMesh::GetGhostFaceTransformation(
    return &FaceTransformation;
 }
 
-FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
+FaceElementTransformations *ParMesh::
+GetSharedFaceTransformations(int sf, bool fill2)
 {
    int FaceNo = GetSharedFace(sf);
 
@@ -1437,16 +1481,23 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
    FaceElemTr.Elem1 = &Transformation;
 
    // setup the transformation for the second (neighbor) element
-   FaceElemTr.Elem2No = -1 - face_info.Elem2No;
-   GetFaceNbrElementTransformation(FaceElemTr.Elem2No, &Transformation2);
-   FaceElemTr.Elem2 = &Transformation2;
+   if (fill2)
+   {
+      FaceElemTr.Elem2No = -1 - face_info.Elem2No;
+      GetFaceNbrElementTransformation(FaceElemTr.Elem2No, &Transformation2);
+      FaceElemTr.Elem2 = &Transformation2;
+   }
+   else
+   {
+      FaceElemTr.Elem2No = -1;
+   }
 
    // setup the face transformation if the face is not a ghost
    FaceElemTr.FaceGeom = face_geom;
    if (!is_ghost)
    {
       FaceElemTr.Face = GetFaceTransformation(FaceNo);
-      // NOTE: GetFaceElementTransformation destroys FaceElemTr.Loc1
+      // NOTE: The above call overwrites FaceElemTr.Loc1
    }
 
    // setup Loc1 & Loc2
@@ -1454,9 +1505,12 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
    GetLocalFaceTransformation(face_type, elem_type, FaceElemTr.Loc1.Transf,
                               face_info.Elem1Inf);
 
-   elem_type = face_nbr_elements[FaceElemTr.Elem2No]->GetType();
-   GetLocalFaceTransformation(face_type, elem_type, FaceElemTr.Loc2.Transf,
-                              face_info.Elem2Inf);
+   if (fill2)
+   {
+      elem_type = face_nbr_elements[FaceElemTr.Elem2No]->GetType();
+      GetLocalFaceTransformation(face_type, elem_type, FaceElemTr.Loc2.Transf,
+                                 face_info.Elem2Inf);
+   }
 
    // adjust Loc1 or Loc2 of the master face if this is a slave face
    if (is_slave)
@@ -1466,9 +1520,12 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
       IsoparametricTransformation &loctr =
          is_ghost ? FaceElemTr.Loc1.Transf : FaceElemTr.Loc2.Transf;
 
-      ApplyLocalSlaveTransformation(loctr, face_info);
+      if (is_ghost || fill2)
+      {
+         ApplyLocalSlaveTransformation(loctr, face_info);
+      }
 
-      if (face_type == Element::SEGMENT)
+      if (face_type == Element::SEGMENT && fill2)
       {
          // fix slave orientation in 2D: flip Loc2 to match Loc1 and Face
          DenseMatrix &pm = FaceElemTr.Loc2.Transf.GetPointMat();
@@ -1526,13 +1583,6 @@ int ParMesh::GetSharedFace(int sface) const
              ? shared.conforming[sface].index
              : shared.slaves[sface - csize].index;
    }
-}
-
-long ParMesh::GlobalNE() const
-{
-   long local_ne = GetNE(), global_ne;
-   MPI_Allreduce(&local_ne, &global_ne, 1, MPI_LONG, MPI_SUM, MyComm);
-   return global_ne;
 }
 
 void ParMesh::ReorientTetMesh()
@@ -1605,7 +1655,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       DSTable v_to_v(NumOfVertices);
       GetVertexToVertexTable(v_to_v);
 
-      // 2. Get edge to element connections in arrays edge1 and edge2
+      // 2. Create a marker array for all edges (vertex to vertex connections).
       Array<int> middle(v_to_v.NumberOfEntries());
       middle = -1;
 
@@ -1669,7 +1719,6 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       int neighbor, *iBuf = new int[max_faces_in_group];
 
       Array<int> group_faces;
-      Vertex V;
 
       MPI_Request request;
       MPI_Status  status;
@@ -1705,6 +1754,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
             ref_loops_par++;
 #endif
             // MPI_Barrier(MyComm);
+            const int tag = 293;
 
             // (a) send the type of interface splitting
             for (i = 0; i < GetNGroups()-1; i++)
@@ -1712,24 +1762,18 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                group_sface.GetRow(i, group_faces);
                faces_in_group = group_faces.Size();
                // it is enough to communicate through the faces
-               if (faces_in_group != 0)
+               if (faces_in_group == 0) { continue; }
+
+               for (j = 0; j < faces_in_group; j++)
                {
-                  for (j = 0; j < faces_in_group; j++)
-                     face_splittings[i][j] =
-                        GetFaceSplittings(shared_faces[group_faces[j]], v_to_v,
-                                          middle);
-                  const int *nbs = gtopo.GetGroup(i+1);
-                  if (nbs[0] == 0)
-                  {
-                     neighbor = gtopo.GetNeighborRank(nbs[1]);
-                  }
-                  else
-                  {
-                     neighbor = gtopo.GetNeighborRank(nbs[0]);
-                  }
-                  MPI_Isend(face_splittings[i], faces_in_group, MPI_INT,
-                            neighbor, 0, MyComm, &request);
+                  face_splittings[i][j] =
+                     GetFaceSplittings(shared_faces[group_faces[j]], v_to_v,
+                                       middle);
                }
+               const int *nbs = gtopo.GetGroup(i+1);
+               neighbor = gtopo.GetNeighborRank(nbs[0] ? nbs[0] : nbs[1]);
+               MPI_Isend(face_splittings[i], faces_in_group, MPI_INT,
+                         neighbor, tag, MyComm, &request);
             }
 
             // (b) receive the type of interface splitting
@@ -1737,40 +1781,34 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
             {
                group_sface.GetRow(i, group_faces);
                faces_in_group = group_faces.Size();
-               if (faces_in_group != 0)
-               {
-                  const int *nbs = gtopo.GetGroup(i+1);
-                  if (nbs[0] == 0)
-                  {
-                     neighbor = gtopo.GetNeighborRank(nbs[1]);
-                  }
-                  else
-                  {
-                     neighbor = gtopo.GetNeighborRank(nbs[0]);
-                  }
-                  MPI_Recv(iBuf, faces_in_group, MPI_INT, neighbor,
-                           MPI_ANY_TAG, MyComm, &status);
+               if (faces_in_group == 0) { continue; }
 
-                  for (j = 0; j < faces_in_group; j++)
-                     if (iBuf[j] != face_splittings[i][j])
+               const int *nbs = gtopo.GetGroup(i+1);
+               neighbor = gtopo.GetNeighborRank(nbs[0] ? nbs[0] : nbs[1]);
+               MPI_Recv(iBuf, faces_in_group, MPI_INT, neighbor,
+                        tag, MyComm, &status);
+
+               for (j = 0; j < faces_in_group; j++)
+               {
+                  if (iBuf[j] == face_splittings[i][j]) { continue; }
+
+                  int *v = shared_faces[group_faces[j]]->GetVertices();
+                  for (int k = 0; k < 3; k++)
+                  {
+                     if (refined_edge[iBuf[j]][k] != 1 ||
+                         refined_edge[face_splittings[i][j]][k] != 0)
+                     { continue; }
+
+                     int ind[2] = { v[k], v[(k+1)%3] };
+                     int ii = v_to_v(ind[0], ind[1]);
+                     if (middle[ii] == -1)
                      {
-                        int *v = shared_faces[group_faces[j]]->GetVertices();
-                        for (int k = 0; k < 3; k++)
-                           if (refined_edge[iBuf[j]][k] == 1 &&
-                               refined_edge[face_splittings[i][j]][k] == 0)
-                           {
-                              int ii = v_to_v(v[k], v[(k+1)%3]);
-                              if (middle[ii] == -1)
-                              {
-                                 need_refinement = 1;
-                                 middle[ii] = NumOfVertices++;
-                                 for (int c = 0; c < 3; c++)
-                                    V(c) = 0.5 * (vertices[v[k]](c) +
-                                                  vertices[v[(k+1)%3]](c));
-                                 vertices.Append(V);
-                              }
-                           }
+                        need_refinement = 1;
+                        middle[ii] = NumOfVertices++;
+                        vertices.Append(Vertex());
+                        AverageVertices(ind, 2, vertices.Size()-1);
                      }
+                  }
                }
             }
 
@@ -1804,11 +1842,13 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       {
          need_refinement = 0;
          for (i = 0; i < NumOfBdrElements; i++)
+         {
             if (boundary[i]->NeedRefinement(v_to_v, middle))
             {
                need_refinement = 1;
                Bisection(i, v_to_v, middle);
             }
+         }
       }
       while (need_refinement == 1);
 
@@ -3914,7 +3954,7 @@ void ParMesh::PrintInfo(std::ostream &out)
    }
 }
 
-long ParMesh::ReduceInt(int value)
+long ParMesh::ReduceInt(int value) const
 {
    long local = value, global;
    MPI_Allreduce(&local, &global, 1, MPI_LONG, MPI_SUM, MyComm);

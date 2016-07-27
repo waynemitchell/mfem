@@ -765,7 +765,7 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
          fi.NCFace = -1;
       }
 
-      // fill in FaceInfo for slave faces
+      // fill in FaceInfo for shared slave faces
       for (unsigned i = 0; i < shared.masters.size(); i++)
       {
          const Master &mf = shared.masters[i];
@@ -1222,14 +1222,14 @@ void ParNCMesh::SynchronizeDerefinementData(Array<Type> &elem_data,
                for (int k = 0; k < neigh.Size(); k++)
                {
                   MPI_Request* req = new MPI_Request;
-                  MPI_Isend(data, len, datatype, neigh[k], 291, MyComm, req);
+                  MPI_Isend(data, len, datatype, neigh[k], 292, MyComm, req);
                   requests.Append(req);
                }
             }
             else
             {
                MPI_Request* req = new MPI_Request;
-               MPI_Irecv(data, len, datatype, rnk, 291, MyComm, req);
+               MPI_Irecv(data, len, datatype, rnk, 292, MyComm, req);
                requests.Append(req);
             }
          }

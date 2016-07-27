@@ -24,7 +24,6 @@ class Tetrahedron : public Element
 {
 protected:
    //int indices[4];
-   static const int edges[6][2];
 
    /** The refinement flag keeps (in order) :
        1. Two marked edges given with local index (0..5) for the two faces
@@ -39,6 +38,7 @@ protected:
    unsigned transform;
 
 public:
+   typedef Geometry::Constants<Geometry::TETRAHEDRON> geom_t;
    static const size_t NUM_INDICES = 4;
 
    /// Constants for different types of tetrahedrons.
@@ -100,7 +100,8 @@ public:
 
    virtual int GetNEdges() const { return (6); }
 
-   virtual const int *GetEdgeVertices(int ei) const { return (edges[ei]); }
+   virtual const int *GetEdgeVertices(int ei) const
+   { return geom_t::Edges[ei]; }
 
    virtual int GetNFaces(int &nFaceVertices) const
    { nFaceVertices = 3; return 4; }
