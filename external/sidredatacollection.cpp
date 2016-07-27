@@ -46,11 +46,6 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name, asc
   sidre_dc_group->createGroup("array_data");
 }
 
-
-void SidreDataCollection::SetupMeshBlueprint()
-{
-}
-
 void SidreDataCollection::SetMesh(Mesh *new_mesh)
 {
     DataCollection::SetMesh(new_mesh);

@@ -53,8 +53,6 @@ public:
 
   void setMeshStream(std::istream& input) {}
 
-  void SetupMeshBlueprint();
-
   void Save();
 
   void Load(const std::string& path, const std::string& protocol = "sidre_hdf5");
