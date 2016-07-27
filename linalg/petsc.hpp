@@ -229,22 +229,50 @@ PetscParMatrix * RAP(PetscParMatrix *A, PetscParMatrix *P);
 void EliminateBC(PetscParMatrix &A, PetscParMatrix &Ae,
                  const Array<int> &ess_dof_list, const Vector &X, Vector &B);
 
-
-/// Abstract class for PETSc's solvers and preconditioners
-class PetscLinearSolver : public Solver
+/// Abstract class for PETSc's solvers
+class PetscSolver : public Solver
 {
 protected:
-   /// The Krylov object
-   KSP ksp;
+   /// The actual PETSc object (KSP, SNES or TS)
+   PetscObject obj;
 
    /// Right-hand side and solution vector
    mutable PetscParVector *B, *X;
 
 private:
+   void Init();
+
+public:
+   /// Initialize protected objects to NULL
+   PetscSolver();
+
+   /// Destroy the PetscParVectors allocated (if any)
+   virtual ~PetscSolver();
+
+   // virtual methods for base class
+   virtual void SetOperator(const Operator &op)
+   {
+      MFEM_ABORT("Set Operator not implemented!")
+   };
+   virtual void Mult(const Vector &b, Vector &x) const
+   {
+      MFEM_ABORT("Mult not implemented!")
+   };
+
+   // pure virtual methods for derived classes
+   virtual void SetTol(double tol) = 0;
+   virtual void SetMaxIter(int max_iter) = 0;
+   virtual void SetPrintLevel(int plev) = 0;
+   virtual void Mult(const PetscParVector &b, PetscParVector &x) const = 0;
+};
+
+/// Abstract class for PETSc's linear solvers
+/// It inherits from Solver and not from IterativeSolver because we let PETSc
+/// handle the various SetOperator/SetPreconditioner methods.
+class PetscLinearSolver : public PetscSolver
+{
+private:
    bool wrap; // internal flag to handle HypreParMatrix conversion or not
-
-   MPI_Comm _comm; // MPI communicator
-
    void Init();
 
 public:
@@ -260,31 +288,23 @@ public:
    /// If wrap is false, the HypreParMatrix is converted into PETSc format.
    PetscLinearSolver(HypreParMatrix &_A,bool wrap=true);
 
-   /// Customization
-   void SetTol(double tol);
-   void SetMaxIter(int max_iter);
-   void SetPrintLevel(int plev);
-
-   /// Set the solver to be used as a preconditioner
-   void SetPreconditioner(Solver &precond);
-
-   /// Typecast to KSP -- returns the inner solver
-   //virtual operator KSP() const = 0;
-
+   /// virtual methods for base classes
    virtual void SetOperator(const Operator &op);
-
-   /// Solve the linear system Ax=b
-   virtual void Mult(const PetscParVector &b, PetscParVector &x) const;
    virtual void Mult(const Vector &b, Vector &x) const;
-
+   virtual void SetTol(double tol);
+   virtual void SetMaxIter(int max_iter);
+   virtual void SetPrintLevel(int plev);
+   virtual void Mult(const PetscParVector &b, PetscParVector &x) const;
    virtual ~PetscLinearSolver();
+
+   /// Sets the solver to be used as a preconditioner
+   void SetPreconditioner(Solver &precond);
 };
 
 class PetscPCGSolver : public PetscLinearSolver
 {
 public:
    PetscPCGSolver(PetscParMatrix &_A);
-
    PetscPCGSolver(HypreParMatrix &_A,bool wrap=true);
 };
 

@@ -55,6 +55,7 @@ namespace mfem
 {
 
 // PetscParVector methods
+
 void PetscParVector::_SetDataAndSize_()
 {
    const PetscScalar *array;
@@ -820,32 +821,56 @@ void EliminateBC(PetscParMatrix &A, PetscParMatrix &Ae,
    ierr = VecRestoreArrayRead(diag,&array); PCHKERRQ(diag,ierr);
 }
 
-// PetscLinearSolver
+// PetscSolver methods
+
+void PetscSolver::Init()
+{
+   obj = NULL;
+   B = X = NULL;
+}
+
+PetscSolver::PetscSolver()
+{
+   Init();
+}
+
+PetscSolver::~PetscSolver()
+{
+   if (B) { delete B; }
+   if (X) { delete X; }
+}
+
+// PetscLinearSolver methods
+
 void PetscLinearSolver::Init()
 {
-   ksp = NULL;
-   B = X = NULL;
    wrap = false;
 }
 
-PetscLinearSolver::PetscLinearSolver(MPI_Comm comm)
+PetscLinearSolver::PetscLinearSolver(MPI_Comm comm) : PetscSolver()
 {
    Init();
+   KSP ksp;
    ierr = KSPCreate(comm,&ksp); CCHKERRQ(comm,ierr);
+   obj = (PetscObject)ksp;
 }
 
-PetscLinearSolver::PetscLinearSolver(PetscParMatrix &_A)
+PetscLinearSolver::PetscLinearSolver(PetscParMatrix &_A) : PetscSolver()
 {
    Init();
+   KSP ksp;
    ierr = KSPCreate(_A.GetComm(),&ksp); CCHKERRQ(_A.GetComm(),ierr);
+   obj = (PetscObject)ksp;
    SetOperator(_A);
 }
 
-PetscLinearSolver::PetscLinearSolver(HypreParMatrix &_A,bool wrapin)
+PetscLinearSolver::PetscLinearSolver(HypreParMatrix &_A,bool wrapin) : PetscSolver()
 {
    Init();
    wrap = wrapin;
+   KSP ksp;
    ierr = KSPCreate(_A.GetComm(),&ksp); CCHKERRQ(_A.GetComm(),ierr);
+   obj = (PetscObject)ksp;
    SetOperator(_A);
 }
 
@@ -859,26 +884,29 @@ void PetscLinearSolver::SetOperator(const Operator &op)
                         (dynamic_cast<const Operator *>(&op));
    // update base classes: Operator, Solver, PetscLinearSolver
    bool delete_pA = false;
-   if (hA)
+   if (!pA)
    {
-      // Create MATSHELL object or convert
-      // into PETSc AIJ format depending on wrap
-      pA = new PetscParMatrix(hA,wrap);
-      delete_pA = true;
+      if (hA)
+      {
+         // Create MATSHELL object or convert
+         // into PETSc AIJ format depending on wrap
+         pA = new PetscParMatrix(hA,wrap);
+         delete_pA = true;
 
+      }
+      else if (oA) // fallback to general operator
+      {
+         // Create MATSHELL object
+         pA = new PetscParMatrix(PetscObjectComm(obj),oA);
+         delete_pA = true;
+      }
    }
-   else if (oA) // fallback to general operator
-   {
-      // Create MATSHELL object
-      pA = new PetscParMatrix(PetscObjectComm((PetscObject)ksp),oA);
-      delete_pA = true;
-   }
-   // raise error if this is not supported
    if (!pA)
    {
       MFEM_ABORT("PetscLinearSolver::SetOperator : Unsupported operation!");
    }
 
+   KSP ksp = (KSP)obj;
    Mat A = pA->A;
    PetscInt nheight,nwidth;
    ierr = MatGetSize(A,&nheight,&nwidth); PCHKERRQ(A,ierr);
@@ -966,11 +994,11 @@ static PetscErrorCode pc_shell_destroy(PC pc)
 
 #undef __FUNCT__
 
-// TODO: this is not complaint with mfem API
 void PetscLinearSolver::SetPreconditioner(Solver &precond)
 {
    PC pc;
 
+   KSP ksp = (KSP)obj;
    ierr = KSPGetPC(ksp,&pc); PCHKERRQ(ksp,ierr);
    ierr = PCSetType(pc,PCSHELL); PCHKERRQ(pc,ierr);
    solver_shell_ctx *ctx = new solver_shell_ctx;
@@ -984,6 +1012,7 @@ void PetscLinearSolver::SetPreconditioner(Solver &precond)
 
 void PetscLinearSolver::Mult(const PetscParVector &b, PetscParVector &x) const
 {
+   KSP ksp = (KSP)obj;
    ierr = KSPSetInitialGuessNonzero(ksp,PetscBool(iterative_mode));
    PCHKERRQ(ksp,ierr);
    ierr = KSPSolve(ksp,b.x,x.x); PCHKERRQ(ksp,ierr);
@@ -991,6 +1020,7 @@ void PetscLinearSolver::Mult(const PetscParVector &b, PetscParVector &x) const
 
 void PetscLinearSolver::Mult(const Vector &b, Vector &x) const
 {
+   KSP ksp = (KSP)obj;
    if (!B)
    {
       Mat pA;
@@ -1017,19 +1047,14 @@ void PetscLinearSolver::Mult(const Vector &b, Vector &x) const
 PetscLinearSolver::~PetscLinearSolver()
 {
    MPI_Comm comm;
+   KSP ksp = (KSP)obj;
    ierr = PetscObjectGetComm((PetscObject)ksp,&comm); PCHKERRQ(ksp,ierr);
    ierr = KSPDestroy(&ksp); CCHKERRQ(comm,ierr);
-   if (B) { delete B; }
-   if (X) { delete X; }
 }
 
 void PetscLinearSolver::SetTol(double tol)
 {
-   if (!ksp)
-   {
-      MFEM_ABORT("PetscLinearSolver::SetTol (...) : KSP is missing");
-      return;
-   }
+   KSP ksp = (KSP)obj;
    // PETSC_DEFAULT does not change any other
    // customization previously set.
    ierr = KSPSetTolerances(ksp,tol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);
@@ -1038,11 +1063,7 @@ void PetscLinearSolver::SetTol(double tol)
 
 void PetscLinearSolver::SetMaxIter(int max_iter)
 {
-   if (!ksp)
-   {
-      MFEM_ABORT("PetscLinearSolver::SetTol (...) : KSP is missing");
-      return;
-   }
+   KSP ksp = (KSP)obj;
    // PETSC_DEFAULT does not change any other
    // customization previously set.
    ierr = KSPSetTolerances(ksp,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT,max_iter);
@@ -1051,18 +1072,14 @@ void PetscLinearSolver::SetMaxIter(int max_iter)
 
 void PetscLinearSolver::SetPrintLevel(int plev)
 {
-   if (!ksp)
-   {
-      MFEM_ABORT("PetscLinearSolver::SetTol (...) : KSP is missing");
-      return;
-   }
    // TODO
 }
 
-// PetscPCGSolver
+// PetscPCGSolver methods
 
 PetscPCGSolver::PetscPCGSolver(PetscParMatrix& _A) : PetscLinearSolver(_A)
 {
+   KSP ksp = (KSP)obj;
    ierr = KSPSetType(ksp,KSPCG); PCHKERRQ(ksp,ierr);
    // this is to obtain a textbook PCG
    ierr = KSPSetNormType(ksp,KSP_NORM_NATURAL); PCHKERRQ(ksp,ierr);
@@ -1071,6 +1088,7 @@ PetscPCGSolver::PetscPCGSolver(PetscParMatrix& _A) : PetscLinearSolver(_A)
 PetscPCGSolver::PetscPCGSolver(HypreParMatrix& _A,
                                bool wrap) : PetscLinearSolver(_A,wrap)
 {
+   KSP ksp = (KSP)obj;
    ierr = KSPSetType(ksp,KSPCG); PCHKERRQ(ksp,ierr);
    // this is to obtain a textbook PCG
    ierr = KSPSetNormType(ksp,KSP_NORM_NATURAL); PCHKERRQ(ksp,ierr);
