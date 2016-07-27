@@ -49,6 +49,8 @@ public:
   /// Verify we will delete the mesh and fields if we own them
   virtual ~SidreDataCollection() {}
 
+  void CopyMesh(std::string name, Mesh *new_mesh);
+
   void SetMesh(Mesh *new_mesh);
 
   void setMeshStream(std::istream& input) {}
