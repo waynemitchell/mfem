@@ -72,6 +72,8 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
         grp->createViewString("topologies/mesh/elements/shape",eltTypeStr);   // <-- Note: this comes form the mesh
         grp->createView("topologies/mesh/elements/connectivity");
         grp->createViewString("topologies/mesh/coordset", "mesh");
+        grp->createViewString("topologies/mesh/mfem_grid_function", "nodes");
+        grp->createViewString("topologies/mesh/boundary_topology", "boundary");
 
         // Add mesh boundary topology
         grp->createViewString("topologies/boundary/type", "unstructured");
@@ -661,9 +663,9 @@ void SidreDataCollection::RegisterField(const char* field_name, GridFunction *gf
 
       // Set the topology of the gridfunction.
       // This is always 'mesh' except for a special case with the boundary material attributes field.
-      if(!grp->hasView("topologies"))
+      if(!grp->hasView("topology"))
       {
-          grp->createViewString("topologies", "mesh");
+          grp->createViewString("topology", "mesh");
       }
 
       // Set the data views of the grid function -- either scalar-valued or vector-valued
