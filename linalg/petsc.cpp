@@ -1174,13 +1174,13 @@ static PetscErrorCode MatConvert_hypreParCSR_AIJ(hypre_ParCSRMatrix* hA,Mat* pA)
          aptr += nc;
       }
       ierr = MatCreateMPIAIJWithSplitArrays(comm,m,n,PETSC_DECIDE,PETSC_DECIDE,dii,
-                                            djj,da,oii,ojj,oa,pA); CCHKERRQ(comm,ierr);
+                                            djj,da,oii,ojj,oa,pA); CHKERRQ(ierr);
    }
    else
    {
       oii = ojj = NULL;
       oa = NULL;
-      ierr = MatCreateSeqAIJWithArrays(comm,m,n,dii,djj,da,pA); CCHKERRQ(comm,ierr);
+      ierr = MatCreateSeqAIJWithArrays(comm,m,n,dii,djj,da,pA); CHKERRQ(ierr);
    }
    /* We are responsible to free the CSR arrays.
       However, since we can take references of a PetscParMatrix
@@ -1200,13 +1200,13 @@ static PetscErrorCode MatConvert_hypreParCSR_AIJ(hypre_ParCSRMatrix* hA,Mat* pA)
    {
       PetscContainer c;
 
-      ierr = PetscContainerCreate(comm,&c); CCHKERRQ(comm,ierr);
-      ierr = PetscContainerSetPointer(c,ptrs[i]); PCHKERRQ(c,ierr);
+      ierr = PetscContainerCreate(comm,&c); CHKERRQ(ierr);
+      ierr = PetscContainerSetPointer(c,ptrs[i]); CHKERRQ(ierr);
       ierr = PetscContainerSetUserDestroy(c,array_container_destroy);
-      PCHKERRQ(c,ierr);
+      CHKERRQ(ierr);
       ierr = PetscObjectCompose((PetscObject)(*pA),names[i],(PetscObject)c);
-      PCHKERRQ(c,ierr);
-      ierr = PetscContainerDestroy(&c); CCHKERRQ(comm,ierr);
+      CHKERRQ(ierr);
+      ierr = PetscContainerDestroy(&c); CHKERRQ(ierr);
    }
    PetscFunctionReturn(0);
 }
@@ -1218,61 +1218,74 @@ static PetscErrorCode MatConvert_hypreParCSR_IS(hypre_ParCSRMatrix* hA,Mat* pA)
    Mat                    lA;
    ISLocalToGlobalMapping rl2g,cl2g;
    IS                     is;
-   hypre_CSRMatrix        *locA;
-   PetscInt               min,max,lr,lc,nnz,i,ll,*jj,*aux;
+   hypre_CSRMatrix        *hdiag,*hoffd;
    MPI_Comm               comm = hypre_ParCSRMatrixComm(hA);
+   PetscScalar            *hdd,*hod,*aa,*data;
+   PetscInt               *col_map_offd,*hdi,*hdj,*hoi,*hoj;
+   PetscInt               *aux,*ii,*jj;
+   PetscInt               dr,dc,oc,str,stc,nnz,i,jd,jo;
    PetscErrorCode         ierr;
 
    PetscFunctionBeginUser;
-   /* merge diag and offdiag part */
-   locA = hypre_MergeDiagAndOffd(hA);
-   nnz  = hypre_CSRMatrixNumNonzeros(locA);
+   /* access relevant information in ParCSR */
+   str   = hypre_ParCSRMatrixFirstRowIndex(hA);
+   stc   = hypre_ParCSRMatrixFirstColDiag(hA);
+   hdiag = hypre_ParCSRMatrixDiag(hA);
+   hoffd = hypre_ParCSRMatrixOffd(hA);
+   dr    = hypre_CSRMatrixNumRows(hdiag);
+   dc    = hypre_CSRMatrixNumCols(hdiag);
+   nnz   = hypre_CSRMatrixNumNonzeros(hdiag);
+   hdi   = hypre_CSRMatrixI(hdiag);
+   hdj   = hypre_CSRMatrixJ(hdiag);
+   hdd   = hypre_CSRMatrixData(hdiag);
+   oc    = hypre_CSRMatrixNumCols(hoffd);
+   nnz  += hypre_CSRMatrixNumNonzeros(hoffd);
+   hoi   = hypre_CSRMatrixI(hoffd);
+   hoj   = hypre_CSRMatrixJ(hoffd);
+   hod   = hypre_CSRMatrixData(hoffd);
 
    /* generate l2g maps for rows and cols */
-   lr   = hypre_CSRMatrixNumRows(hypre_ParCSRMatrixDiag(hA));
-   ierr = ISCreateStride(comm,lr,hypre_ParCSRMatrixFirstRowIndex(hA),1,&is);
-   CCHKERRQ(comm,ierr);
-   ierr = ISLocalToGlobalMappingCreateIS(is,&rl2g); PCHKERRQ(is,ierr);
-   ierr = ISDestroy(&is); CCHKERRQ(comm,ierr);
-   min  = PETSC_MAX_INT;
-   max  = 0;
-   jj   = hypre_CSRMatrixJ(locA);
-   for (i=0; i<nnz; i++,jj++)
-      if (*jj < min) { min = *jj; }
-      else if (*jj > max) { max = *jj; }
-   max = PetscMax(min,max);
-   ierr = PetscCalloc1(max-min+1,&aux); CHKERRQ(ierr);
-   jj   = hypre_CSRMatrixJ(locA);
-   for (i=0; i<nnz; i++,jj++) { aux[*jj-min] = *jj+1; }
-   for (i=0,ll=0; i<max-min+1; i++) if (aux[i]) { aux[ll++] = aux[i]-1; }
-   ierr = ISCreateGeneral(comm,ll,aux,PETSC_OWN_POINTER,&is); CHKERRQ(ierr);
-   ierr = ISLocalToGlobalMappingCreateIS(is,&cl2g); PCHKERRQ(is,ierr);
-   ierr = ISDestroy(&is); CCHKERRQ(comm,ierr);
+   ierr = ISCreateStride(comm,dr,str,1,&is); CHKERRQ(ierr);
+   ierr = ISLocalToGlobalMappingCreateIS(is,&rl2g); CHKERRQ(ierr);
+   ierr = ISDestroy(&is); CHKERRQ(ierr);
+   col_map_offd = hypre_ParCSRMatrixColMapOffd(hA);
+   ierr = PetscMalloc1(dc+oc,&aux); CHKERRQ(ierr);
+   for (i=0; i<dc; i++) aux[i]    = i+stc;
+   for (i=0; i<oc; i++) aux[i+dc] = col_map_offd[i];
+   ierr = ISCreateGeneral(comm,dc+oc,aux,PETSC_OWN_POINTER,&is); CHKERRQ(ierr);
+   ierr = ISLocalToGlobalMappingCreateIS(is,&cl2g); CHKERRQ(ierr);
+   ierr = ISDestroy(&is); CHKERRQ(ierr);
 
    /* create MATIS object */
-   lc   = hypre_CSRMatrixNumCols(hypre_ParCSRMatrixDiag(hA));
    ierr = MatCreate(comm,pA); CHKERRQ(ierr);
-   ierr = MatSetSizes(*pA,lr,lc,PETSC_DECIDE,PETSC_DECIDE); CHKERRQ(ierr);
+   ierr = MatSetSizes(*pA,dr,dc,PETSC_DECIDE,PETSC_DECIDE); CHKERRQ(ierr);
    ierr = MatSetType(*pA,MATIS); CHKERRQ(ierr);
    ierr = MatSetLocalToGlobalMapping(*pA,rl2g,cl2g); CHKERRQ(ierr);
    ierr = ISLocalToGlobalMappingDestroy(&rl2g); CHKERRQ(ierr);
-
-   /* compute local matrix */
-   ierr = PetscMalloc1(nnz,&jj); CHKERRQ(ierr);
-   ierr = ISGlobalToLocalMappingApply(cl2g,IS_GTOLM_MASK,nnz,
-                                      hypre_CSRMatrixJ(locA),NULL,jj); CHKERRQ(ierr);
    ierr = ISLocalToGlobalMappingDestroy(&cl2g); CHKERRQ(ierr);
-   ierr = MatISGetLocalMat(*pA,&lA); CHKERRQ(ierr);
-   ierr = MatSeqAIJSetPreallocationCSR(lA,hypre_CSRMatrixI(locA),jj,
-                                       hypre_CSRMatrixData(locA)); PCHKERRQ(lA,ierr);
 
-   /* finalize Mat */
+   /* merge local matrices */
+   ierr = PetscMalloc2(nnz+dr+1,&aux,nnz,&data); CHKERRQ(ierr);
+   ii   = aux;
+   jj   = aux+dr+1;
+   aa   = data;
+   hdi++;
+   hoi++;
+   for (i=0,jd=0,jo=0;i<dr;i++)
+   {
+      *ii = jd + jo; ii++;
+      for (;jd<hdi[i];jd++) { *jj = hdj[jd];    jj++; *aa = hdd[jd]; aa++; }
+      for (;jo<hoi[i];jo++) { *jj = hoj[jo]+dc; jj++; *aa = hod[jo]; aa++; }
+   }
+   *ii = jd + jo;
+   ii   = aux;
+   jj   = aux+dr+1;
+   aa   = data;
+   ierr = MatISGetLocalMat(*pA,&lA); CHKERRQ(ierr);
+   ierr = MatSeqAIJSetPreallocationCSR(lA,ii,jj,aa); CHKERRQ(ierr);
+   ierr = PetscFree2(aux,data); CHKERRQ(ierr);
    ierr = MatAssemblyBegin(*pA,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
    ierr = MatAssemblyEnd(*pA,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
-
-   /* free */
-   hypre_CSRMatrixDestroy(locA);
-   ierr = PetscFree(jj); CHKERRQ(ierr);
    PetscFunctionReturn(0);
 }
 
