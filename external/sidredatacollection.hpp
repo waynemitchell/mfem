@@ -60,13 +60,13 @@ public:
   void Load(const std::string& path, const std::string& protocol = "sidre_hdf5");
 
   /**
-   * Gets a pointer to the associated field's view data
+   * Gets a pointer to the associated field's view data (always an array of doubles)
    * If the field does not exist, it will create a view of the appropriate size
    */
   double* GetFieldData(const char *field_name, int sz = 0);
 
   /**
-   * Gets a pointer to the data of field_name
+   * Gets a pointer to the data of field_name (always an array of doubles)
    * Data is relative to the data associated with base_field
    * Returns null if base_field does not exist
    */
@@ -74,6 +74,41 @@ public:
 
 
   bool HasFieldData(const char *field_name);
+
+
+  /**
+   * Gets a pointer to the data (an array of template type T)
+   * If the array named by field_name does not exist,
+   * it will create a view of the appropriate size and allocate as appropriate
+   * Note: This function is not available in base DataCollection class
+   */
+  template<typename T>
+  T* GetArrayData(const char *field_name, int sz)
+  {
+      // NOTE: WE only handle scalar fields right now
+      //       Need to add support for vector fields as well
+
+      namespace sidre = asctoolkit::sidre;
+
+      sidre::DataGroup* f = sidre_dc_group->getGroup("array_data");
+      if( ! f->hasView( field_name ) )
+      {
+          f->createViewAndAllocate(field_name, sidre::detail::SidreTT<T>::id, sz);
+      }
+      else
+      {
+          // Need to handle a case where the user is requesting a larger field
+          sidre::DataView* valsView = f->getView( field_name);
+          int valSz = valsView->getNumElements();
+
+          if(valSz < sz)
+          {
+              valsView->reallocate(sz);
+          }
+      }
+
+      return f->getView(field_name)->getArray();
+  }
 
 private:
   // Private helper functions

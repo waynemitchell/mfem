@@ -72,6 +72,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
     int mesh_num_indices = mesh_num_elements * element_size;
     int bnd_num_indices = bnd_num_elements * element_size;
 
+    bool has_bnd_elts = (bnd_num_indices > 0);
     bool isRestart = grp->hasGroup("topologies");
     if(!isRestart)
     {
@@ -94,7 +95,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
         grp->createViewString("topologies/mesh/coordset", "mesh");
         grp->createViewString("topologies/mesh/mfem_grid_function", "nodes");
 
-        if (bnd_num_elements > 0)
+        if (has_bnd_elts)
         {
            grp->createViewString("topologies/mesh/boundary_topology", "boundary");
         }
@@ -104,7 +105,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
         grp->createView("fields/mesh_material_attribute/values");
         grp->createViewString("fields/mesh_material_attribute/topology", "mesh");
 
-        if (bnd_num_elements > 0)
+        if (has_bnd_elts)
         {
            // Add mesh boundary topology
            grp->createViewString("topologies/boundary/type", "unstructured");
@@ -167,7 +168,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
             coordset_len,
             isRestart);
 
-    if (bnd_num_elements > 0)
+    if (has_bnd_elts)
     {
 
        sidre::DataView *bnd_elements_connectivity = grp->getView("topologies/boundary/elements/connectivity");
@@ -273,6 +274,8 @@ void SidreDataCollection::CopyMesh(std::string name, Mesh *new_mesh)
     int element_size = new_mesh->GetElement(0)->GetNVertices();
     int mesh_num_elements = new_mesh->GetNE();
     int mesh_num_indices = mesh_num_elements * element_size;
+    bool has_bnd_elts = (new_mesh->GetNBE() > 0);
+
 
     // Find the element shape
     // Note: Assumes homogeneous elements, so only check the first element
@@ -304,7 +307,7 @@ void SidreDataCollection::CopyMesh(std::string name, Mesh *new_mesh)
 			copyOnly);
 
     // Add mesh boundary topology ( if present )
-    if (new_mesh->GetNBE() > 0)
+    if (has_bnd_elts)
     {
         int bnd_num_elements = new_mesh->GetNBE();
         int bnd_num_indices = bnd_num_elements * element_size;
@@ -359,8 +362,8 @@ void SidreDataCollection::Load(const std::string& path, const std::string& proto
 	sidre_dc_group->getDataStore()->load(path, protocol);
     // we have to get this again because the group pointer may have changed
     sidre_dc_group = parent_datagroup->getGroup( name );
-	SetTime( sidre_dc_group->getView("state/time")->getData<int>() );
-	SetCycle( sidre_dc_group->getView("state/cycle")->getData<double>() );
+	SetTime( sidre_dc_group->getView("state/time")->getData<double>() );
+	SetCycle( sidre_dc_group->getView("state/cycle")->getData<int>() );
 }
 
 void SidreDataCollection::Save()
