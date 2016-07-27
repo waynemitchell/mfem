@@ -23,6 +23,7 @@
 #include <iostream>
 #include <fstream>
 #include <limits>
+#include "allocator.hpp"
 
 namespace mfem
 {

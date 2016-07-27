@@ -15,8 +15,8 @@
 namespace mfem
 {
 
-Quadrilateral::Quadrilateral( const int *ind, int attr )
-   : Element(Geometry::SQUARE)
+Quadrilateral::Quadrilateral( const int *ind, int attr, int_ptr_pair p )
+   : Element(Geometry::SQUARE, p.first, 4, p.second)
 {
    SetAttribute(attr);
    for (int i=0; i<4; i++)

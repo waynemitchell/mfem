@@ -15,6 +15,7 @@
 #include "../config/config.hpp"
 #include "../fem/fe.hpp"
 #include "element.hpp"
+#include "allocator.hpp"
 
 namespace mfem
 {
