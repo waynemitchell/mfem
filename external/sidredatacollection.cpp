@@ -468,6 +468,178 @@ double* SidreDataCollection::GetFieldData(const char *field_name, int sz, const 
     return f->getView(field_name)->getArray();
 }
 
+void SidreDataCollection::addScalarBasedGridFunction(const char* field_name, GridFunction *gf)
+{
+    // This function only makes sense when gf is not null
+    MFEM_ASSERT( gf != NULL, "Attempted to register grid function with a null pointer");
+
+    namespace sidre = asctoolkit::sidre;
+
+    sidre::DataGroup* grp = sidre_dc_group->getGroup("fields")
+                                          ->getGroup(field_name);
+
+    const int numDofs = gf->FESpace()->GetVSize();
+
+    /*
+     *  Mesh blueprint for a scalar-based grid function is of the form
+     *    /fields/field_name/basis
+     *              -- string value is GridFunction's FEC::Name
+     *    /fields/field_name/values
+     *              -- array of size numDofs
+     */
+
+
+    // First check if we already have the data -- e.g. in restart mode
+    if(grp->hasView("values") )
+    {
+        MFEM_ASSERT( grp->getView("values")->getArray() == gf->GetData(),
+                     "Allocated array has different size than gridfunction");
+        MFEM_ASSERT( grp->getView("values")->getNumElements() == numDofs,
+                     "Allocated array has different size than gridfunction");
+    }
+    else
+    {
+        // Otherwise, we must add the view to the blueprint
+
+        // If sidre allocated the data (via GetFieldData() ), use that
+        if( HasFieldData(field_name))
+        {
+            sidre::DataView *vals = sidre_dc_group->getGroup("array_data")
+                                                  ->getView(field_name);
+
+            const sidre::Schema& schema = vals->getSchema();
+            int startOffset = schema.dtype().offset() / schema.dtype().element_bytes();
+
+            sidre::DataBuffer* buff = vals->getBuffer();
+
+            grp->createView("values",buff)
+               ->apply(sidre::DOUBLE_ID, numDofs, startOffset);
+        }
+        else
+        {
+            // If we are not managing the grid function's data,
+            // create a view with the external data
+            grp->createView("values", gf->GetData())
+               ->apply(sidre::DOUBLE_ID, numDofs);
+        }
+    }
+
+}
+
+void SidreDataCollection::addVectorBasedGridFunction(const char* field_name, GridFunction *gf)
+{
+    // This function only makes sense when gf is not null
+    MFEM_ASSERT( gf != NULL, "Attempted to register grid function with a null pointer");
+
+    namespace sidre = asctoolkit::sidre;
+
+    sidre::DataGroup* grp = sidre_dc_group->getGroup("fields")
+                                          ->getGroup(field_name);
+
+    const int FLD_SZ = 20;
+    char fidxName[FLD_SZ];
+
+    int vdim = gf->FESpace()->GetVDim();
+    int ndof = gf->FESpace()->GetNDofs();
+    Ordering::Type ordering = gf->FESpace()->GetOrdering();
+
+    /*
+     *  Mesh blueprint for a vector-based grid function is of the form
+     *    /fields/field_name/basis
+     *              -- string value is GridFunction's FEC::Name
+     *    /fields/field_name/values/x0
+     *    /fields/field_name/values/x1
+     *    ...
+     *    /fields/field_name/values/xn
+     *              -- each coordinate is an array of size ndof
+     */
+
+
+    // Check if the blueprint is already set up, and verify setup
+    if(grp->hasGroup("values") )
+    {
+        sidre::DataGroup* fv = grp->getGroup("values");
+
+        // Simple check that the first coord is pointing to the same data as the grid function
+        MFEM_ASSERT( fv->hasView("x0")
+                   && fv->getView("x0")->getArray() == gf->GetData()
+                   , "DataCollection is pointing to different data than gridfunction");
+
+        // Check that we have the right number of coords, each with the right size
+        // Note: we are not testing the offsets and strides for each dimension
+        for(int i=0; i<vdim; ++i)
+        {
+            std::snprintf(fidxName, FLD_SZ, "x%d", i);
+            MFEM_ASSERT(fv->hasView(fidxName)
+                    && fv->getView(fidxName)->getNumElements() == ndof
+                    , "DataCollection organization does not match the blueprint"
+                    );
+        }
+    }
+    else
+    {
+        int offset =0;
+        int stride =1;
+
+        // Otherwise, we need to set up the blueprint
+        // If we've already allocated the data, stride and offset the blueprint data appropriately
+        if(HasFieldData(field_name))
+        {
+            sidre::DataView *vals = sidre_dc_group->getGroup("array_data")
+                                                  ->getView(field_name);
+
+            sidre::DataBuffer* buff = vals->getBuffer();
+            const sidre::Schema& schema = vals->getSchema();
+            int startOffset = schema.dtype().offset() / schema.dtype().element_bytes();
+
+            for(int i=0; i<vdim; ++i)
+            {
+                std::snprintf(fidxName, FLD_SZ, "values/x%d", i);
+
+                switch(ordering)
+                {
+                case Ordering::byNODES:
+                    offset = startOffset + i * ndof;
+                    stride = 1;
+                    break;
+                case Ordering::byVDIM:
+                    offset = startOffset + i;
+                    stride = vdim;
+                    break;
+                }
+
+                grp->createView(fidxName, buff)
+                   ->apply(sidre::DOUBLE_ID, ndof, offset, stride);
+            }
+
+        }
+        else
+        {
+            // Else (we're not managing its data)
+            // set the views up as external pointers
+
+            for(int i=0; i<vdim; ++i)
+            {
+                std::snprintf(fidxName, FLD_SZ, "values/x%d", i);
+
+                switch(ordering)
+                {
+                case Ordering::byNODES:
+                    offset = i * ndof;
+                    stride = 1;
+                    break;
+                case Ordering::byVDIM:
+                    offset = i;
+                    stride = vdim;
+                    break;
+                }
+
+                grp->createView(fidxName, gf->GetData())
+                   ->apply(sidre::DOUBLE_ID, ndof, offset, stride);
+            }
+        }
+    }
+}
 
 void SidreDataCollection::RegisterField(const char* field_name, GridFunction *gf)
 {
@@ -492,93 +664,22 @@ void SidreDataCollection::RegisterField(const char* field_name, GridFunction *gf
           grp->getView("basis")->setString(gf->FESpace()->FEColl()->Name() );
       }
 
-      // Set the topology.  This is always 'mesh' except for a special case with the boundary material attributes field.
-      grp->createViewString("topology", "mesh");
+      // Set the topology of the gridfunction.
+      // This is always 'mesh' except for a special case with the boundary material attributes field.
+      if(!grp->hasView("topologies"))
+      {
+          grp->createViewString("topologies", "mesh");
+      }
 
-      // Set the data -- either scalar or vector-valued
-
+      // Set the data views of the grid function -- either scalar-valued or vector-valued
       bool const isScalarValued = (gf->FESpace()->GetVDim() == 1);
       if(isScalarValued)
       {
-          // First check if we have the data
-          if(grp->hasView("values") )
-          {
-              MFEM_ASSERT( grp->getView("values")->getArray() == gf->GetData(),
-                           "Allocated array has different size than gridfunction");
-          }
-          else
-          {
-              const int sz = gf->FESpace()->GetVSize();
-              if( HasFieldData(field_name))
-              {
-                  sidre::DataView *vals = sidre_dc_group->getGroup("array_data")
-                                                        ->getView(field_name);
-                  sidre::DataBuffer* buff = vals->getBuffer();
-                  grp->createView("values",buff)->apply(sidre::DOUBLE_ID, sz);
-              }
-              else
-              {
-                  // Handle case where we have gotten a grid function,
-                  // but are not managing its data
-
-                  grp->createView("values", sidre::DOUBLE_ID, sz)
-                     ->setExternalDataPtr( gf->GetData());
-              }
-          }
-
+          addScalarBasedGridFunction(field_name, gf);
       }
       else // vector valued
       {
-          int vdim = gf->FESpace()->GetVDim();
-          int ndof = gf->FESpace()->GetNDofs();
-          Ordering::Type ordering = gf->FESpace()->GetOrdering();
-
-          if(grp->hasGroup("values") )
-          {
-              // Check that the sizes are correct, need to modify below line for vector-valued data
-              //MFEM_ASSERT( grp->getView("values")->getArray() == gf->GetData(),
-              //             "Allocated array has different size than gridfunction");
-          }
-          else
-          {
-              if(HasFieldData(field_name))
-              {
-                  sidre::DataView *vals = sidre_dc_group->getGroup("array_data")
-                                                        ->getView(field_name);
-                  sidre::DataBuffer* buff = vals->getBuffer();
-
-                  const int FLD_SZ = 20;
-                  char fidxName[FLD_SZ];
-                  int offset =0;
-                  int stride = 0;
-
-                  for(int i=0; i<vdim; ++i)
-                  {
-                      std::snprintf(fidxName, FLD_SZ, "values/x%d", i);
-
-                      switch(ordering)
-                      {
-                      case Ordering::byNODES:
-                          offset = i * ndof;
-                          stride = 1;
-                          break;
-                      case Ordering::byVDIM:
-                          offset = i;
-                          stride = vdim;
-                          break;
-                      }
-
-                      grp->createView(fidxName, buff)
-                         ->apply(sidre::DOUBLE_ID, ndof, offset, stride);
-                  }
-
-              }
-              else
-              {
-                  // Handle case where we have gotten a vector-valued grid function
-                  // but we are not managing its data
-              }
-          }
+          addVectorBasedGridFunction(field_name, gf);
       }
   }
 
@@ -587,40 +688,21 @@ void SidreDataCollection::RegisterField(const char* field_name, GridFunction *gf
 
 std::string SidreDataCollection::getElementName(Element::Type elementEnum)
 {
-   // Note -- the mapping from Element::Type to string is based on the enum Element::Type
-   //   enum Types { POINT, SEGMENT, TRIANGLE, QUADRILATERAL, TETRAHEDRON, HEXAHEDRON};
+   // Note -- the mapping from Element::Type to string is based on
+   //   enum Element::Type { POINT, SEGMENT, TRIANGLE, QUADRILATERAL, TETRAHEDRON, HEXAHEDRON};
    // Note: -- the string names are from conduit's blueprint
 
    switch(elementEnum)
    {
-      case Element::POINT:
-         return "point";
-         break;
-
-      case Element::SEGMENT:
-         return "segment";
-         break;
-
-      case Element::TRIANGLE:
-         return "tris";
-         break;
-
-      case Element::QUADRILATERAL:
-         return "quads";
-         break;
-
-      case Element::TETRAHEDRON:
-         return "tets";
-         break;
-
-      case Element::HEXAHEDRON:
-         return "hexs";
-         break;
-
-      default:
-         return "unknown";
+      case Element::POINT:          return "point";
+      case Element::SEGMENT:        return "segment";
+      case Element::TRIANGLE:       return "tris";
+      case Element::QUADRILATERAL:  return "quads";
+      case Element::TETRAHEDRON:    return "tets";
+      case Element::HEXAHEDRON:     return "hexs";
    }
 
+   return "unknown";
 }
 
 } // end namespace mfem

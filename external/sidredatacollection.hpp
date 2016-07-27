@@ -81,6 +81,29 @@ private:
   asctoolkit::sidre::DataGroup * sidre_dc_group;
 
   std::string getElementName( Element::Type elementEnum );
+
+  /**
+   * \brief A private helper function to set up the views associated with the data
+   * of a scalar valued grid function in the blueprint style
+   * \pre gf is not null
+   * \note This function is expected to be called by RegisterField()
+   * \note Handles cases where hierarchy is already set up,
+   *      where the data was allocated by this data collection
+   *      and where the gridfunction data is external to sidre
+   */
+  void addScalarBasedGridFunction(const char*field_name, GridFunction* gf);
+
+  /**
+   * \brief A private helper function to set up the views associated with the data
+   * of a vector valued grid function in the blueprint style
+   * \pre gf is not null
+   * \note This function is expected to be called by RegisterField()
+   * \note Handles cases where hierarchy is already set up,
+   *      where the data was allocated by this data collection
+   *      and where the gridfunction data is external to sidre
+   */
+  void addVectorBasedGridFunction(const char*field_name, GridFunction* gf);
+
 };
 
 } // end namespace mfem
