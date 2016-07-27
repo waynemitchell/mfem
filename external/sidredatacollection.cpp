@@ -105,8 +105,9 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
     sidre::DataView *mesh_material_attribute_values;
     sidre::DataView *bnd_material_attribute_values;
 
-    // Note: The coordinates in mfem always have three components
-    const int NUM_COORDS = 3;
+    // Note: The coordinates in mfem always have three components (regardless of dim)
+    //       but the mesh constructor can handle packed data
+    const int NUM_COORDS = dim;
 
     int element_size = new_mesh->GetElement(0)->GetNVertices();
     int num_vertices = new_mesh->GetNV();
@@ -246,8 +247,9 @@ void SidreDataCollection::CopyMesh(std::string name, Mesh *new_mesh)
     sidre::DataView *mesh_material_attribute_values;
     sidre::DataView *bnd_material_attribute_values;
 
-    // Note: The coordinates in mfem always have three components
-    const int NUM_COORDS = 3;
+    // Note: The coordinates in mfem always have three components (regardless of dim)
+    //       but the mesh constructor can handle packed data
+    const int NUM_COORDS = dim;
 
     int element_size = new_mesh->GetElement(0)->GetNVertices();
     int num_vertices = new_mesh->GetNV();
