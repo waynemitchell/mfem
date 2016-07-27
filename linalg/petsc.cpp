@@ -254,6 +254,7 @@ Vector * PetscParVector::GlobalVector() const
    ierr = VecDestroy(&vout); PCHKERRQ(x,ierr);
    Vector *v = new Vector(data, internal::to_int(size));
    v->MakeDataOwner();
+   data.LoseData();
    return v;
 }
 

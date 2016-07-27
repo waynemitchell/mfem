@@ -234,7 +234,10 @@ int main(int argc, char *argv[])
       ppcg->SetPreconditioner(*amg);
       ppcg->Mult(B, pX);
       pX -= X;
-      if (myid == 0) { cout << "Error between PETSc and HYPRE: " << pX.Normlinf() << endl; }
+      // This is not scalable, we just use this method to check if it works
+      Vector *aX = pX.GlobalVector();
+      if (myid == 0) { cout << "Error between PETSc and HYPRE: " << aX->Normlinf() << endl; }
+      delete aX;
       delete ppcg;
    }
    PetscFinalize();
