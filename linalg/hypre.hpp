@@ -141,6 +141,11 @@ double InnerProduct(HypreParVector &x, HypreParVector &y);
 double InnerProduct(HypreParVector *x, HypreParVector *y);
 
 
+/** @brief Compute the l_p norm of the Vector which is split without overlap
+    across the given communicator. */
+double ParNormlp(const Vector &vec, double p, MPI_Comm comm);
+
+
 /// Wrapper for hypre's ParCSR matrix class
 class HypreParMatrix : public Operator
 {

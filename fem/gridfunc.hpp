@@ -277,7 +277,7 @@ public:
    virtual void Save(std::ostream &out) const;
 
    /** Write the GridFunction in VTK format. Note that Mesh::PrintVTK must be
-       called first. The parameter ref must match the one used in
+       called first. The parameter ref > 0 must match the one used in
        Mesh::PrintVTK. */
    void SaveVTK(std::ostream &out, const std::string &field_name, int ref);
 

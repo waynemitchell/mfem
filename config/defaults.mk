@@ -13,6 +13,10 @@
 
 # Default options. To replace these, copy this file to user.mk and modify it.
 
+
+# Some choices below are based on the system name:
+SYSNAME = $(shell uname -s)
+
 CXX = g++
 MPICXX = mpicxx
 
@@ -25,6 +29,17 @@ PREFIX = ./mfem
 # Install program
 INSTALL = /usr/bin/install
 
+ifneq ($(SYSNAME),Darwin)
+   AR      = ar
+   ARFLAGS = cruv
+   RANLIB  = ranlib
+else
+   # Silence "has no symbols" warnings on Mac OS X
+   AR      = ar
+   ARFLAGS = Scruv
+   RANLIB  = ranlib -no_warning_for_no_symbols
+endif
+
 # Set CXXFLAGS to overwrite the default selection of DEBUG_FLAGS/OPTIM_FLAGS
 # CXXFLAGS = -O3 -march=native
 
@@ -34,9 +49,6 @@ INSTALL = /usr/bin/install
 # Library configurations:
 # Note: symbols of the form @VAR@ will be replaced by $(VAR) in derived
 #       variables, like MFEM_FLAGS, defined in config.mk.
-
-# Some choices below are based on the system name:
-SYSNAME = $(shell uname -s)
 
 # MFEM configuration options: YES/NO values, which are exported to config.mk and
 # config.hpp. The values below are the defaults for generating the actual values
@@ -54,6 +66,7 @@ MFEM_USE_SUITESPARSE = NO
 MFEM_USE_SUPERLU     = NO
 MFEM_USE_GECKO       = NO
 MFEM_USE_GNUTLS      = NO
+MFEM_USE_NETCDF      = NO
 
 # HYPRE library configuration (needed to build the parallel version)
 HYPRE_DIR = @MFEM_DIR@/../hypre-2.10.0b/src/hypre
@@ -117,6 +130,14 @@ GECKO_LIB = -L$(GECKO_DIR)/lib -lgecko
 # GnuTLS library configuration
 GNUTLS_OPT =
 GNUTLS_LIB = -lgnutls
+
+# NetCDF library configuration
+NETCDF_DIR  = $(HOME)/local
+HDF5_DIR    = $(HOME)/local
+ZLIB_DIR    = $(HOME)/local
+NETCDF_OPT  = -I$(NETCDF_DIR)/include
+NETCDF_LIB  = -L$(NETCDF_DIR)/lib -lnetcdf -L$(HDF5_DIR)/lib -lhdf5_hl -lhdf5\
+ -L$(ZLIB_DIR)/lib -lz
 
 # If YES, enable some informational messages
 VERBOSE = NO

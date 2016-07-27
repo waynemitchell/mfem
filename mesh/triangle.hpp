@@ -15,7 +15,6 @@
 #include "../config/config.hpp"
 #include "../fem/fe.hpp"
 #include "element.hpp"
-#include "allocator.hpp"
 
 namespace mfem
 {
@@ -26,11 +25,11 @@ class Triangle : public Element
 protected:
    //int indices[3];
    //int *indices;
-   static const int edges[3][2];
 
    unsigned transform;
 
 public:
+   typedef Geometry::Constants<Geometry::TRIANGLE> geom_t;
    static const size_t NUM_INDICES = 3;
 
    Triangle() : Element(Geometry::TRIANGLE, NULL, 3, NULL) { transform = 0; }
@@ -79,7 +78,8 @@ public:
 
    virtual int GetNEdges() const { return (3); }
 
-   virtual const int *GetEdgeVertices(int ei) const { return (edges[ei]); }
+   virtual const int *GetEdgeVertices(int ei) const
+   { return geom_t::Edges[ei]; }
 
    virtual int GetNFaces(int &nFaceVertices) const
    { nFaceVertices = 0; return 0; }

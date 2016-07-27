@@ -16,11 +16,6 @@
 namespace mfem
 {
 
-const int Tetrahedron::edges[6][2] =
-{
-   {0, 1}, {0, 2}, {0, 3}, {1, 2}, {1, 3}, {2, 3}
-};
-
 Tetrahedron::Tetrahedron(const int *ind, int attr, int_ptr_pair p)
    : Element(Geometry::TETRAHEDRON, p.first, 4, p.second)
 {

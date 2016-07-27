@@ -106,7 +106,7 @@ public:
 
    /// Return the parallel trace FE space associated with static condensation.
    ParFiniteElementSpace *SCParFESpace() const
-   { return static_cond->GetParTraceFESpace(); }
+   { return static_cond ? static_cond->GetParTraceFESpace() : NULL; }
 
    /** Form the linear system A X = B, corresponding to the current bilinear
        form and b(.), by applying any necessary transformations such as:
