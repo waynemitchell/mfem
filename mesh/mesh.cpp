@@ -2318,6 +2318,27 @@ Mesh::Mesh(std::istream &input,
    Load(input, generate_edges, refine, fix_orientation);
 }
 */
+
+int numOfVerticesFromGeometry(Geometry::Type t) {
+   switch(t) {
+      case Geometry::POINT:
+         return 1;
+      case Geometry::SEGMENT:
+         return 2;
+      case Geometry::TRIANGLE:
+         return 3;
+      case Geometry::SQUARE:
+         return 4;
+      case Geometry::TETRAHEDRON:
+         return 6;
+      case Geometry::CUBE:
+         return 8;
+      default:
+         throw std::runtime_error("invalid type. cannot determine its number of vertices");
+   }
+}
+
+
 Mesh::Mesh(double *vertices, int num_vertices,
       int *element_indices, Geometry::Type element_type, 
       int *element_attributes, int num_elements,
@@ -2326,10 +2347,8 @@ Mesh::Mesh(double *vertices, int num_vertices,
       int dimension, int space_dimension,
       int generate_faces, int refine, bool fix_orientation)
 {
-   if (element_type != Geometry::SQUARE) {
-      throw std::runtime_error("only support quads");
-   }
-
+   cout << "I'm not sure if this constuctor will create working mesh." << endl
+        << "There may be some finalizing yet to be done";
    if (space_dimension == -1)
    {
       space_dimension = dimension;
@@ -2338,8 +2357,8 @@ Mesh::Mesh(double *vertices, int num_vertices,
    InitMesh(dimension, space_dimension, num_vertices, num_elements,
          num_boundary_elements);
 
-   int element_index_stride = 4;
-   int boundary_index_stride = 0;
+   int element_index_stride = numOfVerticesFromGeometry(element_type);
+   int boundary_index_stride = numOfVerticesFromGeometry(boundary_type);
 
    for (int i = 0; i < num_vertices; i++) {
          this->vertices[i].SetCoordPtr(vertices + i * dimension);
