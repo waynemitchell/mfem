@@ -761,8 +761,8 @@ std::string SidreDataCollection::getElementName(Element::Type elementEnum)
 
    switch(elementEnum)
    {
-      case Element::POINT:          return "point";
-      case Element::SEGMENT:        return "segment";
+      case Element::POINT:          return "points";
+      case Element::SEGMENT:        return "lines";
       case Element::TRIANGLE:       return "tris";
       case Element::QUADRILATERAL:  return "quads";
       case Element::TETRAHEDRON:    return "tets";
