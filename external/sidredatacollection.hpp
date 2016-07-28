@@ -33,76 +33,78 @@ protected:
 
 public:
 
-  // Adding some typedefs here for the variables types in MFEM that we will be putting in Sidre
-  // This is to avoid hard coding a bunch of SIDRE::ENUM types in the sidre calls, in case MFEM ever
-  // wants to change some of it's data types.
-  // TODO - ask MFEM team if they have any interest in adding a few typedefs in their classes, or
-  // if just hard-coding the type is better.  For now, I'll just put the typedef's here.
+   // Adding some typedefs here for the variables types in MFEM that we will be putting in Sidre
+   // This is to avoid hard coding a bunch of SIDRE::ENUM types in the sidre calls, in case MFEM ever
+   // wants to change some of it's data types.
+   // TODO - ask MFEM team if they have any interest in adding a few typedefs in their classes, or
+   // if just hard-coding the type is better.  For now, I'll just put the typedef's here.
 
-  typedef int mfem_int_t;
-  typedef double mfem_double_t;
+   typedef int mfem_int_t;
+   typedef double mfem_double_t;
 
-  SidreDataCollection(const std::string& collection_name, asctoolkit::sidre::DataGroup * dg);
+   SidreDataCollection(const std::string& collection_name, asctoolkit::sidre::DataGroup * dg);
 
-  void RegisterField(const char* field_name, GridFunction *gf);
+   void RegisterField(const char* field_name, GridFunction *gf);
 
-  /// Verify we will delete the mesh and fields if we own them
-  virtual ~SidreDataCollection() {}
+   /// Verify we will delete the mesh and fields if we own them
+   virtual ~SidreDataCollection() {}
 
-  void CopyMesh(std::string name, Mesh *new_mesh);
+   void CopyMesh(std::string name, Mesh *new_mesh);
 
-  void SetMesh(Mesh *new_mesh);
+   void SetMesh(Mesh *new_mesh);
 
-  void setMeshStream(std::istream& input) {}
+   void setMeshStream(std::istream& input) {}
 
-  void Save();
+   void Save();
 
-  void Load(const std::string& path, const std::string& protocol = "sidre_hdf5");
+   void Load(const std::string& path, const std::string& protocol = "sidre_hdf5");
 
-  /**
-   * Gets a pointer to the associated field's view data
-   * If the field does not exist, it will create a view of the appropriate size
-   */
-  double* GetFieldData(const char *field_name, int sz = 0);
+   /**
+    * Gets a pointer to the associated field's view data
+    * If the field does not exist, it will create a view of the appropriate size
+    */
+   double* GetFieldData(const char *field_name, int sz = 0);
 
-  /**
-   * Gets a pointer to the data of field_name
-   * Data is relative to the data associated with base_field
-   * Returns null if base_field does not exist
-   */
-  double* GetFieldData(const char *field_name, int sz, const char *base_field, int offset = 0, int stride = 1);
+   /**
+    * Gets a pointer to the data of field_name
+    * Data is relative to the data associated with base_field
+    * Returns null if base_field does not exist
+    */
+   double* GetFieldData(const char *field_name, int sz, const char *base_field, int offset = 0, int stride = 1);
 
 
-  bool HasFieldData(const char *field_name);
+   bool HasFieldData(const char *field_name);
 
 private:
-  // Private helper functions
+   // Private helper functions
 
-  asctoolkit::sidre::DataGroup * sidre_dc_group;
+   asctoolkit::sidre::DataGroup * sidre_dc_group;
 
-  std::string getElementName( Element::Type elementEnum );
+   std::string getElementName( Element::Type elementEnum );
 
-  /**
-   * \brief A private helper function to set up the views associated with the data
-   * of a scalar valued grid function in the blueprint style
-   * \pre gf is not null
-   * \note This function is expected to be called by RegisterField()
-   * \note Handles cases where hierarchy is already set up,
-   *      where the data was allocated by this data collection
-   *      and where the gridfunction data is external to sidre
-   */
-  void addScalarBasedGridFunction(const char*field_name, GridFunction* gf);
+   asctoolkit::sidre::DataGroup * ConstructRootFileGroup();
 
-  /**
-   * \brief A private helper function to set up the views associated with the data
-   * of a vector valued grid function in the blueprint style
-   * \pre gf is not null
-   * \note This function is expected to be called by RegisterField()
-   * \note Handles cases where hierarchy is already set up,
-   *      where the data was allocated by this data collection
-   *      and where the gridfunction data is external to sidre
-   */
-  void addVectorBasedGridFunction(const char*field_name, GridFunction* gf);
+   /**
+    * \brief A private helper function to set up the views associated with the data
+    * of a scalar valued grid function in the blueprint style
+    * \pre gf is not null
+    * \note This function is expected to be called by RegisterField()
+    * \note Handles cases where hierarchy is already set up,
+    *      where the data was allocated by this data collection
+    *      and where the gridfunction data is external to sidre
+    */
+   void addScalarBasedGridFunction(const char*field_name, GridFunction* gf);
+
+   /**
+    * \brief A private helper function to set up the views associated with the data
+    * of a vector valued grid function in the blueprint style
+    * \pre gf is not null
+    * \note This function is expected to be called by RegisterField()
+    * \note Handles cases where hierarchy is already set up,
+    *      where the data was allocated by this data collection
+    *      and where the gridfunction data is external to sidre
+    */
+   void addVectorBasedGridFunction(const char*field_name, GridFunction* gf);
 
 };
 
