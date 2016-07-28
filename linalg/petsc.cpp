@@ -830,6 +830,12 @@ void PetscSolver::Init()
    B = X = NULL;
 }
 
+void PetscSolver::SetPrefix(std::string prefix)
+{
+   MFEM_VERIFY(obj,"PetscSolver::SetPrefix PetscObject not present!")
+   ierr = PetscObjectSetOptionsPrefix(obj,prefix.c_str()); PCHKERRQ(obj,ierr)
+}
+
 PetscSolver::PetscSolver()
 {
    Init();
@@ -841,6 +847,70 @@ PetscSolver::~PetscSolver()
    if (X) { delete X; }
 }
 
+void PetscSolver::Mult(const PetscParVector &b, PetscParVector &x) const
+{
+   PetscClassId cid;
+   ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
+   if (cid == KSP_CLASSID)
+   {
+      KSP ksp = (KSP)obj;
+      ierr = KSPSetInitialGuessNonzero(ksp,PetscBool(iterative_mode));
+      PCHKERRQ(ksp,ierr);
+      ierr = KSPSolve(ksp,b.x,x.x); PCHKERRQ(obj,ierr);
+   }
+   else if (cid == PC_CLASSID)
+   {
+      PC pc = (PC)obj;
+      ierr = PCApply(pc,b.x,x.x); PCHKERRQ(obj,ierr);
+   }
+   else
+   {
+      MFEM_ABORT("To be implemented!");
+   }
+}
+
+void PetscSolver::Mult(const Vector &b, Vector &x) const
+{
+   // constructs PetscParVectors if not present
+   if (!B || !X)
+   {
+     Mat pA;
+     PetscClassId cid;
+     ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
+     if (cid == KSP_CLASSID)
+     {
+        KSP ksp = (KSP)obj;
+        ierr = KSPGetOperators(ksp,&pA,NULL); PCHKERRQ(obj,ierr);
+     }
+     else if (cid == PC_CLASSID)
+     {
+        PC pc = (PC)obj;
+        ierr = PCGetOperators(pc,NULL,&pA); PCHKERRQ(obj,ierr);
+     }
+     else
+     {
+        MFEM_ABORT("To be implemented!");
+     }
+     if (!B)
+     {
+        PetscParMatrix A = PetscParMatrix(pA,true);
+        B = new PetscParVector(A,true);
+     }
+     if (!X)
+     {
+        PetscParMatrix A = PetscParMatrix(pA,true);
+        X = new PetscParVector(A,false);
+     }
+   }
+
+   // Apply Mult
+   B -> SetData(b.GetData());
+   X -> SetData(x.GetData());
+   Mult(*B, *X);
+   B -> ResetData();
+   X -> ResetData();
+}
+
 // PetscLinearSolver methods
 
 void PetscLinearSolver::Init()
@@ -848,30 +918,33 @@ void PetscLinearSolver::Init()
    wrap = false;
 }
 
-PetscLinearSolver::PetscLinearSolver(MPI_Comm comm) : PetscSolver()
+PetscLinearSolver::PetscLinearSolver(MPI_Comm comm, std::string prefix) : PetscSolver()
 {
    Init();
    KSP ksp;
    ierr = KSPCreate(comm,&ksp); CCHKERRQ(comm,ierr);
    obj = (PetscObject)ksp;
+   SetPrefix(prefix);
 }
 
-PetscLinearSolver::PetscLinearSolver(PetscParMatrix &_A) : PetscSolver()
+PetscLinearSolver::PetscLinearSolver(PetscParMatrix &_A, std::string prefix) : PetscSolver()
 {
    Init();
    KSP ksp;
    ierr = KSPCreate(_A.GetComm(),&ksp); CCHKERRQ(_A.GetComm(),ierr);
    obj = (PetscObject)ksp;
+   SetPrefix(prefix);
    SetOperator(_A);
 }
 
-PetscLinearSolver::PetscLinearSolver(HypreParMatrix &_A,bool wrapin) : PetscSolver()
+PetscLinearSolver::PetscLinearSolver(HypreParMatrix &_A,bool wrapin, std::string prefix) : PetscSolver()
 {
    Init();
    wrap = wrapin;
    KSP ksp;
    ierr = KSPCreate(_A.GetComm(),&ksp); CCHKERRQ(_A.GetComm(),ierr);
    obj = (PetscObject)ksp;
+   SetPrefix(prefix);
    SetOperator(_A);
 }
 
@@ -972,10 +1045,6 @@ static PetscErrorCode pc_shell_apply_transpose(PC pc, Vec x, Vec y)
 #define __FUNCT__ "pc_shell_setup"
 static PetscErrorCode pc_shell_setup(PC pc)
 {
-   //solver_shell_ctx *ctx;
-   //Mat              A;
-   //PetscErrorCode   ierr;
-
    PetscFunctionBeginUser;
    // TODO ask: is there a way to trigger the setup of ctx->op?
    PetscFunctionReturn(0);
@@ -1011,40 +1080,6 @@ void PetscLinearSolver::SetPreconditioner(Solver &precond)
    ierr = PCShellSetDestroy(pc,pc_shell_destroy); PCHKERRQ(pc,ierr);
 }
 
-void PetscLinearSolver::Mult(const PetscParVector &b, PetscParVector &x) const
-{
-   KSP ksp = (KSP)obj;
-   ierr = KSPSetInitialGuessNonzero(ksp,PetscBool(iterative_mode));
-   PCHKERRQ(ksp,ierr);
-   ierr = KSPSolve(ksp,b.x,x.x); PCHKERRQ(ksp,ierr);
-}
-
-void PetscLinearSolver::Mult(const Vector &b, Vector &x) const
-{
-   KSP ksp = (KSP)obj;
-   if (!B)
-   {
-      Mat pA;
-      ierr = KSPGetOperators(ksp,&pA,NULL); PCHKERRQ(ksp,ierr);
-      PetscParMatrix A = PetscParMatrix(pA,true);
-      B = new PetscParVector(A,true);
-   }
-   if (!X)
-   {
-      Mat pA;
-      ierr = KSPGetOperators(ksp,&pA,NULL); PCHKERRQ(ksp,ierr);
-      PetscParMatrix A = PetscParMatrix(pA,true);
-      X = new PetscParVector(A,false);
-   }
-   B -> SetData(b.GetData());
-   X -> SetData(x.GetData());
-
-   Mult(*B, *X);
-
-   B -> ResetData();
-   X -> ResetData();
-}
-
 PetscLinearSolver::~PetscLinearSolver()
 {
    MPI_Comm comm;
@@ -1078,7 +1113,7 @@ void PetscLinearSolver::SetPrintLevel(int plev)
 
 // PetscPCGSolver methods
 
-PetscPCGSolver::PetscPCGSolver(PetscParMatrix& _A) : PetscLinearSolver(_A)
+PetscPCGSolver::PetscPCGSolver(PetscParMatrix& _A, std::string prefix) : PetscLinearSolver(_A,prefix)
 {
    KSP ksp = (KSP)obj;
    ierr = KSPSetType(ksp,KSPCG); PCHKERRQ(ksp,ierr);
@@ -1087,12 +1122,55 @@ PetscPCGSolver::PetscPCGSolver(PetscParMatrix& _A) : PetscLinearSolver(_A)
 }
 
 PetscPCGSolver::PetscPCGSolver(HypreParMatrix& _A,
-                               bool wrap) : PetscLinearSolver(_A,wrap)
+                               bool wrap, std::string prefix) : PetscLinearSolver(_A,wrap,prefix)
 {
    KSP ksp = (KSP)obj;
    ierr = KSPSetType(ksp,KSPCG); PCHKERRQ(ksp,ierr);
    // this is to obtain a textbook PCG
    ierr = KSPSetNormType(ksp,KSP_NORM_NATURAL); PCHKERRQ(ksp,ierr);
+}
+
+// PetscPreconditioner methods
+
+void PetscPreconditioner::Init()
+{
+   // do nothing
+}
+
+PetscPreconditioner::PetscPreconditioner(MPI_Comm comm, std::string prefix) : PetscSolver()
+{
+   Init();
+   PC pc;
+   ierr = PCCreate(comm,&pc); CCHKERRQ(comm,ierr);
+   obj = (PetscObject)pc;
+   SetPrefix(prefix);
+}
+
+PetscPreconditioner::PetscPreconditioner(PetscParMatrix &_A, std::string prefix) : PetscSolver()
+{
+   Init();
+   PC pc;
+   ierr = PCCreate(_A.GetComm(),&pc); CCHKERRQ(_A.GetComm(),ierr);
+   obj = (PetscObject)pc;
+   SetPrefix(prefix);
+   SetOperator(_A);
+}
+
+void PetscPreconditioner::SetOperator(const Operator &op)
+{
+   PC pc = (PC)obj;
+   PetscParMatrix *pA = const_cast<PetscParMatrix *>
+                        (dynamic_cast<const PetscParMatrix *>(&op));
+   if (!pA) { MFEM_ABORT("PetscPreconditioner::SetOperator Operator should be a PetscParMatrix"); }
+   ierr = PCSetOperators(pc,NULL,pA->A); PCHKERRQ(obj,ierr);
+}
+
+PetscPreconditioner::~PetscPreconditioner()
+{
+   MPI_Comm comm;
+   PC pc = (PC)obj;
+   ierr = PetscObjectGetComm((PetscObject)pc,&comm); PCHKERRQ(pc,ierr);
+   ierr = PCDestroy(&pc); CCHKERRQ(comm,ierr);
 }
 
 }
@@ -1220,6 +1298,10 @@ static PetscErrorCode MatConvert_hypreParCSR_IS(hypre_ParCSRMatrix* hA,Mat* pA)
    IS                     is;
    hypre_CSRMatrix        *hdiag,*hoffd;
    MPI_Comm               comm = hypre_ParCSRMatrixComm(hA);
+   void                   *ptrs[2];
+   const char             *names[2] = {"_mfem_csr_aux",
+                                       "_mfem_csr_data",
+                                      };
    PetscScalar            *hdd,*hod,*aa,*data;
    PetscInt               *col_map_offd,*hdi,*hdj,*hoi,*hoj;
    PetscInt               *aux,*ii,*jj;
@@ -1265,25 +1347,41 @@ static PetscErrorCode MatConvert_hypreParCSR_IS(hypre_ParCSRMatrix* hA,Mat* pA)
    ierr = ISLocalToGlobalMappingDestroy(&cl2g); CHKERRQ(ierr);
 
    /* merge local matrices */
-   ierr = PetscMalloc2(nnz+dr+1,&aux,nnz,&data); CHKERRQ(ierr);
+   ierr = PetscMalloc1(nnz+dr+1,&aux); CHKERRQ(ierr);
+   ierr = PetscMalloc1(nnz,&data); CHKERRQ(ierr);
    ii   = aux;
    jj   = aux+dr+1;
    aa   = data;
-   hdi++;
-   hoi++;
-   for (i=0,jd=0,jo=0;i<dr;i++)
+   *ii  = *(hdi++) + *(hoi++);
+   for (jd=0,jo=0;*ii<nnz;)
    {
-      *ii = jd + jo; ii++;
-      for (;jd<hdi[i];jd++) { *jj = hdj[jd];    jj++; *aa = hdd[jd]; aa++; }
-      for (;jo<hoi[i];jo++) { *jj = hoj[jo]+dc; jj++; *aa = hod[jo]; aa++; }
+      PetscScalar *aold = aa;
+      PetscInt    *jold = jj,nc = jd+jo;
+      for (;jd<*hdi;jd++) { *jj++ = *hdj++;      *aa++ = *hdd++; }
+      for (;jo<*hoi;jo++) { *jj++ = *hoj++ + dc; *aa++ = *hod++; }
+      *(++ii) = *(hdi++) + *(hoi++);
+      ierr = PetscSortIntWithScalarArray(jd+jo-nc,jold,aold); CHKERRQ(ierr);
    }
-   *ii = jd + jo;
    ii   = aux;
    jj   = aux+dr+1;
    aa   = data;
-   ierr = MatISGetLocalMat(*pA,&lA); CHKERRQ(ierr);
-   ierr = MatSeqAIJSetPreallocationCSR(lA,ii,jj,aa); CHKERRQ(ierr);
-   ierr = PetscFree2(aux,data); CHKERRQ(ierr);
+   ierr = MatCreateSeqAIJWithArrays(PETSC_COMM_SELF,dr,dc+oc,ii,jj,aa,&lA); CHKERRQ(ierr);
+   ptrs[0] = aux;
+   ptrs[1] = data;
+   for (i=0; i<2; i++)
+   {
+      PetscContainer c;
+
+      ierr = PetscContainerCreate(PETSC_COMM_SELF,&c); CHKERRQ(ierr);
+      ierr = PetscContainerSetPointer(c,ptrs[i]); CHKERRQ(ierr);
+      ierr = PetscContainerSetUserDestroy(c,array_container_destroy);
+      CHKERRQ(ierr);
+      ierr = PetscObjectCompose((PetscObject)lA,names[i],(PetscObject)c);
+      CHKERRQ(ierr);
+      ierr = PetscContainerDestroy(&c); CHKERRQ(ierr);
+   }
+   ierr = MatISSetLocalMat(*pA,lA); CHKERRQ(ierr);
+   ierr = MatDestroy(&lA); CHKERRQ(ierr);
    ierr = MatAssemblyBegin(*pA,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
    ierr = MatAssemblyEnd(*pA,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
    PetscFunctionReturn(0);

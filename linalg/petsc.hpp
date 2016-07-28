@@ -34,7 +34,7 @@ protected:
    Vec x;
 
    friend class PetscParMatrix;
-   friend class PetscLinearSolver;
+   friend class PetscSolver;
 
    // Set Vector::data and Vector::size from x
    void _SetDataAndSize_();
@@ -126,6 +126,7 @@ protected:
    void MakeWrapper(MPI_Comm comm, const Operator* op, Mat *B);
 
    friend class PetscLinearSolver;
+   friend class PetscPreconditioner;
 
 public:
    /// An empty matrix to be used as a reference to an existing matrix.
@@ -239,6 +240,9 @@ protected:
    /// Right-hand side and solution vector
    mutable PetscParVector *B, *X;
 
+   /// Set prefix for PETSc's options database
+   void SetPrefix(std::string prefix);
+
 private:
    void Init();
 
@@ -254,16 +258,22 @@ public:
    {
       MFEM_ABORT("Set Operator not implemented!")
    };
-   virtual void Mult(const Vector &b, Vector &x) const
-   {
-      MFEM_ABORT("Mult not implemented!")
-   };
+   virtual void Mult(const Vector &b, Vector &x) const;
 
-   // pure virtual methods for derived classes
-   virtual void SetTol(double tol) = 0;
-   virtual void SetMaxIter(int max_iter) = 0;
-   virtual void SetPrintLevel(int plev) = 0;
-   virtual void Mult(const PetscParVector &b, PetscParVector &x) const = 0;
+   // virtual methods for derived classes
+   virtual void SetTol(double tol)
+   {
+      MFEM_ABORT("Set Operator not implemented!")
+   };
+   virtual void SetMaxIter(int max_iter)
+   {
+      MFEM_ABORT("SetMaxIter not implemented!")
+   };
+   virtual void SetPrintLevel(int plev)
+   {
+      MFEM_ABORT("SetPrintLevel not implemented!")
+   };
+   void Mult(const PetscParVector &b, PetscParVector &x) const;
 };
 
 /// Abstract class for PETSc's linear solvers
@@ -276,37 +286,64 @@ private:
    void Init();
 
 public:
-   /// Initialize protected objects to NULL
-   PetscLinearSolver(MPI_Comm comm);
+   PetscLinearSolver(MPI_Comm comm, std::string prefix = std::string());
 
-   /// Constructs a solver using a PetscParMatrix
-   PetscLinearSolver(PetscParMatrix &_A);
+   PetscLinearSolver(PetscParMatrix &_A, std::string prefix = std::string());
 
    /// Constructs a solver using a HypreParMatrix.
    /// If wrap is true, then the MatMult ops of HypreParMatrix are wrapped.
    /// No preconditioner can be automatically constructed from PETSc.
    /// If wrap is false, the HypreParMatrix is converted into PETSc format.
-   PetscLinearSolver(HypreParMatrix &_A,bool wrap=true);
+   PetscLinearSolver(HypreParMatrix &_A,bool wrap = true, std::string prefix = std::string());
 
    /// virtual methods for base classes
    virtual void SetOperator(const Operator &op);
-   virtual void Mult(const Vector &b, Vector &x) const;
    virtual void SetTol(double tol);
    virtual void SetMaxIter(int max_iter);
    virtual void SetPrintLevel(int plev);
-   virtual void Mult(const PetscParVector &b, PetscParVector &x) const;
    virtual ~PetscLinearSolver();
 
    /// Sets the solver to be used as a preconditioner
    void SetPreconditioner(Solver &precond);
 };
 
+// iterative solvers
+
 class PetscPCGSolver : public PetscLinearSolver
 {
 public:
-   PetscPCGSolver(PetscParMatrix &_A);
-   PetscPCGSolver(HypreParMatrix &_A,bool wrap=true);
+   PetscPCGSolver(PetscParMatrix &_A, std::string prefix = std::string());
+   PetscPCGSolver(HypreParMatrix &_A,bool wrap=true, std::string prefix = std::string());
 };
+
+/// Abstract class for PETSc's preconditioners
+class PetscPreconditioner : public PetscSolver
+{
+private:
+   void Init();
+
+public:
+   PetscPreconditioner(MPI_Comm comm, std::string prefix = std::string());
+
+   PetscPreconditioner(PetscParMatrix &_A, std::string prefix = std::string());
+
+   /// virtual methods for base classes
+   virtual void SetOperator(const Operator &op);
+   //virtual void SetTol(double tol);
+   //virtual void SetMaxIter(int max_iter);
+   //virtual void SetPrintLevel(int plev);
+   //virtual void Mult(const PetscParVector &b, PetscParVector &x) const;
+   virtual ~PetscPreconditioner();
+};
+
+// preconditioners
+
+//class PetscBDDCSolver : public PetscPreconditioner
+//{
+//public:
+//   PetscBDDCSolver(ParFiniteElementSpace *fespace);
+//};
+
 
 }
 
