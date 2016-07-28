@@ -26,6 +26,33 @@ namespace mfem
 
 using namespace std;
 
+
+static int create_directory(const string &dir_name, const Mesh *mesh, int myid)
+{
+   int err;
+#ifndef MFEM_USE_MPI
+   err = mkdir(dir_name.c_str(), 0777);
+   err = (err && (errno != EEXIST)) ? 1 : 0;
+#else
+   const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
+   if (myid == 0 || pmesh == NULL)
+   {
+      err = mkdir(dir_name.c_str(), 0777);
+      err = (err && (errno != EEXIST)) ? 1 : 0;
+      if (pmesh)
+      {
+         MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
+      }
+   }
+   else
+   {
+      // Wait for rank 0 to create the directory
+      MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
+   }
+#endif
+   return err;
+}
+
 // Helper string functions. Will go away in C++11
 
 string to_string(int i)
@@ -112,6 +139,9 @@ void DataCollection::SetMesh(Mesh *new_mesh)
       serial = false;
    }
 #endif
+
+   create_directory(prefix_path, mesh, myid);
+
 }
 
 void DataCollection::RegisterField(const char* name, GridFunction *gf)
@@ -244,31 +274,6 @@ void DataCollection::Save()
    }
 }
 
-static int create_directory(const string &dir_name, const Mesh *mesh, int myid)
-{
-   int err;
-#ifndef MFEM_USE_MPI
-   err = mkdir(dir_name.c_str(), 0777);
-   err = (err && (errno != EEXIST)) ? 1 : 0;
-#else
-   const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
-   if (myid == 0 || pmesh == NULL)
-   {
-      err = mkdir(dir_name.c_str(), 0777);
-      err = (err && (errno != EEXIST)) ? 1 : 0;
-      if (pmesh)
-      {
-         MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
-      }
-   }
-   else
-   {
-      // Wait for rank 0 to create the directory
-      MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
-   }
-#endif
-   return err;
-}
 
 void DataCollection::SaveMesh()
 {
