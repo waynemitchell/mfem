@@ -43,9 +43,10 @@
   }
 
 // prototype for auxiliary functions
+static PetscErrorCode array_container_destroy(void*);
+static PetscErrorCode Convert_Array_IS(MPI_Comm,mfem::Array<int>*,PetscInt,IS*);
 static PetscErrorCode MatConvert_hypreParCSR_AIJ(hypre_ParCSRMatrix*,Mat*);
 static PetscErrorCode MatConvert_hypreParCSR_IS(hypre_ParCSRMatrix*,Mat*);
-static PetscErrorCode array_container_destroy(void*);
 
 // use global scope ierr to check PETSc errors inside mfem calls
 PetscErrorCode ierr;
@@ -825,7 +826,7 @@ PetscParMatrix * RAP(PetscParMatrix *A, PetscParMatrix *P)
 PetscParMatrix* PetscParMatrix::EliminateRowsCols(const Array<int> &rows_cols)
 {
    Mat             Ae;
-   const PetscInt *data;
+   const int       *data;
    PetscInt        M,N,i,n,*idxs,rst;
 
    ierr = MatGetSize(A,&M,&N); PCHKERRQ(A,ierr);
@@ -1236,9 +1237,13 @@ PetscPreconditioner::~PetscPreconditioner()
 
 // PetscBDDCSolver methods
 
-PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A,ParFiniteElementSpace *fespace, std::string prefix) : PetscPreconditioner(A,prefix)
+PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts, std::string prefix) : PetscPreconditioner(A,prefix)
 {
    PC pc = (PC)obj;
+   MPI_Comm comm = A.GetComm();
+   // index sets for boundary dofs specification (Essential = dir, Natural = neu)
+   IS dir = NULL, neu = NULL;
+   PetscInt rst;
 
    // Check
    Mat pA;
@@ -1249,17 +1254,50 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A,ParFiniteElementSpace *fespac
    MFEM_VERIFY(ismatis,"PetscBDDCSolver needs the matrix in unassembled format");
 
    ierr = PCSetType(pc,PCBDDC); PCHKERRQ(obj,ierr);
-   int bs = 0;
+
+   // pass information about index sets (essential dofs, fields, etc.)
+#ifdef MFEM_DEBUG
+   {
+      // make sure ess/nat_tdof_list have been collectively set
+      PetscBool lpr = PETSC_FALSE,pr;
+      if (opts.ess_tdof_list) { lpr = PETSC_TRUE; }
+      ierr = MPI_Allreduce(&lpr,&pr,1,MPIU_BOOL,MPI_LOR,comm);
+      PCHKERRQ(pA,ierr);
+      MFEM_VERIFY(lpr == pr,"ess_tdof_list should be collectively set");
+      lpr = PETSC_FALSE;
+      if (opts.nat_tdof_list) { lpr = PETSC_TRUE; }
+      ierr = MPI_Allreduce(&lpr,&pr,1,MPIU_BOOL,MPI_LOR,comm);
+      PCHKERRQ(pA,ierr);
+      MFEM_VERIFY(lpr == pr,"nat_tdof_list should be collectively set");
+   }
+#endif
+   // need the sets in global ordering
+   ierr = MatGetOwnershipRange(pA,&rst,NULL); PCHKERRQ(pA,ierr);
+   if (opts.ess_tdof_list)
+   {
+      ierr = Convert_Array_IS(comm,opts.ess_tdof_list,rst,&dir); CCHKERRQ(comm,ierr);
+      ierr = PCBDDCSetDirichletBoundaries(pc,dir); PCHKERRQ(pc,ierr);
+   }
+   if (opts.nat_tdof_list)
+   {
+      ierr = Convert_Array_IS(comm,opts.nat_tdof_list,rst,&neu); CCHKERRQ(comm,ierr);
+      ierr = PCBDDCSetNeumannBoundaries(pc,neu); PCHKERRQ(pc,ierr);
+   }
+
+   ParFiniteElementSpace *fespace = opts.fespace;
+   int bs = 1;
    if (fespace)
    {
-      const FiniteElementCollection *fec = fespace->FEColl();
-      bool  edgespace, rtspace, neednetflux = false;
-      bool  tracespace, rt_tracespace;
-      int   dim , p;
+      const     FiniteElementCollection *fec = fespace->FEColl();
+      bool      edgespace, rtspace, neednetflux = false;
+      bool      tracespace, rt_tracespace;
+      int       dim , p;
+      PetscBool B_is_Trans = PETSC_FALSE;
 
       ParMesh *pmesh = (ParMesh *) fespace->GetMesh();
       dim = pmesh->Dimension();
       bs = fec->DofForGeometry(Geometry::POINT);
+      bs = bs ? bs : 1;
       p = fespace->GetOrder(0);
       rtspace = dynamic_cast<const RT_FECollection*>(fec);
       edgespace = dynamic_cast<const ND_FECollection*>(fec);
@@ -1318,6 +1356,33 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A,ParFiniteElementSpace *fespac
          b->Assemble();
          b->Finalize();
          B = b->PetscParallelAssemble();
+
+// TODO I'm not sure this is really needed.
+#if 0
+         // TODO this is a temporary hack to get the transpose
+         // that will be solved trough PETSc
+         if (dir)
+         { // if essential dofs are present, we need to zero the columns
+            Mat pBt,lBt,lB;
+            PetscInt lr,lc;
+            ISLocalToGlobalMapping rmap,cmap;
+            ierr = MatGetLocalToGlobalMapping(*B,&rmap,&cmap); PCHKERRQ(pA,ierr);
+            ierr = MatGetLocalSize(*B,&lr,&lc); PCHKERRQ(pA,ierr);
+            ierr = MatISGetLocalMat(*B,&lB); PCHKERRQ(pA,ierr);
+            ierr = MatCreateIS(comm,bs,lc,lr,PETSC_DECIDE,PETSC_DECIDE,cmap,rmap,&pBt);
+            PCHKERRQ(pA,ierr);
+            ierr = MatTranspose(lB,MAT_INITIAL_MATRIX,&lBt);
+            PCHKERRQ(pA,ierr);
+            ierr = MatISSetLocalMat(pBt,lBt); PCHKERRQ(lBt,ierr);
+            ierr = MatAssemblyBegin(pBt,MAT_FINAL_ASSEMBLY); PCHKERRQ(pBt,ierr);
+            ierr = MatAssemblyEnd(pBt,MAT_FINAL_ASSEMBLY); PCHKERRQ(pBt,ierr);
+            ierr = MatDestroy(&lBt); PCHKERRQ(pA,ierr);
+            ierr = MatZeroRowsIS(pBt,dir,0.,NULL,NULL); PCHKERRQ(pBt,ierr);
+            delete B;
+            B = new PetscParMatrix(pBt,false);
+            B_is_Trans = PETSC_TRUE;
+         }
+#endif
          delete b;
          delete pspace;
          delete auxcoll;
@@ -1327,7 +1392,7 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A,ParFiniteElementSpace *fespac
       // You need to checkout stefano_zampini/feature-pcbddc-saddlepoint to use it
       if (B)
       {
-         ierr = PCBDDCSetDivergenceMat(pc,*B,NULL); PCHKERRQ(pc,ierr);
+         ierr = PCBDDCSetDivergenceMat(pc,*B,B_is_Trans,NULL); PCHKERRQ(pc,ierr);
       }
       if (bs)
       {
@@ -1335,10 +1400,14 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A,ParFiniteElementSpace *fespac
       }
       delete B;
    }
+   ierr = ISDestroy(&dir); PCHKERRQ(pc,ierr);
+   ierr = ISDestroy(&neu); PCHKERRQ(pc,ierr);
    ierr = PCSetFromOptions(pc); PCHKERRQ(pc,ierr);
 }
 
 }  // namespace mfem
+
+// auxiliary functions
 
 #undef __FUNCT__
 #define __FUNCT__ "array_container_destroy"
@@ -1348,6 +1417,20 @@ static PetscErrorCode array_container_destroy(void *ptr)
 
    PetscFunctionBeginUser;
    ierr = PetscFree(ptr); CHKERRQ(ierr);
+   PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "Convert_Array_IS"
+static PetscErrorCode Convert_Array_IS(MPI_Comm comm, mfem::Array<int> *list, PetscInt st, IS* is)
+{
+   PetscInt n = list->Size(),*idxs;
+   const int *data = list->GetData();
+
+   PetscFunctionBeginUser;
+   ierr = PetscMalloc1(n,&idxs); CHKERRQ(ierr);
+   for (PetscInt i=0; i<n; i++) { idxs[i] = data[i] + st; }
+   ierr = ISCreateGeneral(comm,n,idxs,PETSC_OWN_POINTER,is);
    PetscFunctionReturn(0);
 }
 

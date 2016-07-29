@@ -273,7 +273,11 @@ int main(int argc, char *argv[])
       if (use_unassembled) {
          ParFiniteElementSpace *prec_fespace =
             (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);
-         prec = new PetscBDDCSolver(A,prec_fespace);
+         PetscBDDCSolverOpts opts;
+         opts.SetSpace(prec_fespace);
+         opts.SetEssBdrDofs(&ess_tdof_list);
+
+         prec = new PetscBDDCSolver(A,opts);
          pcg->SetPreconditioner(*prec);
       }
       pcg->Mult(B, X);
