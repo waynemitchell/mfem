@@ -29,27 +29,38 @@ using namespace std;
 
 static int create_directory(const string &dir_name, const Mesh *mesh, int myid)
 {
-   int err;
-#ifndef MFEM_USE_MPI
-   err = mkdir(dir_name.c_str(), 0777);
-   err = (err && (errno != EEXIST)) ? 1 : 0;
-#else
-   const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
-   if (myid == 0 || pmesh == NULL)
-   {
-      err = mkdir(dir_name.c_str(), 0777);
-      err = (err && (errno != EEXIST)) ? 1 : 0;
-      if (pmesh)
-      {
-         MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
-      }
-   }
-   else
-   {
-      // Wait for rank 0 to create the directory
-      MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
-   }
-#endif
+    // create directories recursively
+    const char path_delim = '/';
+    std::string::size_type pos = 0;
+    int err;
+
+    do {
+        pos = dir_name.find(path_delim, pos+1);
+        std::string subdir = dir_name.substr(0, pos);
+
+    #ifndef MFEM_USE_MPI
+       err = mkdir(subdir.c_str(), 0777);
+       err = (err && (errno != EEXIST)) ? 1 : 0;
+    #else
+       const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
+       if (myid == 0 || pmesh == NULL)
+       {
+          err = mkdir(subdir.c_str(), 0777);
+          err = (err && (errno != EEXIST)) ? 1 : 0;
+          if (pmesh)
+          {
+             MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
+          }
+       }
+       else
+       {
+          // Wait for rank 0 to create the directory
+          MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
+       }
+    #endif
+
+    } while( pos != std::string::npos );
+
    return err;
 }
 

@@ -357,13 +357,38 @@ void SidreDataCollection::CopyMesh(std::string name, Mesh *new_mesh)
 
 void SidreDataCollection::Load(const std::string& path, const std::string& protocol)
 {
-	std::cout << "Loading Sidre checkpoint: " << path << " using protocol: " << protocol << std::endl;
-//	sidre_dc_group->getDataStore()->load(path, protocol, sidre_dc_group);
-	sidre_dc_group->getDataStore()->load(path, protocol);
-    // we have to get this again because the group pointer may have changed
-    sidre_dc_group = parent_datagroup->getGroup( name );
-	SetTime( sidre_dc_group->getView("state/time")->getData<double>() );
-	SetCycle( sidre_dc_group->getView("state/cycle")->getData<int>() );
+    bool useSerial = true;
+
+    std::cout << "Loading Sidre checkpoint: " << path
+              << " using protocol: " << protocol << std::endl;
+
+    // write out in serial if non-mpi or for debug
+#ifdef MFEM_USE_MPI
+
+    useSerial = false;
+    ParMesh *par_mesh = dynamic_cast<ParMesh*>(mesh);
+    if (par_mesh)
+    {
+        asctoolkit::spio::IOManager reader(par_mesh->GetComm());
+        reader.read(sidre_dc_group, path);
+    }
+    else
+    {
+        useSerial = true;
+    }
+
+#endif
+
+    // write out in serial for debugging, or if MPI unavailable
+    if(useSerial)
+    {
+        sidre_dc_group->getDataStore()->load(path, protocol); //, sidre_dc_group);
+    }
+
+
+    SetTime( sidre_dc_group->getView("state/time")->getData<double>() );
+    SetCycle( sidre_dc_group->getView("state/cycle")->getData<int>() );
+
 }
 
 void SidreDataCollection::Save()
@@ -410,11 +435,11 @@ void SidreDataCollection::Save()
     {
         protocol = "conduit_json";
         filename = fNameSstr.str() + "_ser.json";
-        sidre_dc_group->getDataStore()->save(filename, protocol);
+        sidre_dc_group->getDataStore()->save(filename, protocol);//, sidre_dc_group);
 
         protocol = "sidre_hdf5";
         filename = fNameSstr.str() + "_ser.hdf5";
-        sidre_dc_group->getDataStore()->save(filename, protocol);
+        sidre_dc_group->getDataStore()->save(filename, protocol);//, sidre_dc_group);
     }
 }
 
