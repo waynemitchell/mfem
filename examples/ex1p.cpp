@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
    bool visualization = 1;
 #ifdef MFEM_USE_PETSC
    bool wrap = true;
-   const char *petscrc_file = NULL;
+   const char *petscrc_file = "";
 #endif
 
    OptionsParser args(argc, argv);

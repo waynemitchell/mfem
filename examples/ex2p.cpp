@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
    bool amg_elast = 0;
    bool use_petsc = false;
 #ifdef MFEM_USE_PETSC
-   const char *petscrc_file = NULL;
+   const char *petscrc_file = "";
    bool use_unassembled = false;
 #endif
 

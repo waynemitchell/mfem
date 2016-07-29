@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
    bool visualization = 1;
    bool use_petsc = false;
 #ifdef MFEM_USE_PETSC
-   const char *petscrc_file = NULL;
+   const char *petscrc_file = "";
    bool use_unassembled = false;
 #endif
 
@@ -111,11 +111,11 @@ int main(int argc, char *argv[])
    {
       args.PrintOptions(cout);
    }
-   kappa = freq * M_PI;
    // 2b. We initialize PETSc
 #ifdef MFEM_USE_PETSC
    if (use_petsc) { PetscInitialize(NULL,NULL,petscrc_file,NULL); }
 #endif
+   kappa = freq * M_PI;
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface

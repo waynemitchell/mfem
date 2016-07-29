@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
    bool visualization = 1;
    bool use_petsc = false;
 #ifdef MFEM_USE_PETSC
-   const char *petscrc_file = NULL;
+   const char *petscrc_file = "";
    bool use_unassembled = false;
 #endif
 
