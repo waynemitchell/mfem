@@ -1289,7 +1289,7 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts, st
    if (fespace)
    {
       const     FiniteElementCollection *fec = fespace->FEColl();
-      bool      edgespace, rtspace, neednetflux = false;
+      bool      edgespace, rtspace, needint = false;
       bool      tracespace, rt_tracespace;
       int       dim , p;
       PetscBool B_is_Trans = PETSC_FALSE;
@@ -1298,17 +1298,18 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts, st
       dim = pmesh->Dimension();
       bs = fec->DofForGeometry(Geometry::POINT);
       bs = bs ? bs : 1;
-      p = fespace->GetOrder(0);
       rtspace = dynamic_cast<const RT_FECollection*>(fec);
       edgespace = dynamic_cast<const ND_FECollection*>(fec);
       tracespace = dynamic_cast<const ND_Trace_FECollection*>(fec);
       rt_tracespace = dynamic_cast<const RT_Trace_FECollection*>(fec);
       tracespace = tracespace || rt_tracespace;
+      if (!tracespace) { p = fespace->GetOrder(0); }
+      else { p = fespace->GetFaceOrder(0) + 1; }
       if (edgespace) // H(curl)
       {
          if (dim == 2)
          {
-            neednetflux = true;
+            needint = true;
          }
          else
          {
@@ -1317,20 +1318,28 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts, st
       }
       else if (rtspace) // H(div)
       {
-         neednetflux = true;
+         needint = true;
       }
       else if (bs == dim) // Elasticity?
       {
-         neednetflux = true;
+         needint = true;
+      }
+      if (tracespace)
+      {
+         MFEM_WARNING("Tracepace case untested, not using it");
+         tracespace = false;
+         needint = false;
       }
 
       PetscParMatrix *B = NULL;
-      if (neednetflux)
+      if (needint)
       {
          // Generate bilinear form in unassembled format which is used to
          // compute the net-flux across subdomain boundaries
+         // for H(div) and Elasticity, and the line integral of
+         // of 2D H(curl) fields
          FiniteElementCollection *auxcoll;
-         if (tracespace) { auxcoll = new H1_Trace_FECollection(p,dim); }
+         if (tracespace) { auxcoll = new RT_Trace_FECollection(p,dim); }
          else { auxcoll = new L2_FECollection(p,dim); };
          ParFiniteElementSpace *pspace = new ParFiniteElementSpace(pmesh,auxcoll);
          ParMixedBilinearForm *b = new ParMixedBilinearForm(fespace,pspace);

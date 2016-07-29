@@ -368,6 +368,7 @@ public:
    PetscBDDCSolverOpts() : fespace(NULL), ess_tdof_list(NULL) {};
    void SetSpace(ParFiniteElementSpace *fe) { fespace = fe; };
    void SetEssBdrDofs(Array<int> *esstdofs) { ess_tdof_list = esstdofs; };
+   // TODO ASK how to compute them?
    void SetNatBdrDofs(Array<int> *nattdofs) { nat_tdof_list = nattdofs; };
    ~PetscBDDCSolverOpts() {};
 };
