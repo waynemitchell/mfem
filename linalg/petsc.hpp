@@ -128,6 +128,12 @@ protected:
    friend class PetscLinearSolver;
    friend class PetscPreconditioner;
 
+   /// Constructs a block-diagonal Mat object
+   void BlockDiagonalConstructor(MPI_Comm comm, PetscInt global_num_rows,
+                                 PetscInt global_num_cols, PetscInt *row_starts,
+                                 PetscInt *col_starts, SparseMatrix *diag,
+                                 bool assembled, Mat *A);
+
 public:
    /// An empty matrix to be used as a reference to an existing matrix.
    PetscParMatrix();
@@ -156,7 +162,7 @@ public:
    /** Creates block-diagonal square parallel matrix. Diagonal is given by diag
        which must be in CSR format (finalized). The new PetscParMatrix does not
        take ownership of any of the input arrays.
-       If assembled is false, a MATIS object is (subdomain wise assembly)
+       If assembled is false, a MATIS object is constructed.
        Otherwise, a MATAIJ (parallel distributed CSR) is used */
    PetscParMatrix(MPI_Comm comm, PetscInt glob_size, PetscInt *row_starts,
                   SparseMatrix *diag, bool assembled = true);
@@ -164,7 +170,7 @@ public:
    /** Creates block-diagonal rectangular parallel matrix. Diagonal is given by
        diag which must be in CSR format (finalized). The new PetscParMatrix does
        not take ownership of any of the input arrays.
-       If assembled is false, a MATIS object is (subdomain wise assembly)
+       If assembled is false, a MATIS object is constructed.
        Otherwise, a MATAIJ (parallel distributed CSR) is used */
    PetscParMatrix(MPI_Comm comm, PetscInt global_num_rows,
                   PetscInt global_num_cols, PetscInt *row_starts,
@@ -221,6 +227,9 @@ public:
 
 };
 
+/// Returns the matrix Rt^t * A * P
+PetscParMatrix * RAP(PetscParMatrix *Rt, PetscParMatrix *A, PetscParMatrix *P);
+
 /// Returns the matrix P^t * A * P
 PetscParMatrix * RAP(PetscParMatrix *A, PetscParMatrix *P);
 
@@ -274,6 +283,9 @@ public:
       MFEM_ABORT("SetPrintLevel not implemented!")
    };
    void Mult(const PetscParVector &b, PetscParVector &x) const;
+
+   /// Typecasting to PETScObject
+   operator PetscObject() const { return obj; }
 };
 
 /// Abstract class for PETSc's linear solvers
@@ -305,6 +317,9 @@ public:
 
    /// Sets the solver to be used as a preconditioner
    void SetPreconditioner(Solver &precond);
+
+   /// Typecasting to PETSc's KSP
+   operator KSP() const { return (KSP)obj; }
 };
 
 // iterative solvers
@@ -334,15 +349,17 @@ public:
    //virtual void SetPrintLevel(int plev);
    //virtual void Mult(const PetscParVector &b, PetscParVector &x) const;
    virtual ~PetscPreconditioner();
+   /// Typecasting to PETSc's PC
+   operator PC() const { return (PC)obj; }
 };
 
 // preconditioners
 
-//class PetscBDDCSolver : public PetscPreconditioner
-//{
-//public:
-//   PetscBDDCSolver(ParFiniteElementSpace *fespace);
-//};
+class PetscBDDCSolver : public PetscPreconditioner
+{
+public:
+   PetscBDDCSolver(PetscParMatrix &A, ParFiniteElementSpace *fespace = NULL, std::string prefix = std::string());
+};
 
 
 }

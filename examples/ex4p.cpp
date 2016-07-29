@@ -223,6 +223,11 @@ int main(int argc, char *argv[])
    a->Assemble();
 
    Vector B, X;
+   CGSolver *pcg = new CGSolver(MPI_COMM_WORLD);
+   pcg->SetRelTol(1e-12);
+   pcg->SetMaxIter(500);
+   pcg->SetPrintLevel(1);
+
    if (!use_petsc)
    {
       HypreParMatrix A;
@@ -238,11 +243,7 @@ int main(int argc, char *argv[])
       //     the 3D ADS preconditioners from hypre. If using hybridization, the
       //     system is preconditioned with hypre's BoomerAMG.
       HypreSolver *prec = NULL;
-      CGSolver *pcg = new CGSolver(A.GetComm());
       pcg->SetOperator(A);
-      pcg->SetRelTol(1e-12);
-      pcg->SetMaxIter(500);
-      pcg->SetPrintLevel(1);
       if (hybridization) { prec = new HypreBoomerAMG(A); }
       else
       {
@@ -253,13 +254,13 @@ int main(int argc, char *argv[])
       }
       pcg->SetPreconditioner(*prec);
       pcg->Mult(B, X);
-      delete pcg;
       delete prec;
    }
 #ifdef MFEM_USE_PETSC
    else
    {
       PetscParMatrix A;
+      PetscSolver   *prec = NULL;
       if (use_unassembled) { a->SetUseUnassembledFormat(); }
       a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
 
@@ -268,15 +269,18 @@ int main(int argc, char *argv[])
          cout << "Size of linear system: " << A.M() << endl;
       }
 
-      // 12. Define and apply a parallel PCG solver.
-      PetscPCGSolver *pcg = new PetscPCGSolver(A);
-      pcg->SetTol(1e-12);
-      pcg->SetMaxIter(500);
-      pcg->SetPrintLevel(1); //TODO
+      pcg->SetOperator(A);
+      if (use_unassembled) {
+         ParFiniteElementSpace *prec_fespace =
+            (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);
+         prec = new PetscBDDCSolver(A,prec_fespace);
+         pcg->SetPreconditioner(*prec);
+      }
       pcg->Mult(B, X);
-      delete pcg;
+      delete prec;
    }
 #endif
+   delete pcg;
 
    // 13. Recover the parallel grid function corresponding to X. This is the
    //     local finite element solution on each processor.

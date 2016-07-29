@@ -191,6 +191,10 @@ protected:
    ParFiniteElementSpace *test_pfes;
    mutable ParGridFunction X, Y; // used in TrueAddMult
 
+   // assemble the matrix in "unassembled format" for non-overlapping DD
+   // significant only with PETSc backend
+   bool unassembled;
+
 public:
    ParMixedBilinearForm(ParFiniteElementSpace *trial_fes,
                         ParFiniteElementSpace *test_fes)
@@ -198,13 +202,31 @@ public:
    {
       trial_pfes = trial_fes;
       test_pfes  = test_fes;
+      unassembled = false;
    }
 
    /// Returns the matrix assembled on the true dofs, i.e. P^t A P.
    HypreParMatrix *ParallelAssemble();
 
+#ifdef MFEM_USE_PETSC
+   /// Returns the matrix assembled on the true dofs, i.e. P^t A P (PETSc version).
+   PetscParMatrix *PetscParallelAssemble();
+#endif
+
    /// Compute y += a (P^t A P) x, where x and y are vectors on the true dofs
    void TrueAddMult(const Vector &x, Vector &y, const double a = 1.0) const;
+
+   /// Assemble the matrix in "unassembled format" for non-overlapping DD
+   /// Only significant with PETSc backend
+   void SetUseUnassembledFormat(bool use = true)
+   {
+#ifndef MFEM_USE_PETSC
+      if (true) { MFEM_ABORT("You did not configured MFEM with PETSc support"); }
+      unassembled = false;
+#else
+      unassembled = use;
+#endif
+   }
 
    virtual ~ParMixedBilinearForm() { }
 };

@@ -582,6 +582,35 @@ HypreParMatrix *ParMixedBilinearForm::ParallelAssemble()
    return rap;
 }
 
+#ifdef MFEM_USE_PETSC
+// this function is almost a verbatim copy of the one before
+// we may want to glue them together?
+PetscParMatrix *ParMixedBilinearForm::PetscParallelAssemble()
+{
+   // construct the block-diagonal matrix A
+   PetscParMatrix *A =
+      new PetscParMatrix(trial_pfes->GetComm(),
+                         test_pfes->GlobalVSize(),
+                         trial_pfes->GlobalVSize(),
+                         test_pfes->GetDofOffsets(),
+                         trial_pfes->GetDofOffsets(),
+                         mat,!unassembled);
+
+   // TODO assemble Dof_TrueDof_Matrix in MATIS format?
+   PetscParMatrix *tetemp = new PetscParMatrix(test_pfes->Dof_TrueDof_Matrix(),false,
+                                               !unassembled);
+   PetscParMatrix *trtemp = new PetscParMatrix(trial_pfes->Dof_TrueDof_Matrix(),false,
+                                               !unassembled);
+   PetscParMatrix *rap = RAP(tetemp, A, trtemp);
+
+   delete tetemp;
+   delete trtemp;
+   delete A;
+
+   return rap;
+}
+#endif
+
 /// Compute y += a (P^t A P) x, where x and y are vectors on the true dofs
 void ParMixedBilinearForm::TrueAddMult(const Vector &x, Vector &y,
                                        const double a) const
