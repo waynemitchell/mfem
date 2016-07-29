@@ -34,6 +34,9 @@
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
+#ifdef MFEM_USE_PETSC
+#include <petsc.h>
+#endif
 
 using namespace std;
 using namespace mfem;
@@ -50,6 +53,12 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
    bool visualization = true;
+   int max_dofs = 100000;
+#ifdef MFEM_USE_PETSC
+   bool use_petsc = false;
+   const char *petscrc_file = "";
+   bool use_unassembled = false;
+#endif
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -59,6 +68,19 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
+   args.AddOption(&max_dofs, "-md", "--max_dofs",
+                  "Maximum number of dofs.");
+#ifdef MFEM_USE_PETSC
+   args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "no-petsc",
+                  "--no-petsc",
+                  "Use or not PETSc to solve the linear system.");
+   args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
+                  "PetscOptions file to use.");
+   args.AddOption(&use_unassembled, "-unassembled", "--unassembled",
+                  "no-unassembled",
+                  "--no-unassembled",
+                  "Use or not PETSc unassembled matrix format.");
+#endif
    args.Parse();
    if (!args.Good())
    {
@@ -73,6 +95,10 @@ int main(int argc, char *argv[])
    {
       args.PrintOptions(cout);
    }
+   // 2b. We initialize PETSc
+#ifdef MFEM_USE_PETSC
+   if (use_petsc) { PetscInitialize(NULL,NULL,petscrc_file,NULL); }
+#endif
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
@@ -168,7 +194,6 @@ int main(int argc, char *argv[])
 
    // 12. The main AMR loop. In each iteration we solve the problem on the
    //     current mesh, visualize the solution, and refine the mesh.
-   const int max_dofs = 100000;
    for (int it = 0; ; it++)
    {
       HYPRE_Int global_dofs = fespace.GlobalTrueVSize();
@@ -194,7 +219,49 @@ int main(int argc, char *argv[])
       HypreParMatrix A;
       Vector B, X;
       const int copy_interior = 1;
+      MPI_Barrier(MPI_COMM_WORLD);
+      double time = -MPI_Wtime();
       a.FormLinearSystem(ess_tdof_list, x, b, A, X, B, copy_interior);
+      MPI_Barrier(MPI_COMM_WORLD);
+      time += MPI_Wtime();
+      if (myid == 0) cout << "HYPRE assembly timing : " << time << endl;
+
+#ifdef MFEM_USE_PETSC
+      if (use_petsc)
+      {
+         if (use_unassembled) { a.SetUseUnassembledFormat(); }
+         a.Assemble();
+         b.Assemble();
+         PetscParMatrix pA;
+         Vector pX,pB;
+         MPI_Barrier(MPI_COMM_WORLD);
+         time = -MPI_Wtime();
+         a.FormLinearSystem(ess_tdof_list, x, b, pA, pX, pB, copy_interior);
+         MPI_Barrier(MPI_COMM_WORLD);
+         time += MPI_Wtime();
+         if (myid == 0) cout << "PETSc assembly timing : " << time << endl;
+
+         // Check the assembly procedure
+         PetscReal       error;
+         PetscErrorCode  ierr;
+         PetscParMatrix  hA(&A,false);
+         PetscParMatrix  *diffmat;
+         if (use_unassembled)
+         {
+            Mat B;
+            ierr = MatISGetMPIXAIJ(pA,MAT_INITIAL_MATRIX,&B);CHKERRQ(ierr);
+            diffmat = new PetscParMatrix(B,false);
+         }
+         else
+         {
+            diffmat = &pA;
+         }
+         ierr = MatAXPY(*diffmat,-1.,hA,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+         ierr = MatNorm(*diffmat,NORM_INFINITY,&error);CHKERRQ(ierr);
+         if (myid == 0) cout << "Error between PETSc and HYPRE : " << error << endl;
+         if (use_unassembled) { delete diffmat; }
+      }
+#endif
 
       // 15. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
       //     preconditioner from hypre.
@@ -225,6 +292,11 @@ int main(int argc, char *argv[])
          {
             cout << "Reached the maximum number of dofs. Stop." << endl;
          }
+         // we need to call Update here to delete any internal PETSc object that have been
+         // created internally by the ParBilinearForm; otherwise, these objects will be
+         // detroyed at the end of the main scope, when PETSc has been already finalized.
+         a.Update();
+         b.Update();
          break;
       }
 
@@ -239,6 +311,8 @@ int main(int argc, char *argv[])
          {
             cout << "Stopping criterion satisfied. Stop." << endl;
          }
+         a.Update();
+         b.Update();
          break;
       }
 
@@ -268,6 +342,9 @@ int main(int argc, char *argv[])
       b.Update();
    }
 
+#ifdef MFEM_USE_PETSC
+   if (use_petsc) { PetscFinalize(); }
+#endif
    MPI_Finalize();
    return 0;
 }
