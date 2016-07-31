@@ -381,12 +381,13 @@ PetscParMatrix::PetscParMatrix(const HypreParMatrix *hmat, bool wrap,
    }
 }
 
-PetscParMatrix::PetscParMatrix(MPI_Comm comm, const Operator *op)
+PetscParMatrix::PetscParMatrix(MPI_Comm comm, const Operator *op, bool wrap)
 {
    Init();
    height = op->Height();
    width  = op->Width();
-   MakeWrapper(comm,op,&A);
+   if (wrap) { MakeWrapper(comm,op,&A); }
+   else { ConvertOperator(comm,*op,&A); }
 }
 
 PetscParMatrix::PetscParMatrix(MPI_Comm comm, PetscInt glob_size,
@@ -596,6 +597,53 @@ void PetscParMatrix::MakeWrapper(MPI_Comm comm, const Operator* op, Mat *A)
    ierr = MatSetUp(*A); PCHKERRQ(*A,ierr);
    ctx->op = const_cast<Operator *>(op);
 }
+
+void PetscParMatrix::ConvertOperator(MPI_Comm comm, const Operator &op, Mat* A)
+{
+   PetscParMatrix *pA = const_cast<PetscParMatrix *>
+                        (dynamic_cast<const PetscParMatrix *>(&op));
+   HypreParMatrix *pH = const_cast<HypreParMatrix *>
+                        (dynamic_cast<const HypreParMatrix *>(&op));
+   BlockOperator  *pB = const_cast<BlockOperator *>
+                        (dynamic_cast<const BlockOperator *>(&op));
+   if (pA)
+   {
+      ierr = PetscObjectReference((PetscObject)(pA->A)); PCHKERRQ(pA->A,ierr);
+      *A = pA->A;
+   }
+   else if (pH)
+   {
+      ierr = MatConvert_hypreParCSR_AIJ(const_cast<HypreParMatrix&>(*pH),A);
+      CCHKERRQ(pH->GetComm(),ierr);
+   }
+   else if (pB)
+   {
+      Mat      *mats;
+      PetscInt i,j,nr,nc;
+
+      nr = pB->NumRowBlocks();
+      nc = pB->NumColBlocks();
+      ierr = PetscCalloc1(nr*nc,&mats); CCHKERRQ(PETSC_COMM_SELF,ierr);
+      for (i=0;i<nr;i++)
+      {
+         for (j=0;j<nc;j++)
+         {
+            if (!pB->IsZeroBlock(i,j)) // TODO this need to be fixed in PETSc
+            {
+               ConvertOperator(comm,pB->GetBlock(i,j),&mats[i*nc+j]);
+            }
+         }
+      }
+      ierr = MatCreateNest(comm,nr,NULL,nc,NULL,mats,A); CCHKERRQ(comm,ierr);
+      for (i=0;i<nr*nc;i++) { ierr = MatDestroy(&mats[i]); CCHKERRQ(comm,ierr); }
+      ierr = PetscFree(mats); CCHKERRQ(PETSC_COMM_SELF,ierr);
+   }
+   else
+   {
+      MFEM_ABORT("PetscParMatrix::ConvertOperator : don't know how to convert");
+   }
+}
+
 
 void PetscParMatrix::Destroy()
 {
@@ -1218,13 +1266,33 @@ PetscPreconditioner::PetscPreconditioner(PetscParMatrix &_A, std::string prefix)
    SetOperator(_A);
 }
 
+PetscPreconditioner::PetscPreconditioner(MPI_Comm comm, Operator &op, std::string prefix)
+{
+   Init();
+   PC pc;
+   ierr = PCCreate(comm,&pc); CCHKERRQ(comm,ierr);
+   obj = (PetscObject)pc;
+   SetPrefix(prefix);
+   SetOperator(op);
+}
+
 void PetscPreconditioner::SetOperator(const Operator &op)
 {
-   PC pc = (PC)obj;
+   bool delete_pA = false;
    PetscParMatrix *pA = const_cast<PetscParMatrix *>
                         (dynamic_cast<const PetscParMatrix *>(&op));
-   if (!pA) { MFEM_ABORT("PetscPreconditioner::SetOperator Operator should be a PetscParMatrix"); }
+   BlockOperator  *pB = const_cast<BlockOperator *>
+                        (dynamic_cast<const BlockOperator *>(&op));
+   std::cout << "Set Operator " << (bool)(pA) << ", " << (bool)(pB) << std::endl;
+   if (!pA && pB)
+   {
+      pA = new PetscParMatrix(PetscObjectComm(obj),pB,false);
+      delete_pA = true;
+   }
+   if (!pA) { MFEM_ABORT("PetscPreconditioner::SetOperator Operator should be a PetscParMatrix or a BlockOperator"); }
+   PC pc = (PC)obj;
    ierr = PCSetOperators(pc,pA->A,pA->A); PCHKERRQ(obj,ierr);
+   if (delete_pA) { delete pA; };
 }
 
 PetscPreconditioner::~PetscPreconditioner()
@@ -1411,6 +1479,25 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts, st
    }
    ierr = ISDestroy(&dir); PCHKERRQ(pc,ierr);
    ierr = ISDestroy(&neu); PCHKERRQ(pc,ierr);
+   ierr = PCSetFromOptions(pc); PCHKERRQ(pc,ierr);
+}
+
+PetscFieldSplitSolver::PetscFieldSplitSolver(MPI_Comm comm, BlockOperator &op, std::string prefix) : PetscPreconditioner(comm,op,prefix)
+{
+   PC pc = (PC)obj;
+   Mat pA;
+   IS  *isrow;
+   PetscInt nr,i;
+   ierr = PCSetType(pc,PCFIELDSPLIT); PCHKERRQ(pc,ierr);
+   ierr = PCGetOperators(pc,&pA,NULL); PCHKERRQ(pc,ierr);
+   ierr = MatNestGetSize(pA,&nr,NULL); PCHKERRQ(pc,ierr);
+   ierr = PetscCalloc1(nr,&isrow); CCHKERRQ(PETSC_COMM_SELF,ierr);
+   ierr = MatNestGetISs(pA,isrow,NULL); PCHKERRQ(pc,ierr);
+   for (i=0;i<nr;i++)
+   {
+      ierr = PCFieldSplitSetIS(pc,NULL,isrow[i]); PCHKERRQ(pc,ierr);
+   }
+   ierr = PetscFree(isrow); CCHKERRQ(PETSC_COMM_SELF,ierr);
    ierr = PCSetFromOptions(pc); PCHKERRQ(pc,ierr);
 }
 

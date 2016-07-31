@@ -125,6 +125,10 @@ protected:
    /// should not be destroyed until B is needed.
    void MakeWrapper(MPI_Comm comm, const Operator* op, Mat *B);
 
+   /// Convert a mfem::Operator into a Mat B
+   /// Op can be destroyed
+   void ConvertOperator(MPI_Comm comm, const Operator& op, Mat *B);
+
    friend class PetscLinearSolver;
    friend class PetscPreconditioner;
 
@@ -153,11 +157,11 @@ public:
    /// not be destroyed before the PetscParMatrix; assembled is not referenced.
    PetscParMatrix(const HypreParMatrix* a, bool wrap=false, bool assembled=true);
 
-   /// Converts any mfem::Operator op implementing Mult and MultTranspose
-   /// into a PetscParMatrix. The Operator destructor should not be called
-   /// before the one of the PetscParMatrix. The user is responsible to destroy
-   /// the Operator.
-   PetscParMatrix(MPI_Comm comm, const Operator* op);
+   /// If wrap is true, it converts any mfem::Operator op implementing Mult and
+   /// MultTranspose into a PetscParMatrix. The Operator destructor should not
+   /// be called before the one of the PetscParMatrix.
+   /// If wrap is false, it tries to convert the operator in PETSc's classes.
+   PetscParMatrix(MPI_Comm comm, const Operator* op, bool wrap = true);
 
    /** Creates block-diagonal square parallel matrix. Diagonal is given by diag
        which must be in CSR format (finalized). The new PetscParMatrix does not
@@ -342,6 +346,8 @@ public:
 
    PetscPreconditioner(PetscParMatrix &_A, std::string prefix = std::string());
 
+   PetscPreconditioner(MPI_Comm comm, Operator &op, std::string prefix = std::string());
+
    /// virtual methods for base classes
    virtual void SetOperator(const Operator &op);
    //virtual void SetTol(double tol);
@@ -377,6 +383,12 @@ class PetscBDDCSolver : public PetscPreconditioner
 {
 public:
    PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts = PetscBDDCSolverOpts(), std::string prefix = std::string());
+};
+
+class PetscFieldSplitSolver : public PetscPreconditioner
+{
+public:
+   PetscFieldSplitSolver(MPI_Comm comm, BlockOperator &op, std::string prefix = std::string());
 };
 
 
