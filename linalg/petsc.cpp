@@ -43,10 +43,28 @@
   }
 
 // prototype for auxiliary functions
+static PetscErrorCode mat_shell_apply(Mat,Vec,Vec);
+static PetscErrorCode mat_shell_apply_transpose(Mat,Vec,Vec);
+static PetscErrorCode mat_shell_destroy(Mat);
+static PetscErrorCode pc_shell_apply(PC,Vec,Vec);
+static PetscErrorCode pc_shell_apply_transpose(PC,Vec,Vec);
+static PetscErrorCode pc_shell_setup(PC);
+static PetscErrorCode pc_shell_destroy(PC);
 static PetscErrorCode array_container_destroy(void*);
 static PetscErrorCode Convert_Array_IS(MPI_Comm,mfem::Array<int>*,PetscInt,IS*);
 static PetscErrorCode MatConvert_hypreParCSR_AIJ(hypre_ParCSRMatrix*,Mat*);
 static PetscErrorCode MatConvert_hypreParCSR_IS(hypre_ParCSRMatrix*,Mat*);
+
+// structs used by PETSc code
+typedef struct
+{
+   mfem::Operator *op;
+} mat_shell_ctx;
+
+typedef struct
+{
+   mfem::Solver *op;
+} solver_shell_ctx;
 
 // use global scope ierr to check PETSc errors inside mfem calls
 PetscErrorCode ierr;
@@ -530,54 +548,6 @@ void PetscParMatrix::BlockDiagonalConstructor(MPI_Comm comm, PetscInt global_num
 //                  double *data, PetscInt *rows, PetscInt *cols)
 //{
 //}
-
-typedef struct
-{
-   Operator *op;
-} mat_shell_ctx;
-
-#undef __FUNCT__
-#define __FUNCT__ "mat_shell_apply"
-static PetscErrorCode mat_shell_apply(Mat A, Vec x, Vec y)
-{
-   mat_shell_ctx     *ctx;
-   PetscErrorCode     ierr;
-
-   PetscFunctionBeginUser;
-   ierr = MatShellGetContext(A,(void **)&ctx); PCHKERRQ(A,ierr);
-   PetscParVector xx(x,true);
-   PetscParVector yy(y,true);
-   ctx->op->Mult(xx,yy);
-   PetscFunctionReturn(0);
-}
-
-#undef __FUNCT__
-#define __FUNCT__ "mat_shell_apply_transpose"
-static PetscErrorCode mat_shell_apply_transpose(Mat A, Vec x, Vec y)
-{
-   mat_shell_ctx     *ctx;
-   PetscErrorCode     ierr;
-
-   PetscFunctionBeginUser;
-   ierr = MatShellGetContext(A,(void **)&ctx); PCHKERRQ(A,ierr);
-   PetscParVector xx(x,true);
-   PetscParVector yy(y,true);
-   ctx->op->MultTranspose(xx,yy);
-   PetscFunctionReturn(0);
-}
-
-#undef __FUNCT__
-#define __FUNCT__ "mat_shell_destroy"
-static PetscErrorCode mat_shell_destroy(Mat A)
-{
-   mat_shell_ctx  *ctx;
-
-   PetscFunctionBeginUser;
-   ierr = MatShellGetContext(A,(void **)&ctx); PCHKERRQ(A,ierr);
-   delete ctx;
-   PetscFunctionReturn(0);
-}
-#undef __FUNCT__
 
 // TODO This should take a reference but how?
 void PetscParMatrix::MakeWrapper(MPI_Comm comm, const Operator* op, Mat *A)
@@ -1107,65 +1077,6 @@ void PetscLinearSolver::SetOperator(const Operator &op)
    width  = nwidth;
 }
 
-typedef struct
-{
-   Solver *op;
-} solver_shell_ctx;
-
-
-#undef __FUNCT__
-#define __FUNCT__ "pc_shell_apply"
-static PetscErrorCode pc_shell_apply(PC pc, Vec x, Vec y)
-{
-   solver_shell_ctx  *ctx;
-   PetscErrorCode     ierr;
-
-   PetscFunctionBeginUser;
-   ierr = PCShellGetContext(pc,(void **)&ctx); PCHKERRQ(pc,ierr);
-   PetscParVector xx(x,true);
-   PetscParVector yy(y,true);
-   ctx->op->Mult(xx,yy);
-   PetscFunctionReturn(0);
-}
-
-#undef __FUNCT__
-#define __FUNCT__ "pc_shell_apply_transpose"
-static PetscErrorCode pc_shell_apply_transpose(PC pc, Vec x, Vec y)
-{
-   solver_shell_ctx  *ctx;
-   PetscErrorCode     ierr;
-
-   PetscFunctionBeginUser;
-   ierr = PCShellGetContext(pc,(void **)&ctx); PCHKERRQ(pc,ierr);
-   PetscParVector xx(x,true);
-   PetscParVector yy(y,true);
-   ctx->op->MultTranspose(xx,yy);
-   PetscFunctionReturn(0);
-}
-
-#undef __FUNCT__
-#define __FUNCT__ "pc_shell_setup"
-static PetscErrorCode pc_shell_setup(PC pc)
-{
-   PetscFunctionBeginUser;
-   // TODO ask: is there a way to trigger the setup of ctx->op?
-   PetscFunctionReturn(0);
-}
-
-#undef __FUNCT__
-#define __FUNCT__ "pc_shell_destroy"
-static PetscErrorCode pc_shell_destroy(PC pc)
-{
-   solver_shell_ctx *ctx;
-
-   PetscFunctionBeginUser;
-   ierr = PCShellGetContext(pc,(void **)&ctx); PCHKERRQ(pc,ierr);
-   delete ctx;
-   PetscFunctionReturn(0);
-}
-
-#undef __FUNCT__
-
 void PetscLinearSolver::SetPreconditioner(Solver &precond)
 {
    KSP ksp = (KSP)obj;
@@ -1283,7 +1194,6 @@ void PetscPreconditioner::SetOperator(const Operator &op)
                         (dynamic_cast<const PetscParMatrix *>(&op));
    BlockOperator  *pB = const_cast<BlockOperator *>
                         (dynamic_cast<const BlockOperator *>(&op));
-   std::cout << "Set Operator " << (bool)(pA) << ", " << (bool)(pB) << std::endl;
    if (!pA && pB)
    {
       pA = new PetscParMatrix(PetscObjectComm(obj),pB,false);
@@ -1504,6 +1414,99 @@ PetscFieldSplitSolver::PetscFieldSplitSolver(MPI_Comm comm, BlockOperator &op, s
 }  // namespace mfem
 
 // auxiliary functions
+
+#undef __FUNCT__
+#define __FUNCT__ "mat_shell_apply"
+static PetscErrorCode mat_shell_apply(Mat A, Vec x, Vec y)
+{
+   mat_shell_ctx     *ctx;
+   PetscErrorCode     ierr;
+
+   PetscFunctionBeginUser;
+   ierr = MatShellGetContext(A,(void **)&ctx); PCHKERRQ(A,ierr);
+   mfem::PetscParVector xx(x,true);
+   mfem::PetscParVector yy(y,true);
+   ctx->op->Mult(xx,yy);
+   PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "mat_shell_apply_transpose"
+static PetscErrorCode mat_shell_apply_transpose(Mat A, Vec x, Vec y)
+{
+   mat_shell_ctx     *ctx;
+   PetscErrorCode     ierr;
+
+   PetscFunctionBeginUser;
+   ierr = MatShellGetContext(A,(void **)&ctx); PCHKERRQ(A,ierr);
+   mfem::PetscParVector xx(x,true);
+   mfem::PetscParVector yy(y,true);
+   ctx->op->MultTranspose(xx,yy);
+   PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "mat_shell_destroy"
+static PetscErrorCode mat_shell_destroy(Mat A)
+{
+   mat_shell_ctx  *ctx;
+
+   PetscFunctionBeginUser;
+   ierr = MatShellGetContext(A,(void **)&ctx); PCHKERRQ(A,ierr);
+   delete ctx;
+   PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "pc_shell_apply"
+static PetscErrorCode pc_shell_apply(PC pc, Vec x, Vec y)
+{
+   solver_shell_ctx  *ctx;
+   PetscErrorCode     ierr;
+
+   PetscFunctionBeginUser;
+   ierr = PCShellGetContext(pc,(void **)&ctx); PCHKERRQ(pc,ierr);
+   mfem::PetscParVector xx(x,true);
+   mfem::PetscParVector yy(y,true);
+   ctx->op->Mult(xx,yy);
+   PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "pc_shell_apply_transpose"
+static PetscErrorCode pc_shell_apply_transpose(PC pc, Vec x, Vec y)
+{
+   solver_shell_ctx  *ctx;
+   PetscErrorCode     ierr;
+
+   PetscFunctionBeginUser;
+   ierr = PCShellGetContext(pc,(void **)&ctx); PCHKERRQ(pc,ierr);
+   mfem::PetscParVector xx(x,true);
+   mfem::PetscParVector yy(y,true);
+   ctx->op->MultTranspose(xx,yy);
+   PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "pc_shell_setup"
+static PetscErrorCode pc_shell_setup(PC pc)
+{
+   PetscFunctionBeginUser;
+   // TODO ask: is there a way to trigger the setup of ctx->op?
+   PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "pc_shell_destroy"
+static PetscErrorCode pc_shell_destroy(PC pc)
+{
+   solver_shell_ctx *ctx;
+
+   PetscFunctionBeginUser;
+   ierr = PCShellGetContext(pc,(void **)&ctx); PCHKERRQ(pc,ierr);
+   delete ctx;
+   PetscFunctionReturn(0);
+}
 
 #undef __FUNCT__
 #define __FUNCT__ "array_container_destroy"
