@@ -28,6 +28,9 @@
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
+#ifdef MFEM_USE_PETSC
+#include <petsc.h>
+#endif
 
 using namespace std;
 using namespace mfem;
@@ -54,6 +57,10 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
    bool visualization = 1;
+   bool use_petsc = false;
+#ifdef MFEM_USE_PETSC
+   const char *petscrc_file = "";
+#endif
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -63,6 +70,13 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
+#ifdef MFEM_USE_PETSC
+   args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "no-petsc",
+                  "--no-petsc",
+                  "Use or not PETSc to solve the linear system.");
+   args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
+                  "PetscOptions file to use.");
+#endif
    args.Parse();
    if (!args.Good())
    {
@@ -77,6 +91,10 @@ int main(int argc, char *argv[])
    {
       args.PrintOptions(cout);
    }
+   // 2b. We initialize PETSc
+#ifdef MFEM_USE_PETSC
+   if (use_petsc) { PetscInitialize(NULL,NULL,petscrc_file,NULL); }
+#endif
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
@@ -103,7 +121,7 @@ int main(int argc, char *argv[])
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
-      int par_ref_levels = 2;
+      int par_ref_levels = 0;
       for (int l = 0; l < par_ref_levels; l++)
       {
          pmesh->UniformRefinement();
@@ -213,25 +231,40 @@ int main(int argc, char *argv[])
    //
    //     Here we use Symmetric Gauss-Seidel to approximate the inverse of the
    //     pressure Schur Complement.
-   HypreParMatrix *MinvBt = B->Transpose();
-   HypreParVector *Md = new HypreParVector(MPI_COMM_WORLD, M->GetGlobalNumRows(),
-                                           M->GetRowStarts());
-   M->GetDiag(*Md);
+#ifdef MFEM_USE_PETSC
+   PetscFieldSplitSolver *pdarcyPr = NULL;
+#endif
+   BlockDiagonalPreconditioner *darcyPr = NULL;
+   HypreSolver *invM = NULL, *invS = NULL;
+   HypreParMatrix *S = NULL;
+   HypreParMatrix *MinvBt = NULL;
+   HypreParVector *Md = NULL;
+   if (!use_petsc)
+   {
+     MinvBt = B->Transpose();
+     Md = new HypreParVector(MPI_COMM_WORLD, M->GetGlobalNumRows(),
+                                             M->GetRowStarts());
+     M->GetDiag(*Md);
 
-   MinvBt->InvScaleRows(*Md);
-   HypreParMatrix *S = ParMult(B, MinvBt);
+     MinvBt->InvScaleRows(*Md);
+     S = ParMult(B, MinvBt);
 
-   HypreSolver *invM, *invS;
-   invM = new HypreDiagScale(*M);
-   invS = new HypreBoomerAMG(*S);
+     invM = new HypreDiagScale(*M);
+     invS = new HypreBoomerAMG(*S);
 
-   invM->iterative_mode = false;
-   invS->iterative_mode = false;
+     invM->iterative_mode = false;
+     invS->iterative_mode = false;
 
-   BlockDiagonalPreconditioner *darcyPr = new BlockDiagonalPreconditioner(
-      block_trueOffsets);
-   darcyPr->SetDiagonalBlock(0, invM);
-   darcyPr->SetDiagonalBlock(1, invS);
+     darcyPr = new BlockDiagonalPreconditioner(block_trueOffsets);
+     darcyPr->SetDiagonalBlock(0, invM);
+     darcyPr->SetDiagonalBlock(1, invS);
+   }
+#ifdef MFEM_USE_PETSC
+   else
+   {
+     pdarcyPr = new PetscFieldSplitSolver(MPI_COMM_WORLD,*darcyOp,"prec_");
+   }
+#endif
 
    // 12. Solve the linear system with MINRES.
    //     Check the norm of the unpreconditioned residual.
@@ -247,7 +280,10 @@ int main(int argc, char *argv[])
    solver.SetRelTol(rtol);
    solver.SetMaxIter(maxIter);
    solver.SetOperator(*darcyOp);
-   solver.SetPreconditioner(*darcyPr);
+   if (!use_petsc) { solver.SetPreconditioner(*darcyPr); }
+#ifdef MFEM_USE_PETSC
+   else { solver.SetPreconditioner(*pdarcyPr); }
+#endif
    solver.SetPrintLevel(verbose);
    trueX = 0.0;
    solver.Mult(trueRhs, trueX);
@@ -346,14 +382,15 @@ int main(int argc, char *argv[])
    delete p;
    delete darcyOp;
    delete darcyPr;
+   delete pdarcyPr;
    delete invM;
    delete invS;
    delete S;
-   delete Md;
-   delete MinvBt;
    delete BT;
    delete B;
    delete M;
+   delete MinvBt;
+   delete Md;
    delete mVarf;
    delete bVarf;
    delete W_space;
@@ -362,6 +399,9 @@ int main(int argc, char *argv[])
    delete hdiv_coll;
    delete pmesh;
 
+#ifdef MFEM_USE_PETSC
+   if (use_petsc) { PetscFinalize(); }
+#endif
    MPI_Finalize();
 
    return 0;
