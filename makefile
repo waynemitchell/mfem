@@ -240,8 +240,8 @@ all: lib
 	$(MAKE) -C examples
 	$(MAKE) -C miniapps/common
 	$(MAKE) -C miniapps/meshing
-	$(MAKE) -C miniapps/electromagnetics
 	$(MAKE) -C miniapps/tools
+	$(MAKE) -C miniapps/electromagnetics
 	$(MAKE) -C miniapps/performance
 
 -include deps.mk
@@ -283,6 +283,8 @@ test: lib
 	@$(MAKE) -C examples test
 	@echo "Running meshing miniapps..."
 	@$(MAKE) -C miniapps/meshing test
+	@echo "Running tools miniapps..."
+	@$(MAKE) -C miniapps/tools test
 	@echo "Running electromagnetic miniapps..."
 	@$(MAKE) -C miniapps/electromagnetics test
 	@echo "Running high-performance miniapps..."
@@ -294,8 +296,8 @@ clean:
 	$(MAKE) -C examples clean
 	$(MAKE) -C miniapps/common clean
 	$(MAKE) -C miniapps/meshing clean
-	$(MAKE) -C miniapps/electromagnetics clean
 	$(MAKE) -C miniapps/tools clean
+	$(MAKE) -C miniapps/electromagnetics clean
 	$(MAKE) -C miniapps/performance clean
 
 distclean: clean

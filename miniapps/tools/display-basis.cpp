@@ -1,3 +1,30 @@
+// Copyright (c) 2010, Lawrence Livermore National Security, LLC. Produced at
+// the Lawrence Livermore National Laboratory. LLNL-CODE-443211. All Rights
+// reserved. See file COPYRIGHT for details.
+//
+// This file is part of the MFEM library. For more information and source code
+// availability see http://mfem.org.
+//
+// MFEM is free software; you can redistribute it and/or modify it under the
+// terms of the GNU Lesser General Public License (as published by the Free
+// Software Foundation) version 2.1 dated February 1999.
+//
+//      ----------------------------------------------------------------
+//      Display Basis Miniapp:  Visualize finite element basis functions
+//      ----------------------------------------------------------------
+//
+// This miniapp visualizes various types of finite element basis functions on a
+// single mesh element in 1D, 2D and 3D. The order and the type of finite
+// element space can be changed, and the mesh element is either the reference
+// one, or a simple transformation of it. Dynamic creation and interaction with
+// multiple GLVis windows is demonstrated.
+//
+// Compile with: make display-basis.cpp
+//
+// Sample runs:  display-basis
+//               display_basis -e 2 -b 3 -o 3
+//               display-basis -e 5 -b 1 -o 1
+
 #include "mfem.hpp"
 #include "../common/fem_extras.hpp"
 #include "../common/mesh_extras.hpp"
@@ -77,7 +104,8 @@ string mapTypeStr(int mType);
 
 int update_basis(vector<socketstream*> & sock, const VisWinLayout & vwl,
                  Element::Type e, char bType, int bOrder, int mType,
-                 Deformation::DefType dType, const DeformationData & defData);
+                 Deformation::DefType dType, const DeformationData & defData,
+                 bool visualization);
 
 int main(int argc, char *argv[])
 {
@@ -100,7 +128,6 @@ int main(int argc, char *argv[])
    DeformationData defData;
 
    bool visualization = true;
-   bool visit = false;
 
    vector<socketstream*> sock;
 
@@ -124,9 +151,6 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
-   args.AddOption(&visit, "-visit", "--visit-datafiles", "-no-visit",
-                  "--no-visit-datafiles",
-                  "Save data files for VisIt (visit.llnl.gov) visualization.");
    args.Parse();
    if (!args.Good())
    {
@@ -180,10 +204,12 @@ int main(int argc, char *argv[])
          cout << "Map Type:              " << mapTypeStr(mType) << endl;
       }
       if ( update_basis(sock, vwl, eType, bType, bOrder, mType,
-                        dType, defData) )
+                        dType, defData, visualization) )
       {
          cerr << "Invalid combination of basis info (try again)" << endl;
       }
+
+      if (!visualization) { break; }
 
       print_char = false;
       cout << endl;
@@ -679,7 +705,8 @@ Deformation::Def3D(const Vector & u, Vector & v)
 int
 update_basis(vector<socketstream*> & sock,  const VisWinLayout & vwl,
              Element::Type e, char bType, int bOrder, int mType,
-             Deformation::DefType dType, const DeformationData & defData)
+             Deformation::DefType dType, const DeformationData & defData,
+             bool visualization)
 {
    bool vec = false;
 
@@ -717,7 +744,7 @@ update_basis(vector<socketstream*> & sock,  const VisWinLayout & vwl,
          vec = true;
          break;
       case 'r':
-         FEC = new RT_FECollection(bOrder, dim);
+         FEC = new RT_FECollection(bOrder-1, dim);
          vec = true;
          break;
       case 'l':
@@ -817,10 +844,13 @@ update_basis(vector<socketstream*> & sock,  const VisWinLayout & vwl,
    {
       ostringstream oss;
       oss << "DoF " << i + 1;
-      VisualizeField(*sock[i], vishost, visport, *x[i], oss.str().c_str(),
-                     (i % vwl.nx) * offx, ((i / vwl.nx) % vwl.ny) * offy,
-                     vwl.w, vwl.h,
-                     vec);
+      if (visualization)
+      {
+         VisualizeField(*sock[i], vishost, visport, *x[i], oss.str().c_str(),
+                        (i % vwl.nx) * offx, ((i / vwl.nx) % vwl.ny) * offy,
+                        vwl.w, vwl.h,
+                        vec);
+      }
    }
 
    for (int i=0; i<ndof; i++)
