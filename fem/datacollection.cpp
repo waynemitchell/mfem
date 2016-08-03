@@ -12,6 +12,7 @@
 #include "fem.hpp"
 #include "picojson.h"
 
+#include <limits>      // std::numeric_limits::infinity
 #include <fstream>
 #include <cerrno>      // errno
 #ifndef _WIN32
@@ -104,6 +105,7 @@ DataCollection::DataCollection(const char *collection_name)
    own_data = false;
    cycle = -1;
    time = 0.0;
+   time_step = std::numeric_limits<double>::infinity();
    precision = precision_default;
    pad_digits = pad_digits_default;
    error = NO_ERROR;
@@ -129,6 +131,7 @@ DataCollection::DataCollection(const char *collection_name, Mesh *_mesh)
    own_data = false;
    cycle = -1;
    time = 0.0;
+   time_step = std::numeric_limits<double>::infinity();
    precision = precision_default;
    pad_digits = pad_digits_default;
    error = NO_ERROR;

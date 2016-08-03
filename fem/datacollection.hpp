@@ -48,6 +48,9 @@ protected:
    /// Physical time (for time-dependent simulations)
    double time;
 
+   /// Time step i.e. delta_t (for time-dependent simulations)
+   double time_step;
+
    /// Serial or parallel run? If false, append rank (myid) to file names
    bool serial;
    /// MPI rank (in parallel)
@@ -120,10 +123,16 @@ public:
    /// Set physical time (for time-dependent simulations)
    void SetTime(double t) { time = t; }
 
+   /// Set the simulation time step (for time-dependent simulations)
+   void SetTimeStep(double ts) { time_step = ts; }
+
    /// Get time cycle (for time-dependent simulations)
    int GetCycle() { return cycle; }
    /// Get physical time (for time-dependent simulations)
    double GetTime() { return time; }
+   /// Get the simulation time step (for time-dependent simulations)
+   double GetTimeStep() { return time_step; }
+
    /// Get the name of the collection
    const char* GetCollectionName() { return name.c_str(); }
    /// Set the ownership of collection data

@@ -41,6 +41,7 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name, asc
    sidre_dc_group->createViewScalar("state/cycle", 0);
    sidre_dc_group->createViewScalar("state/time", 0.);
    sidre_dc_group->createViewScalar("state/domain", myid);
+   sidre_dc_group->createViewScalar("state/time_step", 0.);
 
    sidre_dc_group->createGroup("array_data");
 }
@@ -62,14 +63,16 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
    const int NUM_COORDS = dim;
 
    // Retrieve some mesh attributes from mesh object
-   int element_size = new_mesh->GetElement(0)->GetNVertices();
    int num_vertices = new_mesh->GetNV();
    int coordset_len = NUM_COORDS * num_vertices;
 
+   int element_size = new_mesh->GetElement(0)->GetNVertices();
    int mesh_num_elements = new_mesh->GetNE();
-   int bnd_num_elements = new_mesh->GetNBE();
    int mesh_num_indices = mesh_num_elements * element_size;
-   int bnd_num_indices = bnd_num_elements * element_size;
+
+   int bnd_element_size = new_mesh->GetBdrElement(0)->GetNVertices();
+   int bnd_num_elements = new_mesh->GetNBE();
+   int bnd_num_indices = bnd_num_elements * bnd_element_size;
 
    bool has_bnd_elts = (bnd_num_indices > 0);
    bool isRestart = grp->hasGroup("topologies");
@@ -106,6 +109,8 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
 
       if (has_bnd_elts)
       {
+         eltTypeStr = getElementName( static_cast<Element::Type>( new_mesh->GetBdrElement(0)->GetType() ) );
+
          // Add mesh boundary topology
          grp->createViewString("topologies/boundary/type", "unstructured");
          grp->createViewString("topologies/boundary/elements/shape",eltTypeStr);   // <-- Note: this comes form the mesh
@@ -281,7 +286,6 @@ void SidreDataCollection::CopyMesh(std::string name, Mesh *new_mesh)
    int element_size = new_mesh->GetElement(0)->GetNVertices();
    int mesh_num_elements = new_mesh->GetNE();
    int mesh_num_indices = mesh_num_elements * element_size;
-   bool has_bnd_elts = (new_mesh->GetNBE() > 0);
 
    // Find the element shape
    // Note: Assumes homogeneous elements, so only check the first element
@@ -313,10 +317,14 @@ void SidreDataCollection::CopyMesh(std::string name, Mesh *new_mesh)
 		     copyOnly);
 
    // Add mesh boundary topology ( if present )
+   bool has_bnd_elts = (new_mesh->GetNBE() > 0);
    if (has_bnd_elts)
    {
+      int bnd_element_size = new_mesh->GetBdrElement(0)->GetNVertices();
       int bnd_num_elements = new_mesh->GetNBE();
-      int bnd_num_indices = bnd_num_elements * element_size;
+      int bnd_num_indices = bnd_num_elements * bnd_element_size;
+
+      eltTypeStr = getElementName( static_cast<Element::Type>( new_mesh->GetBdrElement(0)->GetType() ) );
 
       grp->createViewString("topologies/mesh/boundary_topology", "boundary");
 
@@ -393,6 +401,7 @@ void SidreDataCollection::Load(const std::string& path, const std::string& proto
 
    SetTime( sidre_dc_group->getView("state/time")->getData<double>() );
    SetCycle( sidre_dc_group->getView("state/cycle")->getData<int>() );
+   SetTimeStep( sidre_dc_group->getView("state/time_step")->getData<double>() );
 }
 
 asctoolkit::sidre::DataGroup * SidreDataCollection::ConstructRootFileGroup()
@@ -434,6 +443,7 @@ void SidreDataCollection::Save()
 
    grp->getView("cycle")->setScalar(cycle);
    grp->getView("time")->setScalar(time);
+   grp->getView("time_step")->setScalar(time_step);
 
    std::string filename, protocol;
 
