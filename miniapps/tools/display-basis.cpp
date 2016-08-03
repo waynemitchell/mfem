@@ -296,9 +296,7 @@ int main(int argc, char *argv[])
          char bChar = 0;
          cout << "valid basis types:\n";
          cout << "h) H1 Finite Element\n";
-         // the following is a hidden option because refinement fails
-         // with PositiveFiniteElements
-         // cout << "p) H1 Positive Finite Element\n";
+         cout << "p) H1 Positive Finite Element\n";
          if ( elemIs2D(eType) || elemIs3D(eType) )
          {
             cout << "n) Nedelec Finite Element\n";
