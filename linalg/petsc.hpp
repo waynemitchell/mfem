@@ -311,7 +311,8 @@ public:
    /// If wrap is true, then the MatMult ops of HypreParMatrix are wrapped.
    /// No preconditioner can be automatically constructed from PETSc.
    /// If wrap is false, the HypreParMatrix is converted into PETSc format.
-   PetscLinearSolver(HypreParMatrix &_A,bool wrap = true, std::string prefix = std::string());
+   PetscLinearSolver(HypreParMatrix &_A,bool wrap = true,
+                     std::string prefix = std::string());
 
    /// virtual methods for base classes
    virtual void SetOperator(const Operator &op);
@@ -333,7 +334,8 @@ class PetscPCGSolver : public PetscLinearSolver
 {
 public:
    PetscPCGSolver(PetscParMatrix &_A, std::string prefix = std::string());
-   PetscPCGSolver(HypreParMatrix &_A,bool wrap=true, std::string prefix = std::string());
+   PetscPCGSolver(HypreParMatrix &_A,bool wrap=true,
+                  std::string prefix = std::string());
 };
 
 /// Abstract class for PETSc's preconditioners
@@ -347,7 +349,8 @@ public:
 
    PetscPreconditioner(PetscParMatrix &_A, std::string prefix = std::string());
 
-   PetscPreconditioner(MPI_Comm comm, Operator &op, std::string prefix = std::string());
+   PetscPreconditioner(MPI_Comm comm, Operator &op,
+                       std::string prefix = std::string());
 
    /// virtual methods for base classes
    virtual void SetOperator(const Operator &op);
@@ -372,7 +375,8 @@ protected:
    friend class PetscBDDCSolver;
 
 public:
-   PetscBDDCSolverOpts() : fespace(NULL), ess_tdof_list(NULL), nat_tdof_list(NULL) {};
+   PetscBDDCSolverOpts() : fespace(NULL), ess_tdof_list(NULL),
+      nat_tdof_list(NULL) {};
    void SetSpace(ParFiniteElementSpace *fe) { fespace = fe; };
    void SetEssBdrDofs(Array<int> *esstdofs) { ess_tdof_list = esstdofs; };
    // TODO ASK how to compute them?
@@ -383,13 +387,16 @@ public:
 class PetscBDDCSolver : public PetscPreconditioner
 {
 public:
-   PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts = PetscBDDCSolverOpts(), std::string prefix = std::string());
+   PetscBDDCSolver(PetscParMatrix &A,
+                   PetscBDDCSolverOpts opts = PetscBDDCSolverOpts(),
+                   std::string prefix = std::string());
 };
 
 class PetscFieldSplitSolver : public PetscPreconditioner
 {
 public:
-   PetscFieldSplitSolver(MPI_Comm comm, BlockOperator &op, std::string prefix = std::string());
+   PetscFieldSplitSolver(MPI_Comm comm, BlockOperator &op,
+                         std::string prefix = std::string());
 };
 
 

@@ -241,28 +241,28 @@ int main(int argc, char *argv[])
    HypreParVector *Md = NULL;
    if (!use_petsc)
    {
-     MinvBt = B->Transpose();
-     Md = new HypreParVector(MPI_COMM_WORLD, M->GetGlobalNumRows(),
-                                             M->GetRowStarts());
-     M->GetDiag(*Md);
+      MinvBt = B->Transpose();
+      Md = new HypreParVector(MPI_COMM_WORLD, M->GetGlobalNumRows(),
+                              M->GetRowStarts());
+      M->GetDiag(*Md);
 
-     MinvBt->InvScaleRows(*Md);
-     S = ParMult(B, MinvBt);
+      MinvBt->InvScaleRows(*Md);
+      S = ParMult(B, MinvBt);
 
-     invM = new HypreDiagScale(*M);
-     invS = new HypreBoomerAMG(*S);
+      invM = new HypreDiagScale(*M);
+      invS = new HypreBoomerAMG(*S);
 
-     invM->iterative_mode = false;
-     invS->iterative_mode = false;
+      invM->iterative_mode = false;
+      invS->iterative_mode = false;
 
-     darcyPr = new BlockDiagonalPreconditioner(block_trueOffsets);
-     darcyPr->SetDiagonalBlock(0, invM);
-     darcyPr->SetDiagonalBlock(1, invS);
+      darcyPr = new BlockDiagonalPreconditioner(block_trueOffsets);
+      darcyPr->SetDiagonalBlock(0, invM);
+      darcyPr->SetDiagonalBlock(1, invS);
    }
 #ifdef MFEM_USE_PETSC
    else
    {
-     pdarcyPr = new PetscFieldSplitSolver(MPI_COMM_WORLD,*darcyOp,"prec_");
+      pdarcyPr = new PetscFieldSplitSolver(MPI_COMM_WORLD,*darcyOp,"prec_");
    }
 #endif
 

@@ -270,7 +270,8 @@ int main(int argc, char *argv[])
       }
 
       pcg->SetOperator(A);
-      if (use_unassembled) {
+      if (use_unassembled)
+      {
          ParFiniteElementSpace *prec_fespace =
             (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);
          PetscBDDCSolverOpts opts;

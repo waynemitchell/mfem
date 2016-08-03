@@ -597,9 +597,11 @@ PetscParMatrix *ParMixedBilinearForm::PetscParallelAssemble()
                          mat,!unassembled);
 
    // TODO assemble Dof_TrueDof_Matrix in MATIS format?
-   PetscParMatrix *tetemp = new PetscParMatrix(test_pfes->Dof_TrueDof_Matrix(),false,
+   PetscParMatrix *tetemp = new PetscParMatrix(test_pfes->Dof_TrueDof_Matrix(),
+                                               false,
                                                !unassembled);
-   PetscParMatrix *trtemp = new PetscParMatrix(trial_pfes->Dof_TrueDof_Matrix(),false,
+   PetscParMatrix *trtemp = new PetscParMatrix(trial_pfes->Dof_TrueDof_Matrix(),
+                                               false,
                                                !unassembled);
    PetscParMatrix *rap = RAP(tetemp, A, trtemp);
 

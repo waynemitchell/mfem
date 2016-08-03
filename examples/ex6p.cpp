@@ -224,7 +224,7 @@ int main(int argc, char *argv[])
       a.FormLinearSystem(ess_tdof_list, x, b, A, X, B, copy_interior);
       MPI_Barrier(MPI_COMM_WORLD);
       time += MPI_Wtime();
-      if (myid == 0) cout << "HYPRE assembly timing : " << time << endl;
+      if (myid == 0) { cout << "HYPRE assembly timing : " << time << endl; }
 
 #ifdef MFEM_USE_PETSC
       if (use_petsc)
@@ -239,7 +239,7 @@ int main(int argc, char *argv[])
          a.FormLinearSystem(ess_tdof_list, x, b, pA, pX, pB, copy_interior);
          MPI_Barrier(MPI_COMM_WORLD);
          time += MPI_Wtime();
-         if (myid == 0) cout << "PETSc assembly timing : " << time << endl;
+         if (myid == 0) { cout << "PETSc assembly timing : " << time << endl; }
 
          // Check the assembly procedure
          PetscReal       error;
@@ -249,16 +249,16 @@ int main(int argc, char *argv[])
          if (use_unassembled)
          {
             Mat B;
-            ierr = MatISGetMPIXAIJ(pA,MAT_INITIAL_MATRIX,&B);CHKERRQ(ierr);
+            ierr = MatISGetMPIXAIJ(pA,MAT_INITIAL_MATRIX,&B); CHKERRQ(ierr);
             diffmat = new PetscParMatrix(B,false);
          }
          else
          {
             diffmat = &pA;
          }
-         ierr = MatAXPY(*diffmat,-1.,hA,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-         ierr = MatNorm(*diffmat,NORM_INFINITY,&error);CHKERRQ(ierr);
-         if (myid == 0) cout << "Error between PETSc and HYPRE : " << error << endl;
+         ierr = MatAXPY(*diffmat,-1.,hA,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
+         ierr = MatNorm(*diffmat,NORM_INFINITY,&error); CHKERRQ(ierr);
+         if (myid == 0) { cout << "Error between PETSc and HYPRE : " << error << endl; }
          if (use_unassembled) { delete diffmat; }
       }
 #endif

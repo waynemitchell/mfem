@@ -412,7 +412,8 @@ PetscParMatrix::PetscParMatrix(MPI_Comm comm, PetscInt glob_size,
                                PetscInt *row_starts, SparseMatrix *diag, bool assembled)
 {
    Init();
-   BlockDiagonalConstructor(comm,glob_size,glob_size,row_starts,row_starts,diag,assembled,&A);
+   BlockDiagonalConstructor(comm,glob_size,glob_size,row_starts,row_starts,diag,
+                            assembled,&A);
    // update base class
    height = GetNumRows();
    width  = GetNumCols();
@@ -423,13 +424,15 @@ PetscParMatrix::PetscParMatrix(MPI_Comm comm, PetscInt global_num_rows,
                                PetscInt *col_starts, SparseMatrix *diag, bool assembled)
 {
    Init();
-   BlockDiagonalConstructor(comm,global_num_rows,global_num_cols,row_starts,col_starts,diag,assembled,&A);
+   BlockDiagonalConstructor(comm,global_num_rows,global_num_cols,row_starts,
+                            col_starts,diag,assembled,&A);
    // update base class
    height = GetNumRows();
    width  = GetNumCols();
 }
 
-void PetscParMatrix::BlockDiagonalConstructor(MPI_Comm comm, PetscInt global_num_rows,
+void PetscParMatrix::BlockDiagonalConstructor(MPI_Comm comm,
+                                              PetscInt global_num_rows,
                                               PetscInt global_num_cols, PetscInt *row_starts,
                                               PetscInt *col_starts, SparseMatrix *diag, bool assembled, Mat* Ad)
 {
@@ -448,7 +451,8 @@ void PetscParMatrix::BlockDiagonalConstructor(MPI_Comm comm, PetscInt global_num
    lcsize = col_starts[myid+1]-col_starts[myid];
    cstart = col_starts[myid];
 
-   if (!assembled) {
+   if (!assembled)
+   {
       IS is;
       ierr = ISCreateStride(comm,diag->Height(),rstart,1,&is); CCHKERRQ(comm,ierr);
       ISLocalToGlobalMapping rl2g,cl2g;
@@ -480,7 +484,7 @@ void PetscParMatrix::BlockDiagonalConstructor(MPI_Comm comm, PetscInt global_num
       if (sizeof(PetscInt) == sizeof(int))
       {
          ierr = MatSeqAIJSetPreallocationCSR(lA,diag->GetI(),diag->GetJ(),
-                                            diag->GetData()); PCHKERRQ(lA,ierr);
+                                             diag->GetData()); PCHKERRQ(lA,ierr);
       }
       else
       {
@@ -491,7 +495,7 @@ void PetscParMatrix::BlockDiagonalConstructor(MPI_Comm comm, PetscInt global_num
    {
       PetscScalar *da;
       PetscInt    *dii,*djj,*oii, m = diag->Height()+1,
-                  nnz = diag->NumNonZeroElems();
+                                  nnz = diag->NumNonZeroElems();
 
       diag->SortColumnIndices();
       // if we can take ownership of the SparseMatrix arrays, we can avoid this step
@@ -515,7 +519,8 @@ void PetscParMatrix::BlockDiagonalConstructor(MPI_Comm comm, PetscInt global_num
       CCHKERRQ(PETSC_COMM_SELF,ierr);
       if (commsize > 1)
       {
-         ierr = MatCreateMPIAIJWithSplitArrays(comm,lrsize,lcsize,PETSC_DECIDE,PETSC_DECIDE,
+         ierr = MatCreateMPIAIJWithSplitArrays(comm,lrsize,lcsize,PETSC_DECIDE,
+                                               PETSC_DECIDE,
                                                dii,djj,da,oii,NULL,NULL,&A);
          CCHKERRQ(comm,ierr);
       }
@@ -604,9 +609,9 @@ void PetscParMatrix::ConvertOperator(MPI_Comm comm, const Operator &op, Mat* A)
       nr = pB->NumRowBlocks();
       nc = pB->NumColBlocks();
       ierr = PetscCalloc1(nr*nc,&mats); CCHKERRQ(PETSC_COMM_SELF,ierr);
-      for (i=0;i<nr;i++)
+      for (i=0; i<nr; i++)
       {
-         for (j=0;j<nc;j++)
+         for (j=0; j<nc; j++)
          {
             if (!pB->IsZeroBlock(i,j)) // TODO this need to be fixed in PETSc
             {
@@ -615,7 +620,7 @@ void PetscParMatrix::ConvertOperator(MPI_Comm comm, const Operator &op, Mat* A)
          }
       }
       ierr = MatCreateNest(comm,nr,NULL,nc,NULL,mats,A); CCHKERRQ(comm,ierr);
-      for (i=0;i<nr*nc;i++) { ierr = MatDestroy(&mats[i]); CCHKERRQ(comm,ierr); }
+      for (i=0; i<nr*nc; i++) { ierr = MatDestroy(&mats[i]); CCHKERRQ(comm,ierr); }
       ierr = PetscFree(mats); CCHKERRQ(PETSC_COMM_SELF,ierr);
    }
    else
@@ -795,7 +800,8 @@ PetscParMatrix * RAP(PetscParMatrix *Rt, PetscParMatrix *A, PetscParMatrix *P)
    ierr = PetscObjectTypeCompare((PetscObject)pRt,MATAIJ,&Rtisaij);
    PCHKERRQ(pA,ierr);
    if (Aismatis &&
-       Pismatis && Rtismatis) // handle special case (this code will eventually go into PETSc)
+       Pismatis &&
+       Rtismatis) // handle special case (this code will eventually go into PETSc)
    {
       Mat                    lA,lP,lB,lRt;
       ISLocalToGlobalMapping cl2gP,cl2gRt;
@@ -820,7 +826,8 @@ PetscParMatrix * RAP(PetscParMatrix *Rt, PetscParMatrix *A, PetscParMatrix *P)
       {
          Mat lR;
          ierr = MatTranspose(lRt,MAT_INITIAL_MATRIX,&lR); PCHKERRQ(lRt,ierr);
-         ierr = MatMatMatMult(lR,lA,lP,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&lB); PCHKERRQ(lRt,ierr);
+         ierr = MatMatMatMult(lR,lA,lP,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&lB);
+         PCHKERRQ(lRt,ierr);
          ierr = MatDestroy(&lR); PCHKERRQ(lRt,ierr);
       }
       ierr = MatISSetLocalMat(B,lB); PCHKERRQ(lB,ierr);
@@ -838,7 +845,8 @@ PetscParMatrix * RAP(PetscParMatrix *Rt, PetscParMatrix *A, PetscParMatrix *P)
       {
          Mat pR;
          ierr = MatTranspose(pRt,MAT_INITIAL_MATRIX,&pR); PCHKERRQ(Rt,ierr);
-         ierr = MatMatMatMult(pR,pA,pP,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&B); PCHKERRQ(pRt,ierr);
+         ierr = MatMatMatMult(pR,pA,pP,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&B);
+         PCHKERRQ(pRt,ierr);
          ierr = MatDestroy(&pR); PCHKERRQ(pRt,ierr);
       }
    }
@@ -956,33 +964,33 @@ void PetscSolver::Mult(const Vector &b, Vector &x) const
    // constructs PetscParVectors if not present
    if (!B || !X)
    {
-     Mat pA;
-     PetscClassId cid;
-     ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
-     if (cid == KSP_CLASSID)
-     {
-        KSP ksp = (KSP)obj;
-        ierr = KSPGetOperators(ksp,&pA,NULL); PCHKERRQ(obj,ierr);
-     }
-     else if (cid == PC_CLASSID)
-     {
-        PC pc = (PC)obj;
-        ierr = PCGetOperators(pc,NULL,&pA); PCHKERRQ(obj,ierr);
-     }
-     else
-     {
-        MFEM_ABORT("To be implemented!");
-     }
-     if (!B)
-     {
-        PetscParMatrix A = PetscParMatrix(pA,true);
-        B = new PetscParVector(A,true);
-     }
-     if (!X)
-     {
-        PetscParMatrix A = PetscParMatrix(pA,true);
-        X = new PetscParVector(A,false);
-     }
+      Mat pA;
+      PetscClassId cid;
+      ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
+      if (cid == KSP_CLASSID)
+      {
+         KSP ksp = (KSP)obj;
+         ierr = KSPGetOperators(ksp,&pA,NULL); PCHKERRQ(obj,ierr);
+      }
+      else if (cid == PC_CLASSID)
+      {
+         PC pc = (PC)obj;
+         ierr = PCGetOperators(pc,NULL,&pA); PCHKERRQ(obj,ierr);
+      }
+      else
+      {
+         MFEM_ABORT("To be implemented!");
+      }
+      if (!B)
+      {
+         PetscParMatrix A = PetscParMatrix(pA,true);
+         B = new PetscParVector(A,true);
+      }
+      if (!X)
+      {
+         PetscParMatrix A = PetscParMatrix(pA,true);
+         X = new PetscParVector(A,false);
+      }
    }
 
    // Apply Mult
@@ -1000,7 +1008,8 @@ void PetscLinearSolver::Init()
    wrap = false;
 }
 
-PetscLinearSolver::PetscLinearSolver(MPI_Comm comm, std::string prefix) : PetscSolver()
+PetscLinearSolver::PetscLinearSolver(MPI_Comm comm,
+                                     std::string prefix) : PetscSolver()
 {
    Init();
    KSP ksp;
@@ -1009,7 +1018,8 @@ PetscLinearSolver::PetscLinearSolver(MPI_Comm comm, std::string prefix) : PetscS
    SetPrefix(prefix);
 }
 
-PetscLinearSolver::PetscLinearSolver(PetscParMatrix &_A, std::string prefix) : PetscSolver()
+PetscLinearSolver::PetscLinearSolver(PetscParMatrix &_A,
+                                     std::string prefix) : PetscSolver()
 {
    Init();
    KSP ksp;
@@ -1019,7 +1029,8 @@ PetscLinearSolver::PetscLinearSolver(PetscParMatrix &_A, std::string prefix) : P
    SetOperator(_A);
 }
 
-PetscLinearSolver::PetscLinearSolver(HypreParMatrix &_A,bool wrapin, std::string prefix) : PetscSolver()
+PetscLinearSolver::PetscLinearSolver(HypreParMatrix &_A,bool wrapin,
+                                     std::string prefix) : PetscSolver()
 {
    Init();
    wrap = wrapin;
@@ -1144,7 +1155,8 @@ void PetscLinearSolver::SetPrintLevel(int plev)
 
 // PetscPCGSolver methods
 
-PetscPCGSolver::PetscPCGSolver(PetscParMatrix& _A, std::string prefix) : PetscLinearSolver(_A,prefix)
+PetscPCGSolver::PetscPCGSolver(PetscParMatrix& _A,
+                               std::string prefix) : PetscLinearSolver(_A,prefix)
 {
    KSP ksp = (KSP)obj;
    ierr = KSPSetType(ksp,KSPCG); PCHKERRQ(ksp,ierr);
@@ -1168,7 +1180,8 @@ void PetscPreconditioner::Init()
    // do nothing
 }
 
-PetscPreconditioner::PetscPreconditioner(MPI_Comm comm, std::string prefix) : PetscSolver()
+PetscPreconditioner::PetscPreconditioner(MPI_Comm comm,
+                                         std::string prefix) : PetscSolver()
 {
    Init();
    PC pc;
@@ -1177,7 +1190,8 @@ PetscPreconditioner::PetscPreconditioner(MPI_Comm comm, std::string prefix) : Pe
    SetPrefix(prefix);
 }
 
-PetscPreconditioner::PetscPreconditioner(PetscParMatrix &_A, std::string prefix) : PetscSolver()
+PetscPreconditioner::PetscPreconditioner(PetscParMatrix &_A,
+                                         std::string prefix) : PetscSolver()
 {
    Init();
    PC pc;
@@ -1187,7 +1201,8 @@ PetscPreconditioner::PetscPreconditioner(PetscParMatrix &_A, std::string prefix)
    SetOperator(_A);
 }
 
-PetscPreconditioner::PetscPreconditioner(MPI_Comm comm, Operator &op, std::string prefix)
+PetscPreconditioner::PetscPreconditioner(MPI_Comm comm, Operator &op,
+                                         std::string prefix)
 {
    Init();
    PC pc;
@@ -1225,7 +1240,8 @@ PetscPreconditioner::~PetscPreconditioner()
 
 // PetscBDDCSolver methods
 
-PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts, std::string prefix) : PetscPreconditioner(A,prefix)
+PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts,
+                                 std::string prefix) : PetscPreconditioner(A,prefix)
 {
    PC pc = (PC)obj;
    MPI_Comm comm = A.GetComm();
@@ -1320,7 +1336,7 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts, st
       {
          needint = true;
       }
-      if (disableint) needint = false;
+      if (disableint) { needint = false; }
 
       PetscParMatrix *B = NULL;
       if (needint)
@@ -1357,12 +1373,13 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts, st
          b->Finalize();
          B = b->PetscParallelAssemble();
 
-// TODO I'm not sure this is really needed.
+         // TODO I'm not sure this is really needed.
 #if 0
          // TODO this is a temporary hack to get the transpose
          // that will be solved trough PETSc
          if (dir)
-         { // if essential dofs are present, we need to zero the columns
+         {
+            // if essential dofs are present, we need to zero the columns
             Mat pBt,lBt,lB;
             PetscInt lr,lc;
             ISLocalToGlobalMapping rmap,cmap;
@@ -1405,7 +1422,8 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts, st
    ierr = PCSetFromOptions(pc); PCHKERRQ(pc,ierr);
 }
 
-PetscFieldSplitSolver::PetscFieldSplitSolver(MPI_Comm comm, BlockOperator &op, std::string prefix) : PetscPreconditioner(comm,op,prefix)
+PetscFieldSplitSolver::PetscFieldSplitSolver(MPI_Comm comm, BlockOperator &op,
+                                             std::string prefix) : PetscPreconditioner(comm,op,prefix)
 {
    PC pc = (PC)obj;
    Mat pA;
@@ -1416,7 +1434,7 @@ PetscFieldSplitSolver::PetscFieldSplitSolver(MPI_Comm comm, BlockOperator &op, s
    ierr = MatNestGetSize(pA,&nr,NULL); PCHKERRQ(pc,ierr);
    ierr = PetscCalloc1(nr,&isrow); CCHKERRQ(PETSC_COMM_SELF,ierr);
    ierr = MatNestGetISs(pA,isrow,NULL); PCHKERRQ(pc,ierr);
-   for (i=0;i<nr;i++)
+   for (i=0; i<nr; i++)
    {
       ierr = PCFieldSplitSetIS(pc,NULL,isrow[i]); PCHKERRQ(pc,ierr);
    }
@@ -1534,7 +1552,8 @@ static PetscErrorCode array_container_destroy(void *ptr)
 
 #undef __FUNCT__
 #define __FUNCT__ "Convert_Array_IS"
-static PetscErrorCode Convert_Array_IS(MPI_Comm comm, mfem::Array<int> *list, PetscInt st, IS* is)
+static PetscErrorCode Convert_Array_IS(MPI_Comm comm, mfem::Array<int> *list,
+                                       PetscInt st, IS* is)
 {
    PetscInt n = list->Size(),*idxs;
    const int *data = list->GetData();
@@ -1660,7 +1679,8 @@ static PetscErrorCode MatConvert_hypreParCSR_IS(hypre_ParCSRMatrix* hA,Mat* pA)
    MPI_Comm               comm = hypre_ParCSRMatrixComm(hA);
    void                   *ptrs[2];
    const char             *names[2] = {"_mfem_csr_aux",
-                                       "_mfem_csr_data"};
+                                       "_mfem_csr_data"
+                                      };
    PetscScalar            *hdd,*hod,*aa,*data;
    PetscInt               *col_map_offd,*hdi,*hdj,*hoi,*hoj;
    PetscInt               *aux,*ii,*jj;
@@ -1691,8 +1711,8 @@ static PetscErrorCode MatConvert_hypreParCSR_IS(hypre_ParCSRMatrix* hA,Mat* pA)
    ierr = ISDestroy(&is); CHKERRQ(ierr);
    col_map_offd = hypre_ParCSRMatrixColMapOffd(hA);
    ierr = PetscMalloc1(dc+oc,&aux); CHKERRQ(ierr);
-   for (i=0; i<dc; i++) aux[i]    = i+stc;
-   for (i=0; i<oc; i++) aux[i+dc] = col_map_offd[i];
+   for (i=0; i<dc; i++) { aux[i]    = i+stc; }
+   for (i=0; i<oc; i++) { aux[i+dc] = col_map_offd[i]; }
    ierr = ISCreateGeneral(comm,dc+oc,aux,PETSC_OWN_POINTER,&is); CHKERRQ(ierr);
    ierr = ISLocalToGlobalMappingCreateIS(is,&cl2g); CHKERRQ(ierr);
    ierr = ISDestroy(&is); CHKERRQ(ierr);
@@ -1712,20 +1732,21 @@ static PetscErrorCode MatConvert_hypreParCSR_IS(hypre_ParCSRMatrix* hA,Mat* pA)
    jj   = aux+dr+1;
    aa   = data;
    *ii  = *(hdi++) + *(hoi++);
-   for (jd=0,jo=0,cum=0;*ii<nnz;cum++)
+   for (jd=0,jo=0,cum=0; *ii<nnz; cum++)
    {
       PetscScalar *aold = aa;
       PetscInt    *jold = jj,nc = jd+jo;
-      for (;jd<*hdi;jd++) { *jj++ = *hdj++;      *aa++ = *hdd++; }
-      for (;jo<*hoi;jo++) { *jj++ = *hoj++ + dc; *aa++ = *hod++; }
+      for (; jd<*hdi; jd++) { *jj++ = *hdj++;      *aa++ = *hdd++; }
+      for (; jo<*hoi; jo++) { *jj++ = *hoj++ + dc; *aa++ = *hod++; }
       *(++ii) = *(hdi++) + *(hoi++);
       ierr = PetscSortIntWithScalarArray(jd+jo-nc,jold,aold); CHKERRQ(ierr);
    }
-   for (;cum<dr;cum++) *(++ii) = nnz;
+   for (; cum<dr; cum++) { *(++ii) = nnz; }
    ii   = aux;
    jj   = aux+dr+1;
    aa   = data;
-   ierr = MatCreateSeqAIJWithArrays(PETSC_COMM_SELF,dr,dc+oc,ii,jj,aa,&lA); CHKERRQ(ierr);
+   ierr = MatCreateSeqAIJWithArrays(PETSC_COMM_SELF,dr,dc+oc,ii,jj,aa,&lA);
+   CHKERRQ(ierr);
    ptrs[0] = aux;
    ptrs[1] = data;
    for (i=0; i<2; i++)
