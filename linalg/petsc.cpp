@@ -1277,7 +1277,8 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts, st
    if (fespace)
    {
       const     FiniteElementCollection *fec = fespace->FEColl();
-      bool      edgespace, rtspace, needint = false;
+      bool      edgespace, rtspace;
+      bool      disableint = false, needint = false;
       bool      tracespace, rt_tracespace;
       int       dim , p;
       PetscBool B_is_Trans = PETSC_FALSE;
@@ -1293,6 +1294,13 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts, st
       tracespace = tracespace || rt_tracespace;
       if (!tracespace) { p = fespace->GetOrder(0); }
       else { p = fespace->GetFaceOrder(0) + 1; }
+      if (tracespace)
+      {
+         MFEM_WARNING("Tracespace case untested, not using auxialiary quadrature");
+         tracespace = false;
+         disableint = true;
+      }
+
       if (edgespace) // H(curl)
       {
          if (dim == 2)
@@ -1312,12 +1320,7 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts, st
       {
          needint = true;
       }
-      if (tracespace)
-      {
-         MFEM_WARNING("Tracepace case untested, not using it");
-         tracespace = false;
-         needint = false;
-      }
+      if (disableint) needint = false;
 
       PetscParMatrix *B = NULL;
       if (needint)
