@@ -188,7 +188,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
 
       new_mesh->ChangeBoundaryElementDataOwnership(
                 bnd_elements_connectivity->getArray(),
-                element_size * bnd_num_elements,
+                bnd_element_size * bnd_num_elements,
                 bnd_material_attribute_values->getArray(),
                 bnd_num_elements,
                 isRestart);
@@ -347,7 +347,7 @@ void SidreDataCollection::CopyMesh(std::string name, Mesh *new_mesh)
 
       new_mesh->ChangeBoundaryElementDataOwnership(
                 bnd_elements_connectivity->getArray(),
-                element_size * bnd_num_elements,
+                bnd_element_size * bnd_num_elements,
                 bnd_material_attribute_values->getArray(),
                 bnd_num_elements,
                 zeroCopy,
