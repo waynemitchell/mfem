@@ -240,7 +240,7 @@ int main(int argc, char *argv[])
       {
          for (unsigned int i=0; i<sock.size(); i++)
          {
-            *sock[i] << "keys q";
+            *sock[i] << "keys q" << endl;
          }
          break;
       }
@@ -799,7 +799,7 @@ update_basis(vector<socketstream*> & sock,  const VisWinLayout & vwl,
 
    for (unsigned int i=0; i<sock.size(); i++)
    {
-      *sock[i] << "keys q";
+      *sock[i] << "keys q" << endl;
       delete sock[i];
    }
 
