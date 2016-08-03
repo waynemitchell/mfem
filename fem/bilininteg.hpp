@@ -361,7 +361,7 @@ public:
 };
 
 
-/** Integrator for (- grad u, v) for H1 and Nedelec elements.
+/** Integrator for `(-Q u, grad v)` for Nedelec (`u`) and H1 (`v`) elements.
     This is equivalent to a weak divergence of the Nedelec basis functions.
  */
 class VectorFEWeakDivergenceIntegrator: public BilinearFormIntegrator
@@ -386,7 +386,8 @@ public:
                                        DenseMatrix &elmat);
 };
 
-/// Integrator for (curl u, v) for Nedelec and RT elements
+/// Integrator for (curl u, v) for Nedelec and RT elements. If the trail and
+/// test spaces are switched, assembles the form (u, curl v).
 class VectorFECurlIntegrator: public BilinearFormIntegrator
 {
 private:

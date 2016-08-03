@@ -19,7 +19,7 @@
 // one, or a simple transformation of it. Dynamic creation and interaction with
 // multiple GLVis windows is demonstrated.
 //
-// Compile with: make display-basis.cpp
+// Compile with: make display-basis
 //
 // Sample runs:  display-basis
 //               display_basis -e 2 -b 3 -o 3
@@ -137,8 +137,8 @@ int main(int argc, char *argv[])
                   "4-Tetrahedron, 5-Hexahedron)");
    args.AddOption(&bInt, "-b", "--basis-type",
                   "Basis Function Type (0-H1, 1-Nedelec, 2-Raviart-Thomas, "
-                  "3-L2, 4-Fixed Order Cont., 5-Gaussian Discontinuous (2D), "
-                  "6-Crouzeix-Raviart)");
+                  "3-L2, 4-Fixed Order Cont.,\n\t5-Gaussian Discontinuous (2D),"
+                  " 6-Crouzeix-Raviart)");
    args.AddOption(&bOrder, "-o", "--order", "Basis function order");
    args.AddOption(&vwl.nx, "-nx", "--num-win-x",
                   "Number of Viz windows in X");

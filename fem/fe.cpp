@@ -320,27 +320,34 @@ void PositiveFiniteElement::PositiveLocalInterpolation (
    ElementTransformation &Trans, DenseMatrix &I,
    const PositiveFiniteElement &fine_fe) const
 {
+   // General interpolation, defined based on L2 projection
+
    double v[3];
    Vector vv (v, Dim);
    IntegrationPoint f_ip;
 
-#ifdef MFEM_THREAD_SAFE
-   Vector c_shape(Dof);
-#endif
+   const int fs = fine_fe.GetDof(), cs = this->GetDof();
+   I.SetSize(fs, cs);
+   Vector fine_shape(fs), coarse_shape(cs);
+   DenseMatrix fine_mass(fs), fine_coarse_mass(fs, cs); // initialized with 0
+   const int ir_order = GetOrder() + fine_fe.GetOrder();
+   const IntegrationRule &ir = IntRules.Get(fine_fe.GetGeomType(), ir_order);
 
-   MFEM_ASSERT(MapType == fine_fe.GetMapType(), "");
-
-   for (int i = 0; i < fine_fe.Dof; i++)
+   for (int i = 0; i < ir.GetNPoints(); i++)
    {
-      Trans.Transform (fine_fe.Nodes.IntPoint (i), vv);
+      const IntegrationPoint &ip = ir.IntPoint(i);
+      fine_fe.CalcShape(ip, fine_shape);
+      Trans.Transform(ip, vv);
       f_ip.Set(v, Dim);
-      CalcShape (f_ip, c_shape);
-      for (int j = 0; j < Dof; j++)
-         if (fabs (I (i,j) = c_shape (j)) < 1.0e-12)
-         {
-            I (i,j) = 0.0;
-         }
+      this->CalcShape(f_ip, coarse_shape);
+
+      AddMult_a_VVt(ip.weight, fine_shape, fine_mass);
+      AddMult_a_VWt(ip.weight, fine_shape, coarse_shape, fine_coarse_mass);
    }
+
+   DenseMatrixInverse fine_mass_inv(fine_mass);
+   fine_mass_inv.Mult(fine_coarse_mass, I);
+
    if (MapType == INTEGRAL)
    {
       // assuming Trans is linear; this should be ok for all refinement types
@@ -6030,12 +6037,14 @@ Poly_1D::Basis::Basis(const int p, const double *nodes, int _mode)
       x = nodes;
       w = 1.0;
       for (int i = 0; i <= p; i++)
+      {
          for (int j = 0; j < i; j++)
          {
             double xij = x(i) - x(j);
             w(i) *=  xij;
             w(j) *= -xij;
          }
+      }
       for (int i = 0; i <= p; i++)
       {
          w(i) = 1.0/w(i);
@@ -6072,6 +6081,7 @@ void Poly_1D::Basis::Eval(const double y, Vector &u) const
 
       lk = 1.0;
       for (k = 0; k < p; k++)
+      {
          if (y >= (x(k) + x(k+1))/2)
          {
             lk *= y - x(k);
@@ -6084,6 +6094,7 @@ void Poly_1D::Basis::Eval(const double y, Vector &u) const
             }
             break;
          }
+      }
       l = lk * (y - x(k));
 
       for (i = 0; i < k; i++)
@@ -6120,6 +6131,7 @@ void Poly_1D::Basis::Eval(const double y, Vector &u, Vector &d) const
 
       lk = 1.0;
       for (k = 0; k < p; k++)
+      {
          if (y >= (x(k) + x(k+1))/2)
          {
             lk *= y - x(k);
@@ -6132,6 +6144,7 @@ void Poly_1D::Basis::Eval(const double y, Vector &u, Vector &d) const
             }
             break;
          }
+      }
       l = lk * (y - x(k));
 
       sk = 0.0;
@@ -7158,13 +7171,11 @@ H1Pos_SegmentElement::H1Pos_SegmentElement(const int p)
       Nodes.IntPoint(i+1).x = double(i)/p;
       dof_map[i] = i+1;
    }
-   cout << "Leaving H1Pos_Segment" << endl;
 }
 
 void H1Pos_SegmentElement::CalcShape(const IntegrationPoint &ip,
                                      Vector &shape) const
 {
-   cout << "Entering H1Pos_Segment::CalcShape" << endl;
    const int p = Order;
 
 #ifdef MFEM_THREAD_SAFE
@@ -7180,13 +7191,11 @@ void H1Pos_SegmentElement::CalcShape(const IntegrationPoint &ip,
    {
       shape(i+1) = shape_x(i);
    }
-   cout << "Leaving H1Pos_Segment::CalcShape" << endl;
 }
 
 void H1Pos_SegmentElement::CalcDShape(const IntegrationPoint &ip,
                                       DenseMatrix &dshape) const
 {
-   cout << "Entering H1Pos_Segment::CalcDShape" << endl;
    const int p = Order;
 
 #ifdef MFEM_THREAD_SAFE
@@ -7202,7 +7211,6 @@ void H1Pos_SegmentElement::CalcDShape(const IntegrationPoint &ip,
    {
       dshape(i+1,0) = dshape_x(i);
    }
-   cout << "Leaving H1Pos_Segment::CalcDShape" << endl;
 }
 
 void H1Pos_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const

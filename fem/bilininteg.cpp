@@ -944,9 +944,33 @@ void VectorFEWeakDivergenceIntegrator::AssembleElementMatrix2(
    const IntegrationRule *ir = IntRule;
    if (ir == NULL)
    {
-      int order = Trans.OrderW() +
-                  trial_fe.GetOrder() + test_fe.GetOrder() - 1;
-      ir = &IntRules.Get(trial_fe.GetGeomType(), order);
+      // The integrand on the reference element is:
+      //    -( Q/det(J) ) u_hat^T adj(J) adj(J)^T grad_hat(v_hat).
+      //
+      // For Trans in (P_k)^d, v_hat in P_l, u_hat in ND_m, and dim=sdim=d>=1
+      // - J_{ij} is in P_{k-1}, so adj(J)_{ij} is in P_{(d-1)*(k-1)}
+      // - so adj(J)^T grad_hat(v_hat) is in (P_{(d-1)*(k-1)+(l-1)})^d
+      // - u_hat is in (P_m)^d
+      // - adj(J)^T u_hat is in (P_{(d-1)*(k-1)+m})^d
+      // - and u_hat^T adj(J) adj(J)^T grad_hat(v_hat) is in P_n with
+      //   n = 2*(d-1)*(k-1)+(l-1)+m
+      //
+      // For Trans in (Q_k)^d, v_hat in Q_l, u_hat in ND_m, and dim=sdim=d>1
+      // - J_{i*}, J's i-th row, is in ( Q_{k-1,k,k}, Q_{k,k-1,k}, Q_{k,k,k-1} )
+      // - adj(J)_{*j} is in ( Q_{s,s-1,s-1}, Q_{s-1,s,s-1}, Q_{s-1,s-1,s} )
+      //   with s = (d-1)*k
+      // - adj(J)^T grad_hat(v_hat) is in Q_{(d-1)*k+(l-1)}
+      // - u_hat is in ( Q_{m-1,m,m}, Q_{m,m-1,m}, Q_{m,m,m-1} )
+      // - adj(J)^T u_hat is in Q_{(d-1)*k+(m-1)}
+      // - and u_hat^T adj(J) adj(J)^T grad_hat(v_hat) is in Q_n with
+      //   n = 2*(d-1)*k+(l-1)+(m-1)
+      //
+      // In the next formula we use the expressions for n with k=1, which means
+      // that the term Q/det(J) is disregard:
+      int ir_order = (trial_fe.Space() == FunctionSpace::Pk) ?
+                     (trial_fe.GetOrder() + test_fe.GetOrder() - 1) :
+                     (trial_fe.GetOrder() + test_fe.GetOrder() + 2*(dim-2));
+      ir = &IntRules.Get(trial_fe.GetGeomType(), ir_order);
    }
 
    elmat = 0.0;

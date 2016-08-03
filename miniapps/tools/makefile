@@ -57,7 +57,8 @@ include $(TEST_MK)
 	@$(call mfem-test,$<,, Tools miniapp)
 
 # Testing: Specific execution options
-mesh-explorer-test-seq:
+# Do not test display-basis:
+display-basis-test-seq:
 	@true
 
 # Testing: "test" target and mfem-test* variables are defined in config/test.mk
@@ -69,7 +70,8 @@ $(MFEM_LIB_FILE):
 clean: clean-build clean-exec
 
 clean-build:
-	rm -f *.o *~ display-basis
+	rm -f *.o *~ $(SEQ_MINIAPPS) $(PAR_MINIAPPS)
 	rm -rf *.dSYM *.TVD.*breakpoints
 
 clean-exec:
+	@true
