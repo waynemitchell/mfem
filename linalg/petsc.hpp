@@ -35,6 +35,7 @@ protected:
 
    friend class PetscParMatrix;
    friend class PetscSolver;
+   friend class PetscBDDCSolver;
 
    // Set Vector::data and Vector::size from x
    void _SetDataAndSize_();
@@ -371,7 +372,7 @@ protected:
    friend class PetscBDDCSolver;
 
 public:
-   PetscBDDCSolverOpts() : fespace(NULL), ess_tdof_list(NULL) {};
+   PetscBDDCSolverOpts() : fespace(NULL), ess_tdof_list(NULL), nat_tdof_list(NULL) {};
    void SetSpace(ParFiniteElementSpace *fe) { fespace = fe; };
    void SetEssBdrDofs(Array<int> *esstdofs) { ess_tdof_list = esstdofs; };
    // TODO ASK how to compute them?
