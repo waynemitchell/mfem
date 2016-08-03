@@ -133,6 +133,13 @@ void ParGridFunction::ParallelProject(HypreParVector &tv) const
    pfes->GetRestrictionMatrix()->Mult(*this, tv);
 }
 
+#ifdef MFEM_USE_PETSC
+void ParGridFunction::ParallelProject(PetscParVector &tv) const
+{
+   pfes->GetRestrictionMatrix()->Mult(*this, tv);
+}
+#endif
+
 HypreParVector *ParGridFunction::ParallelProject() const
 {
    HypreParVector *tv = pfes->NewTrueDofVector();
