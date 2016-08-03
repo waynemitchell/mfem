@@ -454,12 +454,12 @@ int main(int argc, char *argv[])
          }
          else if (tk == 'c' && !elemIs1D(eType))
          {
+            int dim = elemIs2D(eType)?2:3;
             cout << "enter compression factor --> " << flush;
             cin >> defData.squeezeFactor;
-            cout << "enter compression axis --> " << flush;
+            cout << "enter compression axis (0-" << dim-1 << ") --> " << flush;
             cin >> defData.squeezeAxis;
 
-            int dim = elemIs2D(eType)?2:3;
             if ( defData.squeezeFactor > 0.0 &&
                  (defData.squeezeAxis >= 0 && defData.squeezeAxis < dim))
             {
@@ -468,15 +468,15 @@ int main(int argc, char *argv[])
          }
          else if (tk == 's' && !elemIs1D(eType))
          {
+            int dim = elemIs2D(eType)?2:3;
             cout << "enter shear vector (components separated by spaces) --> "
                  << flush;
-            int dim = elemIs2D(eType)?2:3;
             defData.shearVec.SetSize(dim);
             for (int i=0; i<dim; i++)
             {
                cin >> defData.shearVec[i];
             }
-            cout << "enter shear axis --> " << flush;
+            cout << "enter shear axis (0-" << dim-1 << ") --> " << flush;
             cin >> defData.shearAxis;
 
             if ( defData.shearAxis >= 0 && defData.shearAxis < dim )
