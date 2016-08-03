@@ -117,7 +117,7 @@ private:
 
    std::string getElementName( Element::Type elementEnum );
 
-   asctoolkit::sidre::DataGroup * ConstructRootFileGroup();
+   void ConstructRootFileGroup();
 
    /**
     * \brief A private helper function to set up the views associated with the data

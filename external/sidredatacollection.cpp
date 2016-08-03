@@ -404,36 +404,83 @@ void SidreDataCollection::Load(const std::string& path, const std::string& proto
    SetTimeStep( sidre_dc_group->getView("state/time_step")->getData<double>() );
 }
 
-asctoolkit::sidre::DataGroup * SidreDataCollection::ConstructRootFileGroup()
+void SidreDataCollection::ConstructRootFileGroup()
 {
-/*
+   namespace sidre = asctoolkit::sidre;
 
-	// quads (unstructured)
-	    Node &quads_idx = index_root["quads"];
-	    // state
-	    quads_idx["state/cycle"] = 42;
-	    quads_idx["state/time"]  = 3.1415;
-	    quads_idx["state/number_of_domains"]  = 1;
-	    // coords
-	    quads_idx["coordsets/coords/type"]         = "explicit";
-	    quads_idx["coordsets/coords/coord_system"] = "xy";
-	    quads_idx["coordsets/coords/path"]         = "quads/coords";
-	    // topology
-	    quads_idx["topologies/mesh/type"]     = "unstructured";
-	    quads_idx["topologies/mesh/coordset"] = "coords";
-	    quads_idx["topologies/mesh/path"]     = "quads/topology";
-	    // fields
-	        // pc
-	        quads_idx["fields/braid_pc/association"] = "point";
-	        quads_idx["fields/braid_pc/topology"]    = "mesh";
-	        quads_idx["fields/braid_pc/number_of_components"] = 1;
-	        quads_idx["fields/braid_pc/mesh/path"]   = "quads/fields/braid_pc";
-	        // ec
-	        quads_idx["fields/radial_ec/association"] = "element";
-	        quads_idx["fields/radial_ec/topology"]    = "mesh";
-	        quads_idx["fields/radial_ec/number_of_components"] = 1;
-	        quads_idx["fields/radial_ec/mesh/path"]   = "quads/fields/radial_ec";
-*/
+   sidre::DataGroup * index_grp = parent_datagroup->createGroup("blueprint_index");
+
+   // Setup state group
+   index_grp->copyView( sidre_dc_group->getView("state/cycle") );
+   index_grp->copyView( sidre_dc_group->getView("state/time") );
+   index_grp->createViewScalar("state/number_of_domains", num_procs);
+
+   // Setup coordsets group
+   index_grp->createViewString("coordsets/mesh/path", "/coordsets/mesh/path");
+   index_grp->copyView( sidre_dc_group->getView("coordsets/mesh/type") );
+
+   std::string coord_system = "unknown";
+   if ( sidre_dc_group->getGroup("coordsets/mesh/values")->hasView("x") &&
+        sidre_dc_group->getGroup("coordsets/mesh/values")->hasView("y") )
+   {
+      if ( sidre_dc_group->getGroup("coordsets/mesh/values")->hasView("z") )
+      {
+         coord_system = "xyz";
+      }
+      else
+      {
+         coord_system = "xy";
+      }
+   }
+
+   index_grp->createViewString("coordsets/mesh/coord_system", coord_system);
+
+   // Setup topology group.  For this prototype just hard code the mesh and boundary topology entries.
+   if (sidre_dc_group->hasGroup("topologies/mesh"))
+   {
+      index_grp->createViewString("topologies/mesh/path", name + "/topologies/mesh");
+      sidre::DataGroup * mesh_grp = index_grp->getGroup("topologies/mesh");
+      mesh_grp->copyView( sidre_dc_group->getView("topologies/mesh/type") );
+      mesh_grp->copyView( sidre_dc_group->getView("topologies/mesh/coordset") );
+      mesh_grp->copyView( sidre_dc_group->getView("topologies/mesh/mfem_grid_function") );
+
+      if (sidre_dc_group->hasGroup("topologies/mesh/boundary_topology") )
+      {
+         mesh_grp->copyView( sidre_dc_group->getView("topologies/mesh/boundary_topology") );
+      }
+
+   }
+   if (sidre_dc_group->hasGroup("topologies/boundary"))
+   {
+      index_grp->createViewString("topologies/boundary/path", name + "/topologies/boundary");
+      index_grp->copyView( sidre_dc_group->getView("topologies/boundary/type") );
+      index_grp->copyView( sidre_dc_group->getView("topologies/boundary/coordset") );
+   }
+
+   // Setup the fields group
+   // We don't want to hard code this - we don't know what fields might be present.  Iterate over the fields in the group.
+   if ( sidre_dc_group->hasGroup("fields"))
+   {
+      sidre::DataGroup * fields_grp = sidre_dc_group->getGroup("fields");
+
+      sidre::IndexType grp_index = fields_grp->getFirstValidGroupIndex();
+
+      while ( grp_index != sidre::InvalidIndex)
+      {
+         sidre::DataGroup * the_field_grp = fields_grp->getGroup( grp_index );
+
+         sidre::DataGroup * index_field_grp = index_grp->createGroup( the_field_grp->getName() );
+         index_field_grp->createViewScalar( "path", name + "/fields/" + the_field_grp->getName() );
+         index_field_grp->copyView( the_field_grp->getView("association") );
+         index_field_grp->copyView( the_field_grp->getView("topology") );
+
+         int number_of_components = the_field_grp->getGroup("values")->getNumViews();
+         index_field_grp->createViewScalar("number_of_components", number_of_components);
+      }
+   }
+
+   std::cerr << "Index group:" <<std::endl;
+   index_grp->print();
 }
 
 void SidreDataCollection::Save()
@@ -444,6 +491,11 @@ void SidreDataCollection::Save()
    grp->getView("cycle")->setScalar(cycle);
    grp->getView("time")->setScalar(time);
    grp->getView("time_step")->setScalar(time_step);
+
+   if (myid == 0)
+   {
+      ConstructRootFileGroup();
+   }
 
    std::string filename, protocol;
 
