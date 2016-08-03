@@ -70,11 +70,12 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
    int mesh_num_elements = new_mesh->GetNE();
    int mesh_num_indices = mesh_num_elements * element_size;
 
-   int bnd_element_size = new_mesh->GetBdrElement(0)->GetNVertices();
    int bnd_num_elements = new_mesh->GetNBE();
+   bool has_bnd_elts = (bnd_num_elements > 0);
+
+   int bnd_element_size = has_bnd_elts? new_mesh->GetBdrElement(0)->GetNVertices() : 0;
    int bnd_num_indices = bnd_num_elements * bnd_element_size;
 
-   bool has_bnd_elts = (bnd_num_indices > 0);
    bool isRestart = grp->hasGroup("topologies");
    if(!isRestart)
    {
@@ -317,11 +318,11 @@ void SidreDataCollection::CopyMesh(std::string name, Mesh *new_mesh)
 		     copyOnly);
 
    // Add mesh boundary topology ( if present )
-   bool has_bnd_elts = (new_mesh->GetNBE() > 0);
+   int bnd_num_elements = new_mesh->GetNBE();
+   bool has_bnd_elts = (bnd_num_elements > 0);
    if (has_bnd_elts)
    {
       int bnd_element_size = new_mesh->GetBdrElement(0)->GetNVertices();
-      int bnd_num_elements = new_mesh->GetNBE();
       int bnd_num_indices = bnd_num_elements * bnd_element_size;
 
       eltTypeStr = getElementName( static_cast<Element::Type>( new_mesh->GetBdrElement(0)->GetType() ) );
@@ -481,6 +482,10 @@ void SidreDataCollection::Save()
    {
       protocol = "conduit_json";
       filename = fNameSstr.str() + "_ser.json";
+      sidre_dc_group->getDataStore()->save(filename, protocol);//, sidre_dc_group);
+
+      protocol = "json";
+      filename = fNameSstr.str() + "_ser_plain.json";
       sidre_dc_group->getDataStore()->save(filename, protocol);//, sidre_dc_group);
 
       protocol = "sidre_hdf5";
