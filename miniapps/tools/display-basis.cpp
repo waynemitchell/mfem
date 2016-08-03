@@ -223,7 +223,8 @@ int main(int argc, char *argv[])
       {
          cout << "o) Change Basis Order\n";
       }
-      if ( bType == 'l' )
+      // The following is disabled pending updates to GLVis
+      if ( bType == 'l' && false )
       {
          cout << "m) Change Map Type\n";
       }
