@@ -405,11 +405,13 @@ void SidreDataCollection::Load(const std::string& path, const std::string& proto
    SetTimeStep( sidre_dc_group->getView("state/time_step")->getData<double>() );
 }
 
-void SidreDataCollection::ConstructRootFileGroup()
+void SidreDataCollection::ConstructRootFileGroup(asctoolkit::sidre::DataGroup * dg, std::string name)
 {
    namespace sidre = asctoolkit::sidre;
 
-   sidre::DataGroup * index_grp = parent_datagroup->createGroup("blueprint_index");
+   sidre::DataGroup * index_grp = dg->createGroup(name);
+
+//   sidre::DataGroup * index_grp = parent_datagroup->createGroup("blueprint_index");
 
    // Setup state group
    index_grp->copyView( sidre_dc_group->getView("state/cycle") );
@@ -472,16 +474,29 @@ void SidreDataCollection::ConstructRootFileGroup()
 
          sidre::DataGroup * index_field_grp = index_grp->createGroup( the_field_grp->getName() );
          index_field_grp->createViewScalar( "path", name + "/fields/" + the_field_grp->getName() );
-         index_field_grp->copyView( the_field_grp->getView("association") );
+
+         if (the_field_grp->hasView("basis"))
+         {
+            index_field_grp->copyView( the_field_grp->getView("basis") );
+         }
+         else
+         {
+            index_field_grp->copyView( the_field_grp->getView("association") );
+         }
+
          index_field_grp->copyView( the_field_grp->getView("topology") );
 
-         int number_of_components = the_field_grp->getGroup("values")->getNumViews();
+         int number_of_components = 1;
+         if ( the_field_grp->hasGroup("values") )
+         {
+            number_of_components = the_field_grp->getGroup("values")->getNumViews();
+         }
          index_field_grp->createViewScalar("number_of_components", number_of_components);
+
+         grp_index = fields_grp->getNextValidGroupIndex(grp_index);
       }
    }
 
-   std::cerr << "Index group:" <<std::endl;
-   index_grp->print();
 }
 
 void SidreDataCollection::Save()
@@ -495,7 +510,9 @@ void SidreDataCollection::Save()
 
    if (myid == 0)
    {
-      ConstructRootFileGroup();
+      // This needs to be done after the data collection has current data ( set the state above ).
+      // It will copy all relevant values to a new index tree.
+      ConstructRootFileGroup(parent_datagroup, "blueprint_index");
    }
 
    std::string filename, protocol;
@@ -521,6 +538,11 @@ void SidreDataCollection::Save()
    {
       asctoolkit::spio::IOManager writer(par_mesh->GetComm());
       writer.write(sidre_dc_group, num_procs, fNameSstr.str(), "sidre_hdf5");
+
+      if (myid == 0)
+      {
+         writer.writeGroupToRootFile( parent_datagroup->getGroup("blueprint_index"), fNameSstr.str() + ".root"  );
+      }
    }
    else
    {
@@ -544,6 +566,8 @@ void SidreDataCollection::Save()
       filename = fNameSstr.str() + "_ser.hdf5";
       sidre_dc_group->getDataStore()->save(filename, protocol);//, sidre_dc_group);
    }
+
+   parent_datagroup->destroyGroup("blueprint_index");
 }
 
 
