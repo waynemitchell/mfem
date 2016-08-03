@@ -259,12 +259,28 @@ public:
 
 class PositiveFiniteElement : public ScalarFiniteElement
 {
+protected:
+   void PositiveLocalInterpolation(ElementTransformation &Trans,
+                                   DenseMatrix &I,
+                                   const PositiveFiniteElement &fine_fe) const;
+
 public:
-   PositiveFiniteElement(int D, int G, int Do, int O, int F = FunctionSpace::Pk)
-      : ScalarFiniteElement(D, G, Do, O, F) { }
+   PositiveFiniteElement(int D, int G, int Do, int O,
+                         int F = FunctionSpace::Pk) :
+      ScalarFiniteElement(D, G, Do, O, F)
+   { }
+
+   virtual void GetLocalInterpolation(ElementTransformation &Trans,
+                                      DenseMatrix &I) const
+   { PositiveLocalInterpolation(Trans, I, *this); }
+
    using FiniteElement::Project;
+
+   // Low-order monotone "projection" (actually it is not a projection): the
+   // dofs are set to be the Coefficient values at the nodes.
    virtual void Project(Coefficient &coeff,
                         ElementTransformation &Trans, Vector &dofs) const;
+
    virtual void Project(const FiniteElement &fe, ElementTransformation &Trans,
                         DenseMatrix &I) const;
 };

@@ -20,7 +20,7 @@ TEST_MK = $(MFEM_DIR)/config/test.mk
 MFEM_LIB_FILE = mfem_is_not_built
 -include $(CONFIG_MK)
 
-SEQ_MINIAPPS = display_basis
+SEQ_MINIAPPS = display-basis
 PAR_MINIAPPS =
 ifeq ($(MFEM_USE_MPI),NO)
    MINIAPPS = $(SEQ_MINIAPPS)
@@ -47,6 +47,22 @@ COMMON_O=$(COMMON_HPP:.hpp=.o)
 
 all: $(MINIAPPS)
 
+MFEM_TESTS = MINIAPPS
+include $(TEST_MK)
+
+# Testing: Parallel vs. serial runs
+%-test-par: %
+	@$(call mfem-test,$<, mpirun -np 4, Tools miniapp)
+%-test-seq: %
+	@$(call mfem-test,$<,, Tools miniapp)
+
+# Testing: Specific execution options
+# Do not test display-basis:
+display-basis-test-seq:
+	@true
+
+# Testing: "test" target and mfem-test* variables are defined in config/test.mk
+
 # Generate an error message if the MFEM library is not built and exit
 $(MFEM_LIB_FILE):
 	$(error The MFEM library is not built)
@@ -54,7 +70,8 @@ $(MFEM_LIB_FILE):
 clean: clean-build clean-exec
 
 clean-build:
-	rm -f *.o *~ 
+	rm -f *.o *~ $(SEQ_MINIAPPS) $(PAR_MINIAPPS)
 	rm -rf *.dSYM *.TVD.*breakpoints
 
 clean-exec:
+	@true
