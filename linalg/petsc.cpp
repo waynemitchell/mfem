@@ -436,7 +436,9 @@ void PetscParMatrix::BlockDiagonalConstructor(MPI_Comm comm, PetscInt global_num
    Mat      A;
    PetscInt lrsize,lcsize,rstart,cstart;
    // TODO ASK
-   PetscMPIInt myid = 0;
+   PetscMPIInt myid = 0,commsize;
+
+   ierr = MPI_Comm_size(comm,&commsize); CCHKERRQ(comm,ierr);
    if (!HYPRE_AssumedPartitionCheck())
    {
       ierr = MPI_Comm_rank(comm,&myid); CCHKERRQ(comm,ierr);
@@ -511,9 +513,17 @@ void PetscParMatrix::BlockDiagonalConstructor(MPI_Comm comm, PetscInt global_num
       }
       ierr = PetscCalloc1(m,&oii);
       CCHKERRQ(PETSC_COMM_SELF,ierr);
-      ierr = MatCreateMPIAIJWithSplitArrays(comm,lrsize,lcsize,PETSC_DECIDE,PETSC_DECIDE,
-                                            dii,djj,da,oii,NULL,NULL,&A);
-      CCHKERRQ(comm,ierr);
+      if (commsize > 1)
+      {
+         ierr = MatCreateMPIAIJWithSplitArrays(comm,lrsize,lcsize,PETSC_DECIDE,PETSC_DECIDE,
+                                               dii,djj,da,oii,NULL,NULL,&A);
+         CCHKERRQ(comm,ierr);
+      }
+      else
+      {
+         ierr = MatCreateSeqAIJWithArrays(comm,lrsize,lcsize,dii,djj,da,&A);
+         CCHKERRQ(comm,ierr);
+      }
 
       void *ptrs[4] = {dii,djj,da,oii};
       const char *names[4] = {"_mfem_csr_dii",
@@ -1647,12 +1657,11 @@ static PetscErrorCode MatConvert_hypreParCSR_IS(hypre_ParCSRMatrix* hA,Mat* pA)
    MPI_Comm               comm = hypre_ParCSRMatrixComm(hA);
    void                   *ptrs[2];
    const char             *names[2] = {"_mfem_csr_aux",
-                                       "_mfem_csr_data",
-                                      };
+                                       "_mfem_csr_data"};
    PetscScalar            *hdd,*hod,*aa,*data;
    PetscInt               *col_map_offd,*hdi,*hdj,*hoi,*hoj;
    PetscInt               *aux,*ii,*jj;
-   PetscInt               dr,dc,oc,str,stc,nnz,i,jd,jo;
+   PetscInt               cum,dr,dc,oc,str,stc,nnz,i,jd,jo;
    PetscErrorCode         ierr;
 
    PetscFunctionBeginUser;
@@ -1700,7 +1709,7 @@ static PetscErrorCode MatConvert_hypreParCSR_IS(hypre_ParCSRMatrix* hA,Mat* pA)
    jj   = aux+dr+1;
    aa   = data;
    *ii  = *(hdi++) + *(hoi++);
-   for (jd=0,jo=0;*ii<nnz;)
+   for (jd=0,jo=0,cum=0;*ii<nnz;cum++)
    {
       PetscScalar *aold = aa;
       PetscInt    *jold = jj,nc = jd+jo;
@@ -1709,6 +1718,7 @@ static PetscErrorCode MatConvert_hypreParCSR_IS(hypre_ParCSRMatrix* hA,Mat* pA)
       *(++ii) = *(hdi++) + *(hoi++);
       ierr = PetscSortIntWithScalarArray(jd+jo-nc,jold,aold); CHKERRQ(ierr);
    }
+   for (;cum<dr;cum++) *(++ii) = nnz;
    ii   = aux;
    jj   = aux+dr+1;
    aa   = data;
