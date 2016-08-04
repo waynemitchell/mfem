@@ -33,9 +33,9 @@ if (MFEM_USE_MPI)
   
   # Parallel MFEM depends on Hypre and Metis
   find_package(HYPRE REQUIRED)
-  include_directories(${HYPRE_INCLUDE_DIRS})
   set(MFEM_USE_HYPRE ON)
-
+  include_directories(${HYPRE_INCLUDE_DIRS})
+  
   find_package(METIS REQUIRED)
   include_directories(${METIS_INCLUDE_DIRS})
   set(MFEM_USE_METIS ON)
@@ -47,7 +47,7 @@ if (MFEM_USE_SUPERLU)
     find_package(SuperLUDist REQUIRED)
     include_directories(${SuperLUDist_INCLUDE_DIRS})
   else()
-    message(FATAL_ERROR "SuperLU_dist requires that MPI be enabled")
+    message(FATAL_ERROR "SuperLU_DIST requires that MPI be enabled")
   endif()
 endif()
 
@@ -89,12 +89,38 @@ endif()
 # GnuTLS
 if (MFEM_USE_GNUTLS)
   find_package(GnuTLS REQUIRED)
+  include_directories(${GNUTLS_INCLUDE_DIR})
 endif()
 
 # NetCDF
 if (MFEM_USE_NETCDF)
   find_package(NetCDF REQUIRED)
   include_directories(${NetCDF_INCLUDE_DIRS})
+endif()
+
+set(MFEM_USE_METIS_5 ON)
+
+set(TPL_LIBRARIES "")
+if (SuiteSparse_FOUND)
+  list(APPEND TPL_LIBRARIES ${SuiteSparse_LIBRARIES})
+endif()
+if (HYPRE_FOUND)
+  list(APPEND TPL_LIBRARIES ${HYPRE_LIBRARIES})
+endif()
+if (SuperLUDist_FOUND)
+  list(APPEND TPL_LIBRARIES ${SuperLUDist_LIBRARIES})
+endif()
+if (ParMETIS_FOUND)
+  list(APPEND TPL_LIBRARIES ${ParMETIS_LIBRARIES})
+endif()
+if (METIS_FOUND)
+  list(APPEND TPL_LIBRARIES ${METIS_LIBRARIES})
+endif()
+if (LAPACK_FOUND)
+  list(APPEND TPL_LIBRARIES ${LAPACK_LIBRARIES})
+endif()
+if (BLAS_FOUND)
+  list(APPEND TPL_LIBRARIES ${BLAS_LIBRARIES})
 endif()
 
 # MFEM_TIMER_TYPE
@@ -119,6 +145,8 @@ else()
   set(_USE_MATH_DEFINES OFF)
 endif()
 
+include_directories(${PROJECT_SOURCE_DIR})
+
 # Configuration file
 configure_file(
   "${PROJECT_SOURCE_DIR}/config/config.hpp.in_cmake"
@@ -137,6 +165,7 @@ add_subdirectory(config)
 
 # Declaring the library
 add_library(mfem ${SOURCES} ${HEADERS})
+target_link_libraries(mfem PUBLIC ${TPL_LIBRARIES})
 
 # The examples and miniapps are separate
 add_subdirectory(examples)
@@ -145,16 +174,6 @@ add_subdirectory(examples)
 # Create the "test" and "check" targets. "make test"/"ctest" should
 # follow the existing makefile structure. "make check" should just
 # build ex1(p) and run it in serial/parallel.
-
-if(MFEM_USE_LAPACK)
-  target_link_libraries(${PROJECT_NAME} ${LAPACK_LIBRARIES})
-endif()
-if(CMAKE_SYSTEM_NAME MATCHES "Linux")
-  target_link_libraries(${PROJECT_NAME} rt)
-endif()
-if(MFEM_USE_MPI)
-  target_link_libraries(${PROJECT_NAME} ${MPI_CXX_LIBRARIES} ${HYPRE_LIBRARY} ${METIS_LIBRARY})
-endif()
 
 #-------------------------------------------------------------------------------
 # Installation
