@@ -216,6 +216,8 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
    RegisterField( "nodes", new_mesh->GetNodes());
 }
 
+/*
+ 
 // Note - if this function is going to be permanent, we should consolidate code between this and 'SetMesh'.
 void SidreDataCollection::CopyMesh(std::string name, Mesh *new_mesh)
 {
@@ -357,18 +359,18 @@ void SidreDataCollection::CopyMesh(std::string name, Mesh *new_mesh)
 
     // copy mesh nodes grid function
     // Redo this to not use GetFieldData ( just make a copy ).
-/*
 
-    const FiniteElementSpace* nFes = new_mesh->GetNodalFESpace();
-    int sz = nFes->GetVSize();
-    double* gfData = GetFieldData("nodes", sz);
 
-    double* meshNodeData = new_mesh->GetNodes()->GetData();
-    std::memcpy(gfData, meshNodeData, sizeof(double) * sz);
+//    const FiniteElementSpace* nFes = new_mesh->GetNodalFESpace();
+//    int sz = nFes->GetVSize();
+//    double* gfData = GetFieldData("nodes", sz);
 
-    RegisterField( "nodes", new_mesh->GetNodes());
-*/
+//    double* meshNodeData = new_mesh->GetNodes()->GetData();
+//    std::memcpy(gfData, meshNodeData, sizeof(double) * sz);
+
+//    RegisterField( "nodes", new_mesh->GetNodes());
 }
+*/
 
 void SidreDataCollection::Load(const std::string& path, const std::string& protocol)
 {
