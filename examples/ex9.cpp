@@ -32,10 +32,6 @@
 #include <iostream>
 #include <algorithm>
 
-#ifdef MFEM_USE_SIDRE
-  #include "sidre/sidre.hpp"
-#endif // MFEM_USE_SIDRE
-
 using namespace std;
 using namespace mfem;
 
@@ -54,6 +50,7 @@ double inflow_function(const Vector &x);
 
 // Mesh bounding box
 Vector bb_min, bb_max;
+
 
 /** A time-dependent operator for the right-hand side of the ODE. The DG weak
     form of du/dt = -v.grad(u) is M du/dt = K u + b, where M and K are the mass
@@ -78,20 +75,19 @@ public:
    virtual ~FE_Evolution() { }
 };
 
+
 int main(int argc, char *argv[])
 {
-
    // 1. Parse command-line options.
    problem = 0;
    const char *mesh_file = "../data/periodic-hexagon.mesh";
-   int restart_cycle = 0;
    int ref_levels = 2;
    int order = 3;
    int ode_solver_type = 4;
    double t_final = 10.0;
    double dt = 0.01;
    bool visualization = true;
-   bool sidre = false;
+   bool visit = false;
    int vis_steps = 5;
 
    int precision = 8;
@@ -100,8 +96,6 @@ int main(int argc, char *argv[])
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
-   args.AddOption(&restart_cycle, "-r", "--restart",
-                  "Cycle to restart from.");
    args.AddOption(&problem, "-p", "--problem",
                   "Problem setup to use. See options in velocity_function().");
    args.AddOption(&ref_levels, "-r", "--refine",
@@ -118,9 +112,9 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
-   args.AddOption(&sidre, "-sidre", "--sidre-datafiles", "-no-sidre",
-                  "--no-sidre-datafiles",
-                  "Use Sidre data collection.  Default is Visit data collection.");
+   args.AddOption(&visit, "-visit", "--visit-datafiles", "-no-visit",
+                  "--no-visit-datafiles",
+                  "Save data files for VisIt (visit.llnl.gov) visualization.");
    args.AddOption(&vis_steps, "-vs", "--visualization-steps",
                   "Visualize every n-th timestep.");
    args.Parse();
@@ -131,48 +125,9 @@ int main(int argc, char *argv[])
    }
    args.PrintOptions(cout);
 
-   DataCollection * dc = NULL;
-   if (sidre)
-   {
-      dc = new SidreDataCollection("Example9");
-   }
-   else
-   {
-      dc = new VisitDataCollection("Example9");
-   }
-
-   // 3. Read the mesh from the given mesh file. We can handle geometrically
+   // 2. Read the mesh from the given mesh file. We can handle geometrically
    //    periodic meshes in this code.
-
-   if (restart_cycle && sidre)
-   {
-	   // TODO - for a restart load case, the datastore should be loaded in from a file ( via SPIO ).
-	   // If sidre isn't compiled in, this will do nothing.
-// add in string for file name
-	   dc.Load(restart_cycle);
-	   mesh = new Mesh(dc);
-	   // data collection will retrieve mesh data from data store and create sidre allocators, and call mesh constructor.
-	   // note - this will be the course level original mesh.
-	   // move this into data collection
-	   // mesh = new Mesh(imesh, &elm_alloc, &bndry_alloc, 1, 1);
-   }
-   else
-   {
-      Mesh *mesh;
-      ifstream imesh(mesh_file);
-      if (!imesh)
-      {
-         std::cerr << "\nCan not open mesh file: " << mesh_file << '\n' << std::endl;
-         return 2;
-      }
-      // This constructor will create a new mesh and register it in data collection.
-      // If a sidre data collection, it will also add the raw ifstream object for restarts ( will later be re-factored to use parallel refined mesh ).
-
-      // TODO - CAPTURE PARAMETERS ON RESTART SAVE
-      mesh = new Mesh(imesh, dc, 1, 1);
-      imesh.close();
-   }
-
+   Mesh *mesh = new Mesh(mesh_file, 1, 1);
    int dim = mesh->Dimension();
 
    // 3. Define the ODE solver used for time integration. Several explicit
@@ -206,9 +161,6 @@ int main(int argc, char *argv[])
 
    // 5. Define the discontinuous DG finite element space of the given
    //    polynomial order on the refined mesh.
-
-   // Look in Tom's code for the other ex9 that uses constructor that uses string ( basis ).  Fix his mistake though. He hard coded them.
-   // New grid function
    DG_FECollection fec(order, dim);
    FiniteElementSpace fes(mesh, &fec);
 
@@ -241,12 +193,12 @@ int main(int argc, char *argv[])
    k.Finalize(skip_zeros);
    b.Assemble();
 
-   // 7. Define the initial conditions, and register in data collection.
-   GridFunction u("solution", dc, &fes);
+   // 7. Define the initial conditions, save the corresponding grid function to
+   //    a file and (optionally) save data in the VisIt format and initialize
+   //    GLVis visualization.
+   GridFunction u(&fes);
    u.ProjectCoefficient(u0);
 
-   // Save to a file and (optionally) save data in the VisIt format and
-   // initialize GLVis visualization.
    {
       ofstream omesh("ex9.mesh");
       omesh.precision(precision);
@@ -256,12 +208,14 @@ int main(int argc, char *argv[])
       u.Save(osol);
    }
 
-   // Save the initial data collection to file.
-
-   // Add ability to specify a base name.  Add to parent data collection.
-   dc.SetCycle(0);
-   dc.SetTime(0.0);
-   dc.Save();
+   VisItDataCollection visit_dc("Example9", mesh);
+   visit_dc.RegisterField("solution", &u);
+   if (visit)
+   {
+      visit_dc.SetCycle(0);
+      visit_dc.SetTime(0.0);
+      visit_dc.Save();
+   }
 
    socketstream sout;
    if (visualization)
@@ -330,59 +284,9 @@ int main(int argc, char *argv[])
       u.Save(osol);
    }
 
-   // Save the final data collection to file.
-   ds.Save();
-
-   // Print the elements
-   int count = elm_alloc.get_count();
-   if (count > 0) {
-      int *indices = elm_alloc.get_indices();
-      int *attributes = elm_alloc.get_attributes();
-      int elem_size = elm_alloc.get_indices_count() / count;
-
-      cout << endl << "printing elements" << endl;
-      for (int i = 0; i < count; i++) {
-         printf("element %d - attribute %d - [", i, attributes[i]);
-         for (int j = 0; j < elem_size; j++) {
-            printf(j == elem_size - 1 ? "%d" : "%d,", 
-                  indices[i * elem_size + j]);
-         }
-         printf("]\n");
-      }
-      cout << "done" << endl << endl;
-   }
-   else {
-      printf("no boundary elements (in this allocator)\n");
-   }
-
-
-   // print the boundary elements
-   count = bndry_alloc.get_count();
-   if (count > 0) {
-      int* indices = bndry_alloc.get_indices();
-      int* attributes = bndry_alloc.get_attributes();
-      int elem_size = bndry_alloc.get_indices_count() / count;
-
-      cout << "printing boundary elements" << endl;
-      for (int i = 0; i < count; i++) {
-         printf("boundary element %d - attribute %d - [", i, attributes[i]);
-         for (int j = 0; j < elem_size; j++) {
-            printf(j == elem_size - 1 ? "%d" : "%d,", 
-                  indices[i * elem_size + j]);
-         }
-         printf("]\n");
-      }
-      cout << "done" << endl << endl;
-   }
-   else {
-      printf("no boundary elements (in this allocator)\n");
-   }
-
    // 10. Free the used memory.
    delete ode_solver;
    delete mesh;
-   delete ds;
-   delete dc;
 
    return 0;
 }
