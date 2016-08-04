@@ -1,208 +1,151 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.8.11)
 
-#-------------------------------------------------------------------------------
-# Build type
-#-------------------------------------------------------------------------------
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE "serial" CACHE STRING
-      "Choose the type of build: serial | debug | parallel | pdebug" FORCE)
-endif()
-string(TOUPPER ${CMAKE_BUILD_TYPE} BUILD_TYPE)
+project(mfem)
 
-#-------------------------------------------------------------------------------
-# Project
-#-------------------------------------------------------------------------------
-project(mfem CXX)
-message(STATUS "C++ compiler ID = ${CMAKE_CXX_COMPILER_ID}")
-if(WIN32)
-    set(AUX_CXX_FLAGS "/Wall")
+# CMake needs to know where to find things
+set(MFEM_CMAKE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+set(CMAKE_MODULE_PATH ${MFEM_CMAKE_PATH}/modules)
+
+# MFEM options
+option(MFEM_USE_MPI "Enable MPI parallel build" OFF)
+option(MFEM_USE_LAPACK "Enable LAPACK usage" OFF)
+option(MFEM_USE_OPENMP "Enable OpenMP usage" OFF)
+option(MFEM_USE_MESQUITE "Enable MESQUITE usage" OFF)
+option(MFEM_USE_SUITESPARSE "Enable SuiteSparse usage" OFF)
+option(MFEM_USE_GECKO "Enable GECKO usage" OFF)
+option(MFEM_USE_SUPERLU "Enable SuperLU-dist usage" OFF)
+option(MFEM_USE_GNUTLS "Enable GNUTLS usage" OFF)
+option(MFEM_USE_NETCDF "Enable NETCDF usage" OFF)
+option(MFEM_USE_MEMALLOC "Enable MEMALLOC usage" ON)
+option(MFEM_THREAD_SAFE "Enable thread safety" OFF)
+
+# MFEM_DEBUG
+if (CMAKE_BUILD_TYPE MATCHES "DEBUG")
+  set(MFEM_DEBUG ON)
 else()
-  if(${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
-    #set(AUX_CXX_FLAGS "-Wall -Wextra -Wshadow -Weffc++ -ansi -pedantic -Werror")
-    set(AUX_CXX_FLAGS "-std=c++0x -Wall")
-  elseif(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
-    #set(AUX_CXX_FLAGS "-Wall -Wextra -Wshadow -Weffc++ -pedantic -Werror")
-    set(AUX_CXX_FLAGS "-Wall")
+  set(MFEM_DEBUG OFF)
+endif()
+
+# MPI
+if (MFEM_USE_MPI)
+  find_package(MPI REQUIRED)
+  include_directories(${MPI_CXX_INCLUDE_PATH})
+  
+  # Parallel MFEM depends on Hypre and Metis
+  find_package(HYPRE REQUIRED)
+  include_directories(${HYPRE_INCLUDE_DIRS})
+  set(MFEM_USE_HYPRE ON)
+
+  find_package(METIS REQUIRED)
+  include_directories(${METIS_INCLUDE_DIRS})
+  set(MFEM_USE_METIS ON)
+endif()
+
+# SuperLU_dist can only be enabled if parallel
+if (MFEM_USE_SUPERLU)
+  if (MFEM_USE_MPI)
+    find_package(SuperLUDist REQUIRED)
+    include_directories(${SuperLUDist_INCLUDE_DIRS})
   else()
-    #set(AUX_CXX_FLAGS "-Wall -pedantic -Werror")
-    set(AUX_CXX_FLAGS "-Wall")
+    message(FATAL_ERROR "SuperLU_dist requires that MPI be enabled")
   endif()
 endif()
 
-#-------------------------------------------------------------------------------
-# MFEM options
-#-------------------------------------------------------------------------------
-option(MFEM_USE_LAPACK "Enable LAPACK usage"                                OFF)
-option(MFEM_USE_OPENMP "Enable OpenMP usage"                                OFF)
-option(MFEM_USE_MESQUITE "Enable MESQUITE usage"                            OFF)
-option(MFEM_USE_SUITESPARSE "Enable SuiteSparse usage"                      OFF)
-option(MFEM_USE_MEMALLOC "Enable MEMALLOC usage"                             ON)
-option(MFEM_USE_GECKO "Enable GECKO usage"                                  OFF)
-
-#-------------------------------------------------------------------------------
 # LAPACK
-#-------------------------------------------------------------------------------
 if(MFEM_USE_LAPACK)
-  enable_language(C)
+  find_package(BLAS REQUIRED)
   find_package(LAPACK REQUIRED)
 endif()
 
-#-------------------------------------------------------------------------------
 # OpenMP
-#-------------------------------------------------------------------------------
-if(MFEM_USE_OPENMP)
-  if(WIN32)
-    set(AUX_CXX_FLAGS "${AUX_CXX_FLAGS} /openmp")
+if (MFEM_USE_OPENMP)
+  find_package(OPENMP REQUIRED)
+  if (OPENMP_FOUND)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
   else()
-    set(AUX_CXX_FLAGS "${AUX_CXX_FLAGS} -openmp")
+    message(STATUS "OpenMP NOT FOUND; Content disabled.")
   endif()
 endif()
 
-#-------------------------------------------------------------------------------
-# MFEM_DEBUG
-#-------------------------------------------------------------------------------
-if(BUILD_TYPE MATCHES "DEBUG") # DEBUG and PDEBUG go here
-  set(MFEM_DEBUG ON)
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${AUX_CXX_FLAGS}")
-else() # SERIAL and PARALLEL go here
-  set(MFEM_DEBUG OFF)
-  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${AUX_CXX_FLAGS}")
-endif()
-
-#-------------------------------------------------------------------------------
-# MFEM_USE_MPI, HYPRE, METIS
-#-------------------------------------------------------------------------------
-if(BUILD_TYPE STREQUAL PARALLEL OR BUILD_TYPE STREQUAL PDEBUG)
-  set(MFEM_USE_MPI ON)
-  # MPI
-  find_package(MPI REQUIRED)
-  include_directories(${MPI_CXX_INCLUDE_PATH})
-  set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
-  # Hypre
-  find_path(HYPRE_DIR include/HYPRE.h HINTS ENV HYPRE_DIR PATHS "$ENV{HOME}/software/hypre-2.10.1/src" DOC "Hypre directory")
-  if(EXISTS ${HYPRE_DIR}/include/HYPRE.h)
-    set(HYPRE_FOUND YES)
-    message(STATUS "Hypre found ${HYPRE_DIR}")
-    set(HYPRE_INCLUDES ${HYPRE_DIR})
-    find_path(HYPRE_INCLUDE_DIR HYPRE.h HINTS "${HYPRE_DIR}" PATH_SUFFIXES include NO_DEFAULT_PATH)
-    list(APPEND HYPRE_INCLUDES ${HYPRE_INCLUDE_DIR})
-    include_directories(${HYPRE_INCLUDES})
-    find_library(HYPRE_LIBRARY NAMES hypre HYPRE HINTS "${HYPRE_DIR}/lib" DOC "Hypre library")
-    message(STATUS "Hypre lib ${HYPRE_LIBRARY}")
-    get_filename_component(HYPRE_LIB_DIR ${HYPRE_LIBRARY} DIRECTORY)
-    message(STATUS "HYPRE_LIB_DIR ${HYPRE_LIB_DIR}")
-    link_directories(${HYPRE_LIB_DIR})
-  else()
-    set(HYPRE_FOUND NO)
-    message(FATAL_ERROR "Hypre is NOT found")
-  endif()
-  # Metis
-  find_path(METIS_DIR include/metis.h HINTS ENV METIS_DIR PATHS "$ENV{HOME}/software/metis-5.1.0/build/Linux-x86_64" DOC "Metis directory")
-  if(EXISTS ${METIS_DIR}/include/metis.h)
-    set(METIS_FOUND YES)
-    message(STATUS "Metis found ${METIS_DIR}")
-    set(METIS_INCLUDES ${METIS_DIR})
-    find_path(METIS_INCLUDE_DIR metis.h HINTS "${METIS_DIR}" PATH_SUFFIXES include NO_DEFAULT_PATH)
-    list(APPEND METIS_INCLUDES ${METIS_INCLUDE_DIR})
-    include_directories(${METIS_INCLUDES})
-    find_library(METIS_LIBRARY NAMES metis METIS HINTS "${METIS_DIR}/lib" DOC "Metis library")
-    message(STATUS "Metis lib ${METIS_LIBRARY}")
-    string(FIND ${METIS_DIR} "metis-5" IS_METIS_5)
-    if(IS_METIS_5)
-      set(MFEM_USE_METIS_5 ON)
-    else()
-      set(MFEM_USE_METIS_5 OFF)
-    endif()
-    get_filename_component(METIS_LIB_DIR ${METIS_LIBRARY} DIRECTORY)
-    message(STATUS "METIS_LIB_DIR ${METIS_LIB_DIR}")
-    link_directories(${METIS_LIB_DIR})
-  else()
-    message(FATAL_ERROR "Metis is NOT found")
-    set(METIS_FOUND NO)
-  endif()
-else()
-  set(MFEM_USE_MPI OFF)
-endif()
-
-#-------------------------------------------------------------------------------
 # MESQUITE
-#-------------------------------------------------------------------------------
-if(MFEM_USE_MESQUITE)
+if (MFEM_USE_MESQUITE)
+  find_package(Mesquite REQUIRED)
+  include_directories(${Mesquite_INCLUDE_DIRS})
 endif()
 
-#-------------------------------------------------------------------------------
 # SuiteSparse
-#-------------------------------------------------------------------------------
-if(MFEM_USE_SUITESPARSE)
+if (MFEM_USE_SUITESPARSE)
+  find_package(SuiteSparse REQUIRED)
+  include_directories(${SuiteSparse_INCLUDE_DIRS})
 endif()
 
-#-------------------------------------------------------------------------------
 # GECKO
-#-------------------------------------------------------------------------------
-if(MFEM_USE_GECKO)
+if (MFEM_USE_GECKO)
+  find_package(Gecko REQUIRED)
+  include_directories(${Gecko_INCLUDE_DIRS})
 endif()
 
-#-------------------------------------------------------------------------------
+# GnuTLS
+if (MFEM_USE_GNUTLS)
+  find_package(GnuTLS REQUIRED)
+endif()
+
+# NetCDF
+if (MFEM_USE_NETCDF)
+  find_package(NetCDF REQUIRED)
+  include_directories(${NetCDF_INCLUDE_DIRS})
+endif()
+
 # MFEM_TIMER_TYPE
-#-------------------------------------------------------------------------------
 if(NOT MFEM_TIMER_TYPE)
-  if(UNIX)
+  if (APPLE)
+    set(MFEM_TIMER_TYPE 0)
+  elseif (UNIX)
     set(MFEM_TIMER_TYPE 2)
-  elseif(WIN32)
+  elseif (WIN32)
+    # TRB: I don't know what this means, but Mikhail had it there, so
+    # it stayed.
     set(MFEM_TIMER_TYPE 3)
   else()
     set(MFEM_TIMER_TYPE 1)
   endif()
 endif()
 
-#-------------------------------------------------------------------------------
 # Windows specific
-#-------------------------------------------------------------------------------
-if(WIN32)
+if (WIN32)
   set(_USE_MATH_DEFINES ON)
 else()
   set(_USE_MATH_DEFINES OFF)
 endif()
 
-#-------------------------------------------------------------------------------
-# Config file
-#-------------------------------------------------------------------------------
+# Configuration file
 configure_file(
   "${PROJECT_SOURCE_DIR}/config/config.hpp.in_cmake"
   "${PROJECT_SOURCE_DIR}/config/config.hpp")
 include_directories(${PROJECT_SOURCE_DIR}/config)
 
-#-------------------------------------------------------------------------------
 # Headers and sources
-#-------------------------------------------------------------------------------
-set(DIRS general linalg mesh fem config)
-foreach(dir IN LISTS DIRS)
-  file(GLOB SRC "${PROJECT_SOURCE_DIR}/${dir}/*.cpp")
-  file(GLOB HDR "${PROJECT_SOURCE_DIR}/${dir}/*.hpp")
-  list(APPEND SRC_LIST ${SRC})
-  list(APPEND HDR_LIST ${HDR})
-endforeach()
+include(MfemCmakeUtilities)
+set(SOURCES "")
+set(HEADERS "")
+add_subdirectory(general)
+add_subdirectory(linalg)
+add_subdirectory(mesh)
+add_subdirectory(fem)
+add_subdirectory(config)
 
-#-------------------------------------------------------------------------------
-# Put the information about the configuration on the screen
-#-------------------------------------------------------------------------------
-  message("\n--------------- configuration information ----------------")
-  message("build type     : " ${BUILD_TYPE})
-  message("compiler       : " ${CMAKE_CXX_COMPILER})
-if(MFEM_USE_MPI)
-  message("hypre          : " ${HYPRE_PATH})
-  message("metis          : " ${METIS_PATH})
-endif()
-if(MFEM_DEBUG)
-  message("compiler flags : " ${CMAKE_CXX_FLAGS_DEBUG})
-else()
-  message("compiler flags : " ${CMAKE_CXX_FLAGS_RELEASE})
-endif()
-
-#-------------------------------------------------------------------------------
 # Declaring the library
-#-------------------------------------------------------------------------------
-add_library(${PROJECT_NAME} ${SRC_LIST} ${HDR_LIST})
+add_library(mfem ${SOURCES} ${HEADERS})
+
+# The examples and miniapps are separate
+add_subdirectory(examples)
+#add_subdirectory(miniapps)
+
+# Create the "test" and "check" targets. "make test"/"ctest" should
+# follow the existing makefile structure. "make check" should just
+# build ex1(p) and run it in serial/parallel.
+
 if(MFEM_USE_LAPACK)
   target_link_libraries(${PROJECT_NAME} ${LAPACK_LIBRARIES})
 endif()
@@ -216,11 +159,11 @@ endif()
 #-------------------------------------------------------------------------------
 # Installation
 #-------------------------------------------------------------------------------
-string(TOLOWER ${BUILD_TYPE} INSTALL_DIR)
-set(INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/${INSTALL_DIR})
-install(TARGETS ${PROJECT_NAME} DESTINATION ${INSTALL_DIR}/lib)
-install(FILES ${PROJECT_SOURCE_DIR}/mfem.hpp DESTINATION ${INSTALL_DIR}/include)
-foreach(dir IN LISTS DIRS)
-  file(GLOB HDR "${PROJECT_SOURCE_DIR}/${dir}/*.hpp")
-  install(FILES ${HDR} DESTINATION ${INSTALL_DIR}/include/${dir})
-endforeach()
+#string(TOLOWER ${BUILD_TYPE} INSTALL_DIR)
+#set(INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/${INSTALL_DIR})
+#install(TARGETS ${PROJECT_NAME} DESTINATION ${INSTALL_DIR}/lib)
+#install(FILES ${PROJECT_SOURCE_DIR}/mfem.hpp DESTINATION ${INSTALL_DIR}/include)
+#foreach(dir IN LISTS DIRS)
+#  file(GLOB HDR "${PROJECT_SOURCE_DIR}/${dir}/*.hpp")
+#  install(FILES ${HDR} DESTINATION ${INSTALL_DIR}/include/${dir})
+#endforeach()

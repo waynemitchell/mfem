@@ -38,11 +38,20 @@
 // Enable MFEM functionality based on the SuiteSparse library.
 #cmakedefine MFEM_USE_SUITESPARSE
 
+// Enable MFEM funcitonality based on the SuperLU_DIST library.
+#cmakedefine MFEM_USE_SUPERLU
+
 // Internal MFEM option: enable group/batch allocation for some small objects.
 #cmakedefine MFEM_USE_MEMALLOC
 
 // Enable functionality based on the Gecko library
 #cmakedefine MFEM_USE_GECKO
+
+// Enable MFEM functionality based on the GnuTLS library
+#cmakedefine MFEM_USE_GNUTLS
+
+// Enable MFEM functionality based on the NetCDF library
+#cmakedefine MFEM_USE_NETCDF
 
 // Which library functions to use in class StopWatch for measuring time.
 // The available options are:
