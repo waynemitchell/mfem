@@ -64,8 +64,6 @@ if (MFEM_USE_MPI)
     pnonlinearform.hpp)
 endif()
     
-include_directories(${CMAKE_CURRENT_SOURCE_DIRECTORY})
-
 convert_filenames_to_full_paths(SRCS)
 convert_filenames_to_full_paths(HDRS)
 
