@@ -1,6 +1,6 @@
 //                    MFEM Example 1 - High-Performance Version
 //
-// Compile with: make ex1
+// Compile with: make ex1 - with OCCA
 //
 // Sample runs:  ex1 -perf -m ../../data/fichera.mesh
 //               ex1 -perf -m ../../data/amr-hex.mesh -sc
@@ -78,10 +78,16 @@ int main(int argc, char *argv[])
 {
 
   //0. OCCA Query 
-  occa::printAvailibleDevices();
+  occa::printAvailableDevices();
   cout<<"....................."<<endl;
   cout<<"....MFEM w/ OCCA....."<<endl;
   cout<<"....................."<<endl;
+
+
+  //create a string to target device: Examples 
+  string occaString = "mode = CUDA , deviceID=0"; 
+  //string occaString = "mode = Serial"; 
+  //string occaString = "mode = OpenMP"; 
 
 
   // 1. Parse command-line options.
@@ -251,6 +257,12 @@ int main(int argc, char *argv[])
       // High-performance assembly using the templated operator type
       oper_t a_oper(integ_t(coeff_t(1.0)), *fespace);
       a_oper.AssembleBilinearForm(*a);
+
+      //Set up OCCA 
+      a_oper.occaSetup(occaString,sol_p);
+
+     
+
 #else
       const int ndofs = sol_fe_t::dofs;
       DenseTensor M(ndofs, ndofs, mesh->GetNE());
@@ -268,6 +280,11 @@ int main(int argc, char *argv[])
       tic_toc.Stop();
       cout << " done, " << tic_toc.RealTime() << "s." << endl;
     }
+
+
+
+
+
 
   SparseMatrix A;
   Vector B, X;
