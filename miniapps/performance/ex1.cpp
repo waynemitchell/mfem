@@ -261,6 +261,15 @@ int main(int argc, char *argv[])
       //Set up OCCA 
       a_oper.occaSetup(occaString,sol_p);
 
+      //Add compiler flag to device code. 
+      
+      
+
+
+
+
+
+
      
 
 #else

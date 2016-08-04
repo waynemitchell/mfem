@@ -147,17 +147,22 @@ public:
 
 
 
-  void occaSetup(string occaString,int in_mp){
+  void occaSetup(string occaString,int in_p){
     
-    mp = in_mp;
-    np = np+1; 
+    //Dofs per dim
+    mp = p+1;
     
-
-    cout<<"\n-----[OCCA Target]------"<<endl;
+    //Number of quadrature points
+    if(dim==2){
+      np = mp; 
+    }else{
+      np = np+1; 
+    }
+    
+    cout<<"\n-----[OCCA will Target]------"<<endl;
     cout<<occaString<<endl;
     device.setup(occaString);
-
-
+    
     cout<<"Constants : "<<endl;
     cout<<"sdim: "<<dim<<endl;
     cout<<"dofs - perDim: "<<mp<<endl;
@@ -166,16 +171,25 @@ public:
     cout<<"dofs - total: "<<dofs<<endl;
     cout<<"qpts - total: "<<qpts<<endl;
 
-    //Add constants
+    //------[Constants]------------
+
+    //No. of Elements
     kernelConst.addDefine("NE",mesh.GetNE());
+
+    //No. of DoFs in 1D - mp
     kernelConst.addDefine("mp",mp);
 
-
-
+    //No. of quadrature in 1D
+    kernelConst.addDefine("np",np);
 
     cout<<"\n"<<endl;
   }
   
+  //Add compiler flag to occa
+  void occaCompilerFlag(string flag){
+    device.setCompilerFlags(flag);
+  }
+
 
 
 
