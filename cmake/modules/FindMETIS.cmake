@@ -25,7 +25,7 @@ function(check_for_metis_5 VARNAME)
   set(TEST_SOURCE
     "
 #include <metis.h>
-
+#include <iostream>//So NULL is defined
 typedef int idx_t;
 typedef float real_t;
 extern \"C\" {
@@ -50,12 +50,11 @@ int main()
     int edgecut;
     int* partitioning = new int[10];
     int* I = partitioning,
-         J = partitioning;
+       * J = partitioning;
 
     int ncon = 1;
     int err;
     int options[40];
-
 
     METIS_SetDefaultOptions(options);
     options[10] = 1; // set METIS_OPTION_CONTIG

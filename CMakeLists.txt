@@ -98,8 +98,6 @@ if (MFEM_USE_NETCDF)
   include_directories(${NetCDF_INCLUDE_DIRS})
 endif()
 
-set(MFEM_USE_METIS_5 ON)
-
 set(TPL_LIBRARIES "")
 if (SuiteSparse_FOUND)
   list(APPEND TPL_LIBRARIES ${SuiteSparse_LIBRARIES})
