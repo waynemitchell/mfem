@@ -3,8 +3,6 @@ list(APPEND SRCS
   blockoperator.cpp
   blockvector.cpp
   densemat.cpp
-  hypre.cpp
-  hypre_parcsr.cpp
   matrix.cpp
   ode.cpp
   operator.cpp
@@ -19,8 +17,6 @@ list(APPEND HDRS
   blockoperator.hpp
   blockvector.hpp
   densemat.hpp
-  hypre.hpp
-  hypre_parcsr.hpp
   linalg.hpp
   matrix.hpp
   ode.hpp
@@ -34,7 +30,16 @@ list(APPEND HDRS
   vector.hpp
   )
 
-if(MFEM_USE_SUPERLU)
+if (MFEM_USE_MPI)
+  list(APPEND SRCS
+    hypre.cpp
+    hypre_parcsr.cpp)
+  list(APPEND HDRS
+    hypre.hpp
+    hypre_parcsr.hpp)
+endif()
+    
+if (MFEM_USE_SUPERLU)
   list(APPEND SRCS superlu.cpp)
   list(APPEND HDRS superlu.hpp)
 endif()

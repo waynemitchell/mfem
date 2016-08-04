@@ -1,6 +1,5 @@
 list(APPEND SRCS
   array.cpp
-  communication.cpp
   error.cpp
   isockstream.cpp
   optparser.cpp
@@ -14,7 +13,6 @@ list(APPEND SRCS
 
 list(APPEND HDRS
   array.hpp
-  communication.hpp
   error.hpp
   hash.hpp
   isockstream.hpp
@@ -29,6 +27,11 @@ list(APPEND HDRS
   tassign.hpp
   tic_toc.hpp
   )
+
+if (MFEM_USE_MPI)
+  list(APPEND SRCS communication.cpp)
+  list(APPEND HDRS communication.hpp)
+endif()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIRECTORY})
 

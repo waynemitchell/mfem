@@ -16,11 +16,6 @@ set(SRCS
   lininteg.cpp
   nonlinearform.cpp
   nonlininteg.cpp
-  pbilinearform.cpp
-  pfespace.cpp
-  pgridfunc.cpp
-  plinearform.cpp
-  pnonlinearform.cpp
   staticcond.cpp
   )
 
@@ -43,11 +38,6 @@ set(HDRS
   lininteg.hpp
   nonlinearform.hpp
   nonlininteg.hpp
-  pbilinearform.hpp
-  pfespace.hpp
-  pgridfunc.hpp
-  plinearform.hpp
-  pnonlinearform.hpp
   staticcond.hpp
   tbilinearform.hpp
   tbilininteg.hpp
@@ -59,6 +49,21 @@ set(HDRS
   tintrules.hpp
   )
 
+if (MFEM_USE_MPI)
+  list(APPEND SRCS
+    pbilinearform.cpp
+    pfespace.cpp
+    pgridfunc.cpp
+    plinearform.cpp
+    pnonlinearform.cpp)
+  list(APPEND HDRS
+    pbilinearform.hpp
+    pfespace.hpp
+    pgridfunc.hpp
+    plinearform.hpp
+    pnonlinearform.hpp)
+endif()
+    
 include_directories(${CMAKE_CURRENT_SOURCE_DIRECTORY})
 
 convert_filenames_to_full_paths(SRCS)

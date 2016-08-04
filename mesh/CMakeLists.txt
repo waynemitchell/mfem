@@ -6,8 +6,6 @@ set(SRCS
   mesh_readers.cpp
   ncmesh.cpp
   nurbs.cpp
-  pmesh.cpp
-  pncmesh.cpp
   point.cpp
   quadrilateral.cpp
   segment.cpp
@@ -24,8 +22,6 @@ set(HDRS
   mesh_operators.hpp
   ncmesh.hpp
   nurbs.hpp
-  pmesh.hpp
-  pncmesh.hpp
   point.hpp
   quadrilateral.hpp
   segment.hpp
@@ -34,6 +30,15 @@ set(HDRS
   triangle.hpp
   vertex.hpp
   )
+
+if (MFEM_USE_MPI)
+  list(APPEND SRCS
+    pmesh.cpp
+    pncmesh.cpp)
+  list(APPEND HDRS
+    pmesh.hpp
+    pncmesh.hpp)
+endif()
 
 if (MFEM_USE_MESQUITE)
   list(APPEND SRCS mesquite.cpp)
