@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 2.8.11)
 project(mfem)
 
 # CMake needs to know where to find things
-set(MFEM_CMAKE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+set(MFEM_CMAKE_PATH ${PROJECT_SOURCE_DIR}/config/cmake)
 set(CMAKE_MODULE_PATH ${MFEM_CMAKE_PATH}/modules)
 
 # MFEM options
