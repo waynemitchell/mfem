@@ -20,11 +20,6 @@
 #include "tcoefficient.hpp"
 #include "fespace.hpp"
 
-//AV
-#include "occa.hpp"
-#include <iostream>
-using namespace std;
-
 namespace mfem
 {
 
@@ -38,26 +33,6 @@ template <typename meshType, typename solFESpace,
           typename complex_t = double, typename real_t = double>
 class TBilinearForm : public Operator
 {
-
-
-private:
-
-  int mp; //number of Dofs per dim 
-  int np; //number of qPts per dim
-
-  //occa Kernels
-  occa::device device;
-  occa::kernel evaluation, assembly;
-  occa::kernelInfo kernelConst;//constants for the kernel
-
-
-  //Evaluation kernel : computes y = A*x
-  occa::memory o_D, o_B, x, yLg, y;
-  
-  //Assembly kernel:
-  occa::memory o_Me; 
-   
-
 protected:
    typedef complex_t complex_type;
    typedef real_t    real_type;
@@ -144,55 +119,6 @@ public:
          MultUnassembled(x, y);
       }
    }
-
-
-
-  void occaSetup(string occaString,int in_p){
-    
-    //Dofs per dim
-    mp = p+1;
-    
-    //Number of quadrature points
-    if(dim==2){
-      np = mp; 
-    }else{
-      np = np+1; 
-    }
-    
-    cout<<"\n-----[OCCA will Target]------"<<endl;
-    cout<<occaString<<endl;
-    device.setup(occaString);
-    
-    cout<<"Constants : "<<endl;
-    cout<<"sdim: "<<dim<<endl;
-    cout<<"dofs - perDim: "<<mp<<endl;
-    cout<<"qpts - perDim: "<<np<<endl;
-
-    cout<<"dofs - total: "<<dofs<<endl;
-    cout<<"qpts - total: "<<qpts<<endl;
-
-    //------[Constants]------------
-
-    //No. of Elements
-    kernelConst.addDefine("NE",mesh.GetNE());
-
-    //No. of DoFs in 1D - mp
-    kernelConst.addDefine("mp",mp);
-
-    //No. of quadrature in 1D
-    kernelConst.addDefine("np",np);
-
-    cout<<"\n"<<endl;
-  }
-  
-  //Add compiler flag to occa
-  void occaCompilerFlag(string flag){
-    device.setCompilerFlags(flag);
-  }
-
-
-
-
 
    // complex_t = double
    void MultUnassembled(const Vector &x, Vector &y) const
