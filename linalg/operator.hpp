@@ -219,6 +219,32 @@ public:
    }
 };
 
+
+/// Square operator constrained by fixing certain entries in the solution to
+/// given "essential boundary condition" values, a generalization of
+/// FormLinearSystem to abstract operators.
+class ConstrainedOperator : public Operator
+{
+protected:
+   Array<int> constraint_list;
+   Operator *A;
+   mutable Vector z, w;
+
+public:
+   /// Specify the unconstrained operator and a list of vector entries to
+   /// constrain (i.e. list[i] is analogous to an essential-dof).
+   explicit ConstrainedOperator(Operator *A, const Array<int> &list);
+
+   /// Eliminate "essential boundary condition" values specified in x from a
+   /// given right-hand side b: z = A((0,xb)); bi -= zi, bb = xb.
+   void EliminateRHS(const Vector &x, Vector &b) const;
+
+   /// Constrained operator action: z = A((xi,0)); yi = zi, yb = xb.
+   virtual void Mult(const Vector &x, Vector &y) const;
+
+   virtual ~ConstrainedOperator() { }
+};
+
 }
 
 #endif

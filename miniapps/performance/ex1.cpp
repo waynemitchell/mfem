@@ -67,7 +67,7 @@ typedef TConstantCoefficient<>                coeff_t;
 typedef TIntegrator<coeff_t,TDiffusionKernel> integ_t;
 
 // Static bilinear form type, combining the above types
-typedef TBilinearForm<mesh_t,sol_fes_t,int_rule_t,integ_t> oper_t;
+typedef TBilinearForm<mesh_t,sol_fes_t,int_rule_t,integ_t> HPCBilinearForm;
 
 int main(int argc, char *argv[])
 {
@@ -77,6 +77,7 @@ int main(int argc, char *argv[])
    bool static_cond = false;
    bool visualization = 1;
    bool perf = true;
+   bool matrix_free = true;
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -85,7 +86,10 @@ int main(int argc, char *argv[])
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
    args.AddOption(&perf, "-perf", "--hpc-version", "-std", "--standard-version",
-                  "Enable high-performance, tensor-based, assembly.");
+                  "Enable high-performance, tensor-based, assembly/evaluation.");
+   args.AddOption(&matrix_free, "-mf", "--matrix-free", "-asm", "--assembly",
+                  "Use matrix-free evaluation or efficient matrix assembly in "
+                  "the high-performance version.");
    args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
                   "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
@@ -206,11 +210,15 @@ int main(int argc, char *argv[])
    //     static condensation, etc.
    if (static_cond) { a->EnableStaticCondensation(); }
 
-   cout << "Assembling the matrix ..." << flush;
+   cout << "Assembling the bilinear form ..." << flush;
    tic_toc.Clear();
    tic_toc.Start();
    // Pre-allocate sparsity assuming dense element matrices
    a->UsePrecomputedSparsity();
+
+   HPCBilinearForm *a_hpc = NULL;
+   ConstrainedOperator *a_oper = NULL;
+
    if (!perf)
    {
       // Standard assembly using a diffusion domain integrator
@@ -219,34 +227,67 @@ int main(int argc, char *argv[])
    }
    else
    {
-      // High-performance assembly using the templated operator type
-      oper_t a_oper(integ_t(coeff_t(1.0)), *fespace);
-      a_oper.AssembleBilinearForm(*a);
+      // High-performance assembly/evaluation using the templated operator type
+      a_hpc = new HPCBilinearForm(integ_t(coeff_t(1.0)), *fespace);
+      if (matrix_free)
+      {
+         a_hpc->Assemble(); // Chooses between ::MultAssembled and ::MultUnassembled
+         a_oper = new ConstrainedOperator(a_hpc, ess_tdof_list);
+      }
+      else
+      {
+         a_hpc->AssembleBilinearForm(*a);
+      }
    }
    tic_toc.Stop();
    cout << " done, " << tic_toc.RealTime() << "s." << endl;
 
+   // 12. Solve the system A X = B with CG. In the standard case, use a simple
+   //     symmetric Gauss-Seidel preconditioner.
    SparseMatrix A;
    Vector B, X;
-   a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
+   if (perf && matrix_free)
+   {
+      // X and B point to the same data as x and b
+      X.NewDataAndSize(x.GetData(), x.Size());
+      B.NewDataAndSize(b->GetData(), b->Size());
+      a_oper->EliminateRHS(X, B);
+   }
+   else
+   {
+      a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
+      cout << "Size of linear system: " << a->Height() << endl;
+   }
 
-   cout << "Size of linear system: " << A.Height() << endl;
-
+   if (perf && matrix_free)
+   {
+      // Cannot utilize Gauss-Seidel preconditioner with how matrix-free operator
+      // handles essential BCs. See ConstrainedOperator.
+      CG(*a_oper, B, X, 1, 500, 1e-12, 0.0);
+   }
+   else
+   {
 #ifndef MFEM_USE_SUITESPARSE
-   // 12. Define a simple symmetric Gauss-Seidel preconditioner and use it to
-   //     solve the system A X = B with PCG.
-   GSSmoother M(A);
-   PCG(A, M, B, X, 1, 500, 1e-12, 0.0);
+      GSSmoother M(A);
+      PCG(A, M, B, X, 1, 500, 1e-12, 0.0);
 #else
-   // 12. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
-   UMFPackSolver umf_solver;
-   umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
-   umf_solver.SetOperator(A);
-   umf_solver.Mult(B, X);
+      // If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
+      UMFPackSolver umf_solver;
+      umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
+      umf_solver.SetOperator(A);
+      umf_solver.Mult(B, X);
 #endif
+   }
 
    // 13. Recover the solution as a finite element grid function.
-   a->RecoverFEMSolution(X, *b, x);
+   if (perf && matrix_free)
+   {
+      x = X;
+   }
+   else
+   {
+      a->RecoverFEMSolution(X, *b, x);
+   }
 
    // 14. Save the refined mesh and the solution. This output can be viewed later
    //     using GLVis: "glvis -m refined.mesh -g sol.gf".
@@ -269,6 +310,8 @@ int main(int argc, char *argv[])
 
    // 16. Free the used memory.
    delete a;
+   delete a_hpc;
+   delete a_oper;
    delete b;
    delete fespace;
    if (order > 0) { delete fec; }
