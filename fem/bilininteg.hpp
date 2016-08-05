@@ -179,16 +179,19 @@ private:
 #endif
    Coefficient *Q;
    MatrixCoefficient *MQ;
+   bool sparsify;
 
 public:
    /// Construct a diffusion integrator with coefficient Q = 1
-   DiffusionIntegrator() { Q = NULL; MQ = NULL; }
+   DiffusionIntegrator() { Q = NULL; MQ = NULL; sparsify = false; }
 
    /// Construct a diffusion integrator with a scalar coefficient q
-   DiffusionIntegrator (Coefficient &q) : Q(&q) { MQ = NULL; }
+   DiffusionIntegrator (Coefficient &q, bool sparse  = false)
+      : Q(&q), sparsify(sparse) { MQ = NULL; }
 
    /// Construct a diffusion integrator with a matrix coefficient q
-   DiffusionIntegrator (MatrixCoefficient &q) : MQ(&q) { Q = NULL; }
+   DiffusionIntegrator (MatrixCoefficient &q, bool sparse = false)
+      : MQ(&q), sparsify(sparse) { Q = NULL; }
 
    /** Given a particular Finite Element
        computes the element stiffness matrix elmat. */
