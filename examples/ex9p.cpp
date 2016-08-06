@@ -311,6 +311,10 @@ int main(int argc, char *argv[])
          ((ARKODESolver*) ode_solver)->WrapSetERKTableNum(table_num);
          ((ARKODESolver*) ode_solver)->WrapSetFixedStep(dt);
          break;
+      case 14:
+         ode_solver = new CVODESolver(u, false, CV_BDF, CV_NEWTON);
+         static_cast<CVODESolver *>(ode_solver)->SetSStolerances(1e-3, 1e-6);
+         break;
    }
 
    ode_solver->Init(adv);

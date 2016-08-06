@@ -53,7 +53,7 @@ static void ConnectParNVector(mfem::Vector &mv, N_Vector &nv)
 }
 
 // Creates MFEM Vector mv linked to the data in nv.
-static void ConnectMFEMVector(N_Vector &nv, mfem::Vector &mv)
+static inline void ConnectMFEMVector(N_Vector &nv, mfem::Vector &mv)
 {
    if (N_VGetVectorID(nv) == SUNDIALS_NVEC_SERIAL)
    {
@@ -274,29 +274,29 @@ CVODESolver::CVODESolver(Vector &y_, bool parallel, int lmm, int iter)
    }
 }
 
-void CVODESolver::Init(TimeDependentOperator &_f)
+void CVODESolver::Init(TimeDependentOperator &f_)
 {
-   f = &_f;
+   f = &f_;
 
    // Set the pointer to user-defined data.
    int flag = CVodeSetUserData(ode_mem, f);
    MFEM_ASSERT(flag >= 0, "CVodeSetUserData() failed!");
 }
 
-void CVODESolver::ReInit(TimeDependentOperator &_f, Vector &y_, double & _t)
+void CVODESolver::ReInit(TimeDependentOperator &f_, Vector &y_, double & t_)
 {
-   f = &_f;
+   f = &f_;
    (*connectNV)(y_, y);
 
    // Re-init memory, time and solution. The RHS action is known from Init().
-   int flag = CVodeReInit(ode_mem, static_cast<realtype>(_t), y);
+   int flag = CVodeReInit(ode_mem, static_cast<realtype>(t_), y);
    MFEM_ASSERT(flag >= 0, "CVodeReInit() failed!");
 
    // Set the pointer to user-defined data.
-   flag = CVodeSetUserData(ode_mem, this->f);
+   flag = CVodeSetUserData(ode_mem, f);
    MFEM_ASSERT(flag >= 0, "CVodeSetUserData() failed!");
 
-   // When newton iterations are chosen, one should specify the linear solver.
+   // When Newton iterations are chosen, one should specify the linear solver.
    if (solver_iteration_type == CV_NEWTON)
    {
       CVSpgmr(ode_mem, PREC_NONE, 0);
@@ -316,6 +316,10 @@ void CVODESolver::Step(Vector &x, double &t, double &dt)
 
    // Perform the step.
    realtype tout = t + dt;
+   // Supports CV_NORMAL or CV_ONE_STEP.
+   // CV_NORMAL - the solver steps until it reaches or passes tout.
+   // CV_ONE_STEP - takes ine internal step and returns.
+   // TODO - move this to Step.
    int flag = CVode(ode_mem, tout, y, &t, CV_NORMAL);
    MFEM_ASSERT(flag >= 0, "CVode() failed!");
 
@@ -323,7 +327,7 @@ void CVODESolver::Step(Vector &x, double &t, double &dt)
    flag = CVodeGetLastStep(ode_mem, &dt);
 }
 
-void CVODESolver::SetLinearSolve(SundialsLinearSolveOperator* op)
+void CVODESolver::SetLinearSolve(SundialsLinearSolveOperator *op)
 {
    MFEM_VERIFY(solver_iteration_type == CV_NEWTON,
                "The function is applicable only to CV_NEWTON iteration type.");
@@ -358,14 +362,14 @@ CVODESolver::~CVODESolver()
 }
 
 
-ARKODESolver::ARKODESolver(Vector &mfem_y, bool parallel, bool _use_explicit)
+ARKODESolver::ARKODESolver(Vector &y_, bool parallel, bool explicit_)
    : ODESolver(),
-     use_explicit(_use_explicit)
+     use_explicit(explicit_)
 {
    connectNV = (parallel) ? ConnectParNVector : ConnectNVector;
 
    // Create the NVector y.
-   (*connectNV)(mfem_y, y);
+   (*connectNV)(y_, y);
 
    // Create the solver memory.
    ode_mem = ARKodeCreate();
@@ -417,6 +421,7 @@ void ARKODESolver::Step(Vector &x, double &t, double &dt)
 
    // Step.
    realtype tout = t + dt;
+   // TODO move this argument up.
    int flag = ARKode(ode_mem, tout, y, &t, ARK_NORMAL);
    MFEM_ASSERT(flag >= 0, "ARKode() failed!");
 
