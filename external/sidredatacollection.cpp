@@ -32,11 +32,13 @@ namespace mfem
 
 // class SidreDataCollection implementation
 SidreDataCollection::SidreDataCollection(const std::string& collection_name, asctoolkit::sidre::DataGroup* dg)
-  : mfem::DataCollection(collection_name.c_str()), parent_datagroup(dg)
+  : mfem::DataCollection(collection_name.c_str()), 
+    parent_datagroup(dg),
+    m_collection_name(collection_name)
 {
    namespace sidre = asctoolkit::sidre;
 
-   sidre_dc_group = dg->createGroup( collection_name );
+   sidre_dc_group = dg->createGroup( m_collection_name );
 
    sidre_dc_group->createViewScalar("state/cycle", 0);
    sidre_dc_group->createViewScalar("state/time", 0.);
@@ -82,10 +84,10 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
       /// Setup the mesh blueprint
 
       // Add coordinate set
-      grp->createViewString("coordsets/mesh/type", "explicit");
-      grp->createView("coordsets/mesh/values/x");
-      if(dim >= 2) { grp->createView("coordsets/mesh/values/y"); }
-      if(dim >= 3) { grp->createView("coordsets/mesh/values/z"); }
+      grp->createViewString("coordsets/coords/type", "explicit");
+      grp->createView("coordsets/coords/values/x");
+      if(dim >= 2) { grp->createView("coordsets/coords/values/y"); }
+      if(dim >= 3) { grp->createView("coordsets/coords/values/z"); }
 
       // Find the element shape
       // Note: Assumes homogeneous elements, so only check the first element
@@ -95,7 +97,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
       grp->createViewString("topologies/mesh/type", "unstructured");
       grp->createViewString("topologies/mesh/elements/shape",eltTypeStr);   // <-- Note: this comes form the mesh
       grp->createView("topologies/mesh/elements/connectivity");
-      grp->createViewString("topologies/mesh/coordset", "mesh");
+      grp->createViewString("topologies/mesh/coordset", "coords");
       grp->createViewString("topologies/mesh/mfem_grid_function", "nodes");
 
       if (has_bnd_elts)
@@ -104,7 +106,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
       }
 
       // Add mesh elements material attribute field
-      grp->createViewString("fields/mesh_material_attribute/association", "Element");
+      grp->createViewString("fields/mesh_material_attribute/association", "element");
       grp->createView("fields/mesh_material_attribute/values");
       grp->createViewString("fields/mesh_material_attribute/topology", "mesh");
 
@@ -116,10 +118,10 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
          grp->createViewString("topologies/boundary/type", "unstructured");
          grp->createViewString("topologies/boundary/elements/shape",eltTypeStr);   // <-- Note: this comes form the mesh
          grp->createView("topologies/boundary/elements/connectivity");
-         grp->createViewString("topologies/boundary/coordset", "mesh");
+         grp->createViewString("topologies/boundary/coordset", "coords");
 
          // Add boundary elements material attribute field
-         grp->createViewString("fields/boundary_material_attribute/association", "Element");
+         grp->createViewString("fields/boundary_material_attribute/association", "element");
          grp->createView("fields/boundary_material_attribute/values");
          grp->createViewString("fields/boundary_material_attribute/topology", "boundary");
       }
@@ -139,20 +141,20 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
                                          ->createBuffer(sidre::DOUBLE_ID, coordset_len)
                                          ->allocate();
 
-      grp->getView("coordsets/mesh/values/x")
+      grp->getView("coordsets/coords/values/x")
          ->attachBuffer(coordbuf)
          ->apply(sidre::DOUBLE_ID, num_vertices, 0, NUM_COORDS);
 
       if(dim >= 2)
       {
-         grp->getView("coordsets/mesh/values/y")
+         grp->getView("coordsets/coords/values/y")
             ->attachBuffer(coordbuf)
             ->apply(sidre::DOUBLE_ID, num_vertices, 1, NUM_COORDS);
       }
 
       if(dim >= 3)
       {
-         grp->getView("coordsets/mesh/values/z")
+         grp->getView("coordsets/coords/values/z")
              ->attachBuffer(coordbuf)
              ->apply(sidre::DOUBLE_ID, num_vertices, 2, NUM_COORDS);
       }
@@ -160,7 +162,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
    }
 
    // Change ownership of mesh data to sidre
-   double *coord_values = grp->getView("coordsets/mesh/values/x")->getBuffer()->getData();
+   double *coord_values = grp->getView("coordsets/coords/values/x")->getBuffer()->getData();
 
    new_mesh->ChangeElementDataOwnership(
              mesh_elements_connectivity->getArray(),
@@ -236,41 +238,41 @@ void SidreDataCollection::CopyMesh(std::string name, Mesh *new_mesh)
    int num_vertices = new_mesh->GetNV();
    int coordset_len = NUM_COORDS * num_vertices;
 
-   grp->createViewString("coordsets/mesh/type", "explicit");
-   grp->createView("coordsets/mesh/values/x");
+   grp->createViewString("coordsets/coords/type", "explicit");
+   grp->createView("coordsets/coords/values/x");
    if(dim >= 2)
    {
-      grp->createView("coordsets/mesh/values/y");
+      grp->createView("coordsets/coords/values/y");
    }
    if(dim >= 3)
    {
-      grp->createView("coordsets/mesh/values/z");
+      grp->createView("coordsets/coords/values/z");
    }
 
    sidre::DataBuffer* coordbuf = grp->getDataStore()
                                     ->createBuffer(sidre::DOUBLE_ID, coordset_len)
                                     ->allocate();
 
-   grp->getView("coordsets/mesh/values/x")
+   grp->getView("coordsets/coords/values/x")
       ->attachBuffer(coordbuf)
       ->apply(sidre::DOUBLE_ID, num_vertices, 0, NUM_COORDS);
 
    if(dim >= 2)
    {
-       grp->getView("coordsets/mesh/values/y")
+       grp->getView("coordsets/coords/values/y")
           ->attachBuffer(coordbuf)
           ->apply(sidre::DOUBLE_ID, num_vertices, 1, NUM_COORDS);
    }
 
    if(dim >= 3)
    {
-       grp->getView("coordsets/mesh/values/z")
+       grp->getView("coordsets/coords/values/z")
           ->attachBuffer(coordbuf)
           ->apply(sidre::DOUBLE_ID, num_vertices, 2, NUM_COORDS);
    }
 
    // Copy mesh coord data to sidre.
-   double *coord_values = grp->getView("coordsets/mesh/values/x")->getBuffer()->getData();
+   double *coord_values = grp->getView("coordsets/coords/values/x")->getBuffer()->getData();
 
    bool zeroCopy = false;
    bool copyOnly = true;
@@ -299,7 +301,7 @@ void SidreDataCollection::CopyMesh(std::string name, Mesh *new_mesh)
    grp->createViewString("topologies/mesh/mfem_grid_function", "nodes");
 
    // Add mesh elements material attribute field
-   grp->createViewString("fields/mesh_material_attribute/association", "Element");
+   grp->createViewString("fields/mesh_material_attribute/association", "element");
    grp->createView("fields/mesh_material_attribute/values");
    grp->createViewString("fields/mesh_material_attribute/topology", "mesh");
 
@@ -331,12 +333,12 @@ void SidreDataCollection::CopyMesh(std::string name, Mesh *new_mesh)
 
       // Add mesh boundary topology
       grp->createViewString("topologies/boundary/type", "unstructured");
-      grp->createViewString("topologies/boundary/elements/shape",eltTypeStr);   // <-- Note: this comes form the mesh
+      grp->createViewString("topologies/boundary/elements/shape",eltTypeStr);   // <-- Note: this comes from the mesh
       grp->createView("topologies/boundary/elements/connectivity");
       grp->createViewString("topologies/boundary/coordset", "mesh");
 
       // Add boundary elements material attribute field
-      grp->createViewString("fields/boundary_material_attribute/association", "Element");
+      grp->createViewString("fields/boundary_material_attribute/association", "element");
       grp->createView("fields/boundary_material_attribute/values");
       grp->createViewString("fields/boundary_material_attribute/topology", "boundary");
 
@@ -385,7 +387,7 @@ void SidreDataCollection::Load(const std::string& path, const std::string& proto
    if (par_mesh)
    {
        asctoolkit::spio::IOManager reader(par_mesh->GetComm());
-       reader.read(sidre_dc_group, path);
+       reader.read(parent_datagroup, path);
    }
    else
    {
@@ -397,8 +399,10 @@ void SidreDataCollection::Load(const std::string& path, const std::string& proto
    // write out in serial for debugging, or if MPI unavailable
    if(useSerial)
    {
-       sidre_dc_group->getDataStore()->load(path, protocol); //, sidre_dc_group);
+       parent_datagroup->getDataStore()->load(path, protocol); //, sidre_dc_group);
    }
+   
+   sidre_dc_group = parent_datagroup->getGroup(m_collection_name);
 
    SetTime( sidre_dc_group->getView("state/time")->getData<double>() );
    SetCycle( sidre_dc_group->getView("state/cycle")->getData<int>() );
@@ -409,24 +413,25 @@ void SidreDataCollection::ConstructRootFileGroup(asctoolkit::sidre::DataGroup * 
 {
    namespace sidre = asctoolkit::sidre;
 
-   sidre::DataGroup * index_grp = dg->createGroup(name);
-
-//   sidre::DataGroup * index_grp = parent_datagroup->createGroup("blueprint_index");
+   sidre::DataGroup * bp_index_grp = dg->createGroup(name);
 
    // Setup state group
-   index_grp->copyView( sidre_dc_group->getView("state/cycle") );
-   index_grp->copyView( sidre_dc_group->getView("state/time") );
-   index_grp->createViewScalar("state/number_of_domains", num_procs);
+   sidre::DataGroup * state_grp = bp_index_grp->createGroup("state");
+
+   state_grp->copyView( sidre_dc_group->getView("state/cycle") );
+   state_grp->copyView( sidre_dc_group->getView("state/time") );
+   state_grp->createViewScalar("number_of_domains", num_procs);
 
    // Setup coordsets group
-   index_grp->createViewString("coordsets/mesh/path", "/coordsets/mesh/path");
-   index_grp->copyView( sidre_dc_group->getView("coordsets/mesh/type") );
+   sidre::DataGroup * bp_index_coords_grp = bp_index_grp->createGroup("coordsets/coords");
+   bp_index_coords_grp->createViewString("path", name + "/coordsets/coords");
+   bp_index_coords_grp->copyView( sidre_dc_group->getView("coordsets/coords/type") );
 
    std::string coord_system = "unknown";
-   if ( sidre_dc_group->getGroup("coordsets/mesh/values")->hasView("x") &&
-        sidre_dc_group->getGroup("coordsets/mesh/values")->hasView("y") )
+   if ( sidre_dc_group->getGroup("coordsets/coords/values")->hasView("x") &&
+        sidre_dc_group->getGroup("coordsets/coords/values")->hasView("y") )
    {
-      if ( sidre_dc_group->getGroup("coordsets/mesh/values")->hasView("z") )
+      if ( sidre_dc_group->getGroup("coordsets/coords/values")->hasView("z") )
       {
          coord_system = "xyz";
       }
@@ -436,13 +441,20 @@ void SidreDataCollection::ConstructRootFileGroup(asctoolkit::sidre::DataGroup * 
       }
    }
 
-   index_grp->createViewString("coordsets/mesh/coord_system", coord_system);
-
+   bp_index_coords_grp->createViewString("coord_system", coord_system);
+ 
    // Setup topology group.  For this prototype just hard code the mesh and boundary topology entries.
-   if (sidre_dc_group->hasGroup("topologies/mesh"))
+   if (sidre_dc_group->hasGroup("topologies"))
    {
-      index_grp->createViewString("topologies/mesh/path", name + "/topologies/mesh");
-      sidre::DataGroup * mesh_grp = index_grp->getGroup("topologies/mesh");
+      sidre::DataGroup * topos_grp = sidre_dc_group->getGroup("topologies");
+
+      if(!topos_grp->hasGroup("mesh") && ! topos_grp->hasGroup("boundary"))
+      {
+        CONDUIT_ERROR("Error, things aren't as expected -- missing mesh or boundary!");
+      }
+      
+      sidre::DataGroup * mesh_grp = bp_index_grp->createGroup("topologies/mesh");
+      mesh_grp->createViewString("path", name + "/topologies/mesh");
       mesh_grp->copyView( sidre_dc_group->getView("topologies/mesh/type") );
       mesh_grp->copyView( sidre_dc_group->getView("topologies/mesh/coordset") );
       mesh_grp->copyView( sidre_dc_group->getView("topologies/mesh/mfem_grid_function") );
@@ -452,12 +464,10 @@ void SidreDataCollection::ConstructRootFileGroup(asctoolkit::sidre::DataGroup * 
          mesh_grp->copyView( sidre_dc_group->getView("topologies/mesh/boundary_topology") );
       }
 
-   }
-   if (sidre_dc_group->hasGroup("topologies/boundary"))
-   {
-      index_grp->createViewString("topologies/boundary/path", name + "/topologies/boundary");
-      index_grp->copyView( sidre_dc_group->getView("topologies/boundary/type") );
-      index_grp->copyView( sidre_dc_group->getView("topologies/boundary/coordset") );
+      sidre::DataGroup * bnd_grp =bp_index_grp->createGroup("topologies/boundary");
+      bnd_grp->createViewString("path", name + "/topologies/boundary");
+      bnd_grp->copyView( sidre_dc_group->getView("topologies/boundary/type") );
+      bnd_grp->copyView( sidre_dc_group->getView("topologies/boundary/coordset") );
    }
 
    // Setup the fields group
@@ -466,34 +476,37 @@ void SidreDataCollection::ConstructRootFileGroup(asctoolkit::sidre::DataGroup * 
    {
       sidre::DataGroup * fields_grp = sidre_dc_group->getGroup("fields");
 
-      sidre::IndexType grp_index = fields_grp->getFirstValidGroupIndex();
+      sidre::DataGroup *  bp_index_fields_grp = bp_index_grp->createGroup("fields");
 
-      while ( grp_index != sidre::InvalidIndex)
+      sidre::IndexType field_index = fields_grp->getFirstValidGroupIndex();
+
+      while ( field_index != sidre::InvalidIndex)
       {
-         sidre::DataGroup * the_field_grp = fields_grp->getGroup( grp_index );
+         sidre::DataGroup * field_grp = fields_grp->getGroup( field_index );
 
-         sidre::DataGroup * index_field_grp = index_grp->createGroup( the_field_grp->getName() );
-         index_field_grp->createViewScalar( "path", name + "/fields/" + the_field_grp->getName() );
+         sidre::DataGroup * bp_index_field_grp = bp_index_fields_grp->createGroup( field_grp->getName() );
+         bp_index_field_grp->createViewScalar( "path", name + "/fields/" + field_grp->getName() );
 
-         if (the_field_grp->hasView("basis"))
+         if (field_grp->hasView("basis"))
          {
-            index_field_grp->copyView( the_field_grp->getView("basis") );
+            bp_index_field_grp->copyView( field_grp->getView("basis") );
          }
          else
          {
-            index_field_grp->copyView( the_field_grp->getView("association") );
+            bp_index_field_grp->copyView( field_grp->getView("association") );
          }
 
-         index_field_grp->copyView( the_field_grp->getView("topology") );
+        bp_index_field_grp->copyView( field_grp->getView("topology") );
 
          int number_of_components = 1;
-         if ( the_field_grp->hasGroup("values") )
+         if ( field_grp->hasGroup("values") )
          {
-            number_of_components = the_field_grp->getGroup("values")->getNumViews();
+            number_of_components = field_grp->getGroup("values")->getNumViews();
          }
-         index_field_grp->createViewScalar("number_of_components", number_of_components);
 
-         grp_index = fields_grp->getNextValidGroupIndex(grp_index);
+         bp_index_field_grp->createViewScalar("number_of_components", number_of_components);
+
+         field_index = fields_grp->getNextValidGroupIndex(field_index);
       }
    }
 
@@ -512,7 +525,8 @@ void SidreDataCollection::Save()
    {
       // This needs to be done after the data collection has current data ( set the state above ).
       // It will copy all relevant values to a new index tree.
-      ConstructRootFileGroup(parent_datagroup, "blueprint_index");
+      sidre::DataGroup *blueprintIndexGrp = parent_datagroup->createGroup("blueprint_index");
+      ConstructRootFileGroup(blueprintIndexGrp, "blast");
    }
 
    std::string filename, protocol;
@@ -537,7 +551,7 @@ void SidreDataCollection::Save()
    if (par_mesh)
    {
       asctoolkit::spio::IOManager writer(par_mesh->GetComm());
-      writer.write(sidre_dc_group, num_procs, fNameSstr.str(), "sidre_hdf5");
+      writer.write(parent_datagroup, num_procs, fNameSstr.str(), "sidre_hdf5");
 
       if (myid == 0)
       {

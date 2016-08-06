@@ -29,6 +29,7 @@ class SidreDataCollection : public DataCollection
 {
 
 protected:
+   // why is this protected, but sidre dc is private?
    asctoolkit::sidre::DataGroup *parent_datagroup;
 
 public:
@@ -114,7 +115,8 @@ private:
    // Private helper functions
 
    asctoolkit::sidre::DataGroup * sidre_dc_group;
-
+   // not sure if the base class exposes this
+   std::string m_collection_name;
    std::string getElementName( Element::Type elementEnum );
 
    void ConstructRootFileGroup(asctoolkit::sidre::DataGroup * dg, std::string name);
