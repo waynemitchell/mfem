@@ -283,13 +283,13 @@ void CVODESolver::Init(TimeDependentOperator &f_)
    MFEM_ASSERT(flag >= 0, "CVodeSetUserData() failed!");
 }
 
-void CVODESolver::ReInit(TimeDependentOperator &f_, Vector &y_, double & t_)
+void CVODESolver::ReInit(TimeDependentOperator &f_, Vector &y_, double &t_)
 {
    f = &f_;
    (*connectNV)(y_, y);
 
    // Re-init memory, time and solution. The RHS action is known from Init().
-   int flag = CVodeReInit(ode_mem, static_cast<realtype>(t_), y);
+   int flag = CVodeReInit(ode_mem, t_, y);
    MFEM_ASSERT(flag >= 0, "CVodeReInit() failed!");
 
    // Set the pointer to user-defined data.
@@ -313,13 +313,13 @@ void CVODESolver::SetSStolerances(realtype reltol, realtype abstol)
 void CVODESolver::Step(Vector &x, double &t, double &dt)
 {
    (*connectNV)(x, y);
-
-   // Perform the step.
    realtype tout = t + dt;
-   // Supports CV_NORMAL or CV_ONE_STEP.
-   // CV_NORMAL - the solver steps until it reaches or passes tout.
-   // CV_ONE_STEP - takes ine internal step and returns.
-   // TODO - move this to Step.
+
+   // Don't allow stepping over tout (then it interpolates in time).
+   CVodeSetStopTime(ode_mem, tout);
+   // Step.
+   // CV_NORMAL - take many steps until reaching tout.
+   // CV_ONE_STEP - take one step and return (might be before tout).
    int flag = CVode(ode_mem, tout, y, &t, CV_NORMAL);
    MFEM_ASSERT(flag >= 0, "CVode() failed!");
 
@@ -384,23 +384,23 @@ ARKODESolver::ARKODESolver(Vector &y_, bool parallel, bool explicit_)
    SetSStolerances(RELTOL, ABSTOL);
 }
 
-void ARKODESolver::Init(TimeDependentOperator &_f)
+void ARKODESolver::Init(TimeDependentOperator &f_)
 {
-   f = &_f;
+   f = &f_;
    // Set the pointer to user-defined data.
    int flag = ARKodeSetUserData(ode_mem, this->f);
    MFEM_ASSERT(flag >= 0, "ARKodeSetUserData() failed!");
 }
 
-void ARKODESolver::ReInit(TimeDependentOperator &_f, Vector &y_, double &_t)
+void ARKODESolver::ReInit(TimeDependentOperator &f_, Vector &y_, double &t_)
 {
-   f = &_f;
+   f = &f_;
    (*connectNV)(y_, y);
 
    // Re-init memory, time and solution. The RHS action is known from Init().
    int flag = use_explicit ?
-              ARKodeReInit(ode_mem, SundialsMult, NULL, (realtype) _t, y) :
-              ARKodeReInit(ode_mem, NULL, SundialsMult, (realtype) _t, y);
+              ARKodeReInit(ode_mem, SundialsMult, NULL, t_, y) :
+              ARKodeReInit(ode_mem, NULL, SundialsMult, t_, y);
    MFEM_ASSERT(flag >= 0, "ARKodeReInit() failed!");
 
    // Set the pointer to user-defined data.
@@ -418,10 +418,13 @@ void ARKODESolver::SetSStolerances(realtype reltol, realtype abstol)
 void ARKODESolver::Step(Vector &x, double &t, double &dt)
 {
    (*connectNV)(x, y);
-
-   // Step.
    realtype tout = t + dt;
-   // TODO move this argument up.
+
+   // Don't allow stepping over tout (then it interpolates in time).
+   ARKodeSetStopTime(ode_mem, tout);
+   // Step.
+   // ARK_NORMAL - take many steps until reaching tout.
+   // ARK_ONE_STEP - take one step and return (might be before tout).
    int flag = ARKode(ode_mem, tout, y, &t, ARK_NORMAL);
    MFEM_ASSERT(flag >= 0, "ARKode() failed!");
 

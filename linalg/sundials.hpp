@@ -88,29 +88,16 @@ public:
    /// exlicit_ specifies whether the time integration is explicit.
    ARKODESolver(Vector &y_, bool parallel, bool explicit_ = true);
 
-   void Init(TimeDependentOperator &_f);
+   void Init(TimeDependentOperator &f_);
 
    /// Allows changing the operator, starting solution, current time.
-   void ReInit(TimeDependentOperator &_f, Vector &y_, double &_t);
+   void ReInit(TimeDependentOperator &f_, Vector &y_, double &t_);
 
    /// Note that this MUST be called before the first call to Step().
    void SetSStolerances(realtype reltol, realtype abstol);
 
-   /** \brief
-    * ARKode supports two modes as specified by itask: ARK_NORMAL and
-    * ARK_ONE_STEP. In the ARK_NORMAL mode, the solver steps until
-    * it reaches or passes tout and then interpolates to obtain
-    * y(tout). In the ARK_ONE_STEP mode, it takes one internal step
-    * and returns. The behavior of both modes can be over-rided
-    * through user-specification of ark_tstop (through the
-    * ARKodeSetStopTime function), in which case if a solver step
-    * would pass tstop, the step is shortened so that it stops at
-    * exactly the specified stop time, and hence interpolation of
-    * y(tout) is not required.
-    */
    /// Uses ARKODE to integrate over (t, t + dt).
    /// Calls ARKODE(), which is the main driver of the CVODE package.
-   /// TODO: keep the interpolation comment.
    void Step(Vector &x, double &t, double &dt);
 
    /// Defines a custom Jacobian inversion for non-linear problems.
@@ -119,15 +106,11 @@ public:
    /// Chooses a specific Butcher table for a RK method.
    void WrapSetERKTableNum(int table_num);
 
-   /** Specifies to use a fixed time step size instead of performing
-       any form of temporal adaptivity.  ARKode will use this step size
-       for all steps (unless tstop is set, in which case it may need to
-       modify that last step approaching tstop.  If any (non)linear
-       solver failure occurs, ARKode will immediately return with an
-       error message since the time step size cannot be modified.
-       Any nonzero argument will result in the use of that fixed step
-       size; an argument of 0 will re-enable temporal adaptivity. */
-   // TODO: interface for tstop.
+   /// Specifies to use a fixed time step size instead of performing any form
+   /// of temporal adaptivity.
+   /// Use  of  this  function  is  not  recommended, since may there is no
+   /// assurance  of  the  validity  of  the  computed solutions.
+   /// It is primarily provided for code-to-code verification testing purposes.
    void WrapSetFixedStep(double dt);
 
    /// Destroys the associated ARKODE memory.
@@ -150,9 +133,7 @@ class KinSolWrapper
 {
 private:
    void *kin_mem;
-   N_Vector u;
-   N_Vector u_scale;
-   N_Vector f_scale;
+   N_Vector u, u_scale, f_scale;
 
    void (*connectNV)(Vector &, N_Vector &);
 

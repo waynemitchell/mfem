@@ -252,6 +252,7 @@ int main(int argc, char *argv[])
    FE_Evolution adv(m.SpMat(), k.SpMat(), b);
 
    double t = 0.0;
+   const int table_num = 3;
    switch (ode_solver_type)
    {
       case 11:
@@ -259,10 +260,9 @@ int main(int argc, char *argv[])
       case 12:
          ode_solver = new ARKODESolver(u, false); break;
       case 13:
-         const int table_num = 3;
          ode_solver = new ARKODESolver(u, false);
          static_cast<ARKODESolver *>(ode_solver)->WrapSetERKTableNum(table_num);
-         static_cast<ARKODESolver *>(ode_solver)->WrapSetFixedStep((realtype) dt);
+         static_cast<ARKODESolver *>(ode_solver)->WrapSetFixedStep(dt);
          break;
       case 14:
          ode_solver = new CVODESolver(u, false, CV_BDF, CV_NEWTON);

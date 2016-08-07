@@ -158,6 +158,7 @@ int main(int argc, char *argv[])
       case 11: break;
       case 12: break;
       case 13: break;
+      case 14: break;
       default:
          if (myid == 0)
          {
@@ -297,6 +298,7 @@ int main(int argc, char *argv[])
    FE_Evolution adv(*M, *K, *B);
 
    double t = 0.0;
+   const int table_num = 3;
    switch (ode_solver_type)
    {
       case 11:
@@ -307,12 +309,11 @@ int main(int argc, char *argv[])
          break;
       case 13:
          ode_solver = new ARKODESolver(*U, true);
-         const int table_num = 3;
          ((ARKODESolver*) ode_solver)->WrapSetERKTableNum(table_num);
          ((ARKODESolver*) ode_solver)->WrapSetFixedStep(dt);
          break;
       case 14:
-         ode_solver = new CVODESolver(u, false, CV_BDF, CV_NEWTON);
+         ode_solver = new CVODESolver(*U, true, CV_BDF, CV_NEWTON);
          static_cast<CVODESolver *>(ode_solver)->SetSStolerances(1e-3, 1e-6);
          break;
    }
