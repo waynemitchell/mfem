@@ -1016,6 +1016,7 @@ PetscLinearSolver::PetscLinearSolver(MPI_Comm comm,
    ierr = KSPCreate(comm,&ksp); CCHKERRQ(comm,ierr);
    obj = (PetscObject)ksp;
    SetPrefix(prefix);
+   ierr = KSPSetFromOptions(ksp); PCHKERRQ(ksp,ierr);
 }
 
 PetscLinearSolver::PetscLinearSolver(PetscParMatrix &_A,
@@ -1091,8 +1092,6 @@ void PetscLinearSolver::SetOperator(const Operator &op)
       }
    }
    ierr = KSPSetOperators(ksp,A,A); PCHKERRQ(ksp,ierr);
-   // allow user customization
-   ierr = KSPSetFromOptions(ksp); PCHKERRQ(ksp,ierr);
    if (delete_pA) { delete pA; }
    height = nheight;
    width  = nwidth;
@@ -1162,6 +1161,7 @@ PetscPCGSolver::PetscPCGSolver(PetscParMatrix& _A,
    ierr = KSPSetType(ksp,KSPCG); PCHKERRQ(ksp,ierr);
    // this is to obtain a textbook PCG
    ierr = KSPSetNormType(ksp,KSP_NORM_NATURAL); PCHKERRQ(ksp,ierr);
+   ierr = KSPSetFromOptions(ksp); PCHKERRQ(ksp,ierr);
 }
 
 PetscPCGSolver::PetscPCGSolver(HypreParMatrix& _A,
@@ -1171,6 +1171,7 @@ PetscPCGSolver::PetscPCGSolver(HypreParMatrix& _A,
    ierr = KSPSetType(ksp,KSPCG); PCHKERRQ(ksp,ierr);
    // this is to obtain a textbook PCG
    ierr = KSPSetNormType(ksp,KSP_NORM_NATURAL); PCHKERRQ(ksp,ierr);
+   ierr = KSPSetFromOptions(ksp); PCHKERRQ(ksp,ierr);
 }
 
 // PetscPreconditioner methods
@@ -1188,6 +1189,7 @@ PetscPreconditioner::PetscPreconditioner(MPI_Comm comm,
    ierr = PCCreate(comm,&pc); CCHKERRQ(comm,ierr);
    obj = (PetscObject)pc;
    SetPrefix(prefix);
+   ierr = PCSetFromOptions(pc); PCHKERRQ(pc,ierr);
 }
 
 PetscPreconditioner::PetscPreconditioner(PetscParMatrix &_A,
@@ -1198,6 +1200,7 @@ PetscPreconditioner::PetscPreconditioner(PetscParMatrix &_A,
    ierr = PCCreate(_A.GetComm(),&pc); CCHKERRQ(_A.GetComm(),ierr);
    obj = (PetscObject)pc;
    SetPrefix(prefix);
+   ierr = PCSetFromOptions(pc); PCHKERRQ(pc,ierr);
    SetOperator(_A);
 }
 
