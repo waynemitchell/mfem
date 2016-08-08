@@ -216,7 +216,6 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
    RegisterField( "nodes", new_mesh->GetNodes());
 }
 
-/*
  
 // Note - if this function is going to be permanent, we should consolidate code between this and 'SetMesh'.
 void SidreDataCollection::CopyMesh(std::string name, Mesh *new_mesh)
@@ -370,7 +369,7 @@ void SidreDataCollection::CopyMesh(std::string name, Mesh *new_mesh)
 
 //    RegisterField( "nodes", new_mesh->GetNodes());
 }
-*/
+
 
 void SidreDataCollection::Load(const std::string& path, const std::string& protocol)
 {
@@ -407,11 +406,11 @@ void SidreDataCollection::Load(const std::string& path, const std::string& proto
    SetTimeStep( sidre_dc_group->getView("state/time_step")->getData<double>() );
 }
 
-void SidreDataCollection::ConstructRootFileGroup(asctoolkit::sidre::DataGroup * dg, std::string name)
+void SidreDataCollection::ConstructRootFileGroup(asctoolkit::sidre::DataGroup * dg, std::string grp_name)
 {
    namespace sidre = asctoolkit::sidre;
 
-   sidre::DataGroup * index_grp = dg->createGroup(name);
+   sidre::DataGroup * index_grp = dg->createGroup(grp_name);
 
 //   sidre::DataGroup * index_grp = parent_datagroup->createGroup("blueprint_index");
 
@@ -443,7 +442,7 @@ void SidreDataCollection::ConstructRootFileGroup(asctoolkit::sidre::DataGroup * 
    // Setup topology group.  For this prototype just hard code the mesh and boundary topology entries.
    if (sidre_dc_group->hasGroup("topologies/mesh"))
    {
-      index_grp->createViewString("topologies/mesh/path", name + "/topologies/mesh");
+      index_grp->createViewString("topologies/mesh/path", grp_name + "/topologies/mesh");
       sidre::DataGroup * mesh_grp = index_grp->getGroup("topologies/mesh");
       mesh_grp->copyView( sidre_dc_group->getView("topologies/mesh/type") );
       mesh_grp->copyView( sidre_dc_group->getView("topologies/mesh/coordset") );
@@ -457,7 +456,7 @@ void SidreDataCollection::ConstructRootFileGroup(asctoolkit::sidre::DataGroup * 
    }
    if (sidre_dc_group->hasGroup("topologies/boundary"))
    {
-      index_grp->createViewString("topologies/boundary/path", name + "/topologies/boundary");
+      index_grp->createViewString("topologies/boundary/path", grp_name + "/topologies/boundary");
       index_grp->copyView( sidre_dc_group->getView("topologies/boundary/type") );
       index_grp->copyView( sidre_dc_group->getView("topologies/boundary/coordset") );
    }
@@ -475,7 +474,7 @@ void SidreDataCollection::ConstructRootFileGroup(asctoolkit::sidre::DataGroup * 
          sidre::DataGroup * the_field_grp = fields_grp->getGroup( grp_index );
 
          sidre::DataGroup * index_field_grp = index_grp->createGroup( the_field_grp->getName() );
-         index_field_grp->createViewScalar( "path", name + "/fields/" + the_field_grp->getName() );
+         index_field_grp->createViewScalar( "path", grp_name + "/fields/" + the_field_grp->getName() );
 
          if (the_field_grp->hasView("basis"))
          {

@@ -145,7 +145,7 @@ int main(int argc, char *argv[])
    namespace sidre = asctoolkit::sidre;
    sidre::DataStore ds;
    DataCollection * dc = new SidreDataCollection("Example9", ds.getRoot() );
-   //SidreDataCollection * sdc = dynamic_cast<SidreDataCollection*>(dc);
+   SidreDataCollection * sdc = dynamic_cast<SidreDataCollection*>(dc);
    //asctoolkit::slic::debug::checksAreErrors = true;
 
    // 2. Read the mesh from the given mesh file. We can handle geometrically
@@ -159,7 +159,7 @@ int main(int argc, char *argv[])
    Mesh *mesh = new Mesh(imesh, 1, 1);
 
    // In a parallel problem, only rank 0 needs to do this.
-   //sdc->CopyMesh("initial_topology", mesh);
+   sdc->CopyMesh("initial_topology", mesh);
    
    // 3. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement, where 'ref_levels' is a

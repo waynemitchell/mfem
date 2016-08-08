@@ -360,6 +360,11 @@ int main(int argc, char *argv[])
       }
    }
 
+   // test dumping data collection
+   if (1)
+   {
+      dc->Save();
+   }
    // 12. Save the final solution in parallel. This output can be viewed later
    //     using GLVis: "glvis -np <np> -m ex9-mesh -g ex9-final".
    {
