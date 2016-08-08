@@ -297,7 +297,7 @@ void SidreDataCollection::CopyMesh(std::string name, Mesh *new_mesh)
    grp->createViewString("topologies/mesh/type", "unstructured");
    grp->createViewString("topologies/mesh/elements/shape",eltTypeStr);
    grp->createView("topologies/mesh/elements/connectivity");
-   grp->createViewString("topologies/mesh/coordset", "mesh");
+   grp->createViewString("topologies/mesh/coordset", "coords");
    grp->createViewString("topologies/mesh/mfem_grid_function", "nodes");
 
    // Add mesh elements material attribute field
@@ -448,9 +448,9 @@ void SidreDataCollection::ConstructRootFileGroup(asctoolkit::sidre::DataGroup * 
    {
       sidre::DataGroup * topos_grp = sidre_dc_group->getGroup("topologies");
 
-      if(!topos_grp->hasGroup("mesh") && ! topos_grp->hasGroup("boundary"))
+      if(!topos_grp->hasGroup("mesh"))
       {
-        CONDUIT_ERROR("Error, things aren't as expected -- missing mesh or boundary!");
+        MFEM_ERROR("Error, things aren't as expected -- missing mesh!");
       }
       
       sidre::DataGroup * mesh_grp = bp_index_grp->createGroup("topologies/mesh");
@@ -462,12 +462,18 @@ void SidreDataCollection::ConstructRootFileGroup(asctoolkit::sidre::DataGroup * 
       if (sidre_dc_group->hasGroup("topologies/mesh/boundary_topology") )
       {
          mesh_grp->copyView( sidre_dc_group->getView("topologies/mesh/boundary_topology") );
+
+         if(!sidre_dc_group->hasGroup("topologies/boundary" ) )
+         {
+           MFEM_ERROR("Error, things aren't as expected -- missing boundary!");
+         }
+
+         sidre::DataGroup * bnd_grp =bp_index_grp->createGroup("topologies/boundary");
+         bnd_grp->createViewString("path", name + "/topologies/boundary");
+         bnd_grp->copyView( sidre_dc_group->getView("topologies/boundary/type") );
+         bnd_grp->copyView( sidre_dc_group->getView("topologies/boundary/coordset") );
       }
 
-      sidre::DataGroup * bnd_grp =bp_index_grp->createGroup("topologies/boundary");
-      bnd_grp->createViewString("path", name + "/topologies/boundary");
-      bnd_grp->copyView( sidre_dc_group->getView("topologies/boundary/type") );
-      bnd_grp->copyView( sidre_dc_group->getView("topologies/boundary/coordset") );
    }
 
    // Setup the fields group
