@@ -12,15 +12,16 @@
 #include <nvector/nvector_parhyp.h>
 #endif
 
-#include <cvode/cvode_band.h>
+#include <cvode/cvode_impl.h>
 #include <cvode/cvode_spgmr.h>
 
-#include <cvode/cvode_impl.h>
 // This just hides a warning (to be removed after it's fixed in Sundials).
 #ifdef MSG_TIME_INT
   #undef MSG_TIME_INT
 #endif
+
 #include <arkode/arkode_impl.h>
+#include <arkode/arkode_spgmr.h>
 
 #include <kinsol/kinsol.h>
 #include <kinsol/kinsol_spgmr.h>
@@ -249,7 +250,7 @@ namespace mfem
 {
 
 CVODESolver::CVODESolver(Vector &y_, bool parallel, int lmm, int iter)
-   : solver_iteration_type(iter)
+   : lin_method_type(lmm), solver_iteration_type(iter)
 {
    connectNV = (parallel) ? ConnectParNVector : ConnectNVector;
 
@@ -268,7 +269,7 @@ CVODESolver::CVODESolver(Vector &y_, bool parallel, int lmm, int iter)
    SetSStolerances(RELTOL, ABSTOL);
 
    // When newton iterations are chosen, one should specify the linear solver.
-   if (solver_iteration_type == CV_NEWTON)
+   if (lin_method_type == CV_BDF)
    {
       CVSpgmr(ode_mem, PREC_NONE, 0);
    }
@@ -296,8 +297,8 @@ void CVODESolver::ReInit(TimeDependentOperator &f_, Vector &y_, double &t_)
    flag = CVodeSetUserData(ode_mem, f);
    MFEM_ASSERT(flag >= 0, "CVodeSetUserData() failed!");
 
-   // When Newton iterations are chosen, one should specify the linear solver.
-   if (solver_iteration_type == CV_NEWTON)
+   // When newton iterations are chosen, one should specify the linear solver.
+   if (lin_method_type == CV_BDF)
    {
       CVSpgmr(ode_mem, PREC_NONE, 0);
    }
@@ -382,6 +383,12 @@ ARKODESolver::ARKODESolver(Vector &y_, bool parallel, bool explicit_)
    MFEM_ASSERT(flag >= 0, "ARKodeInit() failed!");
 
    SetSStolerances(RELTOL, ABSTOL);
+
+   // When implicit method is chosen, one should specify the linear solver.
+   if (use_explicit == false)
+   {
+      ARKSpgmr(ode_mem, PREC_NONE, 0);
+   }
 }
 
 void ARKODESolver::Init(TimeDependentOperator &f_)
@@ -406,6 +413,12 @@ void ARKODESolver::ReInit(TimeDependentOperator &f_, Vector &y_, double &t_)
    // Set the pointer to user-defined data.
    flag = ARKodeSetUserData(ode_mem, this->f);
    MFEM_ASSERT(flag >= 0, "ARKodeSetUserData() failed!");
+
+   // When implicit method is chosen, one should specify the linear solver.
+   if (use_explicit == false)
+   {
+      ARKSpgmr(ode_mem, PREC_NONE, 0);
+   }
 }
 
 void ARKODESolver::SetSStolerances(realtype reltol, realtype abstol)
@@ -432,12 +445,12 @@ void ARKODESolver::Step(Vector &x, double &t, double &dt)
    flag = ARKodeGetLastStep(ode_mem, &dt);
 }
 
-void ARKODESolver::WrapSetERKTableNum(int table_num)
+void ARKODESolver::SetERKTableNum(int table_num)
 {
    ARKodeSetERKTableNum(ode_mem, table_num);
 }
 
-void ARKODESolver::WrapSetFixedStep(double dt)
+void ARKODESolver::SetFixedStep(double dt)
 {
    ARKodeSetFixedStep(ode_mem, static_cast<realtype>(dt));
 }
@@ -478,7 +491,7 @@ ARKODESolver::~ARKODESolver()
    }
 }
 
-KinSolWrapper::KinSolWrapper(Operator &oper, Vector &mfem_u,
+KinSolver::KinSolver(Operator &oper, Vector &mfem_u,
                              bool parallel, bool use_oper_grad)
    : kin_mem(NULL)
 {
@@ -502,22 +515,22 @@ KinSolWrapper::KinSolWrapper(Operator &oper, Vector &mfem_u,
    }
 }
 
-void KinSolWrapper::SetPrintLevel(int level)
+void KinSolver::SetPrintLevel(int level)
 {
    KINSetPrintLevel(kin_mem, level);
 }
 
-void KinSolWrapper::SetFuncNormTol(double tol)
+void KinSolver::SetFuncNormTol(double tol)
 {
    KINSetFuncNormTol(kin_mem, tol);
 }
 
-void KinSolWrapper::SetScaledStepTol(double tol)
+void KinSolver::SetScaledStepTol(double tol)
 {
    KINSetScaledStepTol(kin_mem, tol);
 }
 
-void KinSolWrapper::Solve(Vector &mfem_u,
+void KinSolver::Solve(Vector &mfem_u,
                           Vector &mfem_u_scale, Vector &mfem_f_scale)
 {
    (*connectNV)(mfem_u, u);
@@ -532,7 +545,7 @@ void KinSolWrapper::Solve(Vector &mfem_u,
                "KINSol returned " << flag << " that indicated a problem!");
 }
 
-KinSolWrapper::~KinSolWrapper()
+KinSolver::~KinSolver()
 {
    KINFree(&kin_mem);
 }

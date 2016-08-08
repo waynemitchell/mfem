@@ -112,7 +112,8 @@ int main(int argc, char *argv[])
                   "Order (degree) of the finite elements.");
    args.AddOption(&ode_solver_type, "-s", "--ode-solver",
                   "ODE solver: 1 - Forward Euler, 2 - RK2 SSP, 3 - RK3 SSP,"
-                  " 4 - RK4, 6 - RK6.");
+                  " 4 - RK4, 6 - RK6, 11 - CVODE default explicit,"
+                  " 12 - ARKODE default explicit, 13 - ARKODE RK3.");
    args.AddOption(&t_final, "-tf", "--t-final",
                   "Final time; start time is 0.");
    args.AddOption(&dt, "-dt", "--time-step",
@@ -302,19 +303,15 @@ int main(int argc, char *argv[])
    switch (ode_solver_type)
    {
       case 11:
-         ode_solver = new CVODESolver(*U, true);
-         break;
+         ode_solver = new CVODESolver(*U, true); break;
       case 12:
-         ode_solver = new ARKODESolver(*U, true);
-         break;
+         ode_solver = new ARKODESolver(*U, true); break;
       case 13:
          ode_solver = new ARKODESolver(*U, true);
-         ((ARKODESolver*) ode_solver)->WrapSetERKTableNum(table_num);
-         ((ARKODESolver*) ode_solver)->WrapSetFixedStep(dt);
-         break;
-      case 14:
-         ode_solver = new CVODESolver(*U, true, CV_BDF, CV_NEWTON);
-         static_cast<CVODESolver *>(ode_solver)->SetSStolerances(1e-3, 1e-6);
+         // Use RK3.
+         ((ARKODESolver*) ode_solver)->SetERKTableNum(table_num);
+         // Always use dt (no internal temporal adaptivity).
+         ((ARKODESolver*) ode_solver)->SetFixedStep(dt);
          break;
    }
 

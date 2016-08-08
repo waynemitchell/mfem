@@ -63,6 +63,7 @@ protected:
    NonlinearForm H;
    double viscosity;
    HyperelasticModel *model;
+   bool use_kinsol;
 
    CGSolver M_solver; // Krylov solver for inverting the mass matrix M
    DSmoother M_prec;  // Preconditioner for the mass matrix M
@@ -81,7 +82,7 @@ public:
    /// Solver for the Jacobian solve in the Newton method
    Solver *J_solver;
    HyperelasticOperator(FiniteElementSpace &f, Array<int> &ess_bdr,
-                        double visc, double mu, double K);
+                        double visc, double mu, double K, bool kinsol);
 
    virtual void Mult(const Vector &vx, Vector &dvx_dt) const;
    /** Solve the Backward-Euler equation: k = f(x + dt*k, t), for the unknown k.
@@ -171,6 +172,7 @@ int main(int argc, char *argv[])
    double mu = 0.25;
    double K = 5.0;
    bool visualization = true;
+   bool use_kinsol    = false;
    int vis_steps = 1;
 
    OptionsParser args(argc, argv);
@@ -181,8 +183,12 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Order (degree) of the finite elements.");
    args.AddOption(&ode_solver_type, "-s", "--ode-solver",
-                  "ODE solver: 1 - Backward Euler, 2 - SDIRK2, 3 - SDIRK3,\n\t"
-                  "\t   11 - Forward Euler, 12 - RK2, 13 - RK3 SSP, 14 - RK4.");
+                  "ODE solver: 1 - Backward Euler, 2 - SDIRK2, 3 - SDIRK3,"
+                  " 4/5 - CVODE default implicit,"
+                  " 6/7 - ARKODE default implicit,\n\t"
+                  "\t    11 - Forward Euler, 12 - RK2, 13 - RK3 SSP,"
+                  " 14 - RK4, 15 - CVODE default explicit,"
+                  " 16 - ARKODE default explicit.");
    args.AddOption(&t_final, "-tf", "--t-final",
                   "Final time; start time is 0.");
    args.AddOption(&dt, "-dt", "--time-step",
@@ -196,6 +202,9 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
+   args.AddOption(&use_kinsol, "-kin", "--kinsol", "-no-kin",
+                  "--no-kinsol",
+                  "Use or not use KINSOL to solve the non-linear system.");
    args.AddOption(&vis_steps, "-vs", "--visualization-steps",
                   "Visualize every n-th timestep.");
    args.Parse();
@@ -224,6 +233,7 @@ int main(int argc, char *argv[])
       case 4: break;
       case 5: break;
       case 6: break;
+      case 7: break;
       // Explicit methods
       case 11: ode_solver = new ForwardEulerSolver; break;
       case 12: ode_solver = new RK2Solver(0.5); break; // midpoint method
@@ -291,7 +301,7 @@ int main(int argc, char *argv[])
 
    // 7. Initialize the hyperelastic operator, the GLVis visualization and print
    //    the initial energies.
-   HyperelasticOperator oper(fespace, ess_bdr, visc, mu, K);
+   HyperelasticOperator oper(fespace, ess_bdr, visc, mu, K, use_kinsol);
 
    socketstream vis_v, vis_w;
    if (visualization)
@@ -325,11 +335,15 @@ int main(int argc, char *argv[])
          ode_solver = new CVODESolver(vx, false, CV_BDF, CV_NEWTON); break;
       case 5:
          ode_solver = new CVODESolver(vx, false, CV_BDF, CV_NEWTON);
+         // Custom Jacobian inversion.
          static_cast<CVODESolver *>(ode_solver)->
             SetLinearSolve(oper.backward_euler_oper);
          break;
       case 6:
+         ode_solver = new ARKODESolver(vx, false, false); break;
+      case 7:
          ode_solver = new ARKODESolver(vx, false, false);
+         // Custom Jacobian inversion.
          static_cast<ARKODESolver *>(ode_solver)->
             SetLinearSolve(oper.backward_euler_oper);
          break;
@@ -506,9 +520,9 @@ BackwardEulerOperator::~BackwardEulerOperator()
 
 HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
                                            Array<int> &ess_bdr, double visc,
-                                           double mu, double K)
+                                           double mu, double K, bool kinsol)
    : TimeDependentOperator(2*f.GetVSize(), 0.0), fespace(f),
-     M(&fespace), S(&fespace), H(&fespace), z(height/2)
+     M(&fespace), S(&fespace), H(&fespace), use_kinsol(kinsol), z(height/2)
 {
    const double rel_tol = 1e-8;
    const int skip_zero_entries = 0;
@@ -600,14 +614,21 @@ void HyperelasticOperator::ImplicitSolve(const double dt,
    // backward_euler_oper. This equation is solved with the newton_solver
    // object (using J_solver and J_prec internally).
    backward_euler_oper->SetParameters(dt, &v, &x);
-   //Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
-   //newton_solver.Mult(zero, dv_dt);
-   //MFEM_VERIFY(newton_solver.GetConverged(), "Newton Solver did not converge.");
-
-   KinSolWrapper kinsol(*backward_euler_oper, v, false);
-   Vector one(sc);
-   one = 1.0;
-   kinsol.Solve(dv_dt, one, one);
+   if (use_kinsol)
+   {
+      KinSolver kinsol(*backward_euler_oper, v, false);
+      //kinsol.SetPrintLevel(1);
+      // The scalings for KinSol can be done better.
+      Vector one(sc); one = 1.0;
+      kinsol.Solve(dv_dt, one, one);
+   }
+   else
+   {
+      Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
+      newton_solver.Mult(zero, dv_dt);
+      MFEM_VERIFY(newton_solver.GetConverged(),
+                  "Newton Solver didn't converge.");
+   }
 
    add(v, dt, dv_dt, dx_dt);
 }
