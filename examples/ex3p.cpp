@@ -220,7 +220,7 @@ int main(int argc, char *argv[])
          (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);
       HypreSolver *ams = new HypreAMS(A, prec_fespace);
       HyprePCG *pcg = new HyprePCG(A);
-      pcg->SetTol(1e-12);
+      pcg->SetTol(1e-10);
       pcg->SetMaxIter(500);
       pcg->SetPrintLevel(2);
       pcg->SetPreconditioner(*ams);
@@ -241,12 +241,25 @@ int main(int argc, char *argv[])
       }
 
       // 12. Define and apply a parallel PCG solver.
+      ParFiniteElementSpace *prec_fespace =
+         (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);
       PetscPCGSolver *pcg = new PetscPCGSolver(A);
-      pcg->SetTol(1e-12);
+      PetscSolver    *prec = NULL;
+      pcg->SetTol(1e-10);
       pcg->SetMaxIter(500);
       pcg->SetPrintLevel(2); //TODO
+      if (use_unassembled) {
+         PetscBDDCSolverOpts opts;
+         opts.SetSpace(prec_fespace);
+         opts.SetEssBdrDofs(&ess_tdof_list);
+         prec = new PetscBDDCSolver(A,opts);
+      } else {
+         prec = new PetscPreconditioner(A,"solver_");
+      }
+      pcg->SetPreconditioner(*prec);
       pcg->Mult(B, X);
       delete pcg;
+      delete prec;
    }
 #endif
 
