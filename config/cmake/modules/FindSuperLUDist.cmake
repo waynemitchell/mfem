@@ -3,11 +3,6 @@
 #   - SuperLUDist_INCLUDE_DIRS
 #   - SuperLUDist_LIBRARY_DIRS
 #   - SuperLUDist_LIBRARIES
-#   - HAVE_SuperLUDist_VERSION_5
-
-# Really, I *want* to depend on ParMETIS, but I guess I can default to
-# natural ordering or metis-based ordering, since metis is a required
-# dependency.
 
 find_package(ParMETIS REQUIRED)
 
@@ -29,6 +24,25 @@ find_library(SuperLUDist_LIBRARIES
 find_library(SuperLUDist_LIBRARIES
   NAMES superludist superlu_dist superlu_dist_4.3 NAMES_PER_DIR)
 
+# Verify a sufficient version of SuperLU_DIST (i.e. 5.*.*)
+include(CheckCXXSourceCompiles)
+function(check_superlu_dist_version VAR)
+  set(TEST_SOURCE
+    "
+#include <superlu_defs.h>
+
+int main()
+{
+  superlu_dist_options_t opts;
+  return 0;
+}
+")
+  set(CMAKE_REQUIRED_INCLUDES ${MPI_CXX_INCLUDE_PATH} ${SuperLUDist_INCLUDE_DIRS})
+  set(CMAKE_REQUIRED_LIBRARIES ${MPI_CXX_LIBRARIES})
+  check_cxx_source_compiles("${TEST_SOURCE}" ${VAR})
+endfunction()
+
+check_superlu_dist_version(SuperLUDist_VERSION_OK)
 
 if(CMAKE_VERSION VERSION_GREATER 2.8.11)
   get_filename_component(SuperLUDist_LIBRARY_DIRS ${SuperLUDist_LIBRARIES} DIRECTORY)
@@ -39,4 +53,4 @@ endif()
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(SuperLUDist
   DEFAULT_MSG
-  SuperLUDist_LIBRARIES SuperLUDist_INCLUDE_DIRS SuperLUDist_LIBRARY_DIRS)
+  SuperLUDist_LIBRARIES SuperLUDist_INCLUDE_DIRS SuperLUDist_LIBRARY_DIRS SuperLUDist_VERSION_OK)
