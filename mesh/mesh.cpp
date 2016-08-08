@@ -3841,6 +3841,12 @@ const Table & Mesh::ElementToElementTable()
          conn.Append(Connection(fi.Elem1No, fi.Elem2No));
          conn.Append(Connection(fi.Elem2No, fi.Elem1No));
       }
+      else if (fi.Elem2Inf >= 0)
+      {
+         int nbr_elem_idx = NumOfElements - 1 - fi.Elem2No;
+         conn.Append(Connection(fi.Elem1No, nbr_elem_idx));
+         conn.Append(Connection(nbr_elem_idx, fi.Elem1No));
+      }
    }
 
    conn.Sort();

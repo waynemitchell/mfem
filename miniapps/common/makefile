@@ -15,6 +15,7 @@ CONFIG_MK = $(MFEM_DIR)/config/config.mk
 # Use the MFEM install directory
 # MFEM_DIR = ../../mfem
 # CONFIG_MK = $(MFEM_DIR)/config.mk
+# TEST_MK = $(MFEM_DIR)/test.mk
 
 ifneq (clean,$(MAKECMDGOALS))
    -include $(CONFIG_MK)
