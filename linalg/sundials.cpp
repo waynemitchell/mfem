@@ -268,7 +268,7 @@ CVODESolver::CVODESolver(Vector &y_, bool parallel, int lmm, int iter)
    // For some reason CVODE insists those to be set by hand (no defaults).
    SetSStolerances(RELTOL, ABSTOL);
 
-   // When newton iterations are chosen, one should specify the linear solver.
+   // When implicit method is chosen, one should specify the linear solver.
    if (lin_method_type == CV_BDF)
    {
       CVSpgmr(ode_mem, PREC_NONE, 0);
@@ -297,7 +297,7 @@ void CVODESolver::ReInit(TimeDependentOperator &f_, Vector &y_, double &t_)
    flag = CVodeSetUserData(ode_mem, f);
    MFEM_ASSERT(flag >= 0, "CVodeSetUserData() failed!");
 
-   // When newton iterations are chosen, one should specify the linear solver.
+   // When implicit method is chosen, one should specify the linear solver.
    if (lin_method_type == CV_BDF)
    {
       CVSpgmr(ode_mem, PREC_NONE, 0);
