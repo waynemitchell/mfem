@@ -7,6 +7,15 @@
 
                                http://mfem.org
 
+Version 3.3, not yet released
+=============================
+
+New and updated examples and miniapps
+-------------------------------------
+- New example code, Example 16/16p, demonstrating the solution of a time-dependent
+  nonlinear heat equation in serial and in parallel.
+
+
 Version 3.2, released on June 30, 2016
 ======================================
 
