@@ -64,7 +64,10 @@ typedef H1_FiniteElementSpace<sol_fe_t>       sol_fes_t;
 // Static quadrature, coefficient and integrator types
 typedef TIntegrationRule<geom,ir_order>       int_rule_t;
 typedef TConstantCoefficient<>                coeff_t;
+typedef FieldEvaluator<sol_fes_t,ScalarLayout,int_rule_t> field_eval_t;
+typedef TGridFunctionCoefficient<field_eval_t> grid_func_t;
 typedef TIntegrator<coeff_t,TDiffusionKernel> integ_t;
+//typedef TIntegrator<grid_func_t,TDiffusionKernel> integ_t;
 
 // Static bilinear form type, combining the above types
 typedef TBilinearForm<mesh_t,sol_fes_t,int_rule_t,integ_t> HPCBilinearForm;
@@ -79,6 +82,7 @@ int main(int argc, char *argv[])
 
    // 2. Parse command-line options.
    const char *mesh_file = "../../data/fichera.mesh";
+   const char *pc = "default";
    int order = sol_p;
    bool static_cond = false;
    bool visualization = 1;
@@ -101,6 +105,8 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
+   args.AddOption(&pc, "-pc", "--preconditioner",
+                  "Preconditioner to use: `amg' for BoomerAMG, `none'.");
    args.Parse();
    if (!args.Good())
    {
@@ -116,11 +122,28 @@ int main(int argc, char *argv[])
       args.PrintOptions(cout);
    }
 
+   enum PCType { NONE, AMG };
+   PCType pc_choice;
+   if (!strcmp(pc,"amg"))
+      pc_choice = AMG;
+   else
+      if (matrix_free)
+         pc_choice = NONE;
+      else
+         pc_choice = AMG;
+
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
    //    and volume meshes with the same code.
    Mesh *mesh = new Mesh(mesh_file, 1, 1);
    int dim = mesh->Dimension();
+   if (myid == 0)
+   {
+   std::cout << "Number of Elements: " << mesh->GetNE() << std::endl;
+   std::cout << "Number of Boundary Elements: " << mesh->GetNBE() << std::endl;
+   std::cout << "Number of Vertices: " << mesh->GetNV() << std::endl;
+   std::cout << "Number of Edges: " << mesh->GetNEdges() << std::endl;
+   }
 
    // 4. Check if the optimized version matches the given mesh
    if (perf)
@@ -249,6 +272,14 @@ int main(int argc, char *argv[])
    ParGridFunction x(fespace);
    x = 0.0;
 
+   ParGridFunction disc_coeff(fespace);
+   for (int i = 0; i < disc_coeff.Size(); i++)
+   {
+      if (i % 2 == 0)
+         disc_coeff(i) = 1.0;
+      else
+         disc_coeff(i) = 10000.0;
+   }
    // 12. Set up the parallel bilinear form a(.,.) on the finite element space
    //     that will hold the matrix corresponding to the Laplacian operator.
    ParBilinearForm *a = new ParBilinearForm(fespace);
@@ -266,7 +297,7 @@ int main(int argc, char *argv[])
    tic_toc.Clear();
    tic_toc.Start();
    // Pre-allocate sparsity assuming dense element matrices
-   a->UsePrecomputedSparsity();
+   //a->UsePrecomputedSparsity();
 
    HPCBilinearForm *a_hpc = NULL;
    ConstrainedOperator *a_oper = NULL;
@@ -281,11 +312,20 @@ int main(int argc, char *argv[])
    {
       // High-performance assembly using the templated operator type
       a_hpc = new HPCBilinearForm(integ_t(coeff_t(1.0)), *fespace);
+      //a_hpc = new HPCBilinearForm(integ_t(grid_func_t(disc_coeff)), *fespace);
       if (matrix_free)
       {
          a_hpc->Assemble(); // Chooses between ::MultAssembled and ::MultUnassembled
          RAPOperator *a_hpc_par = new RAPOperator(*P, *a_hpc, *P);
          a_oper = new ConstrainedOperator(a_hpc_par, ess_tdof_list);
+         if (pc_choice == AMG)
+         {
+            // Choosing between these is helpful because the standard assembly has
+            // new sparsification approximations
+            //a_hpc->AssembleBilinearForm(*a);
+            a->AddDomainIntegrator(new DiffusionIntegrator(one, true));
+            a->Assemble();
+         }
       }
       else
       {
@@ -310,6 +350,15 @@ int main(int argc, char *argv[])
       P->MultTranspose(*b, B);
       R->Mult(x, X);
       a_oper->EliminateRHS(X, B);
+      if (pc_choice == AMG)
+      {
+         if (myid == 0)
+            cout << "Assembling Linear System for BoomerAMG" << endl;
+         Vector X_tmp, B_tmp;
+         a->FormLinearSystem(ess_tdof_list, x, *b, A, X_tmp, B_tmp);
+         if (myid == 0)
+            cout << "NNZ in A: " << A.NNZ() << endl;
+      }
    }
    else
    {
@@ -326,10 +375,60 @@ int main(int argc, char *argv[])
    pcg->SetMaxIter(500);
    pcg->SetPrintLevel(1);
 
+   tic_toc.Clear();
+   tic_toc.Start();
    if (perf && matrix_free)
    {
       pcg->SetOperator(*a_oper);
+      HypreSolver *amg;
+      if (pc_choice == AMG)
+      {
+         amg = new HypreBoomerAMG(A);
+         pcg->SetPreconditioner(*amg);
+         // timing the application of AMG / operator
+         tic_toc.Clear();
+         tic_toc.Start();
+
+         int max_its = 100;
+         Vector Y(X);
+         B = 1.0;
+         for (int i = 0; i < max_its; i++)
+         {
+            a_oper->Mult(B, Y);
+         }
+         tic_toc.Stop();
+         if (myid == 0)
+         {
+            cout << "Time per matvec op: " << tic_toc.RealTime() / max_its << "s." << endl;
+         }
+         tic_toc.Clear();
+         tic_toc.Start();
+         for (int i = 0; i < max_its; i++)
+         {
+            A.Mult(B, Y);
+         }
+         tic_toc.Stop();
+         if (myid == 0)
+         {
+            cout << "Time per A (sparsified) op: " << tic_toc.RealTime() / max_its << "s." << endl;
+         }
+         tic_toc.Clear();
+         tic_toc.Start();
+         for (int i = 0; i < max_its; i++)
+         {
+            amg->Mult(B, Y);
+         }
+         tic_toc.Stop();
+         if (myid == 0)
+         {
+            cout << "Time per AMG op: " << tic_toc.RealTime() / max_its << "s." << endl;
+         }
+         tic_toc.Clear();
+         tic_toc.Start();
+      }
       pcg->Mult(B, X);
+      if (pc_choice == AMG)
+         delete amg;
    }
    else
    {
@@ -338,6 +437,11 @@ int main(int argc, char *argv[])
       pcg->SetPreconditioner(*amg);
       pcg->Mult(B, X);
       delete amg;
+   }
+   tic_toc.Stop();
+   if (myid == 0)
+   {
+      cout << "Time per CG step: " << tic_toc.RealTime() / pcg->GetNumIterations() << "s." << endl;
    }
 
    // 15. Recover the parallel grid function corresponding to X. This is the
