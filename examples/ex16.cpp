@@ -2,43 +2,42 @@
 //
 // Compile with: make ex16
 //
-// Sample runs:
-//    ex16
-//    ex16 -s 1 -a 0.0 -k 1.0
-//    ex16 -s 2 -a 1.0 -k 0.0
-//    ex16 -s 3 -a 0.5 -k 0.5 -o 4
-//    ex16 -s 14 -dt 1.0e-4 -tf 4.0e-2 -vs 40
-//    ex16 -m ../data/fichera-q2.mesh
-//    ex16 -m ../data/escher.mesh
+// Sample runs:  ex16
+//               ex16 -s 1 -a 0.0 -k 1.0
+//               ex16 -s 2 -a 1.0 -k 0.0
+//               ex16 -s 3 -a 0.5 -k 0.5 -o 4
+//               ex16 -s 14 -dt 1.0e-4 -tf 4.0e-2 -vs 40
+//               ex16 -m ../data/fichera-q2.mesh
+//               ex16 -m ../data/escher.mesh
 //
-// Description:  This examples solves a time dependent nonlinear heat equation
-//               problem of the form du/dt = C(u), where C is a non-linear diffusion
+// Description:  This example solves a time dependent nonlinear heat equation
+//               problem of the form du/dt = C(u), with a non-linear diffusion
 //               operator C(u) = \nabla \cdot (\kappa + \alpha u) \nabla u.
 //
 //               The example demonstrates the use of nonlinear operators (the
 //               class ConductionOperator defining C(u)), as well as their
-//               implicit time integration. Note that implementing the
-//               method ConductionOperator::ImplicitSolve is the only
-//               requirement for high-order implicit (SDIRK) time integration.
+//               implicit time integration. Note that implementing the method
+//               ConductionOperator::ImplicitSolve is the only requirement for
+//               high-order implicit (SDIRK) time integration.
 //
-//               We recommend viewing examples 2 and 9 before viewing this
+//               We recommend viewing examples 2, 9 and 10 before viewing this
 //               example.
 
-
 #include "mfem.hpp"
-#include <memory>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
 using namespace std;
 using namespace mfem;
 
 /** After spatial discretization, the conduction model can be written as:
- *     du/dt = M^{-1}((\kappa + \alpha u) -Ku)
- *  where u is the vector representing the temperature,
- *  M is the mass matrix, and K is the diffusion matrix.
  *
- *  Class ConductionOperator represents the right-hand side of the above ODE
+ *     du/dt = M^{-1}((\kappa + \alpha u) -Ku)
+ *
+ *  where u is the vector representing the temperature, M is the mass matrix,
+ *  and K is the diffusion matrix.
+ *
+ *  Class ConductionOperator represents the right-hand side of the above ODE.
  */
 class ConductionOperator : public TimeDependentOperator
 {
@@ -52,7 +51,7 @@ protected:
    DSmoother M_prec;  // Preconditioner for the mass matrix M
 
    CGSolver K_solver; // Implicit solver for M + dt K
-   DSmoother K_prec; // Preconditioner for the implicit solver
+   DSmoother K_prec;  // Preconditioner for the implicit solver
 
    double alpha, kappa;
 
@@ -85,8 +84,8 @@ int main(int argc, char *argv[])
    double dt = 1.0e-2;
    double alpha = 1.0e-2;
    double kappa = 0.5;
-   bool visit = false;
    bool visualization = true;
+   bool visit = false;
    int vis_steps = 5;
 
    int precision = 8;
@@ -171,16 +170,16 @@ int main(int argc, char *argv[])
    int fe_size = fespace.GetVSize();
    cout << "Number of temperature unknowns: " << fe_size << endl;
 
-   Vector u(fe_size);;
+   Vector u(fe_size);
    GridFunction u_gf;
    u_gf.MakeRef(&fespace, u, 0);
 
-   // 6. Set the initial conditions for u. All
-   // boundaries are considered natural.
+   // 6. Set the initial conditions for u. All boundaries are considered
+   //    natural.
    FunctionCoefficient u_0(InitialTemperature);
    u_gf.ProjectCoefficient(u_0);
 
-   // 7. Initialize the conduction operator and the visualization
+   // 7. Initialize the conduction operator and the visualization.
    ConductionOperator oper(fespace, alpha, kappa, u);
 
    {
@@ -259,7 +258,7 @@ int main(int argc, char *argv[])
       oper.SetParameters(u);
    }
 
-   // 10. Save the final solution. This output can be viewed later using GLVis:
+   // 9. Save the final solution. This output can be viewed later using GLVis:
    //    "glvis -m ex16.mesh -g ex16-final.gf".
    {
       ofstream osol("ex16-final.gf");
@@ -267,7 +266,7 @@ int main(int argc, char *argv[])
       u_gf.Save(osol);
    }
 
-   // 9. Free the used memory.
+   // 10. Free the used memory.
    delete ode_solver;
    delete mesh;
 
@@ -362,30 +361,12 @@ ConductionOperator::~ConductionOperator()
 
 double InitialTemperature(const Vector &x)
 {
-   int dim = x.Size();
-   switch (dim)
+   if (x.Norml2() < 0.5)
    {
-      case 1:
-         if (abs(x(0)) < 0.5)
-         {
-            return 2.0;
-         }
-         else
-         {
-            return 1.0;
-         }
-      case 2:
-      case 3:
-         if (sqrt(x(0)*x(0) + x(1) * x(1)) < 0.5)
-         {
-            return 2.0;
-         }
-         else
-         {
-            return 1.0;
-         }
-
+      return 2.0;
    }
-   return 1.0;
+   else
+   {
+      return 1.0;
+   }
 }
-
