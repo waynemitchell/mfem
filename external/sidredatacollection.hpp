@@ -50,9 +50,11 @@ public:
    /// Verify we will delete the mesh and fields if we own them
    virtual ~SidreDataCollection() {}
 
-   void CopyMesh(std::string name, Mesh *new_mesh);
+//   void CopyMesh(std::string name, Mesh *new_mesh);
 
    void SetMesh(Mesh *new_mesh);
+
+   void SetMesh(Mesh *new_mesh, int number_of_domains, bool changeDataOwnership);
 
    void setMeshStream(std::istream& input) {}
 
@@ -91,7 +93,7 @@ public:
 
       namespace sidre = asctoolkit::sidre;
 
-      sidre::DataGroup* f = sidre_dc_group->getGroup("array_data");
+      sidre::DataGroup* f = bp_grp->getGroup("array_data");
       if( ! f->hasView( field_name ) )
       {
           f->createViewAndAllocate(field_name, sidre::detail::SidreTT<T>::id, sz);
@@ -114,13 +116,15 @@ public:
 private:
    // Private helper functions
 
-   asctoolkit::sidre::DataGroup * sidre_dc_group;
-   // not sure if the base class exposes this
-   std::string m_collection_name;
+   asctoolkit::sidre::DataGroup * dc_grp;
+   asctoolkit::sidre::DataGroup * bp_grp;
+   asctoolkit::sidre::DataGroup * bp_index_grp;
+
    std::string getElementName( Element::Type elementEnum );
 
-   void ConstructRootFileGroup(asctoolkit::sidre::DataGroup * dg, std::string name);
-
+#if 0
+   void ConstructRootFileGroup(asctoolkit::sidre::DataGroup * dg);
+#endif
    /**
     * \brief A private helper function to set up the views associated with the data
     * of a scalar valued grid function in the blueprint style

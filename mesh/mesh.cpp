@@ -2196,7 +2196,7 @@ Mesh::Mesh(std::istream &input, int generate_edges, int refine,
 void Mesh::ChangeElementObjectDataOwnership(
       Array<Element*> &elem_objs, size_t elem_objs_size,
       int *indices, size_t max_indices, 
-      int *attributes, size_t max_attributes, bool zerocopy, bool copyOnly)
+      int *attributes, size_t max_attributes, bool zerocopy, bool changeDataOwnership)
 {
    size_t offset = 0;
    if (max_attributes < elem_objs_size) {
@@ -2215,7 +2215,7 @@ void Mesh::ChangeElementObjectDataOwnership(
          attributes[i] = elem_objs[i]->GetAttribute();
       }
 
-      if (!copyOnly)
+      if (changeDataOwnership)
       {
          if (elem_objs[i]->IsSelfAlloc()) {
             delete element_indices;
@@ -2230,21 +2230,24 @@ void Mesh::ChangeElementObjectDataOwnership(
 
 void Mesh::ChangeElementDataOwnership(int *indices,
       size_t max_indices, int *attributes,
-      size_t max_attributes, bool zerocopy, bool copyOnly) {
+      size_t max_attributes, bool zerocopy, bool changeDataOwnership)
+      
+{
+   std::cerr << "change data ownership " << zerocopy << " " << changeDataOwnership << std::endl;
    ChangeElementObjectDataOwnership(elements, NumOfElements,
-         indices, max_indices, attributes, max_attributes, zerocopy, copyOnly);
+         indices, max_indices, attributes, max_attributes, zerocopy, changeDataOwnership);
 }
 
 
 void Mesh::ChangeBoundaryElementDataOwnership(int *indices,
       size_t max_indices, int *attributes,
-      size_t max_attributes, bool zerocopy, bool copyOnly) {
+      size_t max_attributes, bool zerocopy, bool changeDataOwnership) {
    ChangeElementObjectDataOwnership(boundary, NumOfBdrElements,
-         indices, max_indices, attributes, max_attributes, zerocopy, copyOnly);
+         indices, max_indices, attributes, max_attributes, zerocopy, changeDataOwnership);
 }
 
 void Mesh::ChangeVertexDataOwnership(double *vertex_data,
-      int dim, size_t len_vertex_data, bool zerocopy, bool copyOnly) {
+      int dim, size_t len_vertex_data, bool zerocopy, bool changeDataOwnership) {
    if (static_cast<int>(len_vertex_data) < NumOfVertices * dim) {
       throw std::runtime_error("Not enough vertices in external array");
    }
@@ -2256,7 +2259,7 @@ void Mesh::ChangeVertexDataOwnership(double *vertex_data,
       if (!zerocopy) {
          memcpy(vertex_data + i * dim, vertices[i](), dim * sizeof(double));
       }
-      if (!copyOnly)
+      if (changeDataOwnership)
       {
          vertices[i].SetCoordPtr(vertex_data + i * dim);
       }

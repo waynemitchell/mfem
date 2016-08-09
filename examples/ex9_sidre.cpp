@@ -144,9 +144,9 @@ int main(int argc, char *argv[])
    // 1.7 Create datastore
    namespace sidre = asctoolkit::sidre;
    sidre::DataStore ds;
-   DataCollection * dc = new SidreDataCollection("Example9", ds.getRoot() );
-   SidreDataCollection * sdc = dynamic_cast<SidreDataCollection*>(dc);
-   //asctoolkit::slic::debug::checksAreErrors = true;
+   DataCollection * dc = new SidreDataCollection("ex9_refined_mesh", ds.getRoot() );
+   SidreDataCollection * sdc = new SidreDataCollection("ex9_unrefined_mesh", ds.getRoot() );
+   asctoolkit::slic::debug::checksAreErrors = true;
 
    // 2. Read the mesh from the given mesh file. We can handle geometrically
    //    periodic meshes in this code.
@@ -159,7 +159,8 @@ int main(int argc, char *argv[])
    Mesh *mesh = new Mesh(imesh, 1, 1);
 
    // In a parallel problem, only rank 0 needs to do this.
-   sdc->CopyMesh("initial_topology", mesh);
+   // Set mesh, but do not change data ownership.
+   sdc->SetMesh(mesh, 1, false);
    
    // 3. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement, where 'ref_levels' is a
@@ -180,7 +181,7 @@ int main(int argc, char *argv[])
    if (sidre_use_restart) {
       dc->Load(sidre_restart, sidre_restart_protocol);
    }
-   sidre::DataGroup* grp = ds.getRoot()->getGroup("Example9");
+   sidre::DataGroup* grp = ds.getRoot()->getGroup("ex9_refined_mesh");
 
    dc->SetMesh(mesh);
    int dim = mesh->Dimension();
@@ -211,7 +212,7 @@ int main(int argc, char *argv[])
    }
    else
    {
-       solution_fec_name = grp->getView("fields/solution/basis")->getString();
+       solution_fec_name = grp->getView("blueprint/fields/solution/basis")->getString();
    }
 
    FiniteElementCollection *fec = FiniteElementCollection::New(solution_fec_name.c_str());
@@ -262,7 +263,8 @@ int main(int argc, char *argv[])
    if (1)
    {
       dc->Save();
-      std::string filename = "Example9_1_ser.hdf5";
+      sdc->Save();
+      std::string filename = "ex9_unrefined_mesh_1.sidre_hdf5";
       std::string protocol = "sidre_hdf5";
 
       cout << "trying to load '" << filename << "'" << endl;
@@ -276,6 +278,12 @@ int main(int argc, char *argv[])
       else
       {
        cout << "Datastore sidre hdf5 instances don't match =[" << endl;
+       filename = "ex9-refined_mesh_0.hdf5";
+       copy_ds.save(filename, "sidre_hdf5");
+       filename = "ex9-refined_mesh_0.sidre_json";
+       copy_ds.save(filename, "sidre_json");
+       filename = "ex9-refined_mesh_0.json";
+       copy_ds.save(filename, "json");
        exit(-1);
       }
    }
