@@ -155,8 +155,8 @@ int main(int argc, char *argv[])
    // Create datastore
    namespace sidre = asctoolkit::sidre;
    sidre::DataStore ds;
-   DataCollection * dc = new SidreDataCollection("Example9", ds.getRoot() );
-   SidreDataCollection * sdc = dynamic_cast<SidreDataCollection*>(dc);
+   DataCollection * dc = new SidreDataCollection("ex9p_unrefined_mesh", ds.getRoot() );
+   SidreDataCollection * sdc = new SidreDataCollection("ex9p_refined_mesh", ds.getRoot());
    asctoolkit::slic::debug::checksAreErrors = true;
 
    // 3. Read the serial mesh from the given mesh file on all processors. We can
@@ -165,7 +165,7 @@ int main(int argc, char *argv[])
    int dim = mesh->Dimension();
 
    // Create snapshot of initial topology.
-   sdc->CopyMesh("initial_topology", mesh);
+//   sdc->SetMesh(mesh, 1, false);
 
    // 4. Define the ODE solver used for time integration. Several explicit
    //    Runge-Kutta methods are available.

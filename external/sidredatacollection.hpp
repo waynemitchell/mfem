@@ -116,15 +116,12 @@ public:
 private:
    // Private helper functions
 
-   asctoolkit::sidre::DataGroup * dc_grp;
+   asctoolkit::sidre::DataGroup * simdata_grp;
    asctoolkit::sidre::DataGroup * bp_grp;
    asctoolkit::sidre::DataGroup * bp_index_grp;
 
    std::string getElementName( Element::Type elementEnum );
 
-#if 0
-   void ConstructRootFileGroup(asctoolkit::sidre::DataGroup * dg);
-#endif
    /**
     * \brief A private helper function to set up the views associated with the data
     * of a scalar valued grid function in the blueprint style
