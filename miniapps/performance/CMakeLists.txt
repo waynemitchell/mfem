@@ -23,9 +23,19 @@ add_mfem_executable(performance_ex1
   LIBRARIES mfem mfem_miniapps_common
   EXTRA_OPTIONS ${PERFORMANCE_CXX_OPTIONS})
 
+add_test(NAME performance_ex1_ser
+  COMMAND performance_ex1
+  WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/miniapps)
+
 if (MFEM_USE_MPI)
   add_mfem_executable(performance_ex1p
     MAIN ex1p.cpp
     LIBRARIES mfem mfem_miniapps_common
     EXTRA_OPTIONS ${PERFORMANCE_CXX_OPTIONS})
+
+  add_test(NAME performance_ex1p_np=4
+    COMMAND ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 4
+    ${MPIEXEC_PREFLAGS} $<TARGET_FILE:performance_ex1p>
+    ${MPIEXEC_POSTFLAGS}
+    WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/miniapps)
 endif()
