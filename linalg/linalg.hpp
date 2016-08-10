@@ -28,10 +28,10 @@
 #ifdef MFEM_USE_MPI
 #include <mpi.h>
 #include "hypre.hpp"
+#include "petsc.hpp"
 #endif
 
 #include "solvers.hpp"
 #include "superlu.hpp"
-#include "petsc.hpp"
 
 #endif

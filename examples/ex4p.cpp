@@ -37,9 +37,6 @@
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
-#ifdef MFEM_USE_PETSC
-#include <petsc.h>
-#endif
 
 using namespace std;
 using namespace mfem;
