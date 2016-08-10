@@ -6,7 +6,7 @@ project(mfem)
 set(MFEM_CMAKE_PATH ${PROJECT_SOURCE_DIR}/config/cmake)
 set(CMAKE_MODULE_PATH ${MFEM_CMAKE_PATH}/modules)
 
-# MFEM options
+# MFEM options. Set to mimic the default "default.mk" file.
 option(MFEM_USE_MPI "Enable MPI parallel build" OFF)
 option(MFEM_USE_LAPACK "Enable LAPACK usage" OFF)
 option(MFEM_USE_OPENMP "Enable OpenMP usage" OFF)
@@ -18,6 +18,15 @@ option(MFEM_USE_GNUTLS "Enable GNUTLS usage" OFF)
 option(MFEM_USE_NETCDF "Enable NETCDF usage" OFF)
 option(MFEM_USE_MEMALLOC "Enable MEMALLOC usage" ON)
 option(MFEM_THREAD_SAFE "Enable thread safety" OFF)
+
+# Allow a user to disable testing, examples, and/or miniapps at
+# CONFIGURE TIME if they don't want/need them (e.g. if MFEM is "just a
+# dependency" and all they need is the library, building all that
+# stuff adds unnecessary overhead). To match "makefile" behavior, they
+# are all enabled by default.
+option(MFEM_ENABLE_TESTING "Enable the ctest framework for testing" ON)
+option(MFEM_ENABLE_EXAMPLES "Build all of the examples" ON)
+option(MFEM_ENABLE_MINIAPPS "Build all of the miniapps" ON)
 
 # MFEM_DEBUG
 if (CMAKE_BUILD_TYPE MATCHES "DEBUG")
@@ -172,8 +181,15 @@ add_library(mfem ${SOURCES} ${HEADERS})
 target_link_libraries(mfem PUBLIC ${TPL_LIBRARIES})
 
 # The examples and miniapps are separate
-add_subdirectory(examples)
-#add_subdirectory(miniapps)
+if (MFEM_ENABLE_TESTING)
+  enable_testing()
+endif()
+if (MFEM_ENABLE_EXAMPLES)
+  add_subdirectory(examples)
+endif()
+if (MFEM_ENABLE_MINIAPPS)
+  add_subdirectory(miniapps)
+endif()
 
 # Create the "test" and "check" targets. "make test"/"ctest" should
 # follow the existing makefile structure. "make check" should just

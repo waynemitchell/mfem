@@ -36,3 +36,30 @@ endif()
 # Add one executable per cpp file
 add_mfem_examples(ALL_EXE_SRCS)
 
+# Add a test for each example
+foreach(SRC_FILE ${ALL_EXE_SRCS})
+  get_filename_component(SRC_FILENAME ${SRC_FILE} NAME)
+  string(REPLACE ".cpp" "" TEST_NAME ${SRC_FILENAME})
+
+  string(FIND ${TEST_NAME} "p" is_parallel_test)
+
+  set(THIS_TEST_OPTIONS)
+  if (${TEST_NAME} MATCHES "ex10p*")
+    set(THIS_TEST_OPTIONS "-tf" "5")
+  elseif(${TEST_NAME} MATCHES "ex15p*")
+    set(THIS_TEST_OPTIONS "-e" "1")
+  endif()
+
+  if (is_parallel_test EQUAL -1)
+    add_test(NAME ${TEST_NAME}_ser
+      COMMAND ${TEST_NAME} ${THIS_TEST_OPTIONS}
+      WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
+  else()
+    add_test(NAME ${TEST_NAME}_np=4
+      COMMAND ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 4
+      ${MPIEXEC_PREFLAGS}
+      ${TEST_NAME} ${THIS_TEST_OPTIONS}
+      ${MPIEXEC_POSTFLAGS}
+      WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
+  endif()
+endforeach()

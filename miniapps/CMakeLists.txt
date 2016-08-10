@@ -1,0 +1,5 @@
+set(MINIAPP_COMMON_HEADERS)
+add_subdirectory(common)
+add_subdirectory(electromagnetics)
+add_subdirectory(meshing)
+add_subdirectory(performance)
