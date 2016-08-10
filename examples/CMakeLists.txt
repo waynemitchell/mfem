@@ -43,11 +43,11 @@ foreach(SRC_FILE ${ALL_EXE_SRCS})
 
   string(FIND ${TEST_NAME} "p" is_parallel_test)
 
-  set(THIS_TEST_OPTIONS)
+  set(THIS_TEST_OPTIONS "-no-vis")
   if (${TEST_NAME} MATCHES "ex10p*")
-    set(THIS_TEST_OPTIONS "-tf" "5")
+    list(APPEND THIS_TEST_OPTIONS "-tf" "5")
   elseif(${TEST_NAME} MATCHES "ex15p*")
-    set(THIS_TEST_OPTIONS "-e" "1")
+    list(APPEND THIS_TEST_OPTIONS "-e" "1")
   endif()
 
   if (is_parallel_test EQUAL -1)
