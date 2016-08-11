@@ -375,8 +375,6 @@ protected:
    /// like 'ncmesh' and 'NURBSExt' are only swapped when 'non_geometry' is set.
    void Swap(Mesh& other, bool non_geometry = false);
 
-   virtual long ReduceInt(int value) { return value; }
-
 public:
 
    Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
@@ -509,6 +507,12 @@ public:
    /// Return the number of faces (3D), edges (2D) or vertices (1D).
    int GetNumFaces() const;
 
+   /// Utility function: sum integers from all processors (Allreduce).
+   virtual long ReduceInt(int value) const { return value; }
+
+   /// Return the total (global) number of elements.
+   long GetGlobalNE() const { return ReduceInt(NumOfElements); }
+
    /// Equals 1 + num_holes - num_loops
    inline int EulerNumber() const
    { return NumOfVertices - NumOfEdges + NumOfFaces - NumOfElements; }
@@ -519,8 +523,14 @@ public:
    int Dimension() const { return Dim; }
    int SpaceDimension() const { return spaceDim; }
 
-   /// Return pointer to vertex i's coordinates
+   /// @brief Return pointer to vertex i's coordinates.
+   /// @warning For high-order meshes (when Nodes != NULL) vertices may not
+   /// being updated and should not be used!
    const double *GetVertex(int i) const { return vertices[i](); }
+
+   /// @brief Return pointer to vertex i's coordinates.
+   /// @warning For high-order meshes (when Nodes != NULL) vertices may not
+   /// being updated and should not be used!
    double *GetVertex(int i) { return vertices[i](); }
 
    const Element* const *GetElementsArray() const
@@ -869,7 +879,7 @@ public:
    /// Print the mesh in VTK format (linear and quadratic meshes only).
    void PrintVTK(std::ostream &out);
 
-   /** Print the mesh in VTK format. The parameter ref specifies an element
+   /** Print the mesh in VTK format. The parameter ref > 0 specifies an element
        subdivision number (useful for high order fields and curved meshes).
        If the optional field_data is set, we also add a FIELD section in the
        beginning of the file with additional dataset information. */

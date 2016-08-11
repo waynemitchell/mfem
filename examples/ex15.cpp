@@ -12,16 +12,15 @@
 //
 //               ex15 -m ../data/square-disc-nurbs.mesh
 //               ex15 -m ../data/disc-nurbs.mesh
-//               ex15 -m ../data/fichera.mesh
-//               ex15 -m ../data/ball-nurbs.mesh
+//               ex15 -m ../data/fichera.mesh -tf 0.3
+//               ex15 -m ../data/ball-nurbs.mesh -tf 0.3
 //               ex15 -m ../data/mobius-strip.mesh
 //               ex15 -m ../data/amr-quad.mesh
 //
 //               Conforming meshes (no derefinement):
 //
 //               ex15 -m ../data/square-disc.mesh
-//               ex15 -m ../data/escher.mesh -o 1
-//               ex15 -m ../data/square-disc-surf.mesh
+//               ex15 -m ../data/escher.mesh -r 2 -tf 0.3
 //
 // Description:  Building on Example 6, this example demonstrates dynamic AMR.
 //               The mesh is adapted to a time-dependent solution by refinement
@@ -62,10 +61,6 @@ int nfeatures;
 double bdr_func(const Vector &pt, double t);
 double rhs_func(const Vector &pt, double t);
 
-// Estimate the solution errors with a simple (ZZ-type) error estimator.
-double EstimateErrors(int order, int dim, int sdim, Mesh & mesh,
-                      const GridFunction & x, Vector & errors);
-
 // Update the finite element space, interpolate the solution and perform
 // parallel load balancing.
 void UpdateProblem(Mesh &mesh, FiniteElementSpace &fespace,
@@ -79,8 +74,10 @@ int main(int argc, char *argv[])
    nfeatures = 1;
    const char *mesh_file = "../data/star-hilbert.mesh";
    int order = 2;
+   double t_final = 1.0;
    double max_elem_error = 5.0e-3;
    double hysteresis = 0.15; // derefinement safety coefficient
+   int ref_levels = 0;
    int nc_limit = 3;         // maximum level of hanging nodes
    bool visualization = true;
    bool visit = false;
@@ -98,8 +95,12 @@ int main(int argc, char *argv[])
                   "Maximum element error");
    args.AddOption(&hysteresis, "-y", "--hysteresis",
                   "Derefinement safety coefficient.");
+   args.AddOption(&ref_levels, "-r", "--ref-levels",
+                  "Number of initial uniform refinement levels.");
    args.AddOption(&nc_limit, "-l", "--nc-limit",
                   "Maximum level of hanging nodes.");
+   args.AddOption(&t_final, "-tf", "--t-final",
+                  "Final time; start time is 0.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -121,27 +122,32 @@ int main(int argc, char *argv[])
    int dim = mesh.Dimension();
    int sdim = mesh.SpaceDimension();
 
-   // 4. Project a NURBS mesh to a piecewise-quadratic curved mesh. Make sure
-   //    that the mesh is non-conforming if it has quads or hexes.
+   // 3. Project a NURBS mesh to a piecewise-quadratic curved mesh. Make sure
+   //    that the mesh is non-conforming if it has quads or hexes and refine it.
    if (mesh.NURBSext)
    {
       mesh.UniformRefinement();
+      if (ref_levels > 0) { ref_levels--; }
       mesh.SetCurvature(2);
    }
    mesh.EnsureNCMesh();
+   for (int l = 0; l < ref_levels; l++)
+   {
+      mesh.UniformRefinement();
+   }
 
-   // 7. All boundary attributes will be used for essential (Dirichlet) BC.
+   // 4. All boundary attributes will be used for essential (Dirichlet) BC.
    MFEM_VERIFY(mesh.bdr_attributes.Size() > 0,
                "Boundary attributes required in the mesh.");
    Array<int> ess_bdr(mesh.bdr_attributes.Max());
    ess_bdr = 1;
 
-   // 6. Define a finite element space on the mesh. The polynomial order is one
+   // 5. Define a finite element space on the mesh. The polynomial order is one
    //    (linear) by default, but this can be changed on the command line.
    H1_FECollection fec(order, dim);
    FiniteElementSpace fespace(&mesh, &fec);
 
-   // 7. As in Example 1p, we set up bilinear and linear forms corresponding to
+   // 6. As in Example 1p, we set up bilinear and linear forms corresponding to
    //    the Laplace problem -\Delta u = 1. We don't assemble the discrete
    //    problem yet, this will be done in the inner loop.
    BilinearForm a(&fespace);
@@ -151,14 +157,15 @@ int main(int argc, char *argv[])
    FunctionCoefficient bdr(bdr_func);
    FunctionCoefficient rhs(rhs_func);
 
-   a.AddDomainIntegrator(new DiffusionIntegrator(one));
+   BilinearFormIntegrator *integ = new DiffusionIntegrator(one);
+   a.AddDomainIntegrator(integ);
    b.AddDomainIntegrator(new DomainLFIntegrator(rhs));
 
-   // 8. The solution vector x and the associated finite element grid function
+   // 7. The solution vector x and the associated finite element grid function
    //    will be maintained over the AMR iterations.
    GridFunction x(&fespace);
 
-   // 9. Connect to GLVis. Prepare for VisIt output.
+   // 8. Connect to GLVis. Prepare for VisIt output.
    char vishost[] = "localhost";
    int  visport   = 19916;
 
@@ -180,38 +187,64 @@ int main(int argc, char *argv[])
    visit_dc.RegisterField("solution", &x);
    int vis_cycle = 0;
 
-   // 10. The outer time loop. In each iteration we update the right hand side,
-   //     solve the problem on the current mesh, visualize the solution,
-   //     estimate the error on all elements, refine bad elements and update all
-   //     objects to work with the new mesh.  Then we derefine any elements
-   //     which have very small errors.
+   // 9. As in Example 6, we set up a Zienkiewicz-Zhu estimator that will be
+   //    used to obtain element error indicators. The integrator needs to
+   //    provide the method ComputeElementFlux. The smoothed flux space is a
+   //    vector valued H1 space here.
+   FiniteElementSpace flux_fespace(&mesh, &fec, sdim);
+   ZienkiewiczZhuEstimator estimator(*integ, x, flux_fespace);
+
+   // 10. As in Example 6, we also need a refiner. This time the refinement
+   //     strategy is based on a fixed threshold that is applied locally to each
+   //     element. The global threshold is turned off by setting the total error
+   //     fraction to zero. We also enforce a maximum refinement ratio between
+   //     adjacent elements.
+   ThresholdRefiner refiner(estimator);
+   refiner.SetTotalErrorFraction(0.0); // use purely local threshold
+   refiner.SetLocalErrorGoal(max_elem_error);
+   refiner.PreferConformingRefinement();
+   refiner.SetNCLimit(nc_limit);
+
+   // 11. A derefiner selects groups of elements that can be coarsened to form
+   //     a larger element. A conservative enough threshold needs to be set to
+   //     prevent derefining elements that would immediately be refined again.
+   ThresholdDerefiner derefiner(estimator);
+   derefiner.SetThreshold(hysteresis * max_elem_error);
+   derefiner.SetNCLimit(nc_limit);
+
+   // 12. The outer time loop. In each iteration we update the right hand side,
+   //     solve the problem on the current mesh, visualize the solution and
+   //     refine the mesh as many times as necessary. Then we derefine any
+   //     elements which have very small errors.
    x = 0.0;
-   for (double time = 0.0; time < 1.0 + 1e-10; time += 0.01)
+   for (double time = 0.0; time < t_final + 1e-10; time += 0.01)
    {
       cout << "\nTime " << time << "\n\nRefinement:" << endl;
 
-      // Set the current time in the coefficients
+      // Set the current time in the coefficients.
       bdr.SetTime(time);
       rhs.SetTime(time);
 
-      Vector errors;
+      // Make sure errors will be recomputed in the following.
+      refiner.Reset();
+      derefiner.Reset();
 
-      // 11. The inner refinement loop. At the end we want to have the current
+      // 13. The inner refinement loop. At the end we want to have the current
       //     time step resolved to the prescribed tolerance in each element.
       for (int ref_it = 1; ; ref_it++)
       {
          cout << "Iteration: " << ref_it << ", number of unknowns: "
               << fespace.GetVSize() << endl;
 
-         // 11a. Recompute the field on the current mesh: assemble the stiffness
-         //      matrix and the right-hand side.
+         // 14. Recompute the field on the current mesh: assemble the stiffness
+         //     matrix and the right-hand side.
          a.Assemble();
          b.Assemble();
 
-         // 11b. Project the exact solution to the essential DOFs.
+         // 15. Project the exact solution to the essential boundary DOFs.
          x.ProjectBdrCoefficient(bdr, ess_bdr);
 
-         // 11c. Create and solve the linear system.
+         // 16. Create and solve the linear system.
          Array<int> ess_tdof_list;
          fespace.GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 
@@ -229,11 +262,11 @@ int main(int argc, char *argv[])
          umf_solver.Mult(B, X);
 #endif
 
-         // 11d. Extract the local solution on each processor.
+         // 17. Extract the local solution on each processor.
          a.RecoverFEMSolution(X, b, x);
 
-         // 11e. Send the solution by socket to a GLVis server and optionally
-         //      save it in VisIt format.
+         // 18. Send the solution by socket to a GLVis server and optionally
+         //     save it in VisIt format.
          if (visualization)
          {
             sout.precision(8);
@@ -246,38 +279,30 @@ int main(int argc, char *argv[])
             visit_dc.Save();
          }
 
-         // 11f. Estimate element errors using the Zienkiewicz-Zhu error
-         //      estimator. The bilinear form integrator must have the
-         //      'ComputeElementFlux' method defined.
-         {
-            DiffusionIntegrator flux_integrator(one);
-            FiniteElementSpace flux_fespace(&mesh, &fec, sdim);
-            GridFunction flux(&flux_fespace);
-            ZZErrorEstimator(flux_integrator, x, flux, errors);
-         }
-
-         // 11g. Refine elements
-         if (!mesh.RefineByError(errors, max_elem_error, -1, nc_limit))
+         // 19. Apply the refiner on the mesh. The refiner calls the error
+         //     estimator to obtain element errors, then it selects elements to
+         //     be refined and finally it modifies the mesh. The Stop() method
+         //     determines if all elements satisfy the local threshold.
+         refiner.Apply(mesh);
+         if (refiner.Stop())
          {
             break;
          }
 
-         // 11h. Update the space and interpolate the solution.
+         // 20. Update the space and interpolate the solution.
          UpdateProblem(mesh, fespace, x, a, b);
       }
 
-      // 12. Use error estimates from the last iteration to check for possible
-      //     derefinements.
-      if (mesh.Nonconforming())
+      // 21. Use error estimates from the last inner iteration to check for
+      //     possible derefinements. The derefiner works similarly as the
+      //     refiner. The errors are not recomputed because the mesh did not
+      //     change (and also the estimator was not Reset() at this time).
+      if (derefiner.Apply(mesh))
       {
-         double threshold = hysteresis * max_elem_error;
-         if (mesh.DerefineByError(errors, threshold, nc_limit))
-         {
-            cout << "\nDerefined elements." << endl;
+         cout << "\nDerefined elements." << endl;
 
-            // 12a. Update the space and interpolate the solution.
-            UpdateProblem(mesh, fespace, x, a, b);
-         }
+         // 22. Update the space and interpolate the solution.
+         UpdateProblem(mesh, fespace, x, a, b);
       }
 
       a.Update();

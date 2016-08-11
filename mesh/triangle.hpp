@@ -84,7 +84,6 @@ public:
    { MFEM_ABORT("not implemented"); return NULL; }
 
    virtual Element *Duplicate(Mesh *m) const
-   // TODO: copy 'transform'?
    { return new Triangle(indices, attribute); }
 
    virtual ~Triangle() { }

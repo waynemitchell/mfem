@@ -7,11 +7,44 @@
 
                                http://mfem.org
 
-Version 3.2, not yet released
-=============================
+Version 3.2, released on June 30, 2016
+======================================
 
-Tensor-based high-performance FE operator assembly and evaluation
------------------------------------------------------------------
+Dynamic AMR with parallel load balancing, derefinement of non-conforming meshes
+-------------------------------------------------------------------------------
+- Parallel non-conforming meshes can now be load balanced at any time by calling
+  ParMesh::Rebalance(). Elements of the mesh are redistributed in such a way
+  that each processor gets approximately the same number of elements (plus minus
+  one element). Partitioning is done by splitting a sequence of space-filling
+  (Hilbert) curves defined on the refinement octrees.
+
+- Isotropically refined non-conforming meshes can now be derefined, both in
+  serial and in parallel, based on a per-element error measure and a
+  derefinement threshold. See the class ThresholdDerefiner.
+
+- Following an arbitrary mesh change (uniform/general conforming/non-conforming
+  refinement, derefinement, load balancing), the FiniteElementSpace and
+  associated GridFunctions can be updated by interpolating or redistributing the
+  previous function values based on the new state of the mesh. (Internally this
+  is implemented through a transformation matrix that is constructed in the
+  FiniteElementSpace.) The user interface is quite simple:
+
+     pmesh.Rebalance();  // or GeneralRefinement, or GeneralDerefinement
+     fespace.Update();   // calculate a transformation matrix (by default)
+     x.Update();         // apply the transformation to the GridFunction
+     z.Update();         // apply it again
+
+- New abstractions are available for error estimation and general mesh
+  operations such as refinement and derefinement. See the base classes
+  ErrorEstimator and MeshOperator and their descendants.
+
+- The above features are illustrated in the new Example 15 (see also Example 6).
+
+Tensor-based high-performance FEM operator assembly and evaluation
+------------------------------------------------------------------
+- Added support for high-performance, tensor-based efficient assembly and
+  evaluation of high-order operators.
+
 - A number of new header files have been added to the fem/, linalg/ and mesh/
   directories. They start with the prefix "t" to indicate the (heavy) use of C++
   templating, similar to how the prefix "p" denotes "parallel". All the code for
@@ -35,43 +68,16 @@ Tensor-based high-performance FE operator assembly and evaluation
   diffusion integrators. It is possible to use the old and the new HPC interface
   side-by-side, see the HPC version of Example 1/1p in miniapps/performance.
 
-Dynamic AMR with parallel load balancing, derefinement of non-conforming meshes
--------------------------------------------------------------------------------
-- Parallel non-conforming meshes can now be load balanced at any time by calling
-  ParMesh::Rebalance(). Elements of the mesh are redistributed in such a way
-  that each processor gets approximately the same number of elements (plus minus
-  one element). Partitioning is done by splitting a sequence of space-filling
-  (Hilbert) curves defined on the refinement octrees.
-
-- Isotropically refined non-conforming meshes can now be derefined, both in
-  serial and in parallel, based on a per-element error measure and a
-  derefinement threshold. See ParMesh::GeneralDerefinement().
-
-- Following an arbitrary mesh change (uniform/general conforming/non-conforming
-  refinement, derefinement, load balancing), the FiniteElementSpace and
-  associated GridFunctions can be updated by interpolating or redistributing the
-  previous function values based on the new state of the mesh. (Internally this
-  is implemented through a transformation matrix that is constructed in the
-  FiniteElementSpace.) The user interface is quite simple:
-
-     pmesh.Rebalance();  // or GeneralRefinement, or GeneralDerefinement
-     fespace.Update();   // calculate a transformation matrix (by default)
-     x.Update();         // apply the transformation to the GridFunction
-     z.Update();         // apply it again
-
-- The above features are illustrated in the new Example 15 (see also Example 6).
-
-Parallel DG and Hybridization on non-conforming meshes
-------------------------------------------------------
-
+Advanced FEM on parallel non-conforming meshes
+----------------------------------------------
 - Added support for discontinuous Galerkin methods on parallel non-conforming
   meshes, see Examples 9p and 14p.
 
 - Added support for hybridization on parallel non-conforming meshes, see
   Example 4p.
 
-New and improved solvers
-------------------------
+New and improved linear solvers
+-------------------------------
 - Added a wrapper for the real-valued, double precision solver in SuperLU_DIST
   which is a sparse direct solver for distributed memory architectures. As such
   it can only be enabled along with MFEM_USE_MPI. When MFEM is configured with
@@ -92,9 +98,9 @@ New and updated examples and miniapps
   * adaptive refinement, derefinement and load balancing (in parallel) on
     non-conforming meshes (Example 15/15p)
 
-- Examples 9p and 14p now work on non-conforming meshes.
-
 - Examples 4p now supports hybridization on non-conforming meshes.
+
+- Examples 9p and 14p now work on non-conforming meshes.
 
 - Example 11p now has optional support for the SuperLU parallel direct solver.
 
@@ -110,25 +116,50 @@ Miscellaneous
 - Added support for 2D and 3D meshes generated by Gmsh (http://gmsh.info), both
   in ASCII and binary formats.
 
+- Added a reader for Cubit meshes in the Genesis (NetCDF) format. Currently
+  supported are linear and quadratic tet and hex meshes.
+
 - Added support for boundary bilinear form integrators when using hybridization.
+
+- Added support for Robin boundary conditions for DG in BoundaryMassIntegrator.
 
 - Moved all reference element connectivity descriptions, such as element-edge,
   element-face, etc. to the template class Geometry::Constants<Geometry::Type>.
 
-- Added support for reading Cubit mesh files in the Genesis (NetCDF) format.
-  Currently supported are linear and quadratic tets and hexes.
-
 - Added support for secure socket communications in class socketstream based on
   the GnuTLS library, see INSTALL for more details.
 
-- Renamed config/user.mk.in to config/defaults.mk; moved default options from
-  the makefile to config/defaults.mk; include config/defaults.mk into the
-  makefile.
+- Renamed config/user.mk.in to config/defaults.mk and moved all the default
+  build settings from the makefile there.
 
 - Added configurable variables AR, ARFLAGS, and RANLIB in the build system. The
   defaults for Mac OS X will suppress the "has no symbols" warnings.
 
 - Various other simplifications, extensions, and bugfixes in the code.
+
+API changes
+-----------
+- Changes in class Mesh
+  * Two-level state functionality was removed, including: UseTwoLevelState(int),
+    SetState(int), GetState(), GetNumFineElems(int), GetRefinementType(int),
+    GetFineElem(int, int) and GetFineElemTrans(int, int).
+
+- Changes in class FiniteElementSpace
+  * BuildElementToDofTable() is now protected, and it is always called.
+  * GlobalRestrictionMatrix(FiniteElementSpace*, int) was removed, but the
+    prolongation operator can still be accessed via GetUpdateOperator() after
+    mesh refinement and a call to Update(true).
+
+- Changes in methods related to non-conforming meshes and spaces
+  * The methods LinearForm::ConformingAssemble, BilinearForm::ConformingAssemble
+    and GridFunction::ConformingProlongate/ConformingProject are now hidden
+    inside (Par)BilinearForm::FormLinearSystem and RecoverFEMSolution.
+  * The conforming prolongation/restriction matrices can still be accessed via
+    FiniteElementSpace::GetConformingProlongation()/GetConformingRestriction().
+
+- Changes in classes GridFunction and ParGridFunction
+  * Renamed Update((Par)FiniteElementSpace*, Vector&, int) to MakeRef.
+  * Renamed Update((Par)FiniteElementSpace*) to SetSpace.
 
 
 Version 3.1, released on Feb 16, 2016
@@ -582,4 +613,3 @@ Version 1.0, released on Jul 21, 2010
 - Uploaded to http://mfem.googlecode.com.
 
 - Initial release.
-

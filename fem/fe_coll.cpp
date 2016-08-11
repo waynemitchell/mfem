@@ -287,9 +287,9 @@ void FiniteElementCollection::SubDofOrder(int Geom, int SDim, int Info,
    // Info = 64 * SubIndex + SubOrientation
    MFEM_ASSERT(0 <= Geom && Geom < Geometry::NumGeom,
                "invalid Geom = " << Geom);
-   const int Dim = Geometry::Dimension[Geom];
-   MFEM_ASSERT(0 <= SDim && SDim <= Dim, "invalid SDim = " << SDim
-               << " for Geom = " << Geometry::Name[Geom]);
+   MFEM_ASSERT(0 <= SDim && SDim <= Geometry::Dimension[Geom],
+               "invalid SDim = " << SDim <<
+               " for Geom = " << Geometry::Name[Geom]);
 
    const int nvd = DofForGeometry(Geometry::POINT);
    if (SDim == 0) // vertex
@@ -409,7 +409,8 @@ void FiniteElementCollection::SubDofOrder(int Geom, int SDim, int Info,
       {
          for (int i = 0; i < ne; i++)
          {
-            const int *ed = DofOrderForOrientation(Geometry::SEGMENT, eo[i]);
+            const int *ed = DofOrderForOrientation(Geometry::SEGMENT,
+                                                   eo[i] ? -1 : 1);
             for (int j = 0; j < ned; j++)
             {
                dofs[l_off+i*ned+j] =

@@ -351,7 +351,7 @@ public:
    void SetUpdateOperatorOwner(bool own) { own_T = own; }
 
    /// Free GridFunction transformation matrix (if any), to save memory.
-   void UpdatesFinished() { if (own_T) { delete T; } T = NULL; }
+   virtual void UpdatesFinished() { if (own_T) { delete T; } T = NULL; }
 
    /// Return update counter (see Mesh::sequence)
    long GetSequence() const { return sequence; }
