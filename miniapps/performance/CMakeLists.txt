@@ -14,8 +14,9 @@ elseif (${CMAKE_CXX_COMPILER_ID} MATCHES "GNU")
   list(APPEND PERFORMANCE_CXX_OPTIONS
     "-march=native"
     "-std=c++11"
-    "-pedantic -Wall"
-    "--param max-completely-peel-times=3")
+    "-pedantic"
+    "-Wall"
+    "--param" "max-completely-peel-times=3")
 endif()
 
 add_mfem_executable(performance_ex1
