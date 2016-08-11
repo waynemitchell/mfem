@@ -35,7 +35,8 @@
 //               of essential boundary conditions, static condensation, and the
 //               optional connection to the GLVis tool for visualization.
 //               The example also shows how PETSc Krylov solvers can be used
-//               by wrapping a HypreParMatrix (or not) and a Solver.
+//               by wrapping a HypreParMatrix (or not) and a Solver, together
+//               with customization using an options file (see .petsc_rc_ex1p)
 
 #include "mfem.hpp"
 #include <fstream>
@@ -57,10 +58,8 @@ int main(int argc, char *argv[])
    int order = 1;
    bool static_cond = false;
    bool visualization = 1;
-#ifdef MFEM_USE_PETSC
-   bool wrap = true;
+   bool use_petsc = false;
    const char *petscrc_file = "";
-#endif
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -73,13 +72,12 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
-#ifdef MFEM_USE_PETSC
-   args.AddOption(&wrap, "-wrap", "--wrap", "-no-wrap",
-                  "--no-wrap",
-                  "Wrap a HypreParMatrix inside a PetscParMatrix object or convert from HypreParCSR to MATAIJ.");
+   args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "no-petsc",
+                  "--no-petsc",
+                  "Use or not PETSc to solve the linear system.");
    args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
                   "PetscOptions file to use.");
-#endif
+
    args.Parse();
    if (!args.Good())
    {
@@ -94,6 +92,11 @@ int main(int argc, char *argv[])
    {
       args.PrintOptions(cout);
    }
+
+#ifdef MFEM_USE_PETSC
+   // 2b. We initialize PETSc
+   PetscInitialize(NULL,NULL,petscrc_file,NULL);
+#endif
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
@@ -205,40 +208,38 @@ int main(int argc, char *argv[])
    // 12. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
    //     preconditioner from hypre.
    HypreSolver *amg = new HypreBoomerAMG(A);
-   HyprePCG *pcg = new HyprePCG(A);
-   pcg->SetTol(1e-12);
-   pcg->SetMaxIter(200);
-   pcg->SetPrintLevel(2);
-   pcg->SetPreconditioner(*amg);
-   pcg->Mult(B, X);
 
-#ifdef MFEM_USE_PETSC
-   // 12b. Use PETSc Krylov solvers to solve the linear system
-   PetscInitialize(NULL,NULL,petscrc_file,NULL);
+   if (!use_petsc)
    {
-      // we scope these calls so that the destructors for pX and ppcg
-      // are called before PetscFinalize.
-      PetscParVector pX(fespace);
-      // If wrap is true, wraps the HypreParMatrix action on vectors.
-      // If wrap is false, internally creates an AIJ PETSc's matrix format
-      // to be used with PETSc's preconditioners.
-      PetscPCGSolver *ppcg = new PetscPCGSolver(A,wrap);
-      ppcg->SetMaxIter(200);
-      ppcg->SetTol(1e-12);
-      ppcg->SetPrintLevel(2); //TODO: dummy call
-      // You can specify any Solver to be used as a preconditioner
-      // inside PETSc's Krylov solvers.
-      ppcg->SetPreconditioner(*amg);
-      ppcg->Mult(B, pX);
-      pX -= X;
-      // This is not scalable, we just use this method to check if it works
-      Vector *aX = pX.GlobalVector();
-      if (myid == 0) { cout << "Error between PETSc and HYPRE: " << aX->Normlinf() << endl; }
-      delete aX;
-      delete ppcg;
+      HyprePCG *pcg = new HyprePCG(A);
+      pcg->SetPreconditioner(*amg);
+      pcg->SetTol(1e-12);
+      pcg->SetMaxIter(200);
+      pcg->SetPrintLevel(2);
+      pcg->Mult(B, X);
+      delete pcg;
    }
-   PetscFinalize();
+   else
+   {
+#ifdef MFEM_USE_PETSC
+      // If petscrc_file has been given, we convert the HypreParMatrix to a
+      // PetscParMatrix; the user can then experiment with PETSc command
+      // line options.
+      bool wrap = !strlen(petscrc_file);
+      PetscPCGSolver *pcg = new PetscPCGSolver(A,wrap);
+      if (wrap)
+      {
+         pcg->SetPreconditioner(*amg);
+      }
+      pcg->SetTol(1e-12);
+      pcg->SetMaxIter(200);
+      pcg->SetPrintLevel(2); //TODO: as of now, this is a dummy call
+      pcg->Mult(B, X);
+      delete pcg;
+#else
+      MFEM_ABORT("You did not enable PETSc when configuring MFEM");
 #endif
+   }
 
    // 13. Recover the parallel grid function corresponding to X. This is the
    //     local finite element solution on each processor.
@@ -272,7 +273,6 @@ int main(int argc, char *argv[])
    }
 
    // 16. Free the used memory.
-   delete pcg;
    delete amg;
    delete a;
    delete b;
@@ -280,6 +280,9 @@ int main(int argc, char *argv[])
    if (order > 0) { delete fec; }
    delete pmesh;
 
+#ifdef MFEM_USE_PETSC
+   PetscFinalize();
+#endif
    MPI_Finalize();
 
    return 0;
