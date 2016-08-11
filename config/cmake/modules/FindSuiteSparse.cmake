@@ -17,7 +17,8 @@ find_path(UMFPACK_INCLUDE_DIRS umfpack.h
   PATH_SUFFIXES suitesparse include
   NO_DEFAULT_PATH
   DOC "Directory where SuiteSparse headers live.")
-find_path(UMFPACK_INCLUDE_DIRS umfpack.h)
+find_path(UMFPACK_INCLUDE_DIRS umfpack.h
+  PATH_SUFFIXES suitesparse)
 
 find_library(UMFPACK_LIBRARY umfpack
   HINTS ${SuiteSparse_DIR} $ENV{SuiteSparse_DIR}
@@ -38,7 +39,8 @@ find_path(AMD_INCLUDE_DIRS amd.h
   PATH_SUFFIXES suitesparse include
   NO_DEFAULT_PATH
   DOC "Directory where SuiteSparse headers live.")
-find_path(AMD_INCLUDE_DIRS amd.h)
+find_path(AMD_INCLUDE_DIRS amd.h
+  PATH_SUFFIXES suitesparse)
 
 find_library(AMD_LIBRARY amd
   HINTS ${UMFPACK_LIB_DIR} ${SuiteSparse_DIR} $ENV{SuiteSparse_DIR}
@@ -59,7 +61,8 @@ find_path(CHOLMOD_INCLUDE_DIRS cholmod.h
   PATH_SUFFIXES suitesparse include
   NO_DEFAULT_PATH
   DOC "Directory where SuiteSparse headers live.")
-find_path(CHOLMOD_INCLUDE_DIRS cholmod.h)
+find_path(CHOLMOD_INCLUDE_DIRS cholmod.h
+  PATH_SUFFIXES suitesparse)
 
 find_library(CHOLMOD_LIBRARY cholmod
   HINTS ${UMFPACK_LIB_DIR} ${AMD_LIB_DIR} ${SuiteSparse_DIR} $ENV{SuiteSparse_DIR}
@@ -82,7 +85,8 @@ find_path(COLAMD_INCLUDE_DIRS colamd.h
   PATH_SUFFIXES suitesparse include
   NO_DEFAULT_PATH
   DOC "Directory where SuiteSparse headers live.")
-find_path(COLAMD_INCLUDE_DIRS colamd.h)
+find_path(COLAMD_INCLUDE_DIRS colamd.h
+  PATH_SUFFIXES suitesparse)
 
 find_library(COLAMD_LIBRARY colamd
   HINTS
@@ -108,7 +112,8 @@ find_path(CONFIG_INCLUDE_DIRS SuiteSparse_config.h
   PATH_SUFFIXES suitesparse include
   NO_DEFAULT_PATH
   DOC "Directory where SuiteSparse headers live.")
-find_path(CONFIG_INCLUDE_DIRS SuiteSparse_config.h)
+find_path(CONFIG_INCLUDE_DIRS SuiteSparse_config.h
+  PATH_SUFFIXES suitesparse)
 
 find_library(CONFIG_LIBRARY suitesparseconfig
   HINTS
