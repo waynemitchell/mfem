@@ -160,6 +160,15 @@ FiniteElementCollection *FiniteElementCollection::New(const char *name)
    {
       fec = new L2_FECollection(atoi(name + 7), atoi(name + 3));
    }
+   else if (!strncmp(name, "L2Int_T", 7))
+      fec = new L2_FECollection(atoi(name + 13), atoi(name + 9),
+                                atoi(name + 7), FiniteElement::INTEGRAL);
+   else if (!strncmp(name, "L2Int_", 6))
+   {
+      fec = new L2_FECollection(atoi(name + 10), atoi(name + 6),
+                                L2_FECollection::GaussLegendre,
+                                FiniteElement::INTEGRAL);
+   }
    else if (!strncmp(name, "RT_Trace_", 9))
    {
       fec = new RT_Trace_FECollection(atoi(name + 13), atoi(name + 9));
@@ -1581,16 +1590,35 @@ H1_Trace_FECollection::H1_Trace_FECollection(const int p, const int dim,
 }
 
 
-L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
+L2_FECollection::L2_FECollection(const int p, const int dim, const int type,
+                                 const int map_type)
 {
    m_type = (BasisType)type;
-   if (type == 0)
+   if (map_type == FiniteElement::VALUE)
    {
-      snprintf(d_name, 32, "L2_%dD_P%d", dim, p);
+      if (type == 0)
+      {
+         snprintf(d_name, 32, "L2_%dD_P%d", dim, p);
+      }
+      else
+      {
+         snprintf(d_name, 32, "L2_T%d_%dD_P%d", type, dim, p);
+      }
+   }
+   else if (map_type == FiniteElement::INTEGRAL)
+   {
+      if (type == 0)
+      {
+         snprintf(d_name, 32, "L2Int_%dD_P%d", dim, p);
+      }
+      else
+      {
+         snprintf(d_name, 32, "L2Int_T%d_%dD_P%d", type, dim, p);
+      }
    }
    else
    {
-      snprintf(d_name, 32, "L2_T%d_%dD_P%d", type, dim, p);
+      MFEM_ABORT("invalid map_type: " << map_type);
    }
 
    for (int g = 0; g < Geometry::NumGeom; g++)
@@ -1617,8 +1645,10 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
       {
          L2_Elements[Geometry::SEGMENT] = new L2Pos_SegmentElement(p);
       }
+      L2_Elements[Geometry::SEGMENT]->SetMapType(map_type);
 
       Tr_Elements[Geometry::POINT] = new PointFiniteElement;
+      // No need to set the map_type for Tr_Elements.
 
       const int pp1 = p + 1;
       SegDofOrd[0] = new int[2*pp1];
@@ -1641,6 +1671,9 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
          L2_Elements[Geometry::TRIANGLE] = new L2Pos_TriangleElement(p);
          L2_Elements[Geometry::SQUARE] = new L2Pos_QuadrilateralElement(p);
       }
+      L2_Elements[Geometry::TRIANGLE]->SetMapType(map_type);
+      L2_Elements[Geometry::SQUARE]->SetMapType(map_type);
+
       Tr_Elements[Geometry::SEGMENT] = new L2_SegmentElement(p, 0);
 
       const int TriDof = L2_Elements[Geometry::TRIANGLE]->GetDof();
@@ -1676,6 +1709,9 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
          L2_Elements[Geometry::TETRAHEDRON] = new L2Pos_TetrahedronElement(p);
          L2_Elements[Geometry::CUBE] = new L2Pos_HexahedronElement(p);
       }
+      L2_Elements[Geometry::TETRAHEDRON]->SetMapType(map_type);
+      L2_Elements[Geometry::CUBE]->SetMapType(map_type);
+
       Tr_Elements[Geometry::TRIANGLE] = new L2_TriangleElement(p, 0);
       Tr_Elements[Geometry::SQUARE] = new L2_QuadrilateralElement(p, 0);
    }
@@ -2125,6 +2161,11 @@ Local_FECollection::Local_FECollection(const char *fe_name)
    {
       GeomType = Geometry::SQUARE;
       Local_Element = new H1_QuadrilateralElement(atoi(fe_name + 7));
+   }
+   else if (!strncmp(fe_name, "H1Pos_", 6))
+   {
+      GeomType = Geometry::SQUARE;
+      Local_Element = new H1Pos_QuadrilateralElement(atoi(fe_name + 10));
    }
    else if (!strncmp(fe_name, "L2_", 3))
    {

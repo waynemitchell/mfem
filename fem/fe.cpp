@@ -316,6 +316,45 @@ void NodalFiniteElement::ProjectDiv(
    }
 }
 
+void PositiveFiniteElement::PositiveLocalInterpolation (
+   ElementTransformation &Trans, DenseMatrix &I,
+   const PositiveFiniteElement &fine_fe) const
+{
+   // General interpolation, defined based on L2 projection
+
+   double v[3];
+   Vector vv (v, Dim);
+   IntegrationPoint f_ip;
+
+   const int fs = fine_fe.GetDof(), cs = this->GetDof();
+   I.SetSize(fs, cs);
+   Vector fine_shape(fs), coarse_shape(cs);
+   DenseMatrix fine_mass(fs), fine_coarse_mass(fs, cs); // initialized with 0
+   const int ir_order = GetOrder() + fine_fe.GetOrder();
+   const IntegrationRule &ir = IntRules.Get(fine_fe.GetGeomType(), ir_order);
+
+   for (int i = 0; i < ir.GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir.IntPoint(i);
+      fine_fe.CalcShape(ip, fine_shape);
+      Trans.Transform(ip, vv);
+      f_ip.Set(v, Dim);
+      this->CalcShape(f_ip, coarse_shape);
+
+      AddMult_a_VVt(ip.weight, fine_shape, fine_mass);
+      AddMult_a_VWt(ip.weight, fine_shape, coarse_shape, fine_coarse_mass);
+   }
+
+   DenseMatrixInverse fine_mass_inv(fine_mass);
+   fine_mass_inv.Mult(fine_coarse_mass, I);
+
+   if (MapType == INTEGRAL)
+   {
+      // assuming Trans is linear; this should be ok for all refinement types
+      Trans.SetIntPoint(&Geometries.GetCenter(GeomType));
+      I *= Trans.Weight();
+   }
+}
 
 void PositiveFiniteElement::Project(
    Coefficient &coeff, ElementTransformation &Trans, Vector &dofs) const
@@ -5998,12 +6037,14 @@ Poly_1D::Basis::Basis(const int p, const double *nodes, int _mode)
       x = nodes;
       w = 1.0;
       for (int i = 0; i <= p; i++)
+      {
          for (int j = 0; j < i; j++)
          {
             double xij = x(i) - x(j);
             w(i) *=  xij;
             w(j) *= -xij;
          }
+      }
       for (int i = 0; i <= p; i++)
       {
          w(i) = 1.0/w(i);
@@ -6040,6 +6081,7 @@ void Poly_1D::Basis::Eval(const double y, Vector &u) const
 
       lk = 1.0;
       for (k = 0; k < p; k++)
+      {
          if (y >= (x(k) + x(k+1))/2)
          {
             lk *= y - x(k);
@@ -6052,6 +6094,7 @@ void Poly_1D::Basis::Eval(const double y, Vector &u) const
             }
             break;
          }
+      }
       l = lk * (y - x(k));
 
       for (i = 0; i < k; i++)
@@ -6088,6 +6131,7 @@ void Poly_1D::Basis::Eval(const double y, Vector &u, Vector &d) const
 
       lk = 1.0;
       for (k = 0; k < p; k++)
+      {
          if (y >= (x(k) + x(k+1))/2)
          {
             lk *= y - x(k);
@@ -6100,6 +6144,7 @@ void Poly_1D::Basis::Eval(const double y, Vector &u, Vector &d) const
             }
             break;
          }
+      }
       l = lk * (y - x(k));
 
       sk = 0.0;
