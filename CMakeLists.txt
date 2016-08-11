@@ -142,6 +142,8 @@ if(NOT MFEM_TIMER_TYPE)
     set(MFEM_TIMER_TYPE 0)
   elseif (UNIX)
     set(MFEM_TIMER_TYPE 2)
+    find_library(RT_LIBRARY rt)
+    list(APPEND TPL_LIBRARIES ${RT_LIBRARY})
   elseif (WIN32)
     # TRB: I don't know what this means, but Mikhail had it there, so
     # it stayed.
