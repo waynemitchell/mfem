@@ -132,6 +132,10 @@ public:
    FiniteElementSpace(Mesh *mesh, const FiniteElementCollection *fec,
                       int vdim = 1, int ordering = Ordering::byNODES);
 
+   // Create a low order refinement of the mesh
+   virtual void LowOrderRefinement(int order, FiniteElementSpace *& fes_lor,
+                     SparseMatrix &P, SparseMatrix &R);
+
    /// Returns the mesh
    inline Mesh *GetMesh() const { return mesh; }
 

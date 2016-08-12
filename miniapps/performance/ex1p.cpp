@@ -46,11 +46,14 @@ using namespace std;
 using namespace mfem;
 
 // Define template parameters for optimized build.
-const Geometry::Type geom     = Geometry::CUBE; // mesh elements  (default: hex)
-const int            mesh_p   = 3;              // mesh curvature (default: 3)
-const int            sol_p    = 3;              // solution order (default: 3)
+const Geometry::Type geom     = Geometry::SQUARE; // mesh elements  (default: hex)
+const int            mesh_p   = 10;              // mesh curvature (default: 3)
+const int            sol_p    = 10;              // solution order (default: 3)
+const int            mesh_lor_p   = 1;              // mesh curvature (default: 3)
+const int            sol_lor_p    = 1;              // solution order (default: 3)
 const int            rdim     = Geometry::Constants<geom>::Dimension;
 const int            ir_order = 2*sol_p+rdim-1;
+const int            ir_order_lor = 2*sol_lor_p+rdim-1;
 
 // Static mesh type
 typedef H1_FiniteElement<geom,mesh_p>         mesh_fe_t;
@@ -64,13 +67,27 @@ typedef H1_FiniteElementSpace<sol_fe_t>       sol_fes_t;
 // Static quadrature, coefficient and integrator types
 typedef TIntegrationRule<geom,ir_order>       int_rule_t;
 typedef TConstantCoefficient<>                coeff_t;
-typedef FieldEvaluator<sol_fes_t,ScalarLayout,int_rule_t> field_eval_t;
-typedef TGridFunctionCoefficient<field_eval_t> grid_func_t;
 typedef TIntegrator<coeff_t,TDiffusionKernel> integ_t;
-//typedef TIntegrator<grid_func_t,TDiffusionKernel> integ_t;
 
 // Static bilinear form type, combining the above types
 typedef TBilinearForm<mesh_t,sol_fes_t,int_rule_t,integ_t> HPCBilinearForm;
+
+// Low order refined types
+
+// Static mesh type
+typedef H1_FiniteElement<geom,mesh_lor_p>         mesh_lor_fe_t;
+typedef H1_FiniteElementSpace<mesh_lor_fe_t>      mesh_lor_fes_t;
+typedef TMesh<mesh_lor_fes_t>                     mesh_lor_t;
+
+// Static solution finite element space type
+typedef H1_FiniteElement<geom,sol_lor_p>          sol_fe_lor_t;
+typedef H1_FiniteElementSpace<sol_fe_lor_t>       sol_fes_lor_t;
+
+// Static quadrature, coefficient and integrator types
+typedef TIntegrationRule<geom,ir_order_lor>       int_rule_lor_t;
+
+// Static bilinear form type, combining the above types
+typedef TBilinearForm<mesh_lor_t,sol_fes_lor_t,int_rule_lor_t,integ_t> HPCBilinearForm_lor;
 
 int main(int argc, char *argv[])
 {
@@ -137,13 +154,6 @@ int main(int argc, char *argv[])
    //    and volume meshes with the same code.
    Mesh *mesh = new Mesh(mesh_file, 1, 1);
    int dim = mesh->Dimension();
-   if (myid == 0)
-   {
-   std::cout << "Number of Elements: " << mesh->GetNE() << std::endl;
-   std::cout << "Number of Boundary Elements: " << mesh->GetNBE() << std::endl;
-   std::cout << "Number of Vertices: " << mesh->GetNV() << std::endl;
-   std::cout << "Number of Edges: " << mesh->GetNEdges() << std::endl;
-   }
 
    // 4. Check if the optimized version matches the given mesh
    if (perf)
@@ -222,6 +232,12 @@ int main(int argc, char *argv[])
       fec = new H1_FECollection(order = 1, dim);
    }
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
+
+   ParFiniteElementSpace *fespace_lor = NULL;
+   HypreParMatrix P_lor;
+   HypreParMatrix R_lor;
+   fespace->ParLowOrderRefinement(1, fespace_lor, P_lor, R_lor);
+
    HYPRE_Int size = fespace->GlobalTrueVSize();
    if (myid == 0)
    {
@@ -283,6 +299,7 @@ int main(int argc, char *argv[])
    // 12. Set up the parallel bilinear form a(.,.) on the finite element space
    //     that will hold the matrix corresponding to the Laplacian operator.
    ParBilinearForm *a = new ParBilinearForm(fespace);
+   ParBilinearForm *a_lor = new ParBilinearForm(fespace_lor);
 
    // 13. Assemble the parallel bilinear form and the corresponding linear
    //     system, applying any necessary transformations such as: parallel
@@ -301,6 +318,8 @@ int main(int argc, char *argv[])
 
    HPCBilinearForm *a_hpc = NULL;
    ConstrainedOperator *a_oper = NULL;
+   HPCBilinearForm_lor *a_hpc_lor = NULL;
+   ConstrainedOperator *a_oper_lor = NULL;
 
    if (!perf)
    {
@@ -312,19 +331,23 @@ int main(int argc, char *argv[])
    {
       // High-performance assembly using the templated operator type
       a_hpc = new HPCBilinearForm(integ_t(coeff_t(1.0)), *fespace);
-      //a_hpc = new HPCBilinearForm(integ_t(grid_func_t(disc_coeff)), *fespace);
+      a_hpc_lor = new HPCBilinearForm_lor(integ_t(coeff_t(1.0)), *fespace_lor);
       if (matrix_free)
       {
          a_hpc->Assemble(); // Chooses between ::MultAssembled and ::MultUnassembled
+         a_hpc_lor->Assemble(); // Chooses between ::MultAssembled and ::MultUnassembled
          RAPOperator *a_hpc_par = new RAPOperator(*P, *a_hpc, *P);
+         RAPOperator *a_hpc_par_lor = new RAPOperator(*P, *a_hpc_lor, *P);
          a_oper = new ConstrainedOperator(a_hpc_par, ess_tdof_list);
+         a_oper_lor = new ConstrainedOperator(a_hpc_par_lor, ess_tdof_list);
          if (pc_choice == AMG)
          {
             // Choosing between these is helpful because the standard assembly has
             // new sparsification approximations
             //a_hpc->AssembleBilinearForm(*a);
-            a->AddDomainIntegrator(new DiffusionIntegrator(one, true));
-            a->Assemble();
+            a_hpc_lor->AssembleBilinearForm(*a_lor);
+            //a->AddDomainIntegrator(new DiffusionIntegrator(one, true));
+            //a->Assemble();
          }
       }
       else
@@ -342,22 +365,26 @@ int main(int argc, char *argv[])
    //     preconditioner from hypre.
    HypreParMatrix A;
    Vector B, X;
+   Vector B_cp, X_cp;
    if (perf && matrix_free)
    {
       // Variational restriction with P
       X.SetSize(fespace->TrueVSize());
       B.SetSize(X.Size());
+      X_cp.SetSize(fespace->TrueVSize());
+      B_cp.SetSize(X.Size());
       P->MultTranspose(*b, B);
+      P->MultTranspose(*b, B_cp);
       R->Mult(x, X);
+      R->Mult(x, X_cp);
       a_oper->EliminateRHS(X, B);
+      a_oper_lor->EliminateRHS(X_cp, B_cp);
       if (pc_choice == AMG)
       {
          if (myid == 0)
             cout << "Assembling Linear System for BoomerAMG" << endl;
          Vector X_tmp, B_tmp;
-         a->FormLinearSystem(ess_tdof_list, x, *b, A, X_tmp, B_tmp);
-         if (myid == 0)
-            cout << "NNZ in A: " << A.NNZ() << endl;
+         a_lor->FormLinearSystem(ess_tdof_list, x, *b, A, X_tmp, B_tmp);
       }
    }
    else

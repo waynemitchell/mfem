@@ -46,11 +46,14 @@ using namespace std;
 using namespace mfem;
 
 // Define template parameters for optimized build.
-const Geometry::Type geom     = Geometry::CUBE; // mesh elements  (default: hex)
-const int            mesh_p   = 3;              // mesh curvature (default: 3)
-const int            sol_p    = 3;              // solution order (default: 3)
-const int            rdim     = Geometry::Constants<geom>::Dimension;
-const int            ir_order = 2*sol_p+rdim-1;
+const Geometry::Type geom         = Geometry::SQUARE; // mesh elements  (default: hex)
+const int            mesh_p       = 7;              // mesh curvature (default: 3)
+const int            sol_p        = 7;              // solution order (default: 3)
+const int            mesh_lor_p   = 1;              // mesh curvature (default: 3)
+const int            sol_lor_p    = 1;              // solution order (default: 3)
+const int            rdim         = Geometry::Constants<geom>::Dimension;
+const int            ir_order     = 2*sol_p+rdim-1;
+const int            ir_order_lor = 2*sol_lor_p+rdim-1;
 
 // Static mesh type
 typedef H1_FiniteElement<geom,mesh_p>         mesh_fe_t;
@@ -68,6 +71,25 @@ typedef TIntegrator<coeff_t,TDiffusionKernel> integ_t;
 
 // Static bilinear form type, combining the above types
 typedef TBilinearForm<mesh_t,sol_fes_t,int_rule_t,integ_t> HPCBilinearForm;
+
+// Low order refined types
+
+// Static mesh type
+typedef H1_FiniteElement<geom,mesh_lor_p>              mesh_lor_fe_t;
+typedef H1_FiniteElementSpace<mesh_lor_fe_t>  mesh_lor_fes_t;
+typedef TMesh<mesh_lor_fes_t>                 mesh_lor_t;
+
+// Static solution finite element space type
+typedef H1_FiniteElement<geom,sol_lor_p>                  sol_fe_lor_t;
+typedef H1_FiniteElementSpace<sol_fe_lor_t>       sol_fes_lor_t;
+
+// Static quadrature, coefficient and integrator types
+typedef TIntegrationRule<geom,ir_order_lor>       int_rule_lor_t;
+
+// Static bilinear form type, combining the above types
+typedef TBilinearForm<mesh_lor_t,sol_fes_lor_t,int_rule_lor_t,integ_t> HPCBilinearForm_lor;
+
+double GaussianFunction(const Vector &x);
 
 int main(int argc, char *argv[])
 {
@@ -135,7 +157,7 @@ int main(int argc, char *argv[])
    //    elements.
    {
       int ref_levels =
-         (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
+         (int)floor(log(5000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
@@ -160,6 +182,11 @@ int main(int argc, char *argv[])
       fec = new H1_FECollection(order = 1, dim);
    }
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
+
+   FiniteElementSpace *fespace_lor = NULL;
+   SparseMatrix P;
+   SparseMatrix R;
+   fespace->LowOrderRefinement(1, fespace_lor, P, R);
    cout << "Number of finite element unknowns: "
         << fespace->GetTrueVSize() << endl;
 
@@ -203,6 +230,7 @@ int main(int argc, char *argv[])
    // 10. Set up the bilinear form a(.,.) on the finite element space that will
    //     hold the matrix corresponding to the Laplacian operator -Delta.
    BilinearForm *a = new BilinearForm(fespace);
+   BilinearForm *a_lor = new BilinearForm(fespace_lor);
 
    // 11. Assemble the bilinear form and the corresponding linear system,
    //     applying any necessary transformations such as: eliminating boundary
@@ -218,6 +246,8 @@ int main(int argc, char *argv[])
 
    HPCBilinearForm *a_hpc = NULL;
    ConstrainedOperator *a_oper = NULL;
+   HPCBilinearForm_lor *a_hpc_lor = NULL;
+   ConstrainedOperator *a_oper_lor = NULL;
 
    if (!perf)
    {
@@ -229,14 +259,18 @@ int main(int argc, char *argv[])
    {
       // High-performance assembly/evaluation using the templated operator type
       a_hpc = new HPCBilinearForm(integ_t(coeff_t(1.0)), *fespace);
+      a_hpc_lor = new HPCBilinearForm_lor(integ_t(coeff_t(1.0)), *fespace_lor);
       if (matrix_free)
       {
          a_hpc->Assemble(); // Chooses between ::MultAssembled and ::MultUnassembled
+         a_hpc_lor->Assemble(); // Chooses between ::MultAssembled and ::MultUnassembled
          a_oper = new ConstrainedOperator(a_hpc, ess_tdof_list);
+         a_oper_lor = new ConstrainedOperator(a_hpc_lor, ess_tdof_list);
       }
       else
       {
          a_hpc->AssembleBilinearForm(*a);
+         a_hpc_lor->AssembleBilinearForm(*a_lor);
       }
    }
    tic_toc.Stop();
@@ -246,12 +280,16 @@ int main(int argc, char *argv[])
    //     symmetric Gauss-Seidel preconditioner.
    SparseMatrix A;
    Vector B, X;
+   Vector B_cp, X_cp;
    if (perf && matrix_free)
    {
       // X and B point to the same data as x and b
       X.NewDataAndSize(x.GetData(), x.Size());
       B.NewDataAndSize(b->GetData(), b->Size());
+      X_cp.NewDataAndSize(x.GetData(), x.Size());
+      B_cp.NewDataAndSize(b->GetData(), b->Size());
       a_oper->EliminateRHS(X, B);
+      a_oper_lor->EliminateRHS(X_cp, B_cp);
    }
    else
    {
@@ -263,7 +301,8 @@ int main(int argc, char *argv[])
    {
       // Cannot utilize Gauss-Seidel preconditioner with how matrix-free operator
       // handles essential BCs. See ConstrainedOperator.
-      CG(*a_oper, B, X, 1, 500, 1e-12, 0.0);
+      CG(*a_oper, B, X, 1, 5000, 1e-12, 0.0);
+      CG(*a_oper_lor, B_cp, X_cp, 1, 5000, 1e-12, 0.0);
    }
    else
    {
@@ -308,6 +347,30 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *mesh << x << flush;
    }
 
+   FunctionCoefficient u_fcn(GaussianFunction);
+
+   int ndofs = fespace->GetVSize();
+   int ndofs_lor = fespace_lor->GetVSize();
+
+   Vector u(ndofs);
+   GridFunction u_gf;
+   u_gf.MakeRef(fespace, u, 0);
+
+   u_gf.ProjectCoefficient(u_fcn);
+
+   Vector u_lor(ndofs_lor);
+   GridFunction u_gf_lor;
+   u_gf_lor.MakeRef(fespace_lor, u_lor, 0);
+
+   u_gf_lor.ProjectCoefficient(u_fcn);
+
+   Vector diff;
+   diff.SetSize(u_lor.Size());
+   subtract(u_lor, u, diff);
+
+   std::cout << "Error in approximation of exp(-||x||^2): " << diff.Normlinf() << std::endl;
+   std::cout << "Maximum value of u_lor: " << u_lor.Normlinf() << std::endl;
+
    // 16. Free the used memory.
    delete a;
    delete a_hpc;
@@ -318,4 +381,9 @@ int main(int argc, char *argv[])
    delete mesh;
 
    return 0;
+}
+
+double GaussianFunction(const Vector &x)
+{
+   return exp(-1.0*x.Norml2());
 }

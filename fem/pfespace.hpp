@@ -155,6 +155,9 @@ public:
    ParFiniteElementSpace(ParMesh *pm, const FiniteElementCollection *f,
                          int dim = 1, int ordering = Ordering::byNODES);
 
+   virtual void ParLowOrderRefinement(int order, ParFiniteElementSpace *& fes_lor,
+         HypreParMatrix &P, HypreParMatrix &R);
+
    MPI_Comm GetComm() { return MyComm; }
    int GetNRanks() { return NRanks; }
    int GetMyRank() { return MyRank; }

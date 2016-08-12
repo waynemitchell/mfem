@@ -2130,6 +2130,61 @@ ParFiniteElementSpace::ParallelDerefinementMatrix(int old_ndofs,
    return R;
 }
 
+void ParFiniteElementSpace::ParLowOrderRefinement(int order, ParFiniteElementSpace *& fes_lor,
+      HypreParMatrix &P, HypreParMatrix &R)
+{
+   if (order != 1)
+      mfem_error("FiniteElementSpace::LowOrderRefinement : order != 1");
+
+   // the same finite element basis will be used on the LOR mesh,
+   // but of different order (HACK: use 1st order)
+   const FiniteElementCollection *fec_hoc = FEColl();
+   FiniteElementCollection *fec_lor = new H1_FECollection(1, mesh->Dimension());
+
+   int p = GetOrder(1); // HACK: get order for first element, assume all have same order.
+
+   //HACK: Assume order = 1 : all nodes become vertices of new elements
+   Mesh *mesh_lor = new Mesh(mesh->Dimension(), mesh->GetNE() * pow(p + 1, 2),
+         mesh->GetNE() * pow(p, 2), mesh->GetNBE() * p , mesh->SpaceDimension());
+
+   // Build the low order refined mesh from the original mesh.
+   // TODO: add a test to make sure we are on Quad elements, fe != NULL
+   for (int j = 0; j < GetNDofs(); j++)
+   {
+      double coords[2];
+      mesh->GetNode(j, coords);
+      mesh_lor->AddVertex(coords);
+   }
+   for (int i = 0; i < mesh->GetNE(); i++)
+   {
+      Array<int> vdofs;
+      GetElementVDofs(i, vdofs);
+
+      const H1_QuadrilateralElement *fe =
+         dynamic_cast<const H1_QuadrilateralElement *>(GetFE(i));
+      const Array<int> *dof_map = &fe->GetDofMap();
+      const int *dof_map_ = dof_map->GetData();
+
+      for (int j = 0; j < p; j++)
+      {
+         for (int k = 0; k < p; k++)
+         {
+            int v[4];
+            v[0] = vdofs[dof_map_[  j      * (p + 1) + k]];
+            v[1] = vdofs[dof_map_[  j      * (p + 1) + k + 1]];
+            v[2] = vdofs[dof_map_[ (j + 1) * (p + 1) + k + 1]];
+            v[3] = vdofs[dof_map_[ (j + 1) * (p + 1) + k]];
+            mesh_lor->AddQuad(v, mesh->GetAttribute(i));
+         }
+      }
+   }
+   mesh_lor->FinalizeQuadMesh(1, 1, true);
+   ParMesh *pmesh_lor = new ParMesh(MyComm, *mesh_lor);
+
+   fes_lor = new ParFiniteElementSpace(pmesh_lor, fec_lor, GetVDim(), GetOrdering());
+   fes_lor->GetMesh()->SetCurvature(order, false, -1, GetOrdering());
+}
+
 void ParFiniteElementSpace::Destroy()
 {
    ldof_group.DeleteAll();
