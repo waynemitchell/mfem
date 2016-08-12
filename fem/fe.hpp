@@ -225,14 +225,13 @@ protected:
 #endif
 
 public:
-   NodalFiniteElement(int D, int G, int Do, int O,
-                      int F = FunctionSpace::Pk) :
 #ifdef MFEM_THREAD_SAFE
-      ScalarFiniteElement(D, G, Do, O, F)
+   NodalFiniteElement(int D, int G, int Do, int O, int F = FunctionSpace::Pk) :
+      ScalarFiniteElement(D, G, Do, O, F) { }
 #else
-      ScalarFiniteElement(D, G, Do, O, F), c_shape(Do)
+   NodalFiniteElement(int D, int G, int Do, int O, int F = FunctionSpace::Pk) :
+      ScalarFiniteElement(D, G, Do, O, F), c_shape(Do) { }
 #endif
-   { }
 
    virtual void GetLocalInterpolation (ElementTransformation &Trans,
                                        DenseMatrix &I) const
