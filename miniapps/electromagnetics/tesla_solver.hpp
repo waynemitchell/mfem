@@ -87,18 +87,21 @@ private:
 
    ParBilinearForm * curlMuInvCurl_;
    ParBilinearForm * hCurlMass_;
-   ParBilinearForm * hDivMassMuInv_;
    ParMixedBilinearForm * hDivHCurlMuInv_;
+   ParMixedBilinearForm * weakCurlMuInv_;
 
-   ParDiscreteGradOperator * Grad_;
-   ParDiscreteCurlOperator * Curl_;
+   ParDiscreteGradOperator * grad_;
+   ParDiscreteCurlOperator * curl_;
 
-   ParGridFunction * a_;
-   ParGridFunction * b_;
-   ParGridFunction * h_;
-   ParGridFunction * j_;
-   ParGridFunction * k_;
-   ParGridFunction * m_;
+   ParGridFunction * a_;  // Vector Potential (HCurl)
+   ParGridFunction * b_;  // Magnetic Flux (HDiv)
+   ParGridFunction * h_;  // Magnetic Field (HCurl)
+   ParGridFunction * jr_; // Raw Volumetric Current Density (HCurl)
+   ParGridFunction * j_;  // Volumetric Current Density (HCurl)
+   ParGridFunction * k_;  // Surface Current Density (HCurl)
+   ParGridFunction * m_;  // Magnetization (HDiv)
+   ParGridFunction * bd_; // Dual of B (HCurl)
+   ParGridFunction * jd_; // Dual of J, the rhs vector (HCurl)
 
    DivergenceFreeProjector * DivFreeProj_;
    SurfaceCurrent          * SurfCur_;
@@ -113,6 +116,7 @@ private:
    void   (*m_src_)(const Vector&, Vector&);
 
    Array<int> ess_bdr_;
+   Array<int> ess_bdr_tdofs_;
    Array<int> non_k_bdr_;
 
    std::map<std::string,socketstream*> socks_;
@@ -127,6 +131,8 @@ public:
                   Array<int> & kbcs, Array<int> & vbcs, Vector & vbcv);
    ~SurfaceCurrent();
 
+   void InitSolver() const;
+
    void ComputeSurfaceCurrent(ParGridFunction & k);
 
    void Update();
@@ -138,22 +144,23 @@ private:
 
    ParFiniteElementSpace   * H1FESpace_;
    ParFiniteElementSpace   * HCurlFESpace_;
-   ParDiscreteGradOperator * Grad_;
+   ParDiscreteGradOperator * grad_;
    Array<int>              * kbcs_;
    Array<int>              * vbcs_;
    Vector                  * vbcv_;
 
    ParBilinearForm * s0_;
    ParGridFunction * psi_;
+   ParGridFunction * rhs_;
 
-   HypreBoomerAMG  * amg_;
-   HyprePCG        * pcg_;
    HypreParMatrix  * S0_;
-   HypreParVector  * PSI_;
-   HypreParVector  * RHS_;
-   HypreParVector  * K_;
+   mutable Vector Psi_;
+   mutable Vector RHS_;
 
-   Array<int> ess_bdr_;
+   mutable HypreBoomerAMG  * amg_;
+   mutable HyprePCG        * pcg_;
+
+   Array<int> ess_bdr_, ess_bdr_tdofs_;
    Array<int> non_k_bdr_;
 };
 
