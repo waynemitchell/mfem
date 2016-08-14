@@ -165,8 +165,9 @@ FiniteElementCollection *FiniteElementCollection::New(const char *name)
                                 atoi(name + 7), FiniteElement::INTEGRAL);
    else if (!strncmp(name, "L2Int_", 6))
    {
+      // TODO: read BasisType from name.
       fec = new L2_FECollection(atoi(name + 10), atoi(name + 6),
-                                L2_FECollection::GaussLegendre,
+                                BasisType::GaussLegendre,
                                 FiniteElement::INTEGRAL);
    }
    else if (!strncmp(name, "RT_Trace_", 9))
