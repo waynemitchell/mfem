@@ -19,6 +19,20 @@
 namespace mfem
 {
 
+/// All possible basis types. Not all elements can use all BasisType(s).
+class BasisType
+{
+public:
+   enum
+   {
+      GaussLegendre = 0,
+      GaussLobatto = 1,
+      Positive = 2,      ///< Bernstein polynomials
+      OpenUniform = 3,
+      ClosedUniform = 4
+   };
+};
+
 /** Collection of finite elements from the same family in multiple dimensions.
     This class is used to match the degrees of freedom of a FiniteElementSpace
     between elements, and to provide the finite element restriction from an
@@ -123,20 +137,18 @@ public:
 /// Arbitrary order "L2-conforming" discontinuous finite elements.
 class L2_FECollection : public FiniteElementCollection
 {
-public:
-
-
 private:
    int m_type;
    char d_name[32];
-   FiniteElement *L2_Elements[Geometry::NumGeom];
-   FiniteElement *Tr_Elements[Geometry::NumGeom];
+   ScalarFiniteElement *L2_Elements[Geometry::NumGeom];
+   ScalarFiniteElement *Tr_Elements[Geometry::NumGeom];
    int *SegDofOrd[2]; // for rotating segment dofs in 1D
    int *TriDofOrd[6]; // for rotating triangle dofs in 2D
 
 public:
    L2_FECollection(const int p, const int dim,
-                   const int type = BasisType::GaussLegendre);
+                   const int type = BasisType::GaussLegendre,
+                   const int map_type = FiniteElement::VALUE);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return L2_Elements[GeomType]; }
@@ -169,6 +181,7 @@ typedef L2_FECollection DG_FECollection;
 class RT_FECollection : public FiniteElementCollection
 {
 protected:
+   int cp_type, op_type;
    char rt_name[32];
    FiniteElement *RT_Elements[Geometry::NumGeom];
    int RT_dof[Geometry::NumGeom];
@@ -198,8 +211,6 @@ public:
    FiniteElementCollection *GetTraceCollection() const;
 
    virtual ~RT_FECollection();
-protected:
-   int cp_type, op_type;
 };
 
 /** Arbitrary order "H^{-1/2}-conforming" face finite elements defined on the
@@ -235,7 +246,7 @@ protected:
 public:
    ND_FECollection(const int p, const int dim,
                    const int cp_type = BasisType::GaussLobatto,
-                   const int op_type = BasisType::GaussLegendre );
+                   const int op_type = BasisType::GaussLegendre);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return ND_Elements[GeomType]; }
@@ -254,6 +265,8 @@ public:
 class ND_Trace_FECollection : public ND_FECollection
 {
 public:
+   // TODO: add open and closed basis types to make the trace collection
+   //       compatible with the ND_FECollection class.
    ND_Trace_FECollection(const int p, const int dim);
 };
 

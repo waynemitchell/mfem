@@ -318,6 +318,45 @@ void NodalFiniteElement::ProjectDiv(
    }
 }
 
+void PositiveFiniteElement::PositiveLocalInterpolation (
+   ElementTransformation &Trans, DenseMatrix &I,
+   const PositiveFiniteElement &fine_fe) const
+{
+   // General interpolation, defined based on L2 projection
+
+   double v[3];
+   Vector vv (v, Dim);
+   IntegrationPoint f_ip;
+
+   const int fs = fine_fe.GetDof(), cs = this->GetDof();
+   I.SetSize(fs, cs);
+   Vector fine_shape(fs), coarse_shape(cs);
+   DenseMatrix fine_mass(fs), fine_coarse_mass(fs, cs); // initialized with 0
+   const int ir_order = GetOrder() + fine_fe.GetOrder();
+   const IntegrationRule &ir = IntRules.Get(fine_fe.GetGeomType(), ir_order);
+
+   for (int i = 0; i < ir.GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir.IntPoint(i);
+      fine_fe.CalcShape(ip, fine_shape);
+      Trans.Transform(ip, vv);
+      f_ip.Set(v, Dim);
+      this->CalcShape(f_ip, coarse_shape);
+
+      AddMult_a_VVt(ip.weight, fine_shape, fine_mass);
+      AddMult_a_VWt(ip.weight, fine_shape, coarse_shape, fine_coarse_mass);
+   }
+
+   DenseMatrixInverse fine_mass_inv(fine_mass);
+   fine_mass_inv.Mult(fine_coarse_mass, I);
+
+   if (MapType == INTEGRAL)
+   {
+      // assuming Trans is linear; this should be ok for all refinement types
+      Trans.SetIntPoint(&Geometries.GetCenter(GeomType));
+      I *= Trans.Weight();
+   }
+}
 
 void PositiveFiniteElement::Project(
    Coefficient &coeff, ElementTransformation &Trans, Vector &dofs) const
@@ -6096,6 +6135,7 @@ void Poly_1D::Basis::Eval(const double y, Vector &u, Vector &d) const
 
       lk = 1.0;
       for (k = 0; k < p; k++)
+      {
          if (y >= (x(k) + x(k+1))/2)
          {
             lk *= y - x(k);
@@ -6108,6 +6148,7 @@ void Poly_1D::Basis::Eval(const double y, Vector &u, Vector &d) const
             }
             break;
          }
+      }
       l = lk * (y - x(k));
 
       sk = 0.0;
@@ -6607,7 +6648,7 @@ H1_SegmentElement::H1_SegmentElement(const int p, const int type)
    if ( (type != Quadrature1D::GaussLobatto) &&
         (type != Quadrature1D::ClosedUniform) )
    {
-      MFEM_ABORT("Unknown point type for H1 segment element.  type= " << type);
+      MFEM_ABORT("unknown node type: " << type);
    }
    else
    {
@@ -6706,7 +6747,7 @@ H1_QuadrilateralElement::H1_QuadrilateralElement(const int p, const int type)
    if ( (type != Quadrature1D::GaussLobatto) &&
         (type != Quadrature1D::ClosedUniform) )
    {
-      MFEM_ABORT("Unknown point type for H1 quadrilateral element.  type= " << type);
+      MFEM_ABORT("unknown node type: " << type);
    }
    else
    {
@@ -6861,7 +6902,7 @@ H1_HexahedronElement::H1_HexahedronElement(const int p, const int type)
    if ( (type != Quadrature1D::GaussLobatto) &&
         (type != Quadrature1D::ClosedUniform) )
    {
-      MFEM_ABORT("Unknown point type for H1 hexahdron element.  type= " << type);
+      MFEM_ABORT("unknown node type: " << type);
    }
    else
    {
@@ -8158,12 +8199,12 @@ void H1Pos_TetrahedronElement::CalcDShape(const IntegrationPoint &ip,
 }
 
 
-L2_SegmentElement::L2_SegmentElement(const int p, const int _type)
-   : NodalFiniteElement(1, Geometry::SEGMENT, p + 1, p, FunctionSpace::Pk)
+L2_SegmentElement::L2_SegmentElement(const int p, const int type)
+   : NodalFiniteElement(1, Geometry::SEGMENT, p + 1, p, FunctionSpace::Pk),
+     type(type)
 {
    const double *op;
 
-   type = _type;
    if ( (type==Quadrature1D::GaussLegendre) ||
         (type==Quadrature1D::OpenUniform) )
    {
@@ -8178,8 +8219,7 @@ L2_SegmentElement::L2_SegmentElement(const int p, const int _type)
    }
    else
    {
-      MFEM_ABORT("Attempting to construct an unknown L2_Segment_Element" <<
-                 "Point Type= " << type);
+      MFEM_ABORT( "unknown type of nodes: " << type);
    }
 
 #ifndef MFEM_THREAD_SAFE
@@ -8210,8 +8250,7 @@ void L2_SegmentElement::CalcDShape(const IntegrationPoint &ip,
    basis1d->Eval(ip.x, shape_x, dshape_x);
 }
 
-void L2_SegmentElement::ProjectDelta(int vertex,
-                                     Vector &dofs) const
+void L2_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const
 {
    const int p = Order;
    const double *op;
@@ -8311,8 +8350,7 @@ L2_QuadrilateralElement::L2_QuadrilateralElement(const int p, const int _type)
    }
    else
    {
-      MFEM_ABORT("Attempting to construct an unknown L2_Quadrilateral_Element" <<
-                 "Point Type= " << type);
+      MFEM_ABORT("unknown node type: " << type);
    }
 
 #ifndef MFEM_THREAD_SAFE
@@ -8528,8 +8566,7 @@ L2_HexahedronElement::L2_HexahedronElement(const int p, const int _type)
    }
    else
    {
-      MFEM_ABORT("Attempting to construct an unknown L2_Hexahedront_Element" <<
-                 "Point Type= " << type);
+      MFEM_ABORT("unknown node type: " << type);
    }
 
 #ifndef MFEM_THREAD_SAFE
@@ -8797,9 +8834,7 @@ L2_TriangleElement::L2_TriangleElement(const int p, const int _type)
          op = poly1d.ClosedPoints(p,Quadrature1D::GaussLobatto);
          break;
       default:
-         MFEM_ABORT( "Attempting to construct a L2_Triangle element of type "
-                     << type << std::endl );
-
+         MFEM_ABORT( "unknown type of nodes: " << type);
    }
 
 #ifndef MFEM_THREAD_SAFE
@@ -8988,8 +9023,7 @@ L2_TetrahedronElement::L2_TetrahedronElement(const int p, const int _type)
          op = poly1d.ClosedPoints(p,Quadrature1D::GaussLobatto);
          break;
       default:
-         MFEM_ABORT( "Attempting to construct a L2_TetrahedronElement of type "
-                     << type );
+         MFEM_ABORT( "unknown type of nodes: " << type);
    }
 
 #ifndef MFEM_THREAD_SAFE
@@ -9198,15 +9232,13 @@ RT_QuadrilateralElement::RT_QuadrilateralElement(const int p,
    if ( (cp_type != Quadrature1D::GaussLobatto) &&
         (cp_type != Quadrature1D::ClosedUniform) )
    {
-      MFEM_ABORT("Unknown closed point type for RT_quad element." <<
-                 "cp_type= " << cp_type);
+      MFEM_ABORT("unknown closed point type: " << cp_type);
    }
 
    if ( (op_type != Quadrature1D::GaussLegendre) &&
         (cp_type != Quadrature1D::OpenUniform) )
    {
-      MFEM_ABORT("Unknown open point type for RT_quad element." <<
-                 "op_type= " << op_type);
+      MFEM_ABORT("unknown open point type: " << op_type);
    }
 
    cbasis1d = &poly1d.ClosedBasis(p + 1, cp_type);
@@ -9426,15 +9458,13 @@ RT_HexahedronElement::RT_HexahedronElement(const int p,
    if ( (cp_type != Quadrature1D::GaussLobatto) &&
         (cp_type != Quadrature1D::ClosedUniform) )
    {
-      MFEM_ABORT("Unknown closed point type for RT_hex element." <<
-                 "cp_type= " << cp_type);
+      MFEM_ABORT("unknown closed point type: " << cp_type);
    }
 
    if ( (op_type != Quadrature1D::GaussLegendre) &&
         (cp_type != Quadrature1D::OpenUniform) )
    {
-      MFEM_ABORT("Unknown open point type for RT_hex element." <<
-                 "op_type= " << op_type);
+      MFEM_ABORT("unknown open point type: " << op_type);
    }
 
    cbasis1d = &poly1d.ClosedBasis(p + 1, cp_type);
@@ -10088,8 +10118,7 @@ ND_HexahedronElement::ND_HexahedronElement(const int p,
    if ( (cp_type !=  Quadrature1D::GaussLobatto) &&
         (cp_type != Quadrature1D::ClosedUniform) )
    {
-      MFEM_ABORT("Unknown closed pt type for ND hexahedron element.  cp_type= " <<
-                 cp_type);
+      MFEM_ABORT("unknown closed point type: " << cp_type);
    }
    else
    {
@@ -10100,8 +10129,7 @@ ND_HexahedronElement::ND_HexahedronElement(const int p,
    if ( (op_type != Quadrature1D::GaussLegendre) &&
         (op_type != Quadrature1D::OpenUniform) )
    {
-      MFEM_ABORT("Unknown open basis type for ND hexahedron element.  op_type= " <<
-                 op_type);
+      MFEM_ABORT("unknown open point type: " << op_type);
    }
    else
    {
@@ -10481,8 +10509,7 @@ ND_QuadrilateralElement::ND_QuadrilateralElement(const int p,
    if ( (cp_type != Quadrature1D::GaussLobatto) &&
         (cp_type != Quadrature1D::ClosedUniform) )
    {
-      MFEM_ABORT("Unknown closed pt type for ND quadrilateral element.  cp_type= " <<
-                 cp_type);
+      MFEM_ABORT("unknown closed point type: " << cp_type);
    }
    else
    {
@@ -10492,8 +10519,7 @@ ND_QuadrilateralElement::ND_QuadrilateralElement(const int p,
    if ( (op_type != Quadrature1D::GaussLegendre) &&
         (op_type != Quadrature1D::OpenUniform))
    {
-      MFEM_ABORT("Unknown open pt type for ND quadrilateral element.  op_type= " <<
-                 op_type);
+      MFEM_ABORT("unknown open point type: " << op_type);
    }
    else
    {
@@ -11112,8 +11138,7 @@ ND_SegmentElement::ND_SegmentElement(const int p,
    if ((op_type != Quadrature1D::GaussLegendre) &&
        (op_type != Quadrature1D::OpenUniform) )
    {
-      MFEM_ABORT("Unknown open basis type for ND segment element.  op_type= " <<
-                 op_type);
+      MFEM_ABORT("unknown open point type: " << op_type);
    }
    else
    {

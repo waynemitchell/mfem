@@ -37,20 +37,6 @@ public:
    };
 };
 
-/// All possible basis types. Not all elements can use all BasisType(s).
-class BasisType
-{
-public:
-   enum
-   {
-      GaussLegendre = 0,
-      GaussLobatto = 1,
-      Positive = 2,      ///< Bernstein polynomials
-      OpenUniform = 3,
-      ClosedUniform = 4
-   };
-};
-
 class ElementTransformation;
 class Coefficient;
 class VectorCoefficient;
@@ -215,7 +201,20 @@ public:
    virtual ~FiniteElement () { }
 };
 
-class NodalFiniteElement : public FiniteElement
+class ScalarFiniteElement : public FiniteElement
+{
+public:
+   ScalarFiniteElement(int D, int G, int Do, int O, int F = FunctionSpace::Pk)
+      : FiniteElement(D, G, Do, O, F) { }
+
+   void SetMapType(int M)
+   {
+      MFEM_VERIFY(M == VALUE || M == INTEGRAL, "unknown MapType");
+      MapType = M;
+   }
+};
+
+class NodalFiniteElement : public ScalarFiniteElement
 {
 protected:
    void NodalLocalInterpolation (ElementTransformation &Trans,
@@ -231,20 +230,13 @@ protected:
 #endif
 
 public:
-   NodalFiniteElement(int D, int G, int Do, int O,
-                      int F = FunctionSpace::Pk) :
 #ifdef MFEM_THREAD_SAFE
-      FiniteElement(D, G, Do, O, F)
+   NodalFiniteElement(int D, int G, int Do, int O, int F = FunctionSpace::Pk) :
+      ScalarFiniteElement(D, G, Do, O, F) { }
 #else
-      FiniteElement(D, G, Do, O, F), c_shape(Do)
+   NodalFiniteElement(int D, int G, int Do, int O, int F = FunctionSpace::Pk) :
+      ScalarFiniteElement(D, G, Do, O, F), c_shape(Do) { }
 #endif
-   { }
-
-   void SetMapType(int M)
-   {
-      MFEM_VERIFY(M == VALUE || M == INTEGRAL, "unknown MapType");
-      MapType = M;
-   }
 
    virtual void GetLocalInterpolation (ElementTransformation &Trans,
                                        DenseMatrix &I) const
@@ -269,14 +261,30 @@ public:
 };
 
 
-class PositiveFiniteElement : public FiniteElement
+class PositiveFiniteElement : public ScalarFiniteElement
 {
+protected:
+   void PositiveLocalInterpolation(ElementTransformation &Trans,
+                                   DenseMatrix &I,
+                                   const PositiveFiniteElement &fine_fe) const;
+
 public:
-   PositiveFiniteElement(int D, int G, int Do, int O, int F = FunctionSpace::Pk)
-      : FiniteElement(D, G, Do, O, F) { }
+   PositiveFiniteElement(int D, int G, int Do, int O,
+                         int F = FunctionSpace::Pk) :
+      ScalarFiniteElement(D, G, Do, O, F)
+   { }
+
+   virtual void GetLocalInterpolation(ElementTransformation &Trans,
+                                      DenseMatrix &I) const
+   { PositiveLocalInterpolation(Trans, I, *this); }
+
    using FiniteElement::Project;
+
+   // Low-order monotone "projection" (actually it is not a projection): the
+   // dofs are set to be the Coefficient values at the nodes.
    virtual void Project(Coefficient &coeff,
                         ElementTransformation &Trans, Vector &dofs) const;
+
    virtual void Project(const FiniteElement &fe, ElementTransformation &Trans,
                         DenseMatrix &I) const;
 };
@@ -1545,7 +1553,7 @@ private:
 #endif
 
 public:
-   L2_SegmentElement(const int p, const int _type = Quadrature1D::GaussLegendre);
+   L2_SegmentElement(const int p, const int type = Quadrature1D::GaussLegendre);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
@@ -1654,7 +1662,8 @@ private:
    DenseMatrixInverse Ti;
 
 public:
-   L2_TriangleElement(const int p, const int _type = 0);
+   L2_TriangleElement(const int p,
+                      const int _type = Quadrature1D::GaussLegendre);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
@@ -1694,7 +1703,8 @@ private:
    DenseMatrixInverse Ti;
 
 public:
-   L2_TetrahedronElement(const int p, const int _type = 0);
+   L2_TetrahedronElement(const int p,
+                         const int _type = Quadrature1D::GaussLegendre);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
@@ -1750,10 +1760,16 @@ public:
    virtual void Project(const FiniteElement &fe, ElementTransformation &Trans,
                         DenseMatrix &I) const
    { Project_RT(nk, dof2nk, fe, Trans, I); }
+   // Gradient + rotation = Curl: H1 -> H(div)
    virtual void ProjectGrad(const FiniteElement &fe,
                             ElementTransformation &Trans,
                             DenseMatrix &grad) const
    { ProjectGrad_RT(nk, dof2nk, fe, Trans, grad); }
+   // Curl = Gradient + rotation: H1 -> H(div)
+   virtual void ProjectCurl(const FiniteElement &fe,
+                            ElementTransformation &Trans,
+                            DenseMatrix &curl) const
+   { ProjectGrad_RT(nk, dof2nk, fe, Trans, curl); }
 };
 
 
@@ -1828,10 +1844,16 @@ public:
    virtual void Project(const FiniteElement &fe, ElementTransformation &Trans,
                         DenseMatrix &I) const
    { Project_RT(nk, dof2nk, fe, Trans, I); }
+   // Gradient + rotation = Curl: H1 -> H(div)
    virtual void ProjectGrad(const FiniteElement &fe,
                             ElementTransformation &Trans,
                             DenseMatrix &grad) const
    { ProjectGrad_RT(nk, dof2nk, fe, Trans, grad); }
+   // Curl = Gradient + rotation: H1 -> H(div)
+   virtual void ProjectCurl(const FiniteElement &fe,
+                            ElementTransformation &Trans,
+                            DenseMatrix &curl) const
+   { ProjectGrad_RT(nk, dof2nk, fe, Trans, curl); }
 };
 
 
