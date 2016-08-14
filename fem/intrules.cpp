@@ -18,6 +18,10 @@
 #include "fem.hpp"
 #include <cmath>
 
+#ifdef MFEM_USE_MPFR
+#include <mpfr.h>
+#endif
+
 using namespace std;
 
 namespace mfem
@@ -145,24 +149,238 @@ void IntegrationRule::GrundmannMollerSimplexRule(int s, int n)
    }
 }
 
-QuadratureFunctions1D::QuadratureFunctions1D() {}
-QuadratureFunctions1D::~QuadratureFunctions1D() {}
+
+#ifdef MFEM_USE_MPFR
+
+// Class for computing hi-precision (HP) quadrature in 1D
+class HP_Quadrature1D
+{
+protected:
+   mpfr_t pi, z, pp, p1, p2, p3, dz, w, rtol;
+
+public:
+   static const int default_prec = 128;
+
+   // prec = MPFR precision in bits
+   HP_Quadrature1D(const int prec = default_prec)
+   {
+      mpfr_inits2(prec, pi, z, pp, p1, p2, p3, dz, w, rtol, (mpfr_ptr) 0);
+      mpfr_const_pi(pi, MPFR_RNDN);
+      mpfr_set_si_2exp(rtol, 1, -32, MPFR_RNDN); // 2^(-32) < 2.33e-10
+   }
+
+   // set rtol = 2^exponent
+   // this is a tolerance for the last correction of x_i in Newton's algorithm;
+   // this gives roughly rtol^2 accuracy for the final x_i.
+   void SetRelTol(const int exponent = -32)
+   {
+      mpfr_set_si_2exp(rtol, 1, exponent, MPFR_RNDN);
+   }
+
+   // n - number of quadrature points
+   // k - index of the point to compute, 0 <= k < n
+   // see also: QuadratureFunctions1D::GaussLegendre
+   void ComputeGaussLegendrePoint(const int n, const int k)
+   {
+      MFEM_ASSERT(n > 0 && 0 <= k && k < n, "invalid n = " << n
+                  << " and/or k = " << k);
+
+      int i = (k < (n+1)/2) ? k+1 : n-k;
+
+      // Initial guess for the x-coordinate:
+      // set z = cos(pi * (i - 0.25) / (n + 0.5)) =
+      //       = sin(pi * ((n+1-2*i) / (2*n+1)))
+      mpfr_set_si(z, n+1-2*i, MPFR_RNDN);
+      mpfr_div_si(z, z, 2*n+1, MPFR_RNDN);
+      mpfr_mul(z, z, pi, MPFR_RNDN);
+      mpfr_sin(z, z, MPFR_RNDN);
+
+      bool done = false;
+      while (1)
+      {
+         mpfr_set_si(p2, 1, MPFR_RNDN);
+         mpfr_set(p1, z, MPFR_RNDN);
+         for (int j = 2; j <= n; j++)
+         {
+            mpfr_set(p3, p2, MPFR_RNDN);
+            mpfr_set(p2, p1, MPFR_RNDN);
+            // p1 = ((2 * j - 1) * z * p2 - (j - 1) * p3) / j;
+            mpfr_mul_si(p1, z, 2*j-1, MPFR_RNDN);
+            mpfr_mul_si(p3, p3, j-1, MPFR_RNDN);
+            mpfr_fms(p1, p1, p2, p3, MPFR_RNDN);
+            mpfr_div_si(p1, p1, j, MPFR_RNDN);
+         }
+         // p1 is Legendre polynomial
+
+         // derivative of the Legenre polynomial:
+         // pp = n * (z*p1-p2) / (z*z - 1);
+         mpfr_fms(pp, z, p1, p2, MPFR_RNDN);
+         mpfr_mul_si(pp, pp, n, MPFR_RNDN);
+         mpfr_sqr(p2, z, MPFR_RNDN);
+         mpfr_sub_si(p2, p2, 1, MPFR_RNDN);
+         mpfr_div(pp, pp, p2, MPFR_RNDN);
+
+         if (done) { break; }
+
+         // set delta_z: dz = p1/pp;
+         mpfr_div(dz, p1, pp, MPFR_RNDN);
+         // compute absolute tolerance: atol = rtol*(1-z)
+         mpfr_t &atol = w;
+         mpfr_si_sub(atol, 1, z, MPFR_RNDN);
+         mpfr_mul(atol, atol, rtol, MPFR_RNDN);
+         if (mpfr_cmpabs(dz, atol) <= 0)
+         {
+            done = true;
+            // continue the computation: get pp at the new point, then exit
+         }
+         // update z = z - dz
+         mpfr_sub(z, z, dz, MPFR_RNDN);
+      }
+
+      // map z to (0,1): z = (1 - z)/2
+      mpfr_si_sub(z, 1, z, MPFR_RNDN);
+      mpfr_div_2si(z, z, 1, MPFR_RNDN);
+
+      // weight: w = 1/(4*z*(1 - z)*pp*pp)
+      mpfr_sqr(w, pp, MPFR_RNDN);
+      mpfr_mul_2si(w, w, 2, MPFR_RNDN);
+      mpfr_mul(w, w, z, MPFR_RNDN);
+      mpfr_si_sub(p1, 1, z, MPFR_RNDN); // p1 = 1-z
+      mpfr_mul(w, w, p1, MPFR_RNDN);
+      mpfr_si_div(w, 1, w, MPFR_RNDN);
+
+      if (k >= (n+1)/2) { mpfr_swap(z, p1); }
+   }
+
+   // n - number of quadrature points
+   // k - index of the point to compute, 0 <= k < n
+   // see also: QuadratureFunctions1D::GaussLobatto
+   void ComputeGaussLobattoPoint(const int n, const int k)
+   {
+      MFEM_ASSERT(n > 1 && 0 <= k && k < n, "invalid n = " << n
+                  << " and/or k = " << k);
+
+      int i = (k < (n+1)/2) ? k : n-1-k;
+
+      if (i == 0)
+      {
+         mpfr_set_si(z, 0, MPFR_RNDN);
+         mpfr_set_si(p1, 1, MPFR_RNDN);
+         mpfr_set_si(w, n*(n-1), MPFR_RNDN);
+         mpfr_si_div(w, 1, w, MPFR_RNDN); // weight = 1/(n*(n-1))
+         return;
+      }
+      // initial guess is the corresponding Chebyshev point, z:
+      //    z = -cos(pi * i/(n-1)) = sin(pi * (2*i-n+1)/(2*n-2))
+      mpfr_set_si(z, 2*i-n+1, MPFR_RNDN);
+      mpfr_div_si(z, z, 2*(n-1), MPFR_RNDN);
+      mpfr_mul(z, pi, z, MPFR_RNDN);
+      mpfr_sin(z, z, MPFR_RNDN);
+      bool done = false;
+      for (int iter = 0 ; true ; ++iter)
+      {
+         // build Legendre polynomials, up to P_{n}(z)
+         mpfr_set_si(p1, 1, MPFR_RNDN);
+         mpfr_set(p2, z, MPFR_RNDN);
+
+         for (int l = 1 ; l < (n-1) ; ++l)
+         {
+            // P_{l+1}(x) = [ (2*l+1)*x*P_l(x) - l*P_{l-1}(x) ]/(l+1)
+            mpfr_mul_si(p1, p1, l, MPFR_RNDN);
+            mpfr_mul_si(p3, z, 2*l+1, MPFR_RNDN);
+            mpfr_fms(p3, p3, p2, p1, MPFR_RNDN);
+            mpfr_div_si(p3, p3, l+1, MPFR_RNDN);
+
+            mpfr_set(p1, p2, MPFR_RNDN);
+            mpfr_set(p2, p3, MPFR_RNDN);
+         }
+         if (done) { break; }
+         // compute dz = resid/deriv = (z*p2 - p1) / (n*p2);
+         mpfr_fms(dz, z, p2, p1, MPFR_RNDN);
+         mpfr_mul_si(p3, p2, n, MPFR_RNDN);
+         mpfr_div(dz, dz, p3, MPFR_RNDN);
+         // update: z = z - dz
+         mpfr_sub(z, z, dz, MPFR_RNDN);
+         // compute absolute tolerance: atol = rtol*(1 + z)
+         mpfr_t &atol = w;
+         mpfr_add_si(atol, z, 1, MPFR_RNDN);
+         mpfr_mul(atol, atol, rtol, MPFR_RNDN);
+         // check for convergence
+         if (mpfr_cmpabs(dz, atol) <= 0)
+         {
+            done = true;
+            // continue the computation: get p2 at the new point, then exit
+         }
+         // If the iteration does not converge fast, something is wrong.
+         MFEM_VERIFY(iter < 8, "n = " << n << ", i = " << i
+                     << ", dz = " << mpfr_get_d(dz, MPFR_RNDN));
+      }
+      // Map to the interval [0,1] and scale the weights
+      mpfr_add_si(z, z, 1, MPFR_RNDN);
+      mpfr_div_2si(z, z, 1, MPFR_RNDN);
+      // set the symmetric point
+      mpfr_si_sub(p1, 1, z, MPFR_RNDN);
+      // w = 1/[ n*(n-1)*[P_{n-1}(z)]^2 ]
+      mpfr_sqr(w, p2, MPFR_RNDN);
+      mpfr_mul_si(w, w, n*(n-1), MPFR_RNDN);
+      mpfr_si_div(w, 1, w, MPFR_RNDN);
+
+      if (k >= (n+1)/2) { mpfr_swap(z, p1); }
+   }
+
+   double GetPoint() const { return mpfr_get_d(z, MPFR_RNDN); }
+   double GetSymmPoint() const { return mpfr_get_d(p1, MPFR_RNDN); }
+   double GetWeight() const { return mpfr_get_d(w, MPFR_RNDN); }
+
+   const mpfr_t &GetHPPoint() const { return z; }
+   const mpfr_t &GetHPSymmPoint() const { return p1; }
+   const mpfr_t &GetHPWeight() const { return w; }
+
+   ~HP_Quadrature1D()
+   {
+      mpfr_clears(pi, z, pp, p1, p2, p3, dz, w, rtol, (mpfr_ptr) 0);
+      mpfr_free_cache();
+   }
+};
+
+#endif // MFEM_USE_MPFR
+
 
 void QuadratureFunctions1D::GaussLegendre(const int np, IntegrationRule* ir)
 {
    ir->SetSize(np);
 
-   int n = np;
-   int m = (n+1)/2;
+   switch (np)
+   {
+      case 1:
+         ir->IntPoint(0).Set1w(0.5, 1.0);
+         return;
+      case 2:
+         ir->IntPoint(0).Set1w(0.21132486540518711775, 0.5);
+         ir->IntPoint(1).Set1w(0.78867513459481288225, 0.5);
+         return;
+      case 3:
+         ir->IntPoint(0).Set1w(0.11270166537925831148, 5./18.);
+         ir->IntPoint(1).Set1w(0.5, 4./9.);
+         ir->IntPoint(2).Set1w(0.88729833462074168852, 5./18.);
+         return;
+   }
+
+   const int n = np;
+   const int m = (n+1)/2;
+
+#ifndef MFEM_USE_MPFR
+
    for (int i = 1; i <= m; i++)
    {
       double z = cos(M_PI * (i - 0.25) / (n + 0.5));
-      double pp, p1;
+      double pp, p1, dz, xi;
+      bool done = false;
       while (1)
       {
-         p1 = 1;
-         double p2 = 0;
-         for (int j = 1; j <= n; j++)
+         double p2 = 1;
+         p1 = z;
+         for (int j = 2; j <= n; j++)
          {
             double p3 = p2;
             p2 = p1;
@@ -171,19 +389,40 @@ void QuadratureFunctions1D::GaussLegendre(const int np, IntegrationRule* ir)
          // p1 is Legendre polynomial
 
          pp = n * (z*p1-p2) / (z*z - 1);
+         if (done) { break; }
 
-         if (fabs(p1/pp) < 2e-16) { break; }
-
-         z = z - p1/pp;
+         dz = p1/pp;
+         if (fabs(dz) < 1e-16)
+         {
+            done = true;
+            // map the new point (z-dz) to (0,1):
+            xi = ((1 - z) + dz)/2; // (1 - (z - dz))/2 has bad round-off
+            // continue the computation: get pp at the new point, then exit
+         }
+         // update: z = z - dz
+         z -= dz;
       }
 
-      z = ((1 - z) + p1/pp)/2;
-
-      ir->IntPoint(i-1).x  = z;
-      ir->IntPoint(n-i).x  = 1 - z;
+      ir->IntPoint(i-1).x = xi;
+      ir->IntPoint(n-i).x = 1 - xi;
       ir->IntPoint(i-1).weight =
-         ir->IntPoint(n-i).weight = 1./(4*z*(1 - z)*pp*pp);
+         ir->IntPoint(n-i).weight = 1./(4*xi*(1 - xi)*pp*pp);
    }
+
+#else // MFEM_USE_MPFR is defined
+
+   HP_Quadrature1D hp_quad;
+   for (int i = 1; i <= m; i++)
+   {
+      hp_quad.ComputeGaussLegendrePoint(n, i-1);
+
+      ir->IntPoint(i-1).x = hp_quad.GetPoint();
+      ir->IntPoint(n-i).x = hp_quad.GetSymmPoint();
+      ir->IntPoint(i-1).weight = ir->IntPoint(n-i).weight = hp_quad.GetWeight();
+   }
+
+#endif // MFEM_USE_MPFR
+
 }
 
 void QuadratureFunctions1D::GaussLobatto(const int np, IntegrationRule* ir)
@@ -210,85 +449,102 @@ void QuadratureFunctions1D::GaussLobatto(const int np, IntegrationRule* ir)
       [2] the QUADRULE software by John Burkardt,
           https://people.sc.fsu.edu/~jburkardt/cpp_src/quadrule/quadrule.cpp
    */
+
    ir->SetSize(np);
-   if ( np ==1 )
+   if ( np == 1 )
    {
-      ir->IntPoint(0).x = 0.;
-      ir->IntPoint(0).weight = 2.;
+      ir->IntPoint(0).x = 0.5;
+      ir->IntPoint(0).weight = 1.0;
    }
    else
    {
+
+#ifndef MFEM_USE_MPFR
+
       // endpoints and respective weights
-      ir->IntPoint(0).x = -1.;
-      ir->IntPoint(np-1).x = 1.;
-      ir->IntPoint(0).weight = ir->IntPoint(np-1).weight = 2./ (double)(np*(np-1));
+      ir->IntPoint(0).x = 0.0;
+      ir->IntPoint(np-1).x = 1.0;
+      ir->IntPoint(0).weight = ir->IntPoint(np-1).weight = 1.0/(np*(np-1));
 
       // interior points and weights
-      for (int i = 1 ; i < (np-1) ; ++i)
+      // use symmetry and compute just half of the points
+      for (int i = 1 ; i <= (np-1)/2 ; ++i)
       {
-         // initial guess is the corresponding Chebyshev point
-         double x_i = cos(M_PI * (double)(np -1 -i) / (double)(np -1) );
-         double p_l = 0.;
+         // initial guess is the corresponding Chebyshev point, x_i:
+         //    x_i = -cos(\pi * (i / (np-1)))
+         double x_i = std::sin(M_PI * ((double)(i)/(np-1) - 0.5));
+         double z_i, p_l;
+         bool done = false;
          for (int iter = 0 ; true ; ++iter)
          {
             // build Legendre polynomials, up to P_{np}(x_i)
-            double p_lm1 = 1.;
+            double p_lm1 = 1.0;
             p_l = x_i;
-            double p_lp1 = 0.;
-
-            // derivatives of Legendre polynomials, up to D_{np}(x_i)
-            double d_lm1 = 0.;
-            double d_l = 1.;
-            double d_lp1 = 0.;
 
             for (int l = 1 ; l < (np-1) ; ++l)
             {
-               double ell = (double) l;
-               // The Legendre polynomials can be built be recursion:
-               // x * P_l(x) = 1/(2*l+1)*[ (l+1)*P_{l+1}(x) + l*P_{l-1} ]
-               p_lp1 = ( (2.*ell + 1.)*x_i*p_l - ell*p_lm1)/(ell + 1.);
+               // The Legendre polynomials can be built by recursion:
+               // x * P_l(x) = 1/(2*l+1)*[ (l+1)*P_{l+1}(x) + l*P_{l-1} ], i.e.
+               // P_{l+1}(x) = [ (2*l+1)*x*P_l(x) - l*P_{l-1} ]/(l+1)
+               double p_lp1 = ( (2*l + 1)*x_i*p_l - l*p_lm1)/(l + 1);
 
-               // Taking the derivative of the Legendre recursion
-               // (we will want lower order derivatives to evaluate the Jacobian)
-               d_lp1 = ( (2.*ell + 1.)*(p_l + x_i*d_l) - ell*d_lm1)/(ell + 1.);
-
-               d_lm1 = d_l;
-               d_l = d_lp1;
                p_lm1 = p_l;
                p_l = p_lp1;
             }
+            if (done) { break; }
             // after this loop, p_l holds P_{np-1}(x_i)
-            // resid = (x^2-1)*P'_l(x_i)
+            // resid = (x^2-1)*P'_{np-1}(x_i)
             // but use the recurrence relationship
             // (x^2 -1)P'_l(x) = l*[ x*P_l(x) - P_{l-1}(x) ]
-            double resid = (double) (np-1) * (x_i*p_l - p_lm1);
+            // thus, resid = (np-1) * (x_i*p_l - p_lm1)
 
             // The derivative of the residual is:
-            // \frac{d}{d x} \left[ l*[ x*P_l(x) - P_{l-1}(x) ] \right] =
-            // l*( P_l(x) + x*P_l'(x) - P_{l-1}'(x) )
-            double deriv = (double) (np-1) * (p_l + x_i*d_l - d_lm1);
+            // \frac{d}{d x} \left[ (x^2 -1)P'_l(x) ] \right] =
+            // l * (l+1) * P_l(x), with l = np-1,
+            // therefore, deriv = np * (np-1) * p_l;
 
-            double x_new = x_i - resid/deriv;
-            if (std::fabs(x_new - x_i) < 2.0E-16)
+            // compute dx = resid/deriv
+            double dx = (x_i*p_l - p_lm1) / (np*p_l);
+            if (std::abs(dx) < 1e-16)
             {
-               break;
+               done = true;
+               // Map the point to the interval [0,1]
+               z_i = ((1.0 + x_i) - dx)/2;
+               // continue the computation: get p_l at the new point, then exit
             }
-            else
-            {
-               x_i = x_new;
-            }
+            // If the iteration does not converge fast, something is wrong.
+            MFEM_VERIFY(iter < 8, "np = " << np << ", i = " << i
+                        << ", dx = " << dx);
+            // update x_i:
+            x_i -= dx;
          }
-         ir->IntPoint(i).x = x_i;
-         // w_i = 2/[ n*(n-1)*[P_{n-1}(x_i)]^2 ]
-         ir->IntPoint(i).weight = 2./( double(np*(np-1)) * p_l * p_l);
-      }
-   }
+         // Map to the interval [0,1] and scale the weights
+         IntegrationPoint &ip = ir->IntPoint(i);
+         ip.x = z_i;
+         // w_i = (2/[ n*(n-1)*[P_{n-1}(x_i)]^2 ]) / 2
+         ip.weight = (double)(1.0 / (np*(np-1)*p_l*p_l));
 
-   // Map to the interval [0,1] and scale the weights
-   for (int i = 0 ; i < np ; ++i)
-   {
-      ir->IntPoint(i).x = (1. + ir->IntPoint(i).x)/2. ;
-      ir->IntPoint(i).weight /= 2.;
+         // set the symmetric point
+         IntegrationPoint &symm_ip = ir->IntPoint(np-1-i);
+         symm_ip.x = 1.0 - z_i;
+         symm_ip.weight = ip.weight;
+      }
+
+#else // MFEM_USE_MPFR is defined
+
+      HP_Quadrature1D hp_quad;
+      // use symmetry and compute just half of the points
+      for (int i = 0 ; i <= (np-1)/2 ; ++i)
+      {
+         hp_quad.ComputeGaussLobattoPoint(np, i);
+         ir->IntPoint(i).x = hp_quad.GetPoint();
+         ir->IntPoint(np-1-i).x = hp_quad.GetSymmPoint();
+         ir->IntPoint(i).weight =
+            ir->IntPoint(np-1-i).weight = hp_quad.GetWeight();
+      }
+
+#endif // MFEM_USE_MPFR
+
    }
 }
 
@@ -303,45 +559,24 @@ void QuadratureFunctions1D::OpenUniform(const int np, IntegrationRule* ir)
       ir->IntPoint(i).x = double(i+1) / double(np + 1);
    }
 
-   if (np == 1)
-   {
-      ir->IntPoint(0).weight = 1.;
-      return;
-   }
-
-   if (np < 11)
-   {
-      NewtonPolynomialNewtonCotesWeights(ir,true);
-   }
-   else
-   {
-      CalculateLagrangeWeights(ir);
-   }
+   CalculateUniformWeights(ir, BasisType::OpenUniform);
 }
 
 void QuadratureFunctions1D::ClosedUniform(const int np,
                                           IntegrationRule* ir)
 {
    ir->SetSize(np);
-   MFEM_ASSERT(np != 1, "");
+   MFEM_ASSERT(np > 1, "");
 
-   double dx = 1./(double (np-1) );
    for (int i = 0; i < np ; ++i)
    {
-      ir->IntPoint(i).x = double(i) * dx;
+      ir->IntPoint(i).x = double(i) / (np-1);
    }
 
-   if (np < 14)
-   {
-      NewtonPolynomialNewtonCotesWeights(ir,false);
-   }
-   else
-   {
-      CalculateLagrangeWeights(ir);
-   }
+   CalculateUniformWeights(ir, BasisType::ClosedUniform);
 }
 
-void QuadratureFunctions1D::GivePolyPoints(const int np, double *pts ,
+void QuadratureFunctions1D::GivePolyPoints(const int np, double *pts,
                                            const int type)
 {
    IntegrationRule ir(np);
@@ -370,8 +605,8 @@ void QuadratureFunctions1D::GivePolyPoints(const int np, double *pts ,
       }
       default:
       {
-         MFEM_ABORT("Asking for an unknown type of 1D Quadrature points" <<
-                    "Requesting type=" << type);
+         MFEM_ABORT("Asking for an unknown type of 1D Quadrature points, "
+                    "type = " << type);
       }
    }
 
@@ -381,365 +616,156 @@ void QuadratureFunctions1D::GivePolyPoints(const int np, double *pts ,
    }
 }
 
-void QuadratureFunctions1D::CalculateLagrangeWeights(IntegrationRule *ir)
+void QuadratureFunctions1D::CalculateUniformWeights(IntegrationRule *ir,
+                                                    const int type)
 {
    /* The Lagrange polynomials are:
            p_i = \prod_{j \neq i} {\frac{x - x_j }{x_i - x_j}}
 
       The weight associated with each abscissa is the integral of p_i over
-      [0,1]. To calculate the integral of p_i, we first expand p_i.
-
-      This algorithm suffers from round-off errors that increases with larger n.
-      Compiler options for optimization exacerbate these errors
+      [0,1]. To calculate the integral of p_i, we use a Gauss-Legendre
+      quadrature rule. This approach does not suffer from bad round-off/
+      cancellation errors for large number of points.
    */
    const int n = ir->Size();
-
-   // Coding by Maginot
-   // array to actually store the coefficients as we expand the numerator
-   double *coeff_store1;
-   double *coeff_store2;
-
-   double *start_ptr;
-   double *dest_ptr;
-   double *temp_ptr;
-
-   coeff_store1 = new double[n];
-   coeff_store2 = new double[n];
-
-   // loop over all quadrature absicca
-   for (int i = 0 ; i < n ; ++i)
+   switch (n)
    {
-      // clear out the working arrays
-      for (int e = 0 ; e < n ; ++e)
-      {
-         coeff_store1[e] = 0.;
-         coeff_store2[e] = 0.;
-      }
-
-      start_ptr = coeff_store1;
-      dest_ptr = coeff_store2;
-      start_ptr[0] = 1.;
-
-      // polynomial order we will expand to after adding the next (x - x_j) term
-      int l = 1;
-
-      double denom = 1.;
-      double x_i = ir->IntPoint(i).x;
-      for (int j=0; j < n ; ++j)
-      {
-         if (j==i)
-         {
-            continue;
-         }
-
-         // x * previously expanded terms
-         for (int p = 0; p < l ; ++p)
-         {
-            dest_ptr[p+1] = start_ptr[p];
-         }
-
-         // -x_j * previously expanded terms
-         double x_j = ir->IntPoint(j).x;
-         for (int p = 0; p < l ; ++p)
-         {
-            dest_ptr[p] -= start_ptr[p]*x_j;
-         }
-
-         // track the denominator as well
-         denom *= x_i - x_j;
-
-         // swap where we are writing to and reading from
-         temp_ptr = start_ptr;
-         start_ptr = dest_ptr;
-         dest_ptr = temp_ptr;
-
-         // record that we now have a higher polynomial degree expansion
-         ++l;
-
-         // clean out the destination array
-         for (int p = 0 ; p < n ; ++p)
-         {
-            dest_ptr[p] = 0.;
-         }
-      }
-
-      // start_ptr now has the fully expanded numerator, integrate over[0,1] to
-      // get weight
-      double w = 0.;
-      for (int p = 0 ; p < n ; ++p)
-      {
-         w += start_ptr[p]/( double(p+1) );
-      }
-
-      ir->IntPoint(i).weight = w/denom;
-   }
-   delete[] coeff_store1;
-   delete[] coeff_store2;
-}
-
-void QuadratureFunctions1D::NewtonPolynomialNewtonCotesWeights(
-   IntegrationRule *ir ,
-   const bool is_open)
-{
-   /* Calculate the Newton-Cotes rational number weights
-
-      Use Newton-polynomials, and special relations applicable only to equally
-      spaced quadrature points.  Work with integer math as long as possible.
-
-      For info on divided differences and Newton polynomials, see:
-      [1] https://en.wikipedia.org/wiki/Newton_polynomial
-      [2] https://en.wikipedia.org/wiki/Divided_differences
-
-      This algorithm suffers from overflow errors for intermediate (>13) points.
-   */
-
-   /*  Let the Lagrange polynomial of degree n, which interpolates at point i be
-       P_i^n(x).  Newton polynomials, represent P_i^n(x) as:
-
-       P_i^n(x) = \sum_{j=0}^n{ d_j * L_j }
-
-       d_j is the corresponding element of the divided difference table
-       L_j is the polynomial expansion of interpolation points:
-
-       L_j = \prod_{k=0}^{j-1} { (x - x_k) }
-
-       where x_k are the Lagrange interpolation (Newton-Cotes quadrature) points
-
-       With equally spaced interpolation points in the interval [0,1], x_k can
-       be represented as:
-
-       x_k = 0 + m h
-
-       Where for Open Newton-Cotes, quadrature: h = 1/(np + 1) and m=k+1,
-       and closed Newton-Cotes quadrature: h = 1/(np - 1) and m=k.
-    */
-
-   // Expand the L polynomial (does not change with interpolation point)
-
-   /* We can visualize the expansion of the L polynomials as follows [for a 3 point example]
-
-      For Open Netwon Cotes,
-      L(x) = (x-x_1) * (x - x_2) * (x - x_3) ...
-      L(x) = (x - h) * (x - 2h ) * (x - 3h ) ...
-      L(x) = (x + c_1 h) * (x + c_2 h) * (x + c_3 h) ...
-
-      The first term is:
-      *        x^0 | x^1    | x^2
-      h^0 | ----   |   1    |
-      h^1 |   -1   |
-      h^2 |
-
-      The second term is:
-      *        x^0 | x^1        | x^2
-      h^0 | ----   |  ---       |  1
-      h^1 | ---    |-1 + 1*(-2)
-      h^2 | -1*(-2)
-
-      Simplifying, the second term is:
-      *      x^0   | x^1    | x^2
-      h^0 | ----   |  ---   |  1
-      h^1 | ---    | -3
-      h^2 |   2
-
-      The third term is:
-      *      x^0   | x^1         | x^2          | x^3
-      h^0 |  ---   |  ---        |   ---        | 1
-      h^1 |  ---   |  ---        | 1*(-3) -3
-      h^2 |   ---  |(-3)*(-3)+ 2
-      h^3 |  2*(-3)
-   */
-   const int np = ir->Size();
-
-   // lPoly will store the succession of L polynomials
-   int** lPoly = new int*[np];
-   for (int j = 0 ; j<np ; ++j)
-   {
-      lPoly[j] = new int[np];
+      case 1:
+         ir->IntPoint(0).weight = 1.;
+         return;
+      case 2:
+         ir->IntPoint(0).weight = .5;
+         ir->IntPoint(1).weight = .5;
+         return;
    }
 
-   // zero out data
-   for (int j = 0 ; j < np ; ++j)
-      for (int k =0 ; k < np ; ++k)
-      {
-         lPoly[j][k] = 0;
-      }
+#ifndef MFEM_USE_MPFR
 
-
-   // Each column of lPoly will hold one L polynomial highest power of h will be
-   // at lPoly[0][col]
-   if (is_open)
+   // This algorithm should work for any set of points, not just uniform
+   const IntegrationRule &glob_ir = IntRules.Get(Geometry::SEGMENT, n-1);
+   const int m = glob_ir.GetNPoints();
+   Vector xv(n);
+   for (int j = 0; j < n; j++)
    {
-      // linear polynomial is (x - h)
-      lPoly[0][0] = -1;
-      lPoly[1][0] = 1;
+      xv(j) = ir->IntPoint(j).x;
    }
-   else
+   Poly_1D::Basis basis(n-1, xv.GetData()); // nodal basis, with nodes at 'xv'
+   Vector w(n);
+   // Integrate all nodal basis functions using 'glob_ir':
+   w = 0.0;
+   for (int i = 0; i < m; i++)
    {
-      // linear Polynomial is (x - 0)
-      lPoly[0][0] = 0;
-      lPoly[1][0] = 1;
+      const IntegrationPoint &ip = glob_ir.IntPoint(i);
+      basis.Eval(ip.x, xv);
+      w.Add(ip.weight, xv); // w += ip.weight * xv
    }
-
-   // Build the L Polynomials greater than linear that we need lPoly is ordered
-   // [row][column]. Each column is the next L polynomial. Column = 0 is the
-   // linear polynomial. Row 0 holds the highest degree power of h for a given L
-   // polynomial
-   for (int col = 1; col < (np-1) ; ++col)
+   for (int j = 0; j < n; j++)
    {
-      // multiply the last lPoly by x
-      for (int row = 0; row <= col; ++row)
-      {
-         lPoly[row+1][col] = lPoly[row][col-1];
-      }
-
-      // multiply the last lPoly by coeff*h
-      int coeff = (is_open ? -(col+1)  : -col );
-      for (int row = 0 ; row <= col; ++row)
-      {
-         lPoly[row][col] += coeff*lPoly[row][col-1];
-      }
+      ir->IntPoint(j).weight = w(j);
    }
 
-   // Allocate space that will track the numerator of the divided difference
-   // tables
-   int **DivTable = new int*[np];
-   for (int i = 0 ; i < np ; ++i)
+#else // MFEM_USE_MPFR is defined
+
+   HP_Quadrature1D hp_quad;
+   mpfr_t l, lk, w0, wi, tmp, *weights;
+   mpfr_inits2(hp_quad.default_prec, l, lk, w0, wi, tmp, (mpfr_ptr) 0);
+   weights = new mpfr_t[n];
+   for (int i = 0; i < n; i++)
    {
-      DivTable[i] = new int[np];
+      mpfr_init2(weights[i], hp_quad.default_prec);
+      mpfr_set_si(weights[i], 0, MPFR_RNDN);
    }
-
-   // array to hold the rational numerator coefficients of x^p
-   // element [0] holds the x^0 power coefficients
-   long long int *num_coeff = new long long int[np];
-
-   // Loop over all quadrature points (divided difference table changes with
-   // interpolation point)
-   for (int i = 0 ; i < np; ++i)
+   hp_quad.SetRelTol(-48); // rtol = 2^(-48) ~ 3.5e-15
+   const int p = n-1;
+   const int m = p/2+1; // number of points for Gauss-Legendre quadrature
+   int hinv = 0, ioffset = 0;
+   switch (type)
    {
-      // Clear out the divided difference table
-      for (int m = 0; m < np; ++m)
+      case BasisType::ClosedUniform:
+         // x_i = i/p, i=0,...,p
+         hinv = p;
+         ioffset = 0;
+         break;
+      case BasisType::OpenUniform:
+         // x_i = i/(p+2), i=1,...,p+1
+         hinv = p+2;
+         ioffset = 1;
+         break;
+      default:
+         MFEM_ABORT("invalid BasisType, type = " << type);
+   }
+   // set w0 = (-1)^p*(p!)/(hinv^p)
+   mpfr_fac_ui(w0, p, MPFR_RNDN);
+   mpfr_ui_pow_ui(tmp, hinv, p, MPFR_RNDN);
+   mpfr_div(w0, w0, tmp, MPFR_RNDN);
+   if (p%2) { mpfr_neg(w0, w0, MPFR_RNDN); }
+
+   for (int j = 0; j < m; j++)
+   {
+      hp_quad.ComputeGaussLegendrePoint(m, j);
+
+      // Compute l = \prod_{i=0}^p (x-x_i) and lk = l/(x-x_k), where
+      // x = hp_quad.GetHPPoint(), x_i = (i+ioffset)/hinv, and x_k is the node
+      // closest to x, i.e. k = min(max(round(x*hinv)-ioffset,0),p)
+      mpfr_mul_si(tmp, hp_quad.GetHPPoint(), hinv, MPFR_RNDN);
+      mpfr_round(tmp, tmp);
+      int k = min(max((int)mpfr_get_si(tmp, MPFR_RNDN)-ioffset, 0), p);
+      mpfr_set_si(lk, 1, MPFR_RNDN);
+      for (int i = 0; i <= p; i++)
       {
-         for (int n = 0 ; n<np ; ++n)
+         mpfr_set_si(tmp, i+ioffset, MPFR_RNDN);
+         mpfr_div_si(tmp, tmp, hinv, MPFR_RNDN);
+         mpfr_sub(tmp, hp_quad.GetHPPoint(), tmp, MPFR_RNDN);
+         if (i != k)
          {
-            DivTable[m][n] = 0;
-         }
-      }
-
-      // This Lagrange polynomial is non-zero only at the interpolation point
-      DivTable[i][0] = 1;
-
-      // Calculate the numerator of the divide difference, column by column
-      for (int m = 1; m < np ; ++m)
-      {
-         for (int n = 0; n < (np - m); ++n)
-         {
-            DivTable[n][m] = DivTable[n+1][m-1] - DivTable[n][m-1];
-         }
-      }
-
-      /* Lagrange polynomial: P_i^{np} =
-         DivTable[0][0] + \sum_{j=1}^{np-1} LPoly_j * DivTable[0][j] / (j! h^j)
-
-         LPoly_j = \sum_{i = 0}^j{ x^i h^(j-i) lPoly[j-i][j-1] }
-
-         We now wish to find the integer coefficients in front of each
-         polynomial of x in P_i.
-
-         The highest order LPoly_j comes when j = np - 1. This also has the
-         largest denominator.
-      */
-
-      // highest factorial used is also the denominator
-      unsigned long long int denom = 1;
-      for (int p = 1 ; p <np; ++p)
-      {
-         denom *= p;
-      }
-
-      // initialize the numerator
-      for (int p = 0 ; p<np ; ++p)
-      {
-         num_coeff[p] = 0;
-      }
-
-      int h_inv = (is_open ? np+1 : np-1 );
-
-      // sum all terms of the Newton Polynomial
-      // use denom as a common denominator
-      num_coeff[0] = DivTable[0][0]*denom;
-
-      // access all polynomials stored in lPoly, in order
-      unsigned long long int curr_fac = 1;
-      for (int p = 1 ; p < np ; ++p)
-      {
-         int dt = DivTable[0][p];
-         // P_i = \sum{ dt * lPoly_p / (p! h^p) }
-         unsigned long long int lmc = denom/curr_fac;
-
-         unsigned long long int h_track = 1;
-         for (int j = 0 ; j <= p ; ++j)
-         {
-            num_coeff[j] += lmc*dt*lPoly[j][p-1]*h_track;
-
-            h_track *= h_inv;
-         }
-
-         curr_fac *= (p+1);
-      }
-
-      // We now have the rational number coefficients of the powers of
-      // P_i^{np-1} integrate to get the quadrature weight.
-      //
-      // Integrate the polynomial.
-      //
-      // If possible, reduce the numerator coefficients Otherwise, increase the
-      // denominator and multiply all terms of the numerator by (j+1), except
-      // for the offending polynomial integrand.
-      for (int j = 1 ; j <np ;  ++j)
-      {
-         int div = j+1;
-         if ( (num_coeff[j] % div) == 0 )
-         {
-            num_coeff[j] /= div;
+            mpfr_mul(lk, lk, tmp, MPFR_RNDN);
          }
          else
          {
-            denom *= div;
-            for (int k = 0 ; k < np ; ++k)
-            {
-               if ( k==j)
-               {
-                  continue;
-               }
-               else
-               {
-                  num_coeff[k] *= div;
-               }
-            }
+            mpfr_set(l, tmp, MPFR_RNDN);
          }
       }
-      long long int sum = 0;
-      for (int p = 0 ; p < np ; ++p)
+      mpfr_mul(l, l, lk, MPFR_RNDN);
+      mpfr_set(wi, w0, MPFR_RNDN);
+      for (int i = 0; true; i++)
       {
-         sum += num_coeff[p];
+         if (i != k)
+         {
+            // tmp = l/(wi*(x - x_i))
+            mpfr_set_si(tmp, i+ioffset, MPFR_RNDN);
+            mpfr_div_si(tmp, tmp, hinv, MPFR_RNDN);
+            mpfr_sub(tmp, hp_quad.GetHPPoint(), tmp, MPFR_RNDN);
+            mpfr_mul(tmp, tmp, wi, MPFR_RNDN);
+            mpfr_div(tmp, l, tmp, MPFR_RNDN);
+         }
+         else
+         {
+            // tmp = lk/wi
+            mpfr_div(tmp, lk, wi, MPFR_RNDN);
+         }
+         // weights[i] += hp_quad.weight*tmp
+         mpfr_mul(tmp, tmp, hp_quad.GetHPWeight(), MPFR_RNDN);
+         mpfr_add(weights[i], weights[i], tmp, MPFR_RNDN);
+
+         if (i == p) { break; }
+
+         // update wi *= (i+1)/(i-p)
+         mpfr_mul_si(wi, wi, i+1, MPFR_RNDN);
+         mpfr_div_si(wi, wi, i-p, MPFR_RNDN);
       }
-
-      ir->IntPoint(i).weight = double(sum) / double(denom);
-
    }
-   // Delete working arrays
-   for (int j = 0 ; j < np ; ++j)
+   for (int i = 0; i < n; i++)
    {
-      delete[] DivTable[j];
-      delete[] lPoly[j];
+      ir->IntPoint(i).weight = mpfr_get_d(weights[i], MPFR_RNDN);
+      mpfr_clear(weights[i]);
    }
+   delete [] weights;
+   mpfr_clears(l, lk, w0, wi, tmp, (mpfr_ptr) 0);
 
-   delete[] DivTable;
-   delete[] lPoly;
-   delete[] num_coeff;
+#endif // MFEM_USE_MPFR
 
-   return;
 }
+
 
 IntegrationRules IntRules(0, Quadrature1D::GaussLegendre);
 
@@ -919,30 +945,30 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
       {
          case Quadrature1D::GaussLegendre:
          {
-            // Gauss Legendre is exact for 2*np - 1
-            n = (Order + 1)/2 + (1+Order)%2;
-            quad_func.GaussLegendre(n, &tmp );
+            // Gauss-Legendre is exact for 2*n-1
+            n = Order/2 + 1;
+            quad_func.GaussLegendre(n, &tmp);
             break;
          }
          case Quadrature1D::GaussLobatto:
          {
-            // Gauss Lobatto is exact for 2np-3
-            n = (Order + 3)/2 + (1+Order)%2;
-            quad_func.GaussLobatto(n, &tmp );
+            // Gauss-Lobatto is exact for 2*n-3
+            n = Order/2 + 2;
+            quad_func.GaussLobatto(n, &tmp);
             break;
          }
          case Quadrature1D::OpenUniform:
          {
-            // Open Newton Cotes is exact for (np%2) + np
-            n = Order + 1;
-            quad_func.OpenUniform(n, &tmp );
+            // Open Newton Cotes is exact for n-(n+1)%2 = n-1+n%2
+            n = Order | 1; // n is always odd
+            quad_func.OpenUniform(n, &tmp);
             break;
          }
          case Quadrature1D::ClosedUniform:
          {
-            // Closed Newton Cotes is exact for np -( (np+1)%2 )
-            n = Order + 1;
-            quad_func.ClosedUniform(n, &tmp );
+            // Closed Newton Cotes is exact for n-(n+1)%2 = n-1+n%2
+            n = Order | 1; // n is always odd
+            quad_func.ClosedUniform(n, &tmp);
             break;
          }
       }
@@ -961,47 +987,42 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
       return ir;
    }
 
+   IntegrationRule *ir = new IntegrationRule;
+   SegmentIntRules[Order] = ir;
+   // Order = degree of polynomial that is exactly integrated
    switch (quad_type)
    {
       case Quadrature1D::GaussLegendre:
       {
-         // Order = degree of polynomial that is exactly integrated
          // Gauss Legendre is exact for 2*np - 1
-         int np = (Order + 1)/2 + (1+Order)%2;
-         SegmentIntRules[Order] = new IntegrationRule(np);
-         quad_func.GaussLegendre(np, SegmentIntRules[Order] );
+         int np = Order/2 + 1;
+         quad_func.GaussLegendre(np, ir);
          break;
       }
       case Quadrature1D::GaussLobatto:
       {
-         // Order = degree of polynomial that is exactly integrated
-         // Gauss Legendre is exact for 2*np - 3
-         int np = (Order + 3)/2 + (1+Order)%2;
-         SegmentIntRules[Order] = new IntegrationRule(np);
-         quad_func.GaussLobatto(np,  SegmentIntRules[Order] );
+         // Gauss Lobatto is exact for 2*np - 3
+         int np = Order/2 + 2;
+         quad_func.GaussLobatto(np, ir);
          break;
       }
       case Quadrature1D::OpenUniform:
       {
-         // Order = degree of polynomial that is exactly integrated
-         // Gauss Legendre is exact for 2*np - 1
-         int np = Order + 1;
-         SegmentIntRules[Order] = new IntegrationRule(np);
-         quad_func.OpenUniform(np,  SegmentIntRules[Order] );
+         // Open Newton Cotes is exact for np-1+np%2
+         int np = Order | 1;
+         quad_func.OpenUniform(np, ir);
          break;
       }
       case Quadrature1D::ClosedUniform:
       {
-         // Order = degree of polynomial that is exactly integrated
-         // Gauss Legendre is exact for 2*np - 1
-         int np = Order + 1;
-         SegmentIntRules[Order] = new IntegrationRule(np);
-         quad_func.ClosedUniform(np,  SegmentIntRules[Order] );
+         // Closed Newton Cotes is exact for np-1+np%2
+         int np = Order | 1;
+         quad_func.ClosedUniform(np, ir);
          break;
       }
    }
 
-   return SegmentIntRules[Order];
+   return ir;
 }
 
 // Integration rules for reference triangle {[0,0],[1,0],[0,1]}

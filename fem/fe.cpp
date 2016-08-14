@@ -6000,12 +6000,14 @@ Poly_1D::Basis::Basis(const int p, const double *nodes, int _mode)
       x = nodes;
       w = 1.0;
       for (int i = 0; i <= p; i++)
+      {
          for (int j = 0; j < i; j++)
          {
             double xij = x(i) - x(j);
             w(i) *=  xij;
             w(j) *= -xij;
          }
+      }
       for (int i = 0; i <= p; i++)
       {
          w(i) = 1.0/w(i);
@@ -6014,10 +6016,12 @@ Poly_1D::Basis::Basis(const int p, const double *nodes, int _mode)
 #ifdef MFEM_DEBUG
       // Make sure the nodes are increasing
       for (int i = 0; i < p; i++)
+      {
          if (x(i) >= x(i+1))
          {
             mfem_error("Poly_1D::Basis::Basis : nodes are not increasing!");
          }
+      }
 #endif
    }
 }
@@ -6042,6 +6046,7 @@ void Poly_1D::Basis::Eval(const double y, Vector &u) const
 
       lk = 1.0;
       for (k = 0; k < p; k++)
+      {
          if (y >= (x(k) + x(k+1))/2)
          {
             lk *= y - x(k);
@@ -6054,6 +6059,7 @@ void Poly_1D::Basis::Eval(const double y, Vector &u) const
             }
             break;
          }
+      }
       l = lk * (y - x(k));
 
       for (i = 0; i < k; i++)
@@ -6381,12 +6387,7 @@ const double *Poly_1D::OpenPoints(const int p, const int type)
 
    if (pts.Size() <= p)
    {
-      int i = pts.Size();
-      pts.SetSize(p + 1);
-      for ( ; i <= p; i++)
-      {
-         pts[i] = NULL;
-      }
+      pts.SetSize(p + 1, NULL);
    }
    if (pts[p] == NULL)
    {
@@ -6433,12 +6434,7 @@ const double *Poly_1D::ClosedPoints(const int p, int type)
 
    if (pts.Size() <= p)
    {
-      int i = pts.Size();
-      pts.SetSize(p + 1);
-      for ( ; i <= p; i++)
-      {
-         pts[i] = NULL;
-      }
+      pts.SetSize(p + 1, NULL);
    }
    if (pts[p] == NULL)
    {

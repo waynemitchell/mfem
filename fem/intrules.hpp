@@ -79,7 +79,7 @@ public:
    void Set1w(const double *p) { x = p[0]; weight = p[1]; }
 };
 
-/// Class for integration rule
+/// Class for an integration rule - an Array of IntegrationPoint.
 class IntegrationRule : public Array<IntegrationPoint>
 {
 private:
@@ -231,28 +231,29 @@ public:
    ~IntegrationRule() { }
 };
 
-/// A Class that defines 1-D numerical quadrature rules on [0,1]
+/// A Class that defines 1-D numerical quadrature rules on [0,1].
 class QuadratureFunctions1D
 {
 public:
-   QuadratureFunctions1D();
-   ~QuadratureFunctions1D();
-
-   /// Functions that actually calculate quadrature rules (points and weights)
+   /** @name Methods for calculating qudrature rules.
+       These methods calculate the actual points and weights for the different
+       types of quadrature rules. */
+   ///@{
    void GaussLegendre(const int np, IntegrationRule* ir);
    void GaussLobatto(const int np, IntegrationRule *ir);
    void OpenUniform(const int np, IntegrationRule *ir);
    void ClosedUniform(const int np, IntegrationRule *ir);
+   ///@}
 
    /// A helper function that will play nice with Poly_1D::OpenPoints and
    /// Poly_1D::ClosedPoints
-   void GivePolyPoints(const int np, double *pts , const int type);
+   void GivePolyPoints(const int np, double *pts, const int type);
+
 private:
-   void CalculateLagrangeWeights(IntegrationRule *ir);
-   void NewtonPolynomialNewtonCotesWeights(IntegrationRule *ir ,
-                                           const bool is_open);
+   void CalculateUniformWeights(IntegrationRule *ir, const int type);
 };
 
+/// A class container for 1D quadrature type constants.
 class Quadrature1D
 {
 public:
@@ -261,8 +262,8 @@ public:
       Invalid = -1,
       GaussLegendre = 0,
       GaussLobatto = 1,
-      OpenUniform = 2,
-      ClosedUniform = 3
+      OpenUniform = 2,   ///< aka open Newton-Cotes
+      ClosedUniform = 3  ///< aka closed Newton-Cotes
    };
 };
 

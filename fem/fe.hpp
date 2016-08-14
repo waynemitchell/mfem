@@ -31,13 +31,13 @@ class FunctionSpace
 public:
    enum
    {
-      Pk, // polynomials of order k
-      Qk, // tensor products of polynomials of order k
-      rQk // refined tensor products of polynomials of order k
+      Pk, ///< Polynomials of order k
+      Qk, ///< Tensor products of polynomials of order k
+      rQk ///< Refined tensor products of polynomials of order k
    };
 };
 
-/// All possible basis point types.  Not all elements can use all BasisType(s)
+/// All possible basis types. Not all elements can use all BasisType(s).
 class BasisType
 {
 public:
@@ -45,7 +45,7 @@ public:
    {
       GaussLegendre = 0,
       GaussLobatto = 1,
-      Positive = 2,
+      Positive = 2,      ///< Bernstein polynomials
       OpenUniform = 3,
       ClosedUniform = 4
    };
@@ -67,22 +67,25 @@ public:
    /// Enumeration for RangeType
    enum { SCALAR, VECTOR };
 
-   /** Enumeration for MapType: defines how reference functions, uh(xh), are
-       mapped to functions on a general element, u(x):
+   /** @brief Enumeration for MapType: defines how reference functions are
+       mapped to physical space.
 
-       VALUE       u(x) = uh(xh)
-       INTEGRAL    u(x) = (1/w) * uh(xh)
-       H_DIV       u(x) = (J/w) * uh(xh)
-       H_CURL      u(x) = J^{-t} * uh(xh)           (square J)
-       H_CURL      u(x) = J*(J^t*J)^{-1} * uh(xh)   (general J)
+       A reference function, `uh(xh)`, can be mapped to a function, `u(x)`, on a
+       general element in following ways:
+
+           VALUE       u(x) = uh(xh)
+           INTEGRAL    u(x) = (1/w) * uh(xh)
+           H_DIV       u(x) = (J/w) * uh(xh)
+           H_CURL      u(x) = J^{-t} * uh(xh)           (square J)
+           H_CURL      u(x) = J*(J^t*J)^{-1} * uh(xh)   (general J)
 
        where
 
-       x = T(xh) is the image of the reference point xh ("x hat"),
-       J = J(xh) is the Jacobian matrix of the transformation T, and
-       w = w(xh) = / det(J),           for square J,
-       .           \ det(J^t*J)^{1/2}, for general J,
-       is the transformation weight factor.
+           x = T(xh) is the image of the reference point xh ("x hat"),
+           J = J(xh) is the Jacobian matrix of the transformation T, and
+           w = w(xh) = / det(J),           for square J,
+                       \ det(J^t*J)^{1/2}, for general J,
+                     is the transformation weight factor.
    */
    enum { VALUE, INTEGRAL, H_DIV, H_CURL };
 
@@ -1237,8 +1240,8 @@ public:
    class Basis
    {
    private:
-      int mode; // 0 - use change of basis, O(p^2) Evals
-      // 1 - use barycentric Lagrangian interpolation, O(p) Evals
+      int mode; /* 0 - use change of basis, O(p^2) Evals
+                   1 - use barycentric Lagrangian interpolation, O(p) Evals */
       DenseMatrixInverse Ai;
       mutable Vector x, w;
 
