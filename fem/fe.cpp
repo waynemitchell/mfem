@@ -8219,7 +8219,7 @@ L2_SegmentElement::L2_SegmentElement(const int p, const int type)
    }
    else
    {
-      MFEM_ABORT( "unknown type of nodes: " << type);
+      MFEM_ABORT("unknown type of nodes: " << type);
    }
 
 #ifndef MFEM_THREAD_SAFE
@@ -8834,7 +8834,7 @@ L2_TriangleElement::L2_TriangleElement(const int p, const int _type)
          op = poly1d.ClosedPoints(p,Quadrature1D::GaussLobatto);
          break;
       default:
-         MFEM_ABORT( "unknown type of nodes: " << type);
+         MFEM_ABORT("unknown type of nodes: " << type);
    }
 
 #ifndef MFEM_THREAD_SAFE
@@ -9023,7 +9023,7 @@ L2_TetrahedronElement::L2_TetrahedronElement(const int p, const int _type)
          op = poly1d.ClosedPoints(p,Quadrature1D::GaussLobatto);
          break;
       default:
-         MFEM_ABORT( "unknown type of nodes: " << type);
+         MFEM_ABORT("unknown type of nodes: " << type);
    }
 
 #ifndef MFEM_THREAD_SAFE
