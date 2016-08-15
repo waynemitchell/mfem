@@ -2136,6 +2136,9 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order, ParFiniteElementSpa
    if (order != 1)
       mfem_error("FiniteElementSpace::LowOrderRefinement : order != 1");
 
+   if (mesh->Dimension() != 2 && mesh->Dimension() != 3)
+      mfem_error("only implemented for Hexahedron and Quadrilateral elements in 2D/3D");
+
    // the same finite element basis will be used on the LOR mesh,
    // but of different order (HACK: use 1st order)
    const FiniteElementCollection *fec_hoc = FEColl();
@@ -2151,7 +2154,7 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order, ParFiniteElementSpa
    // TODO: add a test to make sure we are on Quad elements, fe != NULL
    for (int j = 0; j < GetNDofs(); j++)
    {
-      double coords[2];
+      double coords[3];
       mesh->GetNode(j, coords);
       mesh_lor->AddVertex(coords);
    }
@@ -2160,25 +2163,75 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order, ParFiniteElementSpa
       Array<int> vdofs;
       GetElementVDofs(i, vdofs);
 
-      const H1_QuadrilateralElement *fe =
-         dynamic_cast<const H1_QuadrilateralElement *>(GetFE(i));
-      const Array<int> *dof_map = &fe->GetDofMap();
-      const int *dof_map_ = dof_map->GetData();
-
-      for (int j = 0; j < p; j++)
+      const Array<int> *dof_map;
+      const int *dof_map_;
+      if (mesh->Dimension() == 2)
       {
-         for (int k = 0; k < p; k++)
+         const H1_QuadrilateralElement *fe =
+            dynamic_cast<const H1_QuadrilateralElement *>(GetFE(i));
+         if (GetElementType(i) != Element::QUADRILATERAL)
+            mfem_error("Element is not a Quad!");
+         dof_map = const_cast<Array<int> *>(&fe->GetDofMap());
+         dof_map_ = dof_map->GetData();
+      }
+      else
+      {
+         const H1_HexahedronElement *fe =
+            dynamic_cast<const H1_HexahedronElement *>(GetFE(i));
+         if (GetElementType(i) != Element::HEXAHEDRON)
+            mfem_error("Element is not a Hex!");
+         dof_map = const_cast<Array<int> *>(&fe->GetDofMap());
+         dof_map_ = dof_map->GetData();
+      }
+
+      if (mesh->Dimension() == 2)
+      {
+         for (int j = 0; j < p; j++)
          {
-            int v[4];
-            v[0] = vdofs[dof_map_[  j      * (p + 1) + k]];
-            v[1] = vdofs[dof_map_[  j      * (p + 1) + k + 1]];
-            v[2] = vdofs[dof_map_[ (j + 1) * (p + 1) + k + 1]];
-            v[3] = vdofs[dof_map_[ (j + 1) * (p + 1) + k]];
-            mesh_lor->AddQuad(v, mesh->GetAttribute(i));
+            for (int k = 0; k < p; k++)
+            {
+               int v[4];
+               v[0] = vdofs[dof_map_[  j      * (p + 1) + k]];
+               v[1] = vdofs[dof_map_[  j      * (p + 1) + k + 1]];
+               v[2] = vdofs[dof_map_[ (j + 1) * (p + 1) + k + 1]];
+               v[3] = vdofs[dof_map_[ (j + 1) * (p + 1) + k]];
+               mesh_lor->AddQuad(v, mesh->GetAttribute(i));
+            }
+         }
+      }
+      else
+      {
+         for (int j = 0; j < p; j++)
+         {
+            for (int k = 0; k < p; k++)
+            {
+               for (int l = 0; l < p; l++)
+               {
+                  int v[8];
+                  // stub code; implement this
+                  v[0] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + k * (p + 1) + l]];
+                  v[1] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + k * (p + 1) + l]];
+                  v[2] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + k * (p + 1) + l]];
+                  v[3] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + k * (p + 1) + l]];
+                  v[4] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + k * (p + 1) + l]];
+                  v[5] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + k * (p + 1) + l]];
+                  v[6] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + k * (p + 1) + l]];
+                  v[7] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + k * (p + 1) + l]];
+                  mesh_lor->AddHex(v, mesh->GetAttribute(i));
+               }
+            }
          }
       }
    }
-   mesh_lor->FinalizeQuadMesh(1, 1, true);
+   if (mesh->Dimension() == 2)
+   {
+      mesh_lor->FinalizeQuadMesh(1, 1, true);
+   }
+   else
+   {
+      mesh_lor->FinalizeHexMesh(1, 1, true);
+   }
+
    ParMesh *pmesh_lor = new ParMesh(MyComm, *mesh_lor);
 
    fes_lor = new ParFiniteElementSpace(pmesh_lor, fec_lor, GetVDim(), GetOrdering());

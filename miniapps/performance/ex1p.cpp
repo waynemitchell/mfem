@@ -47,8 +47,8 @@ using namespace mfem;
 
 // Define template parameters for optimized build.
 const Geometry::Type geom     = Geometry::SQUARE; // mesh elements  (default: hex)
-const int            mesh_p   = 10;              // mesh curvature (default: 3)
-const int            sol_p    = 10;              // solution order (default: 3)
+const int            mesh_p   = 3;              // mesh curvature (default: 3)
+const int            sol_p    = 3;              // solution order (default: 3)
 const int            mesh_lor_p   = 1;              // mesh curvature (default: 3)
 const int            sol_lor_p    = 1;              // solution order (default: 3)
 const int            rdim     = Geometry::Constants<geom>::Dimension;
@@ -69,8 +69,14 @@ typedef TIntegrationRule<geom,ir_order>       int_rule_t;
 typedef TConstantCoefficient<>                coeff_t;
 typedef TIntegrator<coeff_t,TDiffusionKernel> integ_t;
 
+// define a piecewise coefficient to test the ability of LOR/AMG to solve
+// problems with discontinuous behavior (more complex phenomena)
+typedef TPiecewiseConstCoefficient<>              coeff_pw_t;
+typedef TIntegrator<coeff_pw_t, TDiffusionKernel> integ_pw_t;
+
 // Static bilinear form type, combining the above types
 typedef TBilinearForm<mesh_t,sol_fes_t,int_rule_t,integ_t> HPCBilinearForm;
+//typedef TBilinearForm<mesh_t,sol_fes_t,int_rule_t,integ_pw_t> HPCBilinearForm;
 
 // Low order refined types
 
@@ -88,6 +94,7 @@ typedef TIntegrationRule<geom,ir_order_lor>       int_rule_lor_t;
 
 // Static bilinear form type, combining the above types
 typedef TBilinearForm<mesh_lor_t,sol_fes_lor_t,int_rule_lor_t,integ_t> HPCBilinearForm_lor;
+//typedef TBilinearForm<mesh_lor_t,sol_fes_lor_t,int_rule_lor_t,integ_pw_t> HPCBilinearForm_lor;
 
 int main(int argc, char *argv[])
 {
@@ -332,6 +339,14 @@ int main(int argc, char *argv[])
       // High-performance assembly using the templated operator type
       a_hpc = new HPCBilinearForm(integ_t(coeff_t(1.0)), *fespace);
       a_hpc_lor = new HPCBilinearForm_lor(integ_t(coeff_t(1.0)), *fespace_lor);
+
+      /* Piecewise-constant coefficient problem:
+      Vector constants(2);
+      constants(0) = 1e4;
+      constants(1) = 1.0;
+      a_hpc = new HPCBilinearForm(integ_pw_t(constants), *fespace);
+      a_hpc_lor = new HPCBilinearForm_lor(integ_pw_t(constants), *fespace_lor);
+      */
       if (matrix_free)
       {
          a_hpc->Assemble(); // Chooses between ::MultAssembled and ::MultUnassembled
@@ -407,7 +422,7 @@ int main(int argc, char *argv[])
    if (perf && matrix_free)
    {
       pcg->SetOperator(*a_oper);
-      HypreSolver *amg;
+      HypreSolver *amg = NULL;
       if (pc_choice == AMG)
       {
          amg = new HypreBoomerAMG(A);
