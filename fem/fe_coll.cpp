@@ -1858,14 +1858,14 @@ RT_FECollection::RT_FECollection(const int p, const int dim,
    int cp_type = BasisType::GetQuadrature1D(cb_type);
    int op_type = BasisType::GetQuadrature1D(ob_type);
 
-   if (cb_type != BasisType::GaussLobatto ||
+   if (cb_type != BasisType::GaussLobatto &&
        cb_type != BasisType::ClosedUniform)
    {
       const char *cb_name = BasisType::Name(cb_type); // this may abort
       MFEM_ABORT("unknown closed BasisType: " << cb_name);
    }
 
-   if (ob_type != BasisType::GaussLegendre ||
+   if (ob_type != BasisType::GaussLegendre &&
        ob_type != BasisType::OpenUniform)
    {
       const char *ob_name = BasisType::Name(ob_type); // this may abort
@@ -1915,7 +1915,7 @@ RT_FECollection::RT_FECollection(const int p, const int dim, const int map_type,
                                  const bool signs, const int ob_type)
    : ob_type(ob_type)
 {
-   if (ob_type != BasisType::GaussLegendre ||
+   if (ob_type != BasisType::GaussLegendre &&
        ob_type != BasisType::OpenUniform)
    {
       const char *ob_name = BasisType::Name(ob_type); // this may abort
