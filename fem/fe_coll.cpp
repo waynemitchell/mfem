@@ -147,11 +147,22 @@ FiniteElementCollection *FiniteElementCollection::New(const char *name)
    }
    else if (!strncmp(name, "H1Pos_Trace_", 12))
    {
-      fec = new H1_Trace_FECollection(atoi(name + 16), atoi(name + 12), 1);
+      fec = new H1_Trace_FECollection(atoi(name + 16), atoi(name + 12),
+                                      BasisType::Positive);
    }
    else if (!strncmp(name, "H1Pos_", 6))
    {
       fec = new H1Pos_FECollection(atoi(name + 10), atoi(name + 6));
+   }
+   else if (!strncmp(name, "H1_Trace@", 9))
+   {
+      fec = new H1_Trace_FECollection(atoi(name + 15), atoi(name + 11),
+                                      BasisType::GetType(name[9]));
+   }
+   else if (!strncmp(name, "H1@", 3))
+   {
+      fec = new H1_FECollection(atoi(name + 9), atoi(name + 5),
+                                BasisType::GetType(name[3]));
    }
    else if (!strncmp(name, "L2_T", 4))
       fec = new L2_FECollection(atoi(name + 10), atoi(name + 6),
@@ -161,11 +172,12 @@ FiniteElementCollection *FiniteElementCollection::New(const char *name)
       fec = new L2_FECollection(atoi(name + 7), atoi(name + 3));
    }
    else if (!strncmp(name, "L2Int_T", 7))
+   {
       fec = new L2_FECollection(atoi(name + 13), atoi(name + 9),
                                 atoi(name + 7), FiniteElement::INTEGRAL);
+   }
    else if (!strncmp(name, "L2Int_", 6))
    {
-      // TODO: read BasisType from name.
       fec = new L2_FECollection(atoi(name + 10), atoi(name + 6),
                                 BasisType::GaussLegendre,
                                 FiniteElement::INTEGRAL);
@@ -178,6 +190,18 @@ FiniteElementCollection *FiniteElementCollection::New(const char *name)
    {
       fec = new RT_Trace_FECollection(atoi(name + 16), atoi(name + 12),
                                       FiniteElement::VALUE);
+   }
+   else if (!strncmp(name, "RT_Trace@", 9))
+   {
+      fec = new RT_Trace_FECollection(atoi(name + 15), atoi(name + 11),
+                                      FiniteElement::INTEGRAL,
+                                      BasisType::GetType(name[9]));
+   }
+   else if (!strncmp(name, "RT_ValTrace@", 12))
+   {
+      fec = new RT_Trace_FECollection(atoi(name + 18), atoi(name + 14),
+                                      FiniteElement::VALUE,
+                                      BasisType::GetType(name[12]));
    }
    else if (!strncmp(name, "DG_Iface_", 9))
    {
@@ -192,6 +216,12 @@ FiniteElementCollection *FiniteElementCollection::New(const char *name)
    {
       fec = new RT_FECollection(atoi(name + 7), atoi(name + 3));
    }
+   else if (!strncmp(name, "RT@", 3))
+   {
+      fec = new RT_FECollection(atoi(name + 10), atoi(name + 6),
+                                BasisType::GetType(name[3]),
+                                BasisType::GetType(name[4]));
+   }
    else if (!strncmp(name, "ND_Trace_", 9))
    {
       fec = new ND_Trace_FECollection(atoi(name + 13), atoi(name + 9));
@@ -199,6 +229,18 @@ FiniteElementCollection *FiniteElementCollection::New(const char *name)
    else if (!strncmp(name, "ND_", 3))
    {
       fec = new ND_FECollection(atoi(name + 7), atoi(name + 3));
+   }
+   else if (!strncmp(name, "ND_Trace@", 9))
+   {
+      fec = new ND_Trace_FECollection(atoi(name + 16), atoi(name + 12),
+                                      BasisType::GetType(name[9]),
+                                      BasisType::GetType(name[10]));
+   }
+   else if (!strncmp(name, "ND@", 3))
+   {
+      fec = new ND_FECollection(atoi(name + 10), atoi(name + 6),
+                                BasisType::GetType(name[3]),
+                                BasisType::GetType(name[4]));
    }
    else if (!strncmp(name, "Local_", 6))
    {
@@ -209,8 +251,13 @@ FiniteElementCollection *FiniteElementCollection::New(const char *name)
       fec = new NURBSFECollection(atoi(name + 5));
    }
    else
-      mfem_error ("FiniteElementCollection::New : "
-                  "Unknown FiniteElementCollection!");
+   {
+      mfem_error("FiniteElementCollection::New : "
+                 "Unknown FiniteElementCollection!");
+   }
+   MFEM_VERIFY(!strcmp(fec->Name(), name), "input name: \"" << name
+               << "\" does not match the created collection name: \""
+               << fec->Name() << '"');
 
    return fec;
 }
@@ -1404,33 +1451,31 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
    const int pm1 = p - 1, pm2 = pm1 - 1, pm3 = pm2 - 1;
 
    int pt_type = Quadrature1D::Invalid;
-   m_type = type;
+   m_type = BasisType::Check(type);
    switch (type)
    {
       case BasisType::GaussLobatto:
       {
+         snprintf(h1_name, 32, "H1_%dD_P%d", dim, p);
          pt_type = Quadrature1D::GaussLobatto;
+         break;
+      }
+      case BasisType::Positive:
+      {
+         snprintf(h1_name, 32, "H1Pos_%dD_P%d", dim, p);
          break;
       }
       case BasisType::ClosedUniform:
       {
+         snprintf(h1_name, 32, "H1@%c_%dD_P%d", (int)BasisType::GetChar(type),
+                  dim, p);
          pt_type = Quadrature1D::ClosedUniform;
          break;
       }
       default:
       {
-         MFEM_ABORT("unsupported point type: " << type);
+         MFEM_ABORT("unsupported BasisType: " << BasisType::Name(type));
       }
-   }
-
-   // TODO: handle the case m_type == BasisType::ClosedUniform.
-   if (m_type == BasisType::Positive)
-   {
-      snprintf(h1_name, 32, "H1Pos_%dD_P%d", dim, p);
-   }
-   else
-   {
-      snprintf(h1_name, 32, "H1_%dD_P%d", dim, p);
    }
 
    for (int g = 0; g < Geometry::NumGeom; g++)
@@ -1546,6 +1591,7 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
          }
          else
          {
+            // TODO: support for pt_type for tets
             H1_Elements[Geometry::TETRAHEDRON] = new H1_TetrahedronElement(p);
             H1_Elements[Geometry::CUBE] = new H1_HexahedronElement(p, pt_type);
          }
@@ -1557,11 +1603,7 @@ int *H1_FECollection::DofOrderForOrientation(int GeomType, int Or) const
 {
    if (GeomType == Geometry::SEGMENT)
    {
-      if (Or > 0)
-      {
-         return SegDofOrd[0];
-      }
-      return SegDofOrd[1];
+      return (Or > 0) ? SegDofOrd[0] : SegDofOrd[1];
    }
    else if (GeomType == Geometry::TRIANGLE)
    {
@@ -1577,15 +1619,20 @@ int *H1_FECollection::DofOrderForOrientation(int GeomType, int Or) const
 FiniteElementCollection *H1_FECollection::GetTraceCollection() const
 {
    int p = H1_dof[Geometry::SEGMENT] + 1;
+   int dim = -1;
    if (!strncmp(h1_name, "H1_", 3))
    {
-      return new H1_Trace_FECollection(p, atoi(h1_name + 3));
+      dim = atoi(h1_name + 3);
    }
    else if (!strncmp(h1_name, "H1Pos_", 6))
    {
-      return new H1_Trace_FECollection(p, atoi(h1_name + 6), 1);
+      dim = atoi(h1_name + 6);
    }
-   return NULL;
+   else if (!strncmp(h1_name, "H1@", 3))
+   {
+      dim = atoi(h1_name + 5);
+   }
+   return (dim < 0) ? NULL : new H1_Trace_FECollection(p, dim, m_type);
 }
 
 H1_FECollection::~H1_FECollection()
@@ -1604,13 +1651,22 @@ H1_Trace_FECollection::H1_Trace_FECollection(const int p, const int dim,
                                              const int type)
    : H1_FECollection(p, dim-1, type)
 {
-   if (type == BasisType::Positive)
+   if (type == BasisType::GaussLobatto)
+   {
+      snprintf(h1_name, 32, "H1_Trace_%dD_P%d", dim, p);
+   }
+   else if (type == BasisType::Positive)
    {
       snprintf(h1_name, 32, "H1Pos_Trace_%dD_P%d", dim, p);
    }
+   else if (type == BasisType::ClosedUniform)
+   {
+      snprintf(h1_name, 32, "H1_Trace@%c_%dD_P%d",
+               (int)BasisType::GetChar(type), dim, p);
+   }
    else
    {
-      snprintf(h1_name, 32, "H1_Trace_%dD_P%d", dim, p);
+      MFEM_ABORT("unsupported BasisType: " << BasisType::Name(type));
    }
 }
 
@@ -1618,66 +1674,26 @@ H1_Trace_FECollection::H1_Trace_FECollection(const int p, const int dim,
 L2_FECollection::L2_FECollection(const int p, const int dim, const int type,
                                  const int map_type)
 {
-   // Corresponding to the BasisType enum of fe.hpp
-   int pt_type = Quadrature1D::Invalid;
-   m_type = type;
+   int pt_type = BasisType::GetQuadrature1D(type);
+   m_type = BasisType::Check(type);
+   MFEM_VERIFY(pt_type != Quadrature1D::Invalid ||
+               m_type == BasisType::Positive,
+               "unsupported L2 basis type = " << BasisType::Name(type));
+   const char *prefix;
+   switch (map_type)
+   {
+      case FiniteElement::VALUE:    prefix = "L2";    break;
+      case FiniteElement::INTEGRAL: prefix = "L2Int"; break;
+      default:
+         MFEM_ABORT("invalid map_type: " << map_type);
+   }
    switch (type)
    {
       case BasisType::GaussLegendre:
-      {
-         pt_type = Quadrature1D::GaussLegendre;
+         snprintf(d_name, 32, "%s_%dD_P%d", prefix, dim, p);
          break;
-      }
-      case BasisType::GaussLobatto:
-      {
-         pt_type = Quadrature1D::GaussLobatto;
-         break;
-      }
-      case BasisType::Positive:
-      {
-         break;
-      }
-      case BasisType::OpenUniform:
-      {
-         pt_type = Quadrature1D::OpenUniform;
-         break;
-      }
-      case BasisType::ClosedUniform:
-      {
-         pt_type = Quadrature1D::ClosedUniform;
-         break;
-      }
       default:
-      {
-         MFEM_ABORT("unsupported L2 basis type = " << type);
-      }
-   }
-
-   if (map_type == FiniteElement::VALUE)
-   {
-      if (type == BasisType::GaussLegendre)
-      {
-         snprintf(d_name, 32, "L2_%dD_P%d", dim, p);
-      }
-      else
-      {
-         snprintf(d_name, 32, "L2_T%d_%dD_P%d", type, dim, p);
-      }
-   }
-   else if (map_type == FiniteElement::INTEGRAL)
-   {
-      if (type == BasisType::GaussLegendre)
-      {
-         snprintf(d_name, 32, "L2Int_%dD_P%d", dim, p);
-      }
-      else
-      {
-         snprintf(d_name, 32, "L2Int_T%d_%dD_P%d", type, dim, p);
-      }
-   }
-   else
-   {
-      MFEM_ABORT("invalid map_type: " << map_type);
+         snprintf(d_name, 32, "%s_T%d_%dD_P%d", prefix, type, dim, p);
    }
 
    for (int g = 0; g < Geometry::NumGeom; g++)
@@ -1834,43 +1850,40 @@ L2_FECollection::~L2_FECollection()
    }
 }
 
+
 RT_FECollection::RT_FECollection(const int p, const int dim,
-                                 const int _cb_type , const int _ob_type)
-   : cp_type(Quadrature1D::Invalid),
-     op_type(Quadrature1D::Invalid)
+                                 const int cb_type, const int ob_type)
+   : ob_type(ob_type)
 {
-   if (_cb_type == BasisType::GaussLobatto)
+   int cp_type = BasisType::GetQuadrature1D(cb_type);
+   int op_type = BasisType::GetQuadrature1D(ob_type);
+
+   if (cb_type != BasisType::GaussLobatto ||
+       cb_type != BasisType::ClosedUniform)
    {
-      cp_type = Quadrature1D::GaussLobatto;
-   }
-   else if (_cb_type == BasisType::ClosedUniform)
-   {
-      cp_type = Quadrature1D::ClosedUniform;
-   }
-   else
-   {
-      MFEM_ABORT("Can't convert _cb_type to a known closed basis point type."
-                 " _cb_type: " << _cb_type);
+      const char *cb_name = BasisType::Name(cb_type); // this may abort
+      MFEM_ABORT("unknown closed BasisType: " << cb_name);
    }
 
-   if (_ob_type == BasisType::GaussLegendre)
+   if (ob_type != BasisType::GaussLegendre ||
+       ob_type != BasisType::OpenUniform)
    {
-      op_type = Quadrature1D::GaussLegendre;
-   }
-   else if (_ob_type == BasisType::OpenUniform)
-   {
-      op_type = Quadrature1D::OpenUniform;
-   }
-   else
-   {
-      MFEM_ABORT("Can't convert _ob_type to a known open basis point type."
-                 " _ob_type: " << _ob_type);
+      const char *ob_name = BasisType::Name(ob_type); // this may abort
+      MFEM_ABORT("unknown open BasisType: " << ob_name);
    }
 
    InitFaces(p, dim, FiniteElement::INTEGRAL, true);
 
-   // TODO: encode _cb_type and _ob_type in the name
-   snprintf(rt_name, 32, "RT_%dD_P%d", dim, p);
+   if (cb_type == BasisType::GaussLobatto &&
+       ob_type == BasisType::GaussLegendre)
+   {
+      snprintf(rt_name, 32, "RT_%dD_P%d", dim, p);
+   }
+   else
+   {
+      snprintf(rt_name, 32, "RT@%c%c_%dD_P%d", (int)BasisType::GetChar(cb_type),
+               (int)BasisType::GetChar(ob_type), dim, p);
+   }
 
    const int pp1 = p + 1;
    if (dim == 2)
@@ -1893,17 +1906,30 @@ RT_FECollection::RT_FECollection(const int p, const int dim,
    }
    else
    {
-      MFEM_ABORT( "RT_FECollection::RT_FECollection : dim = " << dim );
+      MFEM_ABORT("invalid dim = " << dim);
    }
+}
+
+// This is a special constructor only used by RT_Trace_FECollection
+RT_FECollection::RT_FECollection(const int p, const int dim, const int map_type,
+                                 const bool signs, const int ob_type)
+   : ob_type(ob_type)
+{
+   if (ob_type != BasisType::GaussLegendre ||
+       ob_type != BasisType::OpenUniform)
+   {
+      const char *ob_name = BasisType::Name(ob_type); // this may abort
+      MFEM_ABORT("Invalid open basis type: " << ob_name);
+   }
+   InitFaces(p, dim, map_type, signs);
 }
 
 void RT_FECollection::InitFaces(const int p, const int dim, const int map_type,
                                 const bool signs)
 {
-   if (op_type == Quadrature1D::Invalid)
-   {
-      MFEM_ABORT("Face basis point types not set");
-   }
+   int op_type = BasisType::GetQuadrature1D(ob_type);
+
+   MFEM_VERIFY(op_type != Quadrature1D::Invalid, "invalid open point type");
 
    const int pp1 = p + 1, pp2 = p + 2;
 
@@ -1943,6 +1969,7 @@ void RT_FECollection::InitFaces(const int p, const int dim, const int map_type,
    }
    else if (dim == 3)
    {
+      // TODO: support for op_type for triangles
       L2_TriangleElement *l2_tri = new L2_TriangleElement(p);
       l2_tri->SetMapType(map_type);
       RT_Elements[Geometry::TRIANGLE] = l2_tri;
@@ -2019,11 +2046,7 @@ int *RT_FECollection::DofOrderForOrientation(int GeomType, int Or) const
 {
    if (GeomType == Geometry::SEGMENT)
    {
-      if (Or > 0)
-      {
-         return SegDofOrd[0];
-      }
-      return SegDofOrd[1];
+      return (Or > 0) ? SegDofOrd[0] : SegDofOrd[1];
    }
    else if (GeomType == Geometry::TRIANGLE)
    {
@@ -2038,8 +2061,18 @@ int *RT_FECollection::DofOrderForOrientation(int GeomType, int Or) const
 
 FiniteElementCollection *RT_FECollection::GetTraceCollection() const
 {
-   // TODO: pass the open basis type down to the trace collection.
-   return new RT_Trace_FECollection(atoi(rt_name + 7), atoi(rt_name + 3));
+   int dim, p;
+   if (!strncmp(rt_name, "RT_", 3))
+   {
+      dim = atoi(rt_name + 3);
+      p = atoi(rt_name + 7);
+   }
+   else // rt_name = RT@.._.D_P*
+   {
+      dim = atoi(rt_name + 6);
+      p = atoi(rt_name + 10);
+   }
+   return new RT_Trace_FECollection(p, dim, FiniteElement::INTEGRAL, ob_type);
 }
 
 RT_FECollection::~RT_FECollection()
@@ -2053,44 +2086,24 @@ RT_FECollection::~RT_FECollection()
    }
 }
 
+
 RT_Trace_FECollection::RT_Trace_FECollection(const int p, const int dim,
                                              const int map_type,
-                                             const int _ob_type)
-   : RT_FECollection(p, dim, map_type, true, _ob_type)
+                                             const int ob_type)
+   : RT_FECollection(p, dim, map_type, true, ob_type)
 {
-   // TODO: encode _ob_type in the name.
-   if (map_type == FiniteElement::INTEGRAL)
+   const char *prefix =
+      (map_type == FiniteElement::INTEGRAL) ? "RT_Trace" : "RT_ValTrace";
+   char ob_str[3] = { '\0', '\0', '\0' };
+
+   if (ob_type != BasisType::GaussLegendre)
    {
-      snprintf(rt_name, 32, "RT_Trace_%dD_P%d", dim, p);
+      ob_str[0] = '@';
+      ob_str[1] = BasisType::GetChar(ob_type);
    }
-   else
-   {
-      snprintf(rt_name, 32, "RT_ValTrace_%dD_P%d", dim, p);
-   }
+   snprintf(rt_name, 32, "%s%s_%dD_P%d", prefix, ob_str, dim, p);
 
    MFEM_VERIFY(dim == 2 || dim == 3, "Wrong dimension, dim = " << dim);
-}
-
-// This is a special constructor only used by RT_Trace_FECollection
-RT_FECollection::RT_FECollection(const int p, const int dim, const int map_type,
-                                 const bool signs,
-                                 const int _ob_type):
-   cp_type(Quadrature1D::Invalid) ,
-   op_type(Quadrature1D::Invalid)
-{
-   if (_ob_type == BasisType::GaussLegendre)
-   {
-      op_type = Quadrature1D::GaussLegendre;
-   }
-   else if (_ob_type == BasisType::OpenUniform)
-   {
-      op_type = Quadrature1D::OpenUniform;
-   }
-   else
-   {
-      MFEM_ABORT("Invalid open basis type: " << _ob_type);
-   }
-   InitFaces(p, dim, map_type, signs);
 }
 
 
@@ -2111,12 +2124,20 @@ DG_Interface_FECollection::DG_Interface_FECollection(const int p, const int dim,
 }
 
 ND_FECollection::ND_FECollection(const int p, const int dim,
-                                 const int _cp_type, const int _op_type)
+                                 const int cb_type, const int ob_type)
 {
    const int pm1 = p - 1, pm2 = p - 2;
 
-   // TODO: encode _cp_type and _op_type in the name.
-   snprintf(nd_name, 32, "ND_%dD_P%d", dim, p);
+   if (cb_type == BasisType::GaussLobatto &&
+       ob_type == BasisType::GaussLegendre)
+   {
+      snprintf(nd_name, 32, "ND_%dD_P%d", dim, p);
+   }
+   else
+   {
+      snprintf(nd_name, 32, "ND@%c%c_%dD_P%d", (int)BasisType::GetChar(cb_type),
+               (int)BasisType::GetChar(ob_type), dim, p);
+   }
 
    for (int g = 0; g < Geometry::NumGeom; g++)
    {
@@ -2136,34 +2157,20 @@ ND_FECollection::ND_FECollection(const int p, const int dim,
       QuadDofOrd[i] = NULL;
    }
 
+   int op_type = BasisType::GetQuadrature1D(ob_type);
+   int cp_type = BasisType::GetQuadrature1D(cb_type);
+
    // Error checking
-   int op_type = Quadrature1D::Invalid;
-   int cp_type = Quadrature1D::Invalid;
-
-   if (_op_type == BasisType::GaussLegendre)
+   if (ob_type != BasisType::GaussLegendre && ob_type != BasisType::OpenUniform)
    {
-      op_type = Quadrature1D::GaussLegendre;
+      const char *ob_name = BasisType::Name(ob_type);
+      MFEM_ABORT("Invalid open basis point type: " << ob_name);
    }
-   else if (_op_type == BasisType::OpenUniform)
+   if (cb_type != BasisType::GaussLobatto &&
+       cb_type != BasisType::ClosedUniform)
    {
-      op_type = Quadrature1D::OpenUniform;
-   }
-   else
-   {
-      MFEM_ABORT("Invalid open basis point type: " << _op_type);
-   }
-
-   if (_cp_type == BasisType::GaussLobatto)
-   {
-      cp_type = Quadrature1D::GaussLobatto;
-   }
-   else if (_cp_type == BasisType::ClosedUniform)
-   {
-      cp_type = Quadrature1D::ClosedUniform;
-   }
-   else
-   {
-      MFEM_ABORT("Invalid closed basis point type: " << _cp_type);
+      const char *cb_name = BasisType::Name(cb_type);
+      MFEM_ABORT("Invalid closed basis point type: " << cb_name);
    }
 
    if (dim >= 1)
@@ -2186,6 +2193,7 @@ ND_FECollection::ND_FECollection(const int p, const int dim,
                                                                   op_type);
       ND_dof[Geometry::SQUARE] = 2*p*pm1;
 
+      // TODO: cp_type and op_type for triangles
       ND_Elements[Geometry::TRIANGLE] = new ND_TriangleElement(p);
       ND_dof[Geometry::TRIANGLE] = p*pm1;
 
@@ -2266,6 +2274,7 @@ ND_FECollection::ND_FECollection(const int p, const int dim,
       ND_Elements[Geometry::CUBE] = new ND_HexahedronElement(p, cp_type, op_type);
       ND_dof[Geometry::CUBE] = 3*p*pm1*pm1;
 
+      // TODO: cp_type and op_type for tets
       ND_Elements[Geometry::TETRAHEDRON] = new ND_TetrahedronElement(p);
       ND_dof[Geometry::TETRAHEDRON] = p*pm1*pm2/2;
    }
@@ -2275,11 +2284,7 @@ int *ND_FECollection::DofOrderForOrientation(int GeomType, int Or) const
 {
    if (GeomType == Geometry::SEGMENT)
    {
-      if (Or > 0)
-      {
-         return SegDofOrd[0];
-      }
-      return SegDofOrd[1];
+      return (Or > 0) ? SegDofOrd[0] : SegDofOrd[1];
    }
    else if (GeomType == Geometry::TRIANGLE)
    {
@@ -2300,9 +2305,22 @@ int *ND_FECollection::DofOrderForOrientation(int GeomType, int Or) const
 
 FiniteElementCollection *ND_FECollection::GetTraceCollection() const
 {
-   // TODO: pass down cp_type and op_type to the trace collection.
-   return new ND_Trace_FECollection(ND_dof[Geometry::SEGMENT],
-                                    atoi(nd_name + 3));
+   int p, dim, cb_type, ob_type;
+
+   p = ND_dof[Geometry::SEGMENT];
+   if (nd_name[2] == '_') // ND_
+   {
+      dim = atoi(nd_name + 3);
+      cb_type = BasisType::GaussLobatto;
+      ob_type = BasisType::GaussLegendre;
+   }
+   else // ND@
+   {
+      dim = atoi(nd_name + 6);
+      cb_type = BasisType::GetType(nd_name[3]);
+      ob_type = BasisType::GetType(nd_name[4]);
+   }
+   return new ND_Trace_FECollection(p, dim, cb_type, ob_type);
 }
 
 ND_FECollection::~ND_FECollection()
@@ -2317,10 +2335,22 @@ ND_FECollection::~ND_FECollection()
 }
 
 
-ND_Trace_FECollection::ND_Trace_FECollection(const int p, const int dim)
-   : ND_FECollection(p, dim-1)
+ND_Trace_FECollection::ND_Trace_FECollection(const int p, const int dim,
+                                             const int cb_type,
+                                             const int ob_type)
+   : ND_FECollection(p, dim-1, cb_type, ob_type)
 {
-   snprintf(nd_name, 32, "ND_Trace_%dD_P%d", dim, p);
+   if (cb_type == BasisType::GaussLobatto &&
+       ob_type == BasisType::GaussLegendre)
+   {
+      snprintf(nd_name, 32, "ND_Trace_%dD_P%d", dim, p);
+   }
+   else
+   {
+      snprintf(nd_name, 32, "ND_Trace@%c%c_%dD_P%d",
+               (int)BasisType::GetChar(cb_type),
+               (int)BasisType::GetChar(ob_type), dim, p);
+   }
 }
 
 

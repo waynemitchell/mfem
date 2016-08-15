@@ -25,12 +25,60 @@ class BasisType
 public:
    enum
    {
-      GaussLegendre = 0,
-      GaussLobatto = 1,
-      Positive = 2,      ///< Bernstein polynomials
-      OpenUniform = 3,
+      GaussLegendre = 0,  ///< Open type
+      GaussLobatto  = 1,  ///< Closed type
+      Positive      = 2,  ///< Bernstein polynomials
+      OpenUniform   = 3,
       ClosedUniform = 4
    };
+   /** @brief If the input does not represents a valid BasisType, abort with an
+       error; otherwise return the input. */
+   static int Check(int b_type)
+   {
+      MFEM_VERIFY(0 <= b_type && b_type < 5, "unknown BasisType: " << b_type);
+      return b_type;
+   }
+   /** @brief Get the corresponding Quadrature1D constant, when that makes
+       sense; otherwise return Quadrature1D::Invalid. */
+   static int GetQuadrature1D(int b_type)
+   {
+      switch (b_type)
+      {
+         case GaussLegendre: return Quadrature1D::GaussLegendre;
+         case GaussLobatto:  return Quadrature1D::GaussLobatto;
+         case OpenUniform:   return Quadrature1D::OpenUniform;
+         case ClosedUniform: return Quadrature1D::ClosedUniform;
+      }
+      return Quadrature1D::Invalid;
+   }
+   /// Check and convert a BasisType constant to a string identifier.
+   static const char *Name(int b_type)
+   {
+      static const *char name[] =
+      { "Gauss-Legengre", "Gauss-Lobatto", "Positive (Bernstein)",
+        "Open uniform", "Closed uniform" };
+      return name[Check(b_type)];
+   }
+   /// Check and convert a BasisType constant to a char basis identifier.
+   static char GetChar(int b_type)
+   {
+      static const char ident[] = { 'g', 'G', 'P', 'u', 'U' };
+      return ident[Check(b_type)];
+   }
+   /// Convert char basis identifier to a BasisType constant.
+   static int GetType(char b_ident)
+   {
+      switch (b_ident)
+      {
+         case 'g': return GaussLegendre;
+         case 'G': return GaussLobatto;
+         case 'P': return Positive;
+         case 'u': return OpenUniform;
+         case 'U': return ClosedUniform;
+      }
+      MFEM_ABORT("unknown BasisType identifier");
+      return -1;
+   }
 };
 
 /** Collection of finite elements from the same family in multiple dimensions.
@@ -75,6 +123,8 @@ public:
 
    virtual ~FiniteElementCollection() { }
 
+   /** @brief Factory method: return a newly allocated FiniteElementCollection
+       according to the given name. */
    static FiniteElementCollection *New(const char *name);
 
    /** @brief Get the local dofs for a given sub-manifold.
@@ -138,7 +188,7 @@ public:
 class L2_FECollection : public FiniteElementCollection
 {
 private:
-   int m_type;
+   int m_type; // BasisType
    char d_name[32];
    ScalarFiniteElement *L2_Elements[Geometry::NumGeom];
    ScalarFiniteElement *Tr_Elements[Geometry::NumGeom];
@@ -181,7 +231,7 @@ typedef L2_FECollection DG_FECollection;
 class RT_FECollection : public FiniteElementCollection
 {
 protected:
-   int cp_type, op_type;
+   int ob_type; // open BasisType
    char rt_name[32];
    FiniteElement *RT_Elements[Geometry::NumGeom];
    int RT_dof[Geometry::NumGeom];
@@ -194,13 +244,12 @@ protected:
    // Constructor used by the constructor of RT_Trace_FECollection
    RT_FECollection(const int p, const int dim, const int map_type,
                    const bool signs,
-                   const int _ob_type = Quadrature1D::GaussLegendre);
-
+                   const int ob_type = Quadrature1D::GaussLegendre);
 
 public:
    RT_FECollection(const int p, const int dim,
-                   const int _cb_type = BasisType::GaussLobatto,
-                   const int _ob_type = BasisType::GaussLegendre );
+                   const int cb_type = BasisType::GaussLobatto,
+                   const int ob_type = BasisType::GaussLegendre);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return RT_Elements[GeomType]; }
@@ -221,7 +270,7 @@ class RT_Trace_FECollection : public RT_FECollection
 public:
    RT_Trace_FECollection(const int p, const int dim,
                          const int map_type = FiniteElement::INTEGRAL,
-                         const int _ob_type = BasisType::GaussLegendre);
+                         const int ob_type = BasisType::GaussLegendre);
 };
 
 /** Arbitrary order discontinuous finite elements defined on the interface
@@ -245,8 +294,8 @@ protected:
 
 public:
    ND_FECollection(const int p, const int dim,
-                   const int cp_type = BasisType::GaussLobatto,
-                   const int op_type = BasisType::GaussLegendre);
+                   const int cb_type = BasisType::GaussLobatto,
+                   const int ob_type = BasisType::GaussLegendre);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return ND_Elements[GeomType]; }
@@ -265,9 +314,9 @@ public:
 class ND_Trace_FECollection : public ND_FECollection
 {
 public:
-   // TODO: add open and closed basis types to make the trace collection
-   //       compatible with the ND_FECollection class.
-   ND_Trace_FECollection(const int p, const int dim);
+   ND_Trace_FECollection(const int p, const int dim,
+                         const int cb_type = BasisType::GaussLobatto,
+                         const int ob_type = BasisType::GaussLegendre);
 };
 
 /// Arbitrary order non-uniform rational B-splines (NURBS) finite elements.

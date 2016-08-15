@@ -559,7 +559,7 @@ void QuadratureFunctions1D::OpenUniform(const int np, IntegrationRule* ir)
       ir->IntPoint(i).x = double(i+1) / double(np + 1);
    }
 
-   CalculateUniformWeights(ir, BasisType::OpenUniform);
+   CalculateUniformWeights(ir, Quadrature1D::OpenUniform);
 }
 
 void QuadratureFunctions1D::ClosedUniform(const int np,
@@ -573,7 +573,7 @@ void QuadratureFunctions1D::ClosedUniform(const int np,
       ir->IntPoint(i).x = double(i) / (np-1);
    }
 
-   CalculateUniformWeights(ir, BasisType::ClosedUniform);
+   CalculateUniformWeights(ir, Quadrature1D::ClosedUniform);
 }
 
 void QuadratureFunctions1D::GivePolyPoints(const int np, double *pts,
@@ -681,18 +681,18 @@ void QuadratureFunctions1D::CalculateUniformWeights(IntegrationRule *ir,
    int hinv = 0, ioffset = 0;
    switch (type)
    {
-      case BasisType::ClosedUniform:
+      case Quadrature1D::ClosedUniform:
          // x_i = i/p, i=0,...,p
          hinv = p;
          ioffset = 0;
          break;
-      case BasisType::OpenUniform:
+      case Quadrature1D::OpenUniform:
          // x_i = i/(p+2), i=1,...,p+1
          hinv = p+2;
          ioffset = 1;
          break;
       default:
-         MFEM_ABORT("invalid BasisType, type = " << type);
+         MFEM_ABORT("invalid Quadrature1D type: " << type);
    }
    // set w0 = (-1)^p*(p!)/(hinv^p)
    mpfr_fac_ui(w0, p, MPFR_RNDN);
@@ -933,6 +933,7 @@ IntegrationRule *IntegrationRules::PointIntegrationRule(int Order)
 // Integration rules for line segment [0,1]
 IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
 {
+   // TODO: allocate the other orders that will be set
    AllocIntRule(SegmentIntRules, Order);
 
    if (refined)
@@ -975,6 +976,7 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
 
       // Effectively passing memory management to SegmentIntegrationRules
       IntegrationRule *ir = new IntegrationRule(2*n);
+      // TODO: set other orders that use this rule
       SegmentIntRules[Order] = ir;
       for (int j = 0; j < n; j++)
       {
@@ -988,6 +990,7 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
    }
 
    IntegrationRule *ir = new IntegrationRule;
+   // TODO: set other orders that use this rule
    SegmentIntRules[Order] = ir;
    // Order = degree of polynomial that is exactly integrated
    switch (quad_type)
@@ -1394,6 +1397,7 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
 // Integration rules for unit square
 IntegrationRule *IntegrationRules::SquareIntegrationRule(int Order)
 {
+   // TODO: set other orders that use the same rule
    if (!HaveIntRule(SegmentIntRules, Order))
    {
       SegmentIntegrationRule(Order);
@@ -1506,6 +1510,7 @@ IntegrationRule *IntegrationRules::TetrahedronIntegrationRule(int Order)
 // Integration rules for reference cube
 IntegrationRule *IntegrationRules::CubeIntegrationRule(int Order)
 {
+   // TODO: set other orders that use the same rule
    if (!HaveIntRule(SegmentIntRules, Order))
    {
       SegmentIntegrationRule(Order);

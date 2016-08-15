@@ -259,11 +259,11 @@ class Quadrature1D
 public:
    enum
    {
-      Invalid = -1,
+      Invalid       = -1,
       GaussLegendre = 0,
-      GaussLobatto = 1,
-      OpenUniform = 2,   ///< aka open Newton-Cotes
-      ClosedUniform = 3  ///< aka closed Newton-Cotes
+      GaussLobatto  = 1,
+      OpenUniform   = 2,  ///< aka open Newton-Cotes
+      ClosedUniform = 3   ///< aka closed Newton-Cotes
    };
 };
 
