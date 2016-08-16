@@ -7,6 +7,16 @@
 
                                http://mfem.org
 
+Version 3.2.1, not yet released
+===============================
+- Rewrote the Volta and Tesla solver classes to avoid using linear algebra
+  objects when possible. This greatly simplifies the code, reduces memory
+  requirements, and eliminates unnecessary computation. It also fixed a bug
+  with divergence cleaning in Tesla.
+
+- Added a simple miniapp, display-basis, for displaying the various types
+  of finite element basis functions within single elements. This is part of
+  the new miniapps/tools directory.
 
 Miscellaneous
 -------------

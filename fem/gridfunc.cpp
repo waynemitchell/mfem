@@ -280,6 +280,8 @@ void GridFunction::GetNodalValues(int i, Array<double> &nval, int vdim) const
 
    if (FElem->GetRangeType() == FiniteElement::SCALAR)
    {
+      MFEM_ASSERT(FElem->GetMapType() == FiniteElement::VALUE,
+                  "invalid FE map type");
       Vector shape(dof);
       for (k = 0; k < n; k++)
       {
@@ -307,7 +309,9 @@ const
    fes->GetElementDofs(i, dofs);
    fes->DofsToVDofs(vdim-1, dofs);
    Vector DofVal(dofs.Size()), LocVec;
-   fes->GetFE(i)->CalcShape(ip, DofVal);
+   const FiniteElement *fe = fes->GetFE(i);
+   MFEM_ASSERT(fe->GetMapType() == FiniteElement::VALUE, "invalid FE map type");
+   fe->CalcShape(ip, DofVal);
    GetSubVector(dofs, LocVec);
 
    return (DofVal * LocVec);
@@ -324,6 +328,8 @@ void GridFunction::GetVectorValue(int i, const IntegrationPoint &ip,
    GetSubVector(vdofs, loc_data);
    if (FElem->GetRangeType() == FiniteElement::SCALAR)
    {
+      MFEM_ASSERT(FElem->GetMapType() == FiniteElement::VALUE,
+                  "invalid FE map type");
       Vector shape(dof);
       FElem->CalcShape(ip, shape);
       int vdim = fes->GetVDim();
@@ -355,6 +361,8 @@ const
    fes->GetElementDofs(i, dofs);
    fes->DofsToVDofs(vdim-1, dofs);
    const FiniteElement *FElem = fes->GetFE(i);
+   MFEM_ASSERT(FElem->GetMapType() == FiniteElement::VALUE,
+               "invalid FE map type");
    int dof = FElem->GetDof();
    Vector DofVal(dof), loc_data(dof);
    GetSubVector(dofs, loc_data);
@@ -439,6 +447,8 @@ void GridFunction::GetVectorValues(ElementTransformation &T,
    int nip = ir.GetNPoints();
    if (FElem->GetRangeType() == FiniteElement::SCALAR)
    {
+      MFEM_ASSERT(FElem->GetMapType() == FiniteElement::VALUE,
+                  "invalid FE map type");
       Vector shape(dof);
       int vdim = fes->GetVDim();
       vals.SetSize(vdim, nip);
@@ -821,6 +831,8 @@ double GridFunction::GetDivergence(ElementTransformation &tr)
    const FiniteElement *FElem = fes->GetFE(elNo);
    if (FElem->GetRangeType() == FiniteElement::SCALAR)
    {
+      MFEM_ASSERT(FElem->GetMapType() == FiniteElement::VALUE,
+                  "invalid FE map type");
       DenseMatrix grad_hat;
       GetVectorGradientHat(tr, grad_hat);
       const DenseMatrix &J = tr.Jacobian();
@@ -828,10 +840,12 @@ double GridFunction::GetDivergence(ElementTransformation &tr)
       CalcInverse(J, Jinv);
       div_v = 0.0;
       for (int i = 0; i < Jinv.Width(); i++)
+      {
          for (int j = 0; j < Jinv.Height(); j++)
          {
             div_v += grad_hat(i, j) * Jinv(j, i);
          }
+      }
    }
    else
    {
@@ -852,6 +866,8 @@ void GridFunction::GetCurl(ElementTransformation &tr, Vector &curl)
    const FiniteElement *FElem = fes->GetFE(elNo);
    if (FElem->GetRangeType() == FiniteElement::SCALAR)
    {
+      MFEM_ASSERT(FElem->GetMapType() == FiniteElement::VALUE,
+                  "invalid FE map type");
       DenseMatrix grad_hat;
       GetVectorGradientHat(tr, grad_hat);
       const DenseMatrix &J = tr.Jacobian();
@@ -901,6 +917,7 @@ void GridFunction::GetGradient(ElementTransformation &tr, Vector &grad)
 {
    int elNo = tr.ElementNo;
    const FiniteElement *fe = fes->GetFE(elNo);
+   MFEM_ASSERT(fe->GetMapType() == FiniteElement::VALUE, "invalid FE map type");
    int dim = fe->GetDim(), dof = fe->GetDof();
    DenseMatrix dshape(dof, dim), Jinv(dim);
    Vector lval, gh(dim);
@@ -919,6 +936,7 @@ void GridFunction::GetGradients(const int elem, const IntegrationRule &ir,
                                 DenseMatrix &grad)
 {
    const FiniteElement *fe = fes->GetFE(elem);
+   MFEM_ASSERT(fe->GetMapType() == FiniteElement::VALUE, "invalid FE map type");
    ElementTransformation *Tr = fes->GetElementTransformation(elem);
    DenseMatrix dshape(fe->GetDof(), fe->GetDim());
    DenseMatrix Jinv(fe->GetDim());
@@ -942,6 +960,8 @@ void GridFunction::GetGradients(const int elem, const IntegrationRule &ir,
 void GridFunction::GetVectorGradient(
    ElementTransformation &tr, DenseMatrix &grad)
 {
+   MFEM_ASSERT(fes->GetFE(tr.ElementNo)->GetMapType() == FiniteElement::VALUE,
+               "invalid FE map type");
    DenseMatrix grad_hat;
    GetVectorGradientHat(tr, grad_hat);
    const DenseMatrix &J = tr.Jacobian();
@@ -2504,6 +2524,11 @@ GridFunction *Extrude1DGridFunction(Mesh *mesh, Mesh *mesh2d,
    else if (!strncmp(name, "H1_", 3))
    {
       solfec2d = new H1_FECollection(atoi(name + 7), 2);
+   }
+   else if (!strncmp(name, "H1Pos_", 6))
+   {
+      // use regular (nodal) H1_FECollection
+      solfec2d = new H1_FECollection(atoi(name + 10), 2);
    }
    else if (!strncmp(name, "L2_T", 4))
    {
