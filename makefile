@@ -111,19 +111,10 @@ CXXFLAGS ?= $(OPTIM_FLAGS)
 # MPI configuration
 ifneq ($(MFEM_USE_MPI),YES)
    MFEM_CXX ?= $(CXX)
-   ifeq ($(MFEM_USE_SUNDIALS),YES)
-     INCFLAGS += $(SUNDIALS_OPT)
-     ALL_LIBS += $(SUNDIALS_LIB)
-   endif
 else
    MFEM_CXX ?= $(MPICXX)
-   ifeq ($(MFEM_USE_SUNDIALS),YES)
-     INCFLAGS += $(METIS_OPT) $(SUNDIALS_OPT) $(HYPRE_OPT)
-     ALL_LIBS += $(METIS_LIB) $(SUNDIALS_PAR_LIB) $(HYPRE_LIB)
-   else
-     INCFLAGS += $(METIS_OPT) $(HYPRE_OPT)
-     ALL_LIBS += $(METIS_LIB) $(HYPRE_LIB)
-   endif
+   INCFLAGS += $(METIS_OPT) $(HYPRE_OPT)
+   ALL_LIBS += $(METIS_LIB) $(HYPRE_LIB)
 endif
 
 DEP_CXX ?= $(MFEM_CXX)
@@ -151,7 +142,11 @@ endif
 # SUNDIALS library configuration
 ifeq ($(MFEM_USE_SUNDIALS),YES)
    INCFLAGS += $(SUNDIALS_OPT)
-   ALL_LIBS += $(SUNDIALS_LIB)
+   ifneq ($(MFEM_USE_MPI),YES)
+      ALL_LIBS += $(SUNDIALS_LIB)
+   else
+      ALL_LIBS += $(SUNDIALS_PAR_LIB)
+   endif
 endif
 
 # MESQUITE library configuration
@@ -269,14 +264,8 @@ libmfem.a: $(OBJECT_FILES)
 serial:
 	$(MAKE) config MFEM_USE_MPI=NO MFEM_DEBUG=NO && $(MAKE)
 
-serial_sundials:
-	$(MAKE) config MFEM_USE_MPI=NO MFEM_USE_SUNDIALS=YES MFEM_DEBUG=NO && $(MAKE)
-
 parallel:
 	$(MAKE) config MFEM_USE_MPI=YES MFEM_DEBUG=NO && $(MAKE)
-
-parallel_sundials:
-	$(MAKE) config MFEM_USE_MPI=YES MFEM_USE_SUNDIALS=YES MFEM_DEBUG=NO && $(MAKE)
 
 debug:
 	$(MAKE) config MFEM_USE_MPI=NO MFEM_DEBUG=YES && $(MAKE)

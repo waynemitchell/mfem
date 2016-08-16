@@ -13,7 +13,6 @@
 
 #ifdef MFEM_USE_MPI
 
-#include "hypre.hpp"
 #include "linalg.hpp"
 #include "../fem/fem.hpp"
 #include "hypre_parcsr.hpp"

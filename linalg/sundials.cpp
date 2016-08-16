@@ -1,3 +1,14 @@
+// Copyright (c) 2010, Lawrence Livermore National Security, LLC. Produced at
+// the Lawrence Livermore National Laboratory. LLNL-CODE-443211. All Rights
+// reserved. See file COPYRIGHT for details.
+//
+// This file is part of the MFEM library. For more information and source code
+// availability see http://mfem.org.
+//
+// MFEM is free software; you can redistribute it and/or modify it under the
+// terms of the GNU Lesser General Public License (as published by the Free
+// Software Foundation) version 2.1 dated February 1999.
+
 #include "sundials.hpp"
 
 #ifdef MFEM_USE_SUNDIALS
@@ -15,7 +26,7 @@
 #include <cvode/cvode_impl.h>
 #include <cvode/cvode_spgmr.h>
 
-// This just hides a warning (to be removed after it's fixed in Sundials).
+// This just hides a warning (to be removed after it's fixed in SUNDIALS).
 #ifdef MSG_TIME_INT
   #undef MSG_TIME_INT
 #endif
@@ -27,7 +38,7 @@
 #include <kinsol/kinsol_spgmr.h>
 
 
-/* Choose default tolerances to match ARKode defaults*/
+// Choose default tolerances to match ARKode defaults.
 #define RELTOL RCONST(1.0e-4)
 #define ABSTOL RCONST(1.0e-9)
 
@@ -152,61 +163,16 @@ static void WrapLinearCVSolveFree(CVodeMem cv_mem)
    return;
 }
 
-/*
- The purpose of ark_linit is to complete initializations for a
- specific linear solver, such as counters and statistics.
- An LInitFn should return 0 if it has successfully initialized
- the ARKODE linear solver and a negative value otherwise.
- If an error does occur, an appropriate message should be sent
- to the error handler function.
- */
+// The purpose of ark_linit is to complete initializations for a
+// specific linear solver, such as counters and statistics.
 static int WrapLinearARKSolveInit(ARKodeMem ark_mem)
 {
    return 0;
 }
 
-/*
-The job of ark_lsetup is to prepare the linear solver for
- subsequent calls to ark_lsolve. It may recompute Jacobian-
- related data as it deems necessary. Its parameters are as
- follows:
 
- ark_mem - problem memory pointer of type ARKodeMem. See the
-          typedef earlier in this file.
-
- convfail - a flag to indicate any problem that occurred during
-            the solution of the nonlinear equation on the
-            current time step for which the linear solver is
-            being used. This flag can be used to help decide
-            whether the Jacobian data kept by a ARKODE linear
-            solver needs to be updated or not.
-            Its possible values have been documented above.
-
- ypred - the predicted y vector for the current ARKODE internal
-         step.
-
- fpred - f(tn, ypred).
-
- jcurPtr - a pointer to a boolean to be filled in by ark_lsetup.
-           The function should set *jcurPtr=TRUE if its Jacobian
-           data is current after the call and should set
-           *jcurPtr=FALSE if its Jacobian data is not current.
-           Note: If ark_lsetup calls for re-evaluation of
-           Jacobian data (based on convfail and ARKODE state
-           data), it should return *jcurPtr=TRUE always;
-           otherwise an infinite loop can result.
-
- vtemp1 - temporary N_Vector provided for use by ark_lsetup.
-
- vtemp3 - temporary N_Vector provided for use by ark_lsetup.
-
- vtemp3 - temporary N_Vector provided for use by ark_lsetup.
-
- The ark_lsetup routine should return 0 if successful, a positive
- value for a recoverable error, and a negative value for an
- unrecoverable error.
- */
-//ypred is the predicted y at the current time, fpred is f(t,ypred)
+// The job of ark_lsetup is to prepare the linear solver for subsequent calls
+// to ark_lsolve. It may recompute Jacobian-related data as it deems necessary.
 static int WrapLinearARKSolveSetup(ARKodeMem ark_mem, int convfail,
                                    N_Vector ypred, N_Vector fpred,
                                    booleantype *jcurPtr, N_Vector vtemp1,
@@ -215,17 +181,6 @@ static int WrapLinearARKSolveSetup(ARKodeMem ark_mem, int convfail,
    return 0;
 }
 
-/*
- ark_lsolve must solve the linear equation P x = b, where
- P is some approximation to (M - gamma J), M is the system mass
- matrix, J = (df/dy)(tn,ycur), and the RHS vector b is input. The
- N-vector ycur contains the solver's current approximation to
- y(tn) and the vector fcur contains the N_Vector f(tn,ycur). The
- solution is to be returned in the vector b. ark_lsolve returns
- a positive value for a recoverable error and a negative value
- for an unrecoverable error. Success is indicated by a 0 return
- value.
-*/
 static int WrapLinearARKSolve(ARKodeMem ark_mem, N_Vector b,
                               N_Vector weight, N_Vector ycur,
                               N_Vector fcur)
