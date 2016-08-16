@@ -299,6 +299,10 @@ private:
    {
       return (ir_array.Size() > Order && ir_array[Order] != NULL);
    }
+   int GetSegmentRealOrder(int Order) const
+   {
+      return Order | 1; // valid for all quad_type's
+   }
 
    IntegrationRule *GenerateIntegrationRule(int GeomType, int Order);
    IntegrationRule *PointIntegrationRule(int Order);

@@ -933,51 +933,59 @@ IntegrationRule *IntegrationRules::PointIntegrationRule(int Order)
 // Integration rules for line segment [0,1]
 IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
 {
-   // TODO: allocate the other orders that will be set
-   AllocIntRule(SegmentIntRules, Order);
+   int RealOrder = GetSegmentRealOrder(Order); // RealOrder >= Order
+   if (HaveIntRule(SegmentIntRules, RealOrder))
+   {
+      SegmentIntRules[Order] = SegmentIntRules[RealOrder];
+      return SegmentIntRules[Order];
+   }
+   AllocIntRule(SegmentIntRules, RealOrder);
 
+   IntegrationRule tmp, *ir;
+   ir = refined ? &tmp : new IntegrationRule;
+
+   int n = 0;
+   // n is the number of points to achieve the exact integral of a
+   // degree Order polynomial
+   switch (quad_type)
+   {
+      case Quadrature1D::GaussLegendre:
+      {
+         // Gauss-Legendre is exact for 2*n-1
+         n = Order/2 + 1;
+         quad_func.GaussLegendre(n, ir);
+         break;
+      }
+      case Quadrature1D::GaussLobatto:
+      {
+         // Gauss-Lobatto is exact for 2*n-3
+         n = Order/2 + 2;
+         quad_func.GaussLobatto(n, ir);
+         break;
+      }
+      case Quadrature1D::OpenUniform:
+      {
+         // Open Newton Cotes is exact for n-(n+1)%2 = n-1+n%2
+         n = Order | 1; // n is always odd
+         quad_func.OpenUniform(n, ir);
+         break;
+      }
+      case Quadrature1D::ClosedUniform:
+      {
+         // Closed Newton Cotes is exact for n-(n+1)%2 = n-1+n%2
+         n = Order | 1; // n is always odd
+         quad_func.ClosedUniform(n, ir);
+         break;
+      }
+      default:
+      {
+         MFEM_ABORT("unknown Quadrature1D type: " << quad_type);
+      }
+   }
    if (refined)
    {
-      // n is the number of points to achieve the exact integral of a
-      // degree Order polynomial
-      int n;
-      IntegrationRule tmp;
-      switch (quad_type)
-      {
-         case Quadrature1D::GaussLegendre:
-         {
-            // Gauss-Legendre is exact for 2*n-1
-            n = Order/2 + 1;
-            quad_func.GaussLegendre(n, &tmp);
-            break;
-         }
-         case Quadrature1D::GaussLobatto:
-         {
-            // Gauss-Lobatto is exact for 2*n-3
-            n = Order/2 + 2;
-            quad_func.GaussLobatto(n, &tmp);
-            break;
-         }
-         case Quadrature1D::OpenUniform:
-         {
-            // Open Newton Cotes is exact for n-(n+1)%2 = n-1+n%2
-            n = Order | 1; // n is always odd
-            quad_func.OpenUniform(n, &tmp);
-            break;
-         }
-         case Quadrature1D::ClosedUniform:
-         {
-            // Closed Newton Cotes is exact for n-(n+1)%2 = n-1+n%2
-            n = Order | 1; // n is always odd
-            quad_func.ClosedUniform(n, &tmp);
-            break;
-         }
-      }
-
       // Effectively passing memory management to SegmentIntegrationRules
-      IntegrationRule *ir = new IntegrationRule(2*n);
-      // TODO: set other orders that use this rule
-      SegmentIntRules[Order] = ir;
+      ir = new IntegrationRule(2*n);
       for (int j = 0; j < n; j++)
       {
          ir->IntPoint(j).x = tmp.IntPoint(j).x/2.0;
@@ -985,46 +993,8 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
          ir->IntPoint(j+n).x = 0.5 + tmp.IntPoint(j).x/2.0;
          ir->IntPoint(j+n).weight = tmp.IntPoint(j).weight/2.0;
       }
-
-      return ir;
    }
-
-   IntegrationRule *ir = new IntegrationRule;
-   // TODO: set other orders that use this rule
-   SegmentIntRules[Order] = ir;
-   // Order = degree of polynomial that is exactly integrated
-   switch (quad_type)
-   {
-      case Quadrature1D::GaussLegendre:
-      {
-         // Gauss Legendre is exact for 2*np - 1
-         int np = Order/2 + 1;
-         quad_func.GaussLegendre(np, ir);
-         break;
-      }
-      case Quadrature1D::GaussLobatto:
-      {
-         // Gauss Lobatto is exact for 2*np - 3
-         int np = Order/2 + 2;
-         quad_func.GaussLobatto(np, ir);
-         break;
-      }
-      case Quadrature1D::OpenUniform:
-      {
-         // Open Newton Cotes is exact for np-1+np%2
-         int np = Order | 1;
-         quad_func.OpenUniform(np, ir);
-         break;
-      }
-      case Quadrature1D::ClosedUniform:
-      {
-         // Closed Newton Cotes is exact for np-1+np%2
-         int np = Order | 1;
-         quad_func.ClosedUniform(np, ir);
-         break;
-      }
-   }
-
+   SegmentIntRules[Order] = SegmentIntRules[RealOrder] = ir;
    return ir;
 }
 
@@ -1397,14 +1367,14 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
 // Integration rules for unit square
 IntegrationRule *IntegrationRules::SquareIntegrationRule(int Order)
 {
-   // TODO: set other orders that use the same rule
+   int RealOrder = GetSegmentRealOrder(Order);
    if (!HaveIntRule(SegmentIntRules, Order))
    {
       SegmentIntegrationRule(Order);
    }
-   AllocIntRule(SquareIntRules, Order);
-   SquareIntRules[Order] =
-      new IntegrationRule(*SegmentIntRules[Order], *SegmentIntRules[Order]);
+   AllocIntRule(SquareIntRules, RealOrder); // RealOrder >= Order
+   SquareIntRules[Order] = SquareIntRules[RealOrder] =
+                              new IntegrationRule(*SegmentIntRules[Order], *SegmentIntRules[Order]);
    return SquareIntRules[Order];
 }
 
@@ -1510,15 +1480,15 @@ IntegrationRule *IntegrationRules::TetrahedronIntegrationRule(int Order)
 // Integration rules for reference cube
 IntegrationRule *IntegrationRules::CubeIntegrationRule(int Order)
 {
-   // TODO: set other orders that use the same rule
+   int RealOrder = GetSegmentRealOrder(Order);
    if (!HaveIntRule(SegmentIntRules, Order))
    {
       SegmentIntegrationRule(Order);
    }
-   AllocIntRule(CubeIntRules, Order);
-   CubeIntRules[Order] =
-      new IntegrationRule(*SegmentIntRules[Order], *SegmentIntRules[Order],
-                          *SegmentIntRules[Order]);
+   AllocIntRule(CubeIntRules, RealOrder);
+   CubeIntRules[Order] = CubeIntRules[RealOrder] =
+                            new IntegrationRule(*SegmentIntRules[Order], *SegmentIntRules[Order],
+                                                *SegmentIntRules[Order]);
    return CubeIntRules[Order];
 }
 

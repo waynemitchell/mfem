@@ -55,8 +55,10 @@ public:
    static const char *Name(int b_type)
    {
       static const char *name[] =
-      { "Gauss-Legengre", "Gauss-Lobatto", "Positive (Bernstein)",
-        "Open uniform", "Closed uniform" };
+      {
+         "Gauss-Legengre", "Gauss-Lobatto", "Positive (Bernstein)",
+         "Open uniform", "Closed uniform"
+      };
       return name[Check(b_type)];
    }
    /// Check and convert a BasisType constant to a char basis identifier.
