@@ -203,6 +203,7 @@ void MagneticDiffusionEOperator::Mult(const Vector &X, Vector &dX_dt) const
 
    // p_bc is given function defining electrostatic potential on surface
    FunctionCoefficient voltage(p_bc);
+   voltage.SetTime(this->GetTime());
    Phi_gf = 0.0;
    Phi_gf.ProjectBdrCoefficient(voltage,poisson_ess_bdr);
 
