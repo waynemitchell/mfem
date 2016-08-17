@@ -1373,8 +1373,8 @@ extern Poly_1D poly1d;
 class H1_SegmentElement : public NodalFiniteElement
 {
 private:
-   Poly_1D::Basis *basis1d;
    int pt_type;
+   Poly_1D::Basis &basis1d;
 #ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, dshape_x;
 #endif
@@ -1393,8 +1393,8 @@ public:
 class H1_QuadrilateralElement : public NodalFiniteElement
 {
 private:
-   Poly_1D::Basis *basis1d;
    int pt_type;
+   Poly_1D::Basis &basis1d;
 #ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, shape_y, dshape_x, dshape_y;
 #endif
@@ -1414,8 +1414,8 @@ public:
 class H1_HexahedronElement : public NodalFiniteElement
 {
 private:
-   Poly_1D::Basis *basis1d;
    int pt_type;
+   Poly_1D::Basis &basis1d;
 #ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, shape_y, shape_z, dshape_x, dshape_y, dshape_z;
 #endif
@@ -1582,7 +1582,7 @@ class L2_SegmentElement : public NodalFiniteElement
 {
 private:
    int type;
-   Poly_1D::Basis *basis1d;
+   Poly_1D::Basis &basis1d;
 #ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, dshape_x;
 #endif
@@ -1616,7 +1616,7 @@ class L2_QuadrilateralElement : public NodalFiniteElement
 {
 private:
    int type;
-   Poly_1D::Basis *basis1d;
+   Poly_1D::Basis &basis1d;
 #ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, shape_y, dshape_x, dshape_y;
 #endif
@@ -1655,7 +1655,7 @@ class L2_HexahedronElement : public NodalFiniteElement
 {
 private:
    int type;
-   Poly_1D::Basis *basis1d;
+   Poly_1D::Basis &basis1d;
 #ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, shape_y, shape_z, dshape_x, dshape_y, dshape_z;
 #endif
@@ -1689,7 +1689,6 @@ public:
 class L2_TriangleElement : public NodalFiniteElement
 {
 private:
-   int type;
 #ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, shape_y, shape_l, dshape_x, dshape_y, dshape_l, u;
    mutable DenseMatrix du;
@@ -1698,7 +1697,7 @@ private:
 
 public:
    L2_TriangleElement(const int p,
-                      const int _type = Quadrature1D::GaussLegendre);
+                      const int type = Quadrature1D::GaussLegendre);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
@@ -1729,7 +1728,6 @@ public:
 class L2_TetrahedronElement : public NodalFiniteElement
 {
 private:
-   int type;
 #ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, shape_y, shape_z, shape_l;
    mutable Vector dshape_x, dshape_y, dshape_z, dshape_l, u;
@@ -1739,7 +1737,7 @@ private:
 
 public:
    L2_TetrahedronElement(const int p,
-                         const int _type = Quadrature1D::GaussLegendre);
+                         const int type = Quadrature1D::GaussLegendre);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
@@ -1768,7 +1766,7 @@ class RT_QuadrilateralElement : public VectorFiniteElement
 private:
    static const double nk[8];
 
-   Poly_1D::Basis *cbasis1d, *obasis1d;
+   Poly_1D::Basis &cbasis1d, &obasis1d;
 #ifndef MFEM_THREAD_SAFE
    mutable Vector shape_cx, shape_ox, shape_cy, shape_oy;
    mutable Vector dshape_cx, dshape_cy;
@@ -1777,7 +1775,8 @@ private:
 
 public:
    RT_QuadrilateralElement(const int p,
-                           const int op_type = -1 , const int cp_type = 1);
+                           const int cp_type = Quadrature1D::GaussLobatto,
+                           const int op_type = Quadrature1D::GaussLegendre);
    virtual void CalcVShape(const IntegrationPoint &ip,
                            DenseMatrix &shape) const;
    virtual void CalcVShape(ElementTransformation &Trans,
@@ -1812,7 +1811,7 @@ class RT_HexahedronElement : public VectorFiniteElement
 {
    static const double nk[18];
 
-   Poly_1D::Basis *cbasis1d, *obasis1d;
+   Poly_1D::Basis &cbasis1d, &obasis1d;
 #ifndef MFEM_THREAD_SAFE
    mutable Vector shape_cx, shape_ox, shape_cy, shape_oy, shape_cz, shape_oz;
    mutable Vector dshape_cx, dshape_cy, dshape_cz;
@@ -1821,7 +1820,8 @@ class RT_HexahedronElement : public VectorFiniteElement
 
 public:
    RT_HexahedronElement(const int p,
-                        const int op_type = -1 , const int cp_type = 1);
+                        const int cp_type = Quadrature1D::GaussLobatto,
+                        const int op_type = Quadrature1D::GaussLegendre);
 
    virtual void CalcVShape(const IntegrationPoint &ip,
                            DenseMatrix &shape) const;
@@ -1935,7 +1935,7 @@ class ND_HexahedronElement : public VectorFiniteElement
 {
    static const double tk[18];
 
-   Poly_1D::Basis *cbasis1d, *obasis1d;
+   Poly_1D::Basis &cbasis1d, &obasis1d;
 #ifndef MFEM_THREAD_SAFE
    mutable Vector shape_cx, shape_ox, shape_cy, shape_oy, shape_cz, shape_oz;
    mutable Vector dshape_cx, dshape_cy, dshape_cz;
@@ -1988,7 +1988,7 @@ class ND_QuadrilateralElement : public VectorFiniteElement
 {
    static const double tk[8];
 
-   Poly_1D::Basis *cbasis1d, *obasis1d;
+   Poly_1D::Basis &cbasis1d, &obasis1d;
 #ifndef MFEM_THREAD_SAFE
    mutable Vector shape_cx, shape_ox, shape_cy, shape_oy;
    mutable Vector dshape_cx, dshape_cy;
@@ -2111,14 +2111,14 @@ class ND_SegmentElement : public VectorFiniteElement
 {
    static const double tk[1];
 
-   Poly_1D::Basis *obasis1d;
+   Poly_1D::Basis &obasis1d;
    Array<int> dof2tk;
 
 public:
    ND_SegmentElement(const int p,
                      const int op_type = Quadrature1D::GaussLegendre );
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const
-   { obasis1d->Eval(ip.x, shape); }
+   { obasis1d.Eval(ip.x, shape); }
    virtual void CalcVShape(const IntegrationPoint &ip,
                            DenseMatrix &shape) const;
    virtual void CalcVShape(ElementTransformation &Trans,

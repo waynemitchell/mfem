@@ -14,8 +14,6 @@
 #include "fem.hpp"
 #include <cmath>
 
-#include <sstream>
-
 namespace mfem
 {
 
@@ -6466,9 +6464,10 @@ Array2D<int> Poly_1D::binom;
 
 H1_SegmentElement::H1_SegmentElement(const int p, const int type)
    : NodalFiniteElement(1, Geometry::SEGMENT, p + 1, p, FunctionSpace::Pk),
-     pt_type(VerifyClosed(type)), dof_map(Dof)
+     pt_type(VerifyClosed(type)),
+     basis1d(poly1d.ClosedBasis(p, pt_type)),
+     dof_map(Dof)
 {
-   basis1d = &poly1d.ClosedBasis(p, pt_type);
    const double *cp = poly1d.ClosedPoints(p, pt_type);
 
 #ifndef MFEM_THREAD_SAFE
@@ -6496,7 +6495,7 @@ void H1_SegmentElement::CalcShape(const IntegrationPoint &ip,
    Vector shape_x(p+1);
 #endif
 
-   basis1d->Eval(ip.x, shape_x);
+   basis1d.Eval(ip.x, shape_x);
 
    shape(0) = shape_x(0);
    shape(1) = shape_x(p);
@@ -6515,7 +6514,7 @@ void H1_SegmentElement::CalcDShape(const IntegrationPoint &ip,
    Vector shape_x(p+1), dshape_x(p+1);
 #endif
 
-   basis1d->Eval(ip.x, shape_x, dshape_x);
+   basis1d.Eval(ip.x, shape_x, dshape_x);
 
    dshape(0,0) = dshape_x(0);
    dshape(1,0) = dshape_x(p);
@@ -6557,10 +6556,10 @@ H1_QuadrilateralElement::H1_QuadrilateralElement(const int p, const int type)
    : NodalFiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p,
                         FunctionSpace::Qk),
      pt_type(VerifyClosed(type)),
+     basis1d(poly1d.ClosedBasis(p, pt_type)),
      dof_map((p + 1)*(p + 1))
 {
-   basis1d = &poly1d.ClosedBasis(p, pt_type);
-   const double *cp = poly1d.ClosedPoints(p,pt_type);
+   const double *cp = poly1d.ClosedPoints(p, pt_type);
 
    const int p1 = p + 1;
 
@@ -6622,8 +6621,8 @@ void H1_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
    Vector shape_x(p+1), shape_y(p+1);
 #endif
 
-   basis1d->Eval(ip.x, shape_x);
-   basis1d->Eval(ip.y, shape_y);
+   basis1d.Eval(ip.x, shape_x);
+   basis1d.Eval(ip.y, shape_y);
 
    for (int o = 0, j = 0; j <= p; j++)
       for (int i = 0; i <= p; i++)
@@ -6641,8 +6640,8 @@ void H1_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,
    Vector shape_x(p+1), shape_y(p+1), dshape_x(p+1), dshape_y(p+1);
 #endif
 
-   basis1d->Eval(ip.x, shape_x, dshape_x);
-   basis1d->Eval(ip.y, shape_y, dshape_y);
+   basis1d.Eval(ip.x, shape_x, dshape_x);
+   basis1d.Eval(ip.y, shape_y, dshape_y);
 
    for (int o = 0, j = 0; j <= p; j++)
    {
@@ -6657,7 +6656,7 @@ void H1_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,
 void H1_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
 {
    const int p = Order;
-   const double *cp = poly1d.ClosedPoints(p,pt_type);
+   const double *cp = poly1d.ClosedPoints(p, pt_type);
 
 #ifdef MFEM_THREAD_SAFE
    Vector shape_x(p+1), shape_y(p+1);
@@ -6706,10 +6705,11 @@ void H1_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
 H1_HexahedronElement::H1_HexahedronElement(const int p, const int type)
    : NodalFiniteElement(3, Geometry::CUBE, (p + 1)*(p + 1)*(p + 1), p,
                         FunctionSpace::Qk),
-     pt_type(VerifyClosed(type)), dof_map((p + 1)*(p + 1)*(p + 1))
+     pt_type(VerifyClosed(type)),
+     basis1d(poly1d.ClosedBasis(p, pt_type)),
+     dof_map((p + 1)*(p + 1)*(p + 1))
 {
-   basis1d = &poly1d.ClosedBasis(p, pt_type);
-   const double *cp = poly1d.ClosedPoints(p,pt_type);
+   const double *cp = poly1d.ClosedPoints(p, pt_type);
 
    const int p1 = p + 1;
 
@@ -6841,9 +6841,9 @@ void H1_HexahedronElement::CalcShape(const IntegrationPoint &ip,
    Vector shape_x(p+1), shape_y(p+1), shape_z(p+1);
 #endif
 
-   basis1d->Eval(ip.x, shape_x);
-   basis1d->Eval(ip.y, shape_y);
-   basis1d->Eval(ip.z, shape_z);
+   basis1d.Eval(ip.x, shape_x);
+   basis1d.Eval(ip.y, shape_y);
+   basis1d.Eval(ip.z, shape_z);
 
    for (int o = 0, k = 0; k <= p; k++)
       for (int j = 0; j <= p; j++)
@@ -6863,9 +6863,9 @@ void H1_HexahedronElement::CalcDShape(const IntegrationPoint &ip,
    Vector dshape_x(p+1), dshape_y(p+1), dshape_z(p+1);
 #endif
 
-   basis1d->Eval(ip.x, shape_x, dshape_x);
-   basis1d->Eval(ip.y, shape_y, dshape_y);
-   basis1d->Eval(ip.z, shape_z, dshape_z);
+   basis1d.Eval(ip.x, shape_x, dshape_x);
+   basis1d.Eval(ip.y, shape_y, dshape_y);
+   basis1d.Eval(ip.z, shape_z, dshape_z);
 
    for (int o = 0, k = 0; k <= p; k++)
       for (int j = 0; j <= p; j++)
@@ -8002,10 +8002,10 @@ void H1Pos_TetrahedronElement::CalcDShape(const IntegrationPoint &ip,
 
 L2_SegmentElement::L2_SegmentElement(const int p, const int type)
    : NodalFiniteElement(1, Geometry::SEGMENT, p + 1, p, FunctionSpace::Pk),
-     type(VerifyOpen(type))
+     type(VerifyOpen(type)),
+     basis1d(poly1d.OpenBasis(p, type))
 {
    const double *op = poly1d.OpenPoints(p, type);
-   basis1d = &poly1d.OpenBasis(p, type);
 
 #ifndef MFEM_THREAD_SAFE
    shape_x.SetSize(p + 1);
@@ -8021,7 +8021,7 @@ L2_SegmentElement::L2_SegmentElement(const int p, const int type)
 void L2_SegmentElement::CalcShape(const IntegrationPoint &ip,
                                   Vector &shape) const
 {
-   basis1d->Eval(ip.x, shape);
+   basis1d.Eval(ip.x, shape);
 }
 
 void L2_SegmentElement::CalcDShape(const IntegrationPoint &ip,
@@ -8032,7 +8032,7 @@ void L2_SegmentElement::CalcDShape(const IntegrationPoint &ip,
 #else
    dshape_x.SetData(dshape.Data());
 #endif
-   basis1d->Eval(ip.x, shape_x, dshape_x);
+   basis1d.Eval(ip.x, shape_x, dshape_x);
 }
 
 void L2_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const
@@ -8107,10 +8107,10 @@ void L2Pos_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const
 L2_QuadrilateralElement::L2_QuadrilateralElement(const int p, const int _type)
    : NodalFiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p,
                         FunctionSpace::Qk),
-     type(VerifyOpen(_type))
+     type(VerifyOpen(_type)),
+     basis1d(poly1d.OpenBasis(p, type))
 {
    const double *op = poly1d.OpenPoints(p, type);
-   basis1d = &poly1d.OpenBasis(p, type);
 
 #ifndef MFEM_THREAD_SAFE
    shape_x.SetSize(p + 1);
@@ -8135,8 +8135,8 @@ void L2_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
    Vector shape_x(p+1), shape_y(p+1);
 #endif
 
-   basis1d->Eval(ip.x, shape_x);
-   basis1d->Eval(ip.y, shape_y);
+   basis1d.Eval(ip.x, shape_x);
+   basis1d.Eval(ip.y, shape_y);
 
    for (int o = 0, j = 0; j <= p; j++)
       for (int i = 0; i <= p; i++)
@@ -8154,8 +8154,8 @@ void L2_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,
    Vector shape_x(p+1), shape_y(p+1), dshape_x(p+1), dshape_y(p+1);
 #endif
 
-   basis1d->Eval(ip.x, shape_x, dshape_x);
-   basis1d->Eval(ip.y, shape_y, dshape_y);
+   basis1d.Eval(ip.x, shape_x, dshape_x);
+   basis1d.Eval(ip.y, shape_y, dshape_y);
 
    for (int o = 0, j = 0; j <= p; j++)
       for (int i = 0; i <= p; i++)
@@ -8296,10 +8296,10 @@ void L2Pos_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
 L2_HexahedronElement::L2_HexahedronElement(const int p, const int _type)
    : NodalFiniteElement(3, Geometry::CUBE, (p + 1)*(p + 1)*(p + 1), p,
                         FunctionSpace::Qk),
-     type(VerifyOpen(_type))
+     type(VerifyOpen(_type)),
+     basis1d(poly1d.OpenBasis(p, type))
 {
    const double *op = poly1d.OpenPoints(p, type);
-   basis1d = &poly1d.OpenBasis(p, type);
 
 #ifndef MFEM_THREAD_SAFE
    shape_x.SetSize(p + 1);
@@ -8327,9 +8327,9 @@ void L2_HexahedronElement::CalcShape(const IntegrationPoint &ip,
    Vector shape_x(p+1), shape_y(p+1), shape_z(p+1);
 #endif
 
-   basis1d->Eval(ip.x, shape_x);
-   basis1d->Eval(ip.y, shape_y);
-   basis1d->Eval(ip.z, shape_z);
+   basis1d.Eval(ip.x, shape_x);
+   basis1d.Eval(ip.y, shape_y);
+   basis1d.Eval(ip.z, shape_z);
 
    for (int o = 0, k = 0; k <= p; k++)
       for (int j = 0; j <= p; j++)
@@ -8349,9 +8349,9 @@ void L2_HexahedronElement::CalcDShape(const IntegrationPoint &ip,
    Vector dshape_x(p+1), dshape_y(p+1), dshape_z(p+1);
 #endif
 
-   basis1d->Eval(ip.x, shape_x, dshape_x);
-   basis1d->Eval(ip.y, shape_y, dshape_y);
-   basis1d->Eval(ip.z, shape_z, dshape_z);
+   basis1d.Eval(ip.x, shape_x, dshape_x);
+   basis1d.Eval(ip.y, shape_y, dshape_y);
+   basis1d.Eval(ip.z, shape_z, dshape_z);
 
    for (int o = 0, k = 0; k <= p; k++)
       for (int j = 0; j <= p; j++)
@@ -8540,12 +8540,11 @@ void L2Pos_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
 }
 
 
-L2_TriangleElement::L2_TriangleElement(const int p, const int _type)
+L2_TriangleElement::L2_TriangleElement(const int p, const int type)
    : NodalFiniteElement(2, Geometry::TRIANGLE, ((p + 1)*(p + 2))/2, p,
-                        FunctionSpace::Pk),
-     type(VerifyOpen(_type))
+                        FunctionSpace::Pk)
 {
-   const double *op = poly1d.OpenPoints(p, type);
+   const double *op = poly1d.OpenPoints(p, VerifyOpen(type));
 
 #ifndef MFEM_THREAD_SAFE
    shape_x.SetSize(p + 1);
@@ -8717,12 +8716,11 @@ void L2Pos_TriangleElement::ProjectDelta(int vertex, Vector &dofs) const
 }
 
 
-L2_TetrahedronElement::L2_TetrahedronElement(const int p, const int _type)
+L2_TetrahedronElement::L2_TetrahedronElement(const int p, const int type)
    : NodalFiniteElement(3, Geometry::TETRAHEDRON, ((p + 1)*(p + 2)*(p + 3))/6,
-                        p, FunctionSpace::Pk),
-     type(VerifyOpen(_type))
+                        p, FunctionSpace::Pk)
 {
-   const double *op = poly1d.OpenPoints(p, type);
+   const double *op = poly1d.OpenPoints(p, VerifyOpen(type));
 
 #ifndef MFEM_THREAD_SAFE
    shape_x.SetSize(p + 1);
@@ -8923,16 +8921,10 @@ RT_QuadrilateralElement::RT_QuadrilateralElement(const int p,
                                                  const int op_type)
    : VectorFiniteElement(2, Geometry::SQUARE, 2*(p + 1)*(p + 2), p + 1,
                          H_DIV, FunctionSpace::Qk),
+     cbasis1d(poly1d.ClosedBasis(p + 1, VerifyClosed(cp_type))),
+     obasis1d(poly1d.OpenBasis(p, VerifyOpen(op_type))),
      dof_map(Dof), dof2nk(Dof)
 {
-   // We expect RT_FECollection to already have done the error checking.
-   // Make sure we haven't missed anything though.
-   VerifyClosed(cp_type);
-   VerifyOpen(op_type);
-
-   cbasis1d = &poly1d.ClosedBasis(p + 1, cp_type);
-   obasis1d = &poly1d.OpenBasis(p, op_type);
-
    const double *cp = poly1d.ClosedPoints(p + 1, cp_type);
    const double *op = poly1d.OpenPoints(p, op_type);
    const int dof2 = Dof/2;
@@ -9047,10 +9039,10 @@ void RT_QuadrilateralElement::CalcVShape(const IntegrationPoint &ip,
    Vector shape_cx(pp1 + 1), shape_ox(pp1), shape_cy(pp1 + 1), shape_oy(pp1);
 #endif
 
-   cbasis1d->Eval(ip.x, shape_cx);
-   obasis1d->Eval(ip.x, shape_ox);
-   cbasis1d->Eval(ip.y, shape_cy);
-   obasis1d->Eval(ip.y, shape_oy);
+   cbasis1d.Eval(ip.x, shape_cx);
+   obasis1d.Eval(ip.x, shape_ox);
+   cbasis1d.Eval(ip.y, shape_cy);
+   obasis1d.Eval(ip.y, shape_oy);
 
    int o = 0;
    for (int j = 0; j < pp1; j++)
@@ -9095,10 +9087,10 @@ void RT_QuadrilateralElement::CalcDivShape(const IntegrationPoint &ip,
    Vector dshape_cx(pp1 + 1), dshape_cy(pp1 + 1);
 #endif
 
-   cbasis1d->Eval(ip.x, shape_cx, dshape_cx);
-   obasis1d->Eval(ip.x, shape_ox);
-   cbasis1d->Eval(ip.y, shape_cy, dshape_cy);
-   obasis1d->Eval(ip.y, shape_oy);
+   cbasis1d.Eval(ip.x, shape_cx, dshape_cx);
+   obasis1d.Eval(ip.x, shape_ox);
+   cbasis1d.Eval(ip.y, shape_cy, dshape_cy);
+   obasis1d.Eval(ip.y, shape_oy);
 
    int o = 0;
    for (int j = 0; j < pp1; j++)
@@ -9140,15 +9132,10 @@ RT_HexahedronElement::RT_HexahedronElement(const int p,
                                            const int op_type)
    : VectorFiniteElement(3, Geometry::CUBE, 3*(p + 1)*(p + 1)*(p + 2), p + 1,
                          H_DIV, FunctionSpace::Qk),
+     cbasis1d(poly1d.ClosedBasis(p + 1, VerifyClosed(cp_type))),
+     obasis1d(poly1d.OpenBasis(p, VerifyOpen(op_type))),
      dof_map(Dof), dof2nk(Dof)
 {
-   // Do some error checking :-)
-   VerifyClosed(cp_type);
-   VerifyOpen(op_type);
-
-   cbasis1d = &poly1d.ClosedBasis(p + 1, cp_type);
-   obasis1d = &poly1d.OpenBasis(p, op_type);
-
    const double *cp = poly1d.ClosedPoints(p + 1, cp_type);
    const double *op = poly1d.OpenPoints(p, op_type);
    const int dof3 = Dof/3;
@@ -9314,12 +9301,12 @@ void RT_HexahedronElement::CalcVShape(const IntegrationPoint &ip,
    Vector shape_cz(pp1 + 1), shape_oz(pp1);
 #endif
 
-   cbasis1d->Eval(ip.x, shape_cx);
-   obasis1d->Eval(ip.x, shape_ox);
-   cbasis1d->Eval(ip.y, shape_cy);
-   obasis1d->Eval(ip.y, shape_oy);
-   cbasis1d->Eval(ip.z, shape_cz);
-   obasis1d->Eval(ip.z, shape_oz);
+   cbasis1d.Eval(ip.x, shape_cx);
+   obasis1d.Eval(ip.x, shape_ox);
+   cbasis1d.Eval(ip.y, shape_cy);
+   obasis1d.Eval(ip.y, shape_oy);
+   cbasis1d.Eval(ip.z, shape_cz);
+   obasis1d.Eval(ip.z, shape_oz);
 
    int o = 0;
    // x-components
@@ -9389,12 +9376,12 @@ void RT_HexahedronElement::CalcDivShape(const IntegrationPoint &ip,
    Vector dshape_cx(pp1 + 1), dshape_cy(pp1 + 1), dshape_cz(pp1 + 1);
 #endif
 
-   cbasis1d->Eval(ip.x, shape_cx, dshape_cx);
-   obasis1d->Eval(ip.x, shape_ox);
-   cbasis1d->Eval(ip.y, shape_cy, dshape_cy);
-   obasis1d->Eval(ip.y, shape_oy);
-   cbasis1d->Eval(ip.z, shape_cz, dshape_cz);
-   obasis1d->Eval(ip.z, shape_oz);
+   cbasis1d.Eval(ip.x, shape_cx, dshape_cx);
+   obasis1d.Eval(ip.x, shape_ox);
+   cbasis1d.Eval(ip.y, shape_cy, dshape_cy);
+   obasis1d.Eval(ip.y, shape_oy);
+   cbasis1d.Eval(ip.z, shape_cz, dshape_cz);
+   obasis1d.Eval(ip.z, shape_oz);
 
    int o = 0;
    // x-components
@@ -9792,14 +9779,10 @@ ND_HexahedronElement::ND_HexahedronElement(const int p,
                                            const int cp_type, const int op_type)
    : VectorFiniteElement(3, Geometry::CUBE, 3*p*(p + 1)*(p + 1), p,
                          H_CURL, FunctionSpace::Qk),
+     cbasis1d(poly1d.ClosedBasis(p, VerifyClosed(cp_type))),
+     obasis1d(poly1d.OpenBasis(p - 1, VerifyOpen(op_type))),
      dof_map(Dof), dof2tk(Dof)
 {
-   VerifyClosed(cp_type);
-   VerifyOpen(op_type);
-
-   cbasis1d = &poly1d.ClosedBasis(p, cp_type);
-   obasis1d = &poly1d.OpenBasis(p - 1, op_type);
-
    const double *cp = poly1d.ClosedPoints(p, cp_type);
    const double *op = poly1d.OpenPoints(p - 1, op_type);
    const int dof3 = Dof/3;
@@ -10020,12 +10003,12 @@ void ND_HexahedronElement::CalcVShape(const IntegrationPoint &ip,
    Vector shape_cz(p + 1), shape_oz(p);
 #endif
 
-   cbasis1d->Eval(ip.x, shape_cx);
-   obasis1d->Eval(ip.x, shape_ox);
-   cbasis1d->Eval(ip.y, shape_cy);
-   obasis1d->Eval(ip.y, shape_oy);
-   cbasis1d->Eval(ip.z, shape_cz);
-   obasis1d->Eval(ip.z, shape_oz);
+   cbasis1d.Eval(ip.x, shape_cx);
+   obasis1d.Eval(ip.x, shape_ox);
+   cbasis1d.Eval(ip.y, shape_cy);
+   obasis1d.Eval(ip.y, shape_oy);
+   cbasis1d.Eval(ip.z, shape_cz);
+   obasis1d.Eval(ip.z, shape_oz);
 
    int o = 0;
    // x-components
@@ -10095,12 +10078,12 @@ void ND_HexahedronElement::CalcCurlShape(const IntegrationPoint &ip,
    Vector dshape_cx(p + 1), dshape_cy(p + 1), dshape_cz(p + 1);
 #endif
 
-   cbasis1d->Eval(ip.x, shape_cx, dshape_cx);
-   obasis1d->Eval(ip.x, shape_ox);
-   cbasis1d->Eval(ip.y, shape_cy, dshape_cy);
-   obasis1d->Eval(ip.y, shape_oy);
-   cbasis1d->Eval(ip.z, shape_cz, dshape_cz);
-   obasis1d->Eval(ip.z, shape_oz);
+   cbasis1d.Eval(ip.x, shape_cx, dshape_cx);
+   obasis1d.Eval(ip.x, shape_ox);
+   cbasis1d.Eval(ip.y, shape_cy, dshape_cy);
+   obasis1d.Eval(ip.y, shape_oy);
+   cbasis1d.Eval(ip.z, shape_cz, dshape_cz);
+   obasis1d.Eval(ip.z, shape_oz);
 
    int o = 0;
    // x-components
@@ -10167,14 +10150,11 @@ ND_QuadrilateralElement::ND_QuadrilateralElement(const int p,
                                                  const int cp_type,
                                                  const int op_type)
    : VectorFiniteElement(2, Geometry::SQUARE, 2*p*(p + 1), p,
-                         H_CURL, FunctionSpace::Qk), dof_map(Dof), dof2tk(Dof)
+                         H_CURL, FunctionSpace::Qk),
+     cbasis1d(poly1d.ClosedBasis(p, VerifyClosed(cp_type))),
+     obasis1d(poly1d.OpenBasis(p - 1, VerifyOpen(op_type))),
+     dof_map(Dof), dof2tk(Dof)
 {
-   VerifyClosed(cp_type);
-   VerifyOpen(op_type);
-
-   cbasis1d = &poly1d.ClosedBasis(p, cp_type);
-   obasis1d = &poly1d.OpenBasis(p - 1, op_type);
-
    const double *cp = poly1d.ClosedPoints(p, cp_type);
    const double *op = poly1d.OpenPoints(p - 1, op_type);
    const int dof2 = Dof/2;
@@ -10264,10 +10244,10 @@ void ND_QuadrilateralElement::CalcVShape(const IntegrationPoint &ip,
    Vector shape_cx(p + 1), shape_ox(p), shape_cy(p + 1), shape_oy(p);
 #endif
 
-   cbasis1d->Eval(ip.x, shape_cx);
-   obasis1d->Eval(ip.x, shape_ox);
-   cbasis1d->Eval(ip.y, shape_cy);
-   obasis1d->Eval(ip.y, shape_oy);
+   cbasis1d.Eval(ip.x, shape_cx);
+   obasis1d.Eval(ip.x, shape_ox);
+   cbasis1d.Eval(ip.y, shape_cy);
+   obasis1d.Eval(ip.y, shape_oy);
 
    int o = 0;
    // x-components
@@ -10314,10 +10294,10 @@ void ND_QuadrilateralElement::CalcCurlShape(const IntegrationPoint &ip,
    Vector dshape_cx(p + 1), dshape_cy(p + 1);
 #endif
 
-   cbasis1d->Eval(ip.x, shape_cx, dshape_cx);
-   obasis1d->Eval(ip.x, shape_ox);
-   cbasis1d->Eval(ip.y, shape_cy, dshape_cy);
-   obasis1d->Eval(ip.y, shape_oy);
+   cbasis1d.Eval(ip.x, shape_cx, dshape_cx);
+   obasis1d.Eval(ip.x, shape_ox);
+   cbasis1d.Eval(ip.y, shape_cy, dshape_cy);
+   obasis1d.Eval(ip.y, shape_oy);
 
    int o = 0;
    // x-components
@@ -10781,10 +10761,10 @@ const double ND_SegmentElement::tk[1] = { 1. };
 
 ND_SegmentElement::ND_SegmentElement(const int p, const int op_type)
    : VectorFiniteElement(1, Geometry::SEGMENT, p, p - 1,
-                         H_CURL, FunctionSpace::Pk), dof2tk(Dof)
+                         H_CURL, FunctionSpace::Pk),
+     obasis1d(poly1d.OpenBasis(p - 1, VerifyOpen(op_type))),
+     dof2tk(Dof)
 {
-   VerifyOpen(op_type);
-   obasis1d = &poly1d.OpenBasis(p - 1, op_type);
    const double *op = poly1d.OpenPoints(p - 1, op_type);
 
    // set dof2tk and Nodes
@@ -10800,7 +10780,7 @@ void ND_SegmentElement::CalcVShape(const IntegrationPoint &ip,
 {
    Vector vshape(shape.Data(), Dof);
 
-   obasis1d->Eval(ip.x, vshape);
+   obasis1d.Eval(ip.x, vshape);
 }
 
 

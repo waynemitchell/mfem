@@ -422,27 +422,18 @@ protected:
 
    void Init(const parameter_type type_)
    {
-      type = type_;
+      type = BasisType::Check(type_);
+      int pt_type = BasisType::GetQuadrature1D(type);
       switch (type)
       {
-         case BasisType::GaussLegendre:
-            my_fe = new L2_FE_type(P, type);
-            my_fe_1d = (TP && dim != 1) ?
-                       new L2_SegmentElement(P, Quadrature1D::GaussLegendre) :
-                       NULL;
-            break;
-         case BasisType::GaussLobatto:
-            my_fe = new L2_FE_type(P, type);
-            my_fe_1d = (TP && dim != 1) ?
-                       new L2_SegmentElement(P, Quadrature1D::GaussLobatto) :
-                       NULL;
-            break;
          case BasisType::Positive:
             my_fe = new L2Pos_FE_type(P);
             my_fe_1d = (TP && dim != 1) ? new L2Pos_SegmentElement(P) : NULL;
             break;
          default:
-            MFEM_ABORT("invalid basis type");
+            my_fe = new L2_FE_type(P, type);
+            my_fe_1d = (TP && dim != 1) ? new L2_SegmentElement(P, pt_type) :
+                       NULL;
       }
    }
 

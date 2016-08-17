@@ -1775,19 +1775,8 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type,
       }
       else
       {
-         // TODO: Don't mess with tets yet
-         if ( (m_type == BasisType::OpenUniform) ||
-              (m_type == BasisType::GaussLegendre) )
-         {
-            // for now use the default Gauss-Legendre nodes
-            L2_Elements[Geometry::TETRAHEDRON] = new L2_TetrahedronElement(p);
-         }
-         else
-         {
-            // for now use Gauss-Lobatto nodes
-            L2_Elements[Geometry::TETRAHEDRON] =
-               new L2_TetrahedronElement(p, Quadrature1D::GaussLobatto);
-         }
+         L2_Elements[Geometry::TETRAHEDRON] =
+            new L2_TetrahedronElement(p, pt_type);
          L2_Elements[Geometry::CUBE] = new L2_HexahedronElement(p, pt_type);
       }
       L2_Elements[Geometry::TETRAHEDRON]->SetMapType(map_type);
@@ -1945,8 +1934,7 @@ void RT_FECollection::InitFaces(const int p, const int dim, const int map_type,
    }
    else if (dim == 3)
    {
-      // TODO: support for op_type for triangles
-      L2_TriangleElement *l2_tri = new L2_TriangleElement(p);
+      L2_TriangleElement *l2_tri = new L2_TriangleElement(p, op_type);
       l2_tri->SetMapType(map_type);
       RT_Elements[Geometry::TRIANGLE] = l2_tri;
       RT_dof[Geometry::TRIANGLE] = pp1*pp2/2;
