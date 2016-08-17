@@ -89,6 +89,7 @@ using namespace std;
 using namespace mfem;
 
 
+void display_banner(ostream & os);
 void print_banner();
 
 static double aj_ = 0.0;
@@ -106,7 +107,8 @@ int main(int argc, char *argv[])
    int myid = mpi.WorldRank();
 
    // print the cool banner
-   if (mpi.Root()) { print_banner(); }
+   if (mpi.Root()) { display_banner(cout); }
+   // if (mpi.Root()) { print_banner(); }
 
    // 2. Parse command-line options.
    const char *mesh_file = "CylinderHex.mesh";
@@ -125,12 +127,13 @@ int main(int argc, char *argv[])
    double alpha = Tconductivity/Tcapacity;
    double freq = 1.0/60.0;
    bool visualization = true;
+   bool visit = true;
    int vis_steps = 1;
    int gfprint = 0;
    const char *basename = "Joule";
    int amr = 0;
    int debug = 0;
-   bool cubit = false;
+   // bool cubit = false;
    const char *problem = "rod";
 
    OptionsParser args(argc, argv);
@@ -158,6 +161,8 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
+   args.AddOption(&visit, "-visit", "--visit", "-no-visit", "--no-visit",
+                  "Enable or disable VisIt visualization.");
    args.AddOption(&vis_steps, "-vs", "--visualization-steps",
                   "Visualize every n-th timestep.");
    args.AddOption(&basename, "-k", "--outputfilename",
@@ -172,9 +177,9 @@ int main(int argc, char *argv[])
                   "Print matrices and vectors to disk");
    args.AddOption(&SOLVERPRINTLEVEL, "-hl", "--hypre-print-level",
                   "Hypre print level");
-   args.AddOption(&cubit, "-cubit", "--cubit", "-no-cubit",
-                  "--no-cubit",
-                  "Is the mesh a cubit (Netcdf) file.");
+   // args.AddOption(&cubit, "-cubit", "--cubit", "-no-cubit",
+   //               "--no-cubit",
+   //               "Is the mesh a cubit (Netcdf) file.");
    args.AddOption(&problem, "-p", "--problem",
                   "Name of problem to run");
 
@@ -268,8 +273,8 @@ int main(int argc, char *argv[])
    {
 
       // BEGIN CODE FOR THE COIL PROBLEM
-      // For the coil in a box problem we have surfaces 1) coil end (+), 2) coil end (-),
-      // 3) five sides of box, 4) side of box with coil BC
+      // For the coil in a box problem we have surfaces 1) coil end (+),
+      // 2) coil end (-), 3) five sides of box, 4) side of box with coil BC
 
       ess_bdr = 0;
       ess_bdr[0] = 1; // boundary attribute 4 (index 3) is fixed
@@ -447,11 +452,11 @@ int main(int argc, char *argv[])
 
    if (mpi.Root())
    {
-      cout << "Number of Temperature Flux unknowns:    " << glob_size_rt << endl;
-      cout << "Number of Temperature unknowns:         " << glob_size_l2 << endl;
-      cout << "Number of Electric Field unknowns:      " << glob_size_nd << endl;
-      cout << "Number of Magnetic Field unknowns:      " << glob_size_rt << endl;
-      cout << "Number of Electrostatic unknowns:       " << glob_size_h1 << endl;
+      cout << "Number of Temperature Flux unknowns:  " << glob_size_rt << endl;
+      cout << "Number of Temperature unknowns:       " << glob_size_l2 << endl;
+      cout << "Number of Electric Field unknowns:    " << glob_size_nd << endl;
+      cout << "Number of Magnetic Field unknowns:    " << glob_size_rt << endl;
+      cout << "Number of Electrostatic unknowns:     " << glob_size_h1 << endl;
    }
 
    int Vsize_l2 = L2FESpace.GetVSize();
@@ -479,8 +484,9 @@ int main(int argc, char *argv[])
 
 
    // The BlockVector is a large contiguous chunck of memory for storing
-   // the required data for the hyprevectors, in this case the temperature L2, the T-flux HDiv, the E-field
-   // HCurl, and the B-field HDiv, and scalar potential P
+   // the required data for the hyprevectors, in this case the temperature L2,
+   // the T-flux HDiv, the E-field HCurl, and the B-field HDiv,
+   // and scalar potential P
    BlockVector F(true_offset);
 
    // grid functions E, B, T, F, P, and w which is the Joule heating
@@ -516,7 +522,8 @@ int main(int argc, char *argv[])
    MagneticDiffusionEOperator oper(true_offset[6], L2FESpace, HCurlFESpace,
                                    HDivFESpace, HGradFESpace,
                                    ess_bdr, thermal_ess_bdr, poisson_ess_bdr,
-                                   mu, sigmaMap, TcapMap, InvTcapMap, InvTcondMap);
+                                   mu, sigmaMap, TcapMap, InvTcapMap,
+                                   InvTcondMap);
 
    // This function initializes all the fields to zero or some provided IC
    oper.Init(F);
@@ -565,17 +572,17 @@ int main(int argc, char *argv[])
 
    // visit visualization
    VisItDataCollection visit_dc(basename, pmesh);
-   visit_dc.RegisterField("E", &E_gf);
-   visit_dc.RegisterField("B", &B_gf);
-   visit_dc.RegisterField("T", &T_gf);
-   visit_dc.RegisterField("w", &w_gf);
-   visit_dc.RegisterField("Phi", &P_gf);
-   visit_dc.RegisterField("F", &F_gf);
-   visit_dc.RegisterField("Eexact", &Eexact_gf);
-   visit_dc.RegisterField("Texact", &Texact_gf);
-   bool visit = true;
-   if (visit)
+   if ( visit )
    {
+      visit_dc.RegisterField("E", &E_gf);
+      visit_dc.RegisterField("B", &B_gf);
+      visit_dc.RegisterField("T", &T_gf);
+      visit_dc.RegisterField("w", &w_gf);
+      visit_dc.RegisterField("Phi", &P_gf);
+      visit_dc.RegisterField("F", &F_gf);
+      visit_dc.RegisterField("Eexact", &Eexact_gf);
+      visit_dc.RegisterField("Texact", &Texact_gf);
+
       visit_dc.SetCycle(0);
       visit_dc.SetTime(0.0);
       visit_dc.Save();
@@ -818,6 +825,16 @@ double p_bc(const Vector &x, double t)
    }
 
    return T*cos(wj_ * t);
+}
+
+void display_banner(ostream & os)
+{
+   os << "     ____.            .__          " << endl
+      << "    |    | ____  __ __|  |   ____  " << endl
+      << "    |    |/  _ \\|  |  \\  | _/ __ \\ " << endl
+      << "/\\__|    (  <_> )  |  /  |_\\  ___/ " << endl
+      << "\\________|\\____/|____/|____/\\___  >" << endl
+      << "                                \\/ " << endl << flush;
 }
 
 void print_banner()

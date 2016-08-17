@@ -263,7 +263,7 @@ const
 }
 
 void ParBilinearForm::FormLinearSystem(
-   Array<int> &ess_tdof_list, Vector &x, Vector &b,
+   const Array<int> &ess_tdof_list, Vector &x, Vector &b,
    HypreParMatrix &A, Vector &X, Vector &B, int copy_interior)
 {
    HypreParMatrix &P = *pfes->Dof_TrueDof_Matrix();
