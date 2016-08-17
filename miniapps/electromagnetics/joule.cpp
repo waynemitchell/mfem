@@ -88,11 +88,6 @@
 using namespace std;
 using namespace mfem;
 
-void visualize(ostream &out, ParMesh *mesh,
-               ParGridFunction *field, bool vec_field,
-               const char *field_name = NULL,
-               double range = -1.0, int pal = 13,
-               bool init_vis = false);
 
 void print_banner();
 
@@ -781,54 +776,6 @@ int main(int argc, char *argv[])
 
    return 0;
 }
-
-void visualize(ostream &out, ParMesh *mesh,
-               ParGridFunction *field, bool vec_field,
-               const char *field_name,
-               double range, int pal, bool init_vis)
-{
-   if (!out)
-   {
-      return;
-   }
-
-   out << "parallel " << mesh->GetNRanks() << " " << mesh->GetMyRank() << "\n";
-   out << "solution\n" << *mesh << *field;
-
-   if (init_vis)
-   {
-      int wd = 400;
-      out << "window_size " << wd << " " << wd << "\n";
-      out << "window_title '" << field_name << "'\n";
-      out << "palette " << pal << "\n";
-      if (mesh->SpaceDimension() == 2)
-      {
-         out << "view 0 0\n"; // view from top
-         out << "keys jl\n";  // turn off perspective and light
-      }
-      if ( vec_field )
-      {
-         out << "keys cmv\n";   // show colorbar, mesh, and vectors
-      }
-      else
-      {
-         out << "keys cm\n";   // show colorbar and mesh
-      }
-      if ( range <= 0.0 )
-      {
-         out << "autoscale value\n"; // update value-range; keep mesh-extents fixed
-      }
-      else
-      {
-         out << "autoscale off\n"; // update value-range; keep mesh-extents fixed
-         out << "valuerange " << 0.0 << " " << range <<
-             "\n"; // update value-range; keep mesh-extents fixed
-      }
-      out << "pause\n";
-   }
-   out << flush;
-}
-
 
 void edot_bc(const Vector &x, Vector &E)
 {
