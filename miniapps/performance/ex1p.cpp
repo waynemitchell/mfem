@@ -295,14 +295,6 @@ int main(int argc, char *argv[])
    ParGridFunction x(fespace);
    x = 0.0;
 
-   ParGridFunction disc_coeff(fespace);
-   for (int i = 0; i < disc_coeff.Size(); i++)
-   {
-      if (i % 2 == 0)
-         disc_coeff(i) = 1.0;
-      else
-         disc_coeff(i) = 10000.0;
-   }
    // 12. Set up the parallel bilinear form a(.,.) on the finite element space
    //     that will hold the matrix corresponding to the Laplacian operator.
    ParBilinearForm *a = new ParBilinearForm(fespace);
@@ -362,6 +354,8 @@ int main(int argc, char *argv[])
             //a_hpc->AssembleBilinearForm(*a);
             a_hpc_lor->AssembleBilinearForm(*a_lor);
             //a->AddDomainIntegrator(new DiffusionIntegrator(one, true));
+            //PWConstCoefficient pwConst(constants);
+            //a->AddDomainIntegrator(new DiffusionIntegrator(pwConst, true));
             //a->Assemble();
          }
       }
@@ -400,6 +394,7 @@ int main(int argc, char *argv[])
             cout << "Assembling Linear System for BoomerAMG" << endl;
          Vector X_tmp, B_tmp;
          a_lor->FormLinearSystem(ess_tdof_list, x, *b, A, X_tmp, B_tmp);
+         //a->FormLinearSystem(ess_tdof_list, x, *b, A, X_tmp, B_tmp);
       }
    }
    else

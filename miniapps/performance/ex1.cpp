@@ -47,8 +47,8 @@ using namespace mfem;
 
 // Define template parameters for optimized build.
 const Geometry::Type geom         = Geometry::SQUARE; // mesh elements  (default: hex)
-const int            mesh_p       = 7;              // mesh curvature (default: 3)
-const int            sol_p        = 7;              // solution order (default: 3)
+const int            mesh_p       = 3;              // mesh curvature (default: 3)
+const int            sol_p        = 3;              // solution order (default: 3)
 const int            mesh_lor_p   = 1;              // mesh curvature (default: 3)
 const int            sol_lor_p    = 1;              // solution order (default: 3)
 const int            rdim         = Geometry::Constants<geom>::Dimension;

@@ -2145,10 +2145,11 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order, ParFiniteElementSpa
    FiniteElementCollection *fec_lor = new H1_FECollection(1, mesh->Dimension());
 
    int p = GetOrder(1); // HACK: get order for first element, assume all have same order.
+   int o = mesh->Dimension();
 
    //HACK: Assume order = 1 : all nodes become vertices of new elements
-   Mesh *mesh_lor = new Mesh(mesh->Dimension(), mesh->GetNE() * pow(p + 1, 2),
-         mesh->GetNE() * pow(p, 2), mesh->GetNBE() * p , mesh->SpaceDimension());
+   Mesh *mesh_lor = new Mesh(o, mesh->GetNE() * pow(p + 1, o),
+      mesh->GetNE() * pow(p, o));
 
    // Build the low order refined mesh from the original mesh.
    // TODO: add a test to make sure we are on Quad elements, fe != NULL
@@ -2208,15 +2209,14 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order, ParFiniteElementSpa
                for (int l = 0; l < p; l++)
                {
                   int v[8];
-                  // stub code; implement this
                   v[0] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + k * (p + 1) + l]];
-                  v[1] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + k * (p + 1) + l]];
-                  v[2] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + k * (p + 1) + l]];
-                  v[3] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + k * (p + 1) + l]];
-                  v[4] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + k * (p + 1) + l]];
-                  v[5] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + k * (p + 1) + l]];
-                  v[6] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + k * (p + 1) + l]];
-                  v[7] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + k * (p + 1) + l]];
+                  v[1] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + k * (p + 1) + l + 1]];
+                  v[2] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + (k + 1) * (p + 1) + l + 1]];
+                  v[3] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + (k + 1) * (p + 1) + l]];
+                  v[4] = vdofs[dof_map_[ (j + 1) * (p + 1) * (p + 1) + k * (p + 1) + l]];
+                  v[5] = vdofs[dof_map_[ (j + 1) * (p + 1) * (p + 1) + k * (p + 1) + l + 1]];
+                  v[6] = vdofs[dof_map_[ (j + 1) * (p + 1) * (p + 1) + (k + 1) * (p + 1) + l + 1]];
+                  v[7] = vdofs[dof_map_[ (j + 1) * (p + 1) * (p + 1) + (k + 1) * (p + 1) + l]];
                   mesh_lor->AddHex(v, mesh->GetAttribute(i));
                }
             }
