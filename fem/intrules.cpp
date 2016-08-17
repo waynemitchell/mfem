@@ -453,8 +453,7 @@ void QuadratureFunctions1D::GaussLobatto(const int np, IntegrationRule* ir)
    ir->SetSize(np);
    if ( np == 1 )
    {
-      ir->IntPoint(0).x = 0.5;
-      ir->IntPoint(0).weight = 1.0;
+      ir->IntPoint(0).Set1w(0.5, 1.0);
    }
    else
    {
@@ -566,7 +565,11 @@ void QuadratureFunctions1D::ClosedUniform(const int np,
                                           IntegrationRule* ir)
 {
    ir->SetSize(np);
-   MFEM_ASSERT(np > 1, "");
+   if ( np == 1 ) // allow this case as "closed"
+   {
+      ir->IntPoint(0).Set1w(0.5, 1.0);
+      return;
+   }
 
    for (int i = 0; i < np ; ++i)
    {
@@ -764,6 +767,33 @@ void QuadratureFunctions1D::CalculateUniformWeights(IntegrationRule *ir,
 
 #endif // MFEM_USE_MPFR
 
+}
+
+
+int Quadrature1D::CheckClosed(int type)
+{
+   switch (type)
+   {
+      case GaussLobatto:
+      case ClosedUniform:
+         return type;
+      default:
+         return Invalid;
+   }
+}
+
+int Quadrature1D::CheckOpen(int type)
+{
+   switch (type)
+   {
+      case GaussLegendre:
+      case GaussLobatto:
+      case OpenUniform:
+      case ClosedUniform:
+         return type; // all types can work as open
+      default:
+         return Invalid;
+   }
 }
 
 

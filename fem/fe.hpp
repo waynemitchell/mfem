@@ -199,6 +199,21 @@ public:
                            DenseMatrix &div) const;
 
    virtual ~FiniteElement () { }
+
+   static int VerifyClosed(int pt_type)
+   {
+      int cp_type = Quadrature1D::CheckClosed(pt_type);
+      MFEM_VERIFY(cp_type != Quadrature1D::Invalid,
+                  "invalid closed point type: " << pt_type);
+      return cp_type;
+   }
+   static int VerifyOpen(int pt_type)
+   {
+      int op_type = Quadrature1D::CheckOpen(pt_type);
+      MFEM_VERIFY(op_type != Quadrature1D::Invalid,
+                  "invalid open point type: " << pt_type);
+      return op_type;
+   }
 };
 
 class ScalarFiniteElement : public FiniteElement
@@ -1260,8 +1275,8 @@ public:
    };
 
 private:
-   std::map< int,  Array<double*>* > closed_pts, open_pts;
-   std::map< int , Array<Basis*>* > closed_basis, open_basis;
+   std::map< int, Array<double*>* > points_container;
+   std::map< int, Array<Basis*>* >  bases_container;
 
    static Array2D<int> binom;
 
@@ -1275,20 +1290,40 @@ private:
    static void CalcChebyshev(const int p, const double x, double *u, double *d);
 
    QuadratureFunctions1D quad_func;
+
 public:
    Poly_1D() { }
 
+   /** @brief Get a poiner to an array containing the binomial coefficients "p
+       choose k" for k=0,...,p for the given p. */
    static const int *Binom(const int p);
 
+   /** @brief Get the coordinates of the points of the given Quadrature1D type.
+       @param p    the polynomial degree; the number of points is `p+1`.
+       @param type the Quadrature1D type.
+       @return a pointer to an array containing the `p+1` coordiantes of the
+               quadrature points. */
+   const double *GetPoints(const int p, const int type);
    const double *OpenPoints(const int p,
-                            const int type = Quadrature1D::GaussLegendre);
+                            const int type = Quadrature1D::GaussLegendre)
+   { return GetPoints(p, type); }
    const double *ClosedPoints(const int p,
-                              const int type = Quadrature1D::GaussLobatto);
+                              const int type = Quadrature1D::GaussLobatto)
+   { return GetPoints(p, type); }
 
+   /** @brief Get a Poly_1D::Basis object of the given degree and Quadrature1D
+       type.
+       @param p    the polynomial degree of the basis.
+       @param type the Quadrature1D type.
+       @return a reference to an object of type Poly_1D::Basis that represents
+       the requested nodal basis. */
+   Basis &GetBasis(const int p, const int type);
    Basis &OpenBasis(const int p,
-                    const int type = Quadrature1D::GaussLegendre);
+                    const int type = Quadrature1D::GaussLegendre)
+   { return GetBasis(p, type); }
    Basis &ClosedBasis(const int p,
-                      const int type = Quadrature1D::GaussLobatto);
+                      const int type = Quadrature1D::GaussLobatto)
+   { return GetBasis(p, type); }
 
    // Evaluate the values of a hierarchical 1D basis at point x
    // hierarchical = k-th basis function is degree k polynomial

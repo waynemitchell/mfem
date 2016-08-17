@@ -265,6 +265,12 @@ public:
       OpenUniform   = 2,  ///< aka open Newton-Cotes
       ClosedUniform = 3   ///< aka closed Newton-Cotes
    };
+   /** @brief If the Quadrature1D type is not closed return Invalid; otherwise
+       return type. */
+   static int CheckClosed(int type);
+   /** @brief If the Quadrature1D type is not open return Invalid; otherwise
+       return type. */
+   static int CheckOpen(int type);
 };
 
 /// Container class for integration rules

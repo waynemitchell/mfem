@@ -1450,14 +1450,13 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
 {
    const int pm1 = p - 1, pm2 = pm1 - 1, pm3 = pm2 - 1;
 
-   int pt_type = Quadrature1D::Invalid;
+   int pt_type = BasisType::GetQuadrature1D(type);
    m_type = BasisType::Check(type);
    switch (type)
    {
       case BasisType::GaussLobatto:
       {
          snprintf(h1_name, 32, "H1_%dD_P%d", dim, p);
-         pt_type = Quadrature1D::GaussLobatto;
          break;
       }
       case BasisType::Positive:
@@ -1465,16 +1464,14 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
          snprintf(h1_name, 32, "H1Pos_%dD_P%d", dim, p);
          break;
       }
-      case BasisType::ClosedUniform:
-      {
-         snprintf(h1_name, 32, "H1@%c_%dD_P%d", (int)BasisType::GetChar(type),
-                  dim, p);
-         pt_type = Quadrature1D::ClosedUniform;
-         break;
-      }
       default:
       {
-         MFEM_ABORT("unsupported BasisType: " << BasisType::Name(type));
+         MFEM_VERIFY(Quadrature1D::CheckClosed(pt_type) !=
+                     Quadrature1D::Invalid,
+                     "unsupported BasisType: " << BasisType::Name(type));
+
+         snprintf(h1_name, 32, "H1@%c_%dD_P%d",
+                  (int)BasisType::GetChar(type), dim, p);
       }
    }
 
@@ -1659,14 +1656,10 @@ H1_Trace_FECollection::H1_Trace_FECollection(const int p, const int dim,
    {
       snprintf(h1_name, 32, "H1Pos_Trace_%dD_P%d", dim, p);
    }
-   else if (type == BasisType::ClosedUniform)
+   else // base class checks that type is closed
    {
       snprintf(h1_name, 32, "H1_Trace@%c_%dD_P%d",
                (int)BasisType::GetChar(type), dim, p);
-   }
-   else
-   {
-      MFEM_ABORT("unsupported BasisType: " << BasisType::Name(type));
    }
 }
 
@@ -1736,25 +1729,14 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type,
    }
    else if (dim == 2)
    {
-      if ( m_type == BasisType::Positive)
+      if (m_type == BasisType::Positive)
       {
          L2_Elements[Geometry::TRIANGLE] = new L2Pos_TriangleElement(p);
          L2_Elements[Geometry::SQUARE] = new L2Pos_QuadrilateralElement(p);
       }
       else
       {
-         // TODO: Don't mess with triangle element basis points yet
-         if ((m_type == BasisType::OpenUniform) ||
-             (m_type == BasisType::GaussLegendre))
-         {
-            L2_Elements[Geometry::TRIANGLE] =
-               new L2_TriangleElement(p, Quadrature1D::GaussLegendre);
-         }
-         else
-         {
-            L2_Elements[Geometry::TRIANGLE] =
-               new L2_TriangleElement(p, Quadrature1D::GaussLobatto);
-         }
+         L2_Elements[Geometry::TRIANGLE] = new L2_TriangleElement(p, pt_type);
          L2_Elements[Geometry::SQUARE] = new L2_QuadrilateralElement(p, pt_type);
       }
       L2_Elements[Geometry::TRIANGLE]->SetMapType(map_type);
@@ -1826,11 +1808,7 @@ int *L2_FECollection::DofOrderForOrientation(int GeomType, int Or) const
 {
    if (GeomType == Geometry::SEGMENT)
    {
-      if (Or > 0)
-      {
-         return SegDofOrd[0];
-      }
-      return SegDofOrd[1];
+      return (Or > 0) ? SegDofOrd[0] : SegDofOrd[1];
    }
    else if (GeomType == Geometry::TRIANGLE)
    {
@@ -1858,15 +1836,12 @@ RT_FECollection::RT_FECollection(const int p, const int dim,
    int cp_type = BasisType::GetQuadrature1D(cb_type);
    int op_type = BasisType::GetQuadrature1D(ob_type);
 
-   if (cb_type != BasisType::GaussLobatto &&
-       cb_type != BasisType::ClosedUniform)
+   if (Quadrature1D::CheckClosed(cp_type) == Quadrature1D::Invalid)
    {
       const char *cb_name = BasisType::Name(cb_type); // this may abort
       MFEM_ABORT("unknown closed BasisType: " << cb_name);
    }
-
-   if (ob_type != BasisType::GaussLegendre &&
-       ob_type != BasisType::OpenUniform)
+   if (Quadrature1D::CheckOpen(op_type) == Quadrature1D::Invalid)
    {
       const char *ob_name = BasisType::Name(ob_type); // this may abort
       MFEM_ABORT("unknown open BasisType: " << ob_name);
@@ -1915,8 +1890,8 @@ RT_FECollection::RT_FECollection(const int p, const int dim, const int map_type,
                                  const bool signs, const int ob_type)
    : ob_type(ob_type)
 {
-   if (ob_type != BasisType::GaussLegendre &&
-       ob_type != BasisType::OpenUniform)
+   if (Quadrature1D::CheckOpen(BasisType::GetQuadrature1D(ob_type)) ==
+       Quadrature1D::Invalid)
    {
       const char *ob_name = BasisType::Name(ob_type); // this may abort
       MFEM_ABORT("Invalid open basis type: " << ob_name);
@@ -1929,7 +1904,8 @@ void RT_FECollection::InitFaces(const int p, const int dim, const int map_type,
 {
    int op_type = BasisType::GetQuadrature1D(ob_type);
 
-   MFEM_VERIFY(op_type != Quadrature1D::Invalid, "invalid open point type");
+   MFEM_VERIFY(Quadrature1D::CheckOpen(op_type) != Quadrature1D::Invalid,
+               "invalid open point type");
 
    const int pp1 = p + 1, pp2 = p + 2;
 
@@ -2161,13 +2137,12 @@ ND_FECollection::ND_FECollection(const int p, const int dim,
    int cp_type = BasisType::GetQuadrature1D(cb_type);
 
    // Error checking
-   if (ob_type != BasisType::GaussLegendre && ob_type != BasisType::OpenUniform)
+   if (Quadrature1D::CheckOpen(op_type) == Quadrature1D::Invalid)
    {
       const char *ob_name = BasisType::Name(ob_type);
       MFEM_ABORT("Invalid open basis point type: " << ob_name);
    }
-   if (cb_type != BasisType::GaussLobatto &&
-       cb_type != BasisType::ClosedUniform)
+   if (Quadrature1D::CheckClosed(cp_type) == Quadrature1D::Invalid)
    {
       const char *cb_name = BasisType::Name(cb_type);
       MFEM_ABORT("Invalid closed basis point type: " << cb_name);
