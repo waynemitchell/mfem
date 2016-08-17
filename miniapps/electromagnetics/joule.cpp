@@ -83,6 +83,7 @@
 #include <fstream>
 #include "joule_solver.hpp"
 #include "joule_globals.hpp"
+#include "../common/pfem_extras.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -526,31 +527,44 @@ int main(int argc, char *argv[])
    oper.Init(F);
 
    socketstream vis_T, vis_E, vis_B, vis_w, vis_P;
+   char vishost[] = "localhost";
+   int  visport   = 19916;
    if (visualization)
    {
-      char vishost[] = "localhost";
-      int  visport   = 19916;
-      vis_T.open(vishost, visport);
-      vis_T.precision(8);
-      vis_E.open(vishost, visport);
-      vis_E.precision(8);
-      vis_B.open(vishost, visport);
-      vis_B.precision(8);
-      vis_P.open(vishost, visport);
-      vis_P.precision(8);
-      visualize(vis_T, pmesh, &T_gf, false, "Temperature", 100.0, 6, true);
-      visualize(vis_E, pmesh, &E_gf, true, "Electric Field", amp, 13, true);
-      visualize(vis_B, pmesh, &B_gf, true, "Magnetic Flux",1.0, 13, true);
-      visualize(vis_P, pmesh, &P_gf, false, "Electrostatic",1.0, 13, true);
-
       // Make sure all ranks have sent their 'v' solution before initiating
       // another set of GLVis connections (one from each rank):
       MPI_Barrier(pmesh->GetComm());
 
-      vis_w.open(vishost, visport);
+      vis_T.precision(8);
+      vis_E.precision(8);
+      vis_B.precision(8);
+      vis_P.precision(8);
       vis_w.precision(8);
-      visualize(vis_w, pmesh, &w_gf, false, "Energy Deposition", sigma*amp*amp, 13,
-                true);
+
+      int Wx = 0, Wy = 0; // window position
+      int Ww = 350, Wh = 350; // window size
+      int offx = Ww+10, offy = Wh+45; // window offsets
+      
+      miniapps::VisualizeField(vis_P, vishost, visport,
+		     P_gf, "Electric Potential (Phi)", Wx, Wy, Ww, Wh);
+      Wx += offx;
+      
+      miniapps::VisualizeField(vis_E, vishost, visport,
+		     E_gf, "Electric Field (E)", Wx, Wy, Ww, Wh);
+      Wx += offx;
+      
+      miniapps::VisualizeField(vis_B, vishost, visport,
+		     B_gf, "Magnetic Field (B)", Wx, Wy, Ww, Wh);
+      Wx = 0;
+      Wy += offy;
+      
+      miniapps::VisualizeField(vis_w, vishost, visport,
+		     w_gf, "Joule Heating", Wx, Wy, Ww, Wh);
+
+      Wx += offx;
+      
+      miniapps::VisualizeField(vis_T, vishost, visport,
+		     T_gf, "Temperature", Wx, Wy, Ww, Wh);
 
    }
 
@@ -715,11 +729,32 @@ int main(int argc, char *argv[])
 
          if (visualization)
          {
-            visualize(vis_T, pmesh, &T_gf, false);
-            visualize(vis_E, pmesh, &E_gf, true);
-            visualize(vis_B, pmesh, &B_gf, true);
-            visualize(vis_P, pmesh, &P_gf, false);
-            visualize(vis_w, pmesh, &w_gf, false);
+
+	   int Wx = 0, Wy = 0; // window position
+	   int Ww = 350, Wh = 350; // window size
+	   int offx = Ww+10, offy = Wh+45; // window offsets
+	   
+	   miniapps::VisualizeField(vis_P, vishost, visport,
+			  P_gf, "Electric Potential (Phi)", Wx, Wy, Ww, Wh);
+	   Wx += offx;
+	   
+	   miniapps::VisualizeField(vis_E, vishost, visport,
+			  E_gf, "Electric Field (E)", Wx, Wy, Ww, Wh);
+	   Wx += offx;
+	   
+	   miniapps::VisualizeField(vis_B, vishost, visport,
+			  B_gf, "Magnetic Field (B)", Wx, Wy, Ww, Wh);
+	   
+	   Wx = 0;
+	   Wy += offy;
+
+	   miniapps::VisualizeField(vis_w, vishost, visport,
+			  w_gf, "Joule Heating", Wx, Wy, Ww, Wh);
+	   
+	   Wx += offx;
+	   
+	   miniapps::VisualizeField(vis_T, vishost, visport,
+			  T_gf, "Temperature", Wx, Wy, Ww, Wh);
          }
 
          if (visit)
