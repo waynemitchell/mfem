@@ -1672,7 +1672,7 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type,
    MFEM_VERIFY(pt_type != Quadrature1D::Invalid ||
                m_type == BasisType::Positive,
                "unsupported L2 basis type = " << BasisType::Name(type));
-   const char *prefix;
+   const char *prefix = NULL;
    switch (map_type)
    {
       case FiniteElement::VALUE:    prefix = "L2";    break;

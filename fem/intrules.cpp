@@ -374,7 +374,7 @@ void QuadratureFunctions1D::GaussLegendre(const int np, IntegrationRule* ir)
    for (int i = 1; i <= m; i++)
    {
       double z = cos(M_PI * (i - 0.25) / (n + 0.5));
-      double pp, p1, dz, xi;
+      double pp, p1, dz, xi = 0.;
       bool done = false;
       while (1)
       {
@@ -472,7 +472,7 @@ void QuadratureFunctions1D::GaussLobatto(const int np, IntegrationRule* ir)
          // initial guess is the corresponding Chebyshev point, x_i:
          //    x_i = -cos(\pi * (i / (np-1)))
          double x_i = std::sin(M_PI * ((double)(i)/(np-1) - 0.5));
-         double z_i, p_l;
+         double z_i = 0., p_l;
          bool done = false;
          for (int iter = 0 ; true ; ++iter)
          {
