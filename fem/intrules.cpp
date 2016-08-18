@@ -159,14 +159,15 @@ protected:
    mpfr_t pi, z, pp, p1, p2, p3, dz, w, rtol;
 
 public:
+   static const mpfr_rnd_t rnd = GMP_RNDN;
    static const int default_prec = 128;
 
    // prec = MPFR precision in bits
    HP_Quadrature1D(const int prec = default_prec)
    {
       mpfr_inits2(prec, pi, z, pp, p1, p2, p3, dz, w, rtol, (mpfr_ptr) 0);
-      mpfr_const_pi(pi, MPFR_RNDN);
-      mpfr_set_si_2exp(rtol, 1, -32, MPFR_RNDN); // 2^(-32) < 2.33e-10
+      mpfr_const_pi(pi, rnd);
+      mpfr_set_si_2exp(rtol, 1, -32, rnd); // 2^(-32) < 2.33e-10
    }
 
    // set rtol = 2^exponent
@@ -174,7 +175,7 @@ public:
    // this gives roughly rtol^2 accuracy for the final x_i.
    void SetRelTol(const int exponent = -32)
    {
-      mpfr_set_si_2exp(rtol, 1, exponent, MPFR_RNDN);
+      mpfr_set_si_2exp(rtol, 1, exponent, rnd);
    }
 
    // n - number of quadrature points
@@ -190,64 +191,64 @@ public:
       // Initial guess for the x-coordinate:
       // set z = cos(pi * (i - 0.25) / (n + 0.5)) =
       //       = sin(pi * ((n+1-2*i) / (2*n+1)))
-      mpfr_set_si(z, n+1-2*i, MPFR_RNDN);
-      mpfr_div_si(z, z, 2*n+1, MPFR_RNDN);
-      mpfr_mul(z, z, pi, MPFR_RNDN);
-      mpfr_sin(z, z, MPFR_RNDN);
+      mpfr_set_si(z, n+1-2*i, rnd);
+      mpfr_div_si(z, z, 2*n+1, rnd);
+      mpfr_mul(z, z, pi, rnd);
+      mpfr_sin(z, z, rnd);
 
       bool done = false;
       while (1)
       {
-         mpfr_set_si(p2, 1, MPFR_RNDN);
-         mpfr_set(p1, z, MPFR_RNDN);
+         mpfr_set_si(p2, 1, rnd);
+         mpfr_set(p1, z, rnd);
          for (int j = 2; j <= n; j++)
          {
-            mpfr_set(p3, p2, MPFR_RNDN);
-            mpfr_set(p2, p1, MPFR_RNDN);
+            mpfr_set(p3, p2, rnd);
+            mpfr_set(p2, p1, rnd);
             // p1 = ((2 * j - 1) * z * p2 - (j - 1) * p3) / j;
-            mpfr_mul_si(p1, z, 2*j-1, MPFR_RNDN);
-            mpfr_mul_si(p3, p3, j-1, MPFR_RNDN);
-            mpfr_fms(p1, p1, p2, p3, MPFR_RNDN);
-            mpfr_div_si(p1, p1, j, MPFR_RNDN);
+            mpfr_mul_si(p1, z, 2*j-1, rnd);
+            mpfr_mul_si(p3, p3, j-1, rnd);
+            mpfr_fms(p1, p1, p2, p3, rnd);
+            mpfr_div_si(p1, p1, j, rnd);
          }
          // p1 is Legendre polynomial
 
          // derivative of the Legenre polynomial:
          // pp = n * (z*p1-p2) / (z*z - 1);
-         mpfr_fms(pp, z, p1, p2, MPFR_RNDN);
-         mpfr_mul_si(pp, pp, n, MPFR_RNDN);
-         mpfr_sqr(p2, z, MPFR_RNDN);
-         mpfr_sub_si(p2, p2, 1, MPFR_RNDN);
-         mpfr_div(pp, pp, p2, MPFR_RNDN);
+         mpfr_fms(pp, z, p1, p2, rnd);
+         mpfr_mul_si(pp, pp, n, rnd);
+         mpfr_sqr(p2, z, rnd);
+         mpfr_sub_si(p2, p2, 1, rnd);
+         mpfr_div(pp, pp, p2, rnd);
 
          if (done) { break; }
 
          // set delta_z: dz = p1/pp;
-         mpfr_div(dz, p1, pp, MPFR_RNDN);
+         mpfr_div(dz, p1, pp, rnd);
          // compute absolute tolerance: atol = rtol*(1-z)
          mpfr_t &atol = w;
-         mpfr_si_sub(atol, 1, z, MPFR_RNDN);
-         mpfr_mul(atol, atol, rtol, MPFR_RNDN);
+         mpfr_si_sub(atol, 1, z, rnd);
+         mpfr_mul(atol, atol, rtol, rnd);
          if (mpfr_cmpabs(dz, atol) <= 0)
          {
             done = true;
             // continue the computation: get pp at the new point, then exit
          }
          // update z = z - dz
-         mpfr_sub(z, z, dz, MPFR_RNDN);
+         mpfr_sub(z, z, dz, rnd);
       }
 
       // map z to (0,1): z = (1 - z)/2
-      mpfr_si_sub(z, 1, z, MPFR_RNDN);
-      mpfr_div_2si(z, z, 1, MPFR_RNDN);
+      mpfr_si_sub(z, 1, z, rnd);
+      mpfr_div_2si(z, z, 1, rnd);
 
       // weight: w = 1/(4*z*(1 - z)*pp*pp)
-      mpfr_sqr(w, pp, MPFR_RNDN);
-      mpfr_mul_2si(w, w, 2, MPFR_RNDN);
-      mpfr_mul(w, w, z, MPFR_RNDN);
-      mpfr_si_sub(p1, 1, z, MPFR_RNDN); // p1 = 1-z
-      mpfr_mul(w, w, p1, MPFR_RNDN);
-      mpfr_si_div(w, 1, w, MPFR_RNDN);
+      mpfr_sqr(w, pp, rnd);
+      mpfr_mul_2si(w, w, 2, rnd);
+      mpfr_mul(w, w, z, rnd);
+      mpfr_si_sub(p1, 1, z, rnd); // p1 = 1-z
+      mpfr_mul(w, w, p1, rnd);
+      mpfr_si_div(w, 1, w, rnd);
 
       if (k >= (n+1)/2) { mpfr_swap(z, p1); }
    }
@@ -264,47 +265,47 @@ public:
 
       if (i == 0)
       {
-         mpfr_set_si(z, 0, MPFR_RNDN);
-         mpfr_set_si(p1, 1, MPFR_RNDN);
-         mpfr_set_si(w, n*(n-1), MPFR_RNDN);
-         mpfr_si_div(w, 1, w, MPFR_RNDN); // weight = 1/(n*(n-1))
+         mpfr_set_si(z, 0, rnd);
+         mpfr_set_si(p1, 1, rnd);
+         mpfr_set_si(w, n*(n-1), rnd);
+         mpfr_si_div(w, 1, w, rnd); // weight = 1/(n*(n-1))
          return;
       }
       // initial guess is the corresponding Chebyshev point, z:
       //    z = -cos(pi * i/(n-1)) = sin(pi * (2*i-n+1)/(2*n-2))
-      mpfr_set_si(z, 2*i-n+1, MPFR_RNDN);
-      mpfr_div_si(z, z, 2*(n-1), MPFR_RNDN);
-      mpfr_mul(z, pi, z, MPFR_RNDN);
-      mpfr_sin(z, z, MPFR_RNDN);
+      mpfr_set_si(z, 2*i-n+1, rnd);
+      mpfr_div_si(z, z, 2*(n-1), rnd);
+      mpfr_mul(z, pi, z, rnd);
+      mpfr_sin(z, z, rnd);
       bool done = false;
       for (int iter = 0 ; true ; ++iter)
       {
          // build Legendre polynomials, up to P_{n}(z)
-         mpfr_set_si(p1, 1, MPFR_RNDN);
-         mpfr_set(p2, z, MPFR_RNDN);
+         mpfr_set_si(p1, 1, rnd);
+         mpfr_set(p2, z, rnd);
 
          for (int l = 1 ; l < (n-1) ; ++l)
          {
             // P_{l+1}(x) = [ (2*l+1)*x*P_l(x) - l*P_{l-1}(x) ]/(l+1)
-            mpfr_mul_si(p1, p1, l, MPFR_RNDN);
-            mpfr_mul_si(p3, z, 2*l+1, MPFR_RNDN);
-            mpfr_fms(p3, p3, p2, p1, MPFR_RNDN);
-            mpfr_div_si(p3, p3, l+1, MPFR_RNDN);
+            mpfr_mul_si(p1, p1, l, rnd);
+            mpfr_mul_si(p3, z, 2*l+1, rnd);
+            mpfr_fms(p3, p3, p2, p1, rnd);
+            mpfr_div_si(p3, p3, l+1, rnd);
 
-            mpfr_set(p1, p2, MPFR_RNDN);
-            mpfr_set(p2, p3, MPFR_RNDN);
+            mpfr_set(p1, p2, rnd);
+            mpfr_set(p2, p3, rnd);
          }
          if (done) { break; }
          // compute dz = resid/deriv = (z*p2 - p1) / (n*p2);
-         mpfr_fms(dz, z, p2, p1, MPFR_RNDN);
-         mpfr_mul_si(p3, p2, n, MPFR_RNDN);
-         mpfr_div(dz, dz, p3, MPFR_RNDN);
+         mpfr_fms(dz, z, p2, p1, rnd);
+         mpfr_mul_si(p3, p2, n, rnd);
+         mpfr_div(dz, dz, p3, rnd);
          // update: z = z - dz
-         mpfr_sub(z, z, dz, MPFR_RNDN);
+         mpfr_sub(z, z, dz, rnd);
          // compute absolute tolerance: atol = rtol*(1 + z)
          mpfr_t &atol = w;
-         mpfr_add_si(atol, z, 1, MPFR_RNDN);
-         mpfr_mul(atol, atol, rtol, MPFR_RNDN);
+         mpfr_add_si(atol, z, 1, rnd);
+         mpfr_mul(atol, atol, rtol, rnd);
          // check for convergence
          if (mpfr_cmpabs(dz, atol) <= 0)
          {
@@ -313,24 +314,24 @@ public:
          }
          // If the iteration does not converge fast, something is wrong.
          MFEM_VERIFY(iter < 8, "n = " << n << ", i = " << i
-                     << ", dz = " << mpfr_get_d(dz, MPFR_RNDN));
+                     << ", dz = " << mpfr_get_d(dz, rnd));
       }
       // Map to the interval [0,1] and scale the weights
-      mpfr_add_si(z, z, 1, MPFR_RNDN);
-      mpfr_div_2si(z, z, 1, MPFR_RNDN);
+      mpfr_add_si(z, z, 1, rnd);
+      mpfr_div_2si(z, z, 1, rnd);
       // set the symmetric point
-      mpfr_si_sub(p1, 1, z, MPFR_RNDN);
+      mpfr_si_sub(p1, 1, z, rnd);
       // w = 1/[ n*(n-1)*[P_{n-1}(z)]^2 ]
-      mpfr_sqr(w, p2, MPFR_RNDN);
-      mpfr_mul_si(w, w, n*(n-1), MPFR_RNDN);
-      mpfr_si_div(w, 1, w, MPFR_RNDN);
+      mpfr_sqr(w, p2, rnd);
+      mpfr_mul_si(w, w, n*(n-1), rnd);
+      mpfr_si_div(w, 1, w, rnd);
 
       if (k >= (n+1)/2) { mpfr_swap(z, p1); }
    }
 
-   double GetPoint() const { return mpfr_get_d(z, MPFR_RNDN); }
-   double GetSymmPoint() const { return mpfr_get_d(p1, MPFR_RNDN); }
-   double GetWeight() const { return mpfr_get_d(w, MPFR_RNDN); }
+   double GetPoint() const { return mpfr_get_d(z, rnd); }
+   double GetSymmPoint() const { return mpfr_get_d(p1, rnd); }
+   double GetWeight() const { return mpfr_get_d(w, rnd); }
 
    const mpfr_t &GetHPPoint() const { return z; }
    const mpfr_t &GetHPSymmPoint() const { return p1; }
@@ -669,6 +670,7 @@ void QuadratureFunctions1D::CalculateUniformWeights(IntegrationRule *ir,
 
 #else // MFEM_USE_MPFR is defined
 
+   static const mpfr_rnd_t rnd = HP_Quadrature1D::rnd;
    HP_Quadrature1D hp_quad;
    mpfr_t l, lk, w0, wi, tmp, *weights;
    mpfr_inits2(hp_quad.default_prec, l, lk, w0, wi, tmp, (mpfr_ptr) 0);
@@ -676,7 +678,7 @@ void QuadratureFunctions1D::CalculateUniformWeights(IntegrationRule *ir,
    for (int i = 0; i < n; i++)
    {
       mpfr_init2(weights[i], hp_quad.default_prec);
-      mpfr_set_si(weights[i], 0, MPFR_RNDN);
+      mpfr_set_si(weights[i], 0, rnd);
    }
    hp_quad.SetRelTol(-48); // rtol = 2^(-48) ~ 3.5e-15
    const int p = n-1;
@@ -698,10 +700,10 @@ void QuadratureFunctions1D::CalculateUniformWeights(IntegrationRule *ir,
          MFEM_ABORT("invalid Quadrature1D type: " << type);
    }
    // set w0 = (-1)^p*(p!)/(hinv^p)
-   mpfr_fac_ui(w0, p, MPFR_RNDN);
-   mpfr_ui_pow_ui(tmp, hinv, p, MPFR_RNDN);
-   mpfr_div(w0, w0, tmp, MPFR_RNDN);
-   if (p%2) { mpfr_neg(w0, w0, MPFR_RNDN); }
+   mpfr_fac_ui(w0, p, rnd);
+   mpfr_ui_pow_ui(tmp, hinv, p, rnd);
+   mpfr_div(w0, w0, tmp, rnd);
+   if (p%2) { mpfr_neg(w0, w0, rnd); }
 
    for (int j = 0; j < m; j++)
    {
@@ -710,56 +712,56 @@ void QuadratureFunctions1D::CalculateUniformWeights(IntegrationRule *ir,
       // Compute l = \prod_{i=0}^p (x-x_i) and lk = l/(x-x_k), where
       // x = hp_quad.GetHPPoint(), x_i = (i+ioffset)/hinv, and x_k is the node
       // closest to x, i.e. k = min(max(round(x*hinv)-ioffset,0),p)
-      mpfr_mul_si(tmp, hp_quad.GetHPPoint(), hinv, MPFR_RNDN);
+      mpfr_mul_si(tmp, hp_quad.GetHPPoint(), hinv, rnd);
       mpfr_round(tmp, tmp);
-      int k = min(max((int)mpfr_get_si(tmp, MPFR_RNDN)-ioffset, 0), p);
-      mpfr_set_si(lk, 1, MPFR_RNDN);
+      int k = min(max((int)mpfr_get_si(tmp, rnd)-ioffset, 0), p);
+      mpfr_set_si(lk, 1, rnd);
       for (int i = 0; i <= p; i++)
       {
-         mpfr_set_si(tmp, i+ioffset, MPFR_RNDN);
-         mpfr_div_si(tmp, tmp, hinv, MPFR_RNDN);
-         mpfr_sub(tmp, hp_quad.GetHPPoint(), tmp, MPFR_RNDN);
+         mpfr_set_si(tmp, i+ioffset, rnd);
+         mpfr_div_si(tmp, tmp, hinv, rnd);
+         mpfr_sub(tmp, hp_quad.GetHPPoint(), tmp, rnd);
          if (i != k)
          {
-            mpfr_mul(lk, lk, tmp, MPFR_RNDN);
+            mpfr_mul(lk, lk, tmp, rnd);
          }
          else
          {
-            mpfr_set(l, tmp, MPFR_RNDN);
+            mpfr_set(l, tmp, rnd);
          }
       }
-      mpfr_mul(l, l, lk, MPFR_RNDN);
-      mpfr_set(wi, w0, MPFR_RNDN);
+      mpfr_mul(l, l, lk, rnd);
+      mpfr_set(wi, w0, rnd);
       for (int i = 0; true; i++)
       {
          if (i != k)
          {
             // tmp = l/(wi*(x - x_i))
-            mpfr_set_si(tmp, i+ioffset, MPFR_RNDN);
-            mpfr_div_si(tmp, tmp, hinv, MPFR_RNDN);
-            mpfr_sub(tmp, hp_quad.GetHPPoint(), tmp, MPFR_RNDN);
-            mpfr_mul(tmp, tmp, wi, MPFR_RNDN);
-            mpfr_div(tmp, l, tmp, MPFR_RNDN);
+            mpfr_set_si(tmp, i+ioffset, rnd);
+            mpfr_div_si(tmp, tmp, hinv, rnd);
+            mpfr_sub(tmp, hp_quad.GetHPPoint(), tmp, rnd);
+            mpfr_mul(tmp, tmp, wi, rnd);
+            mpfr_div(tmp, l, tmp, rnd);
          }
          else
          {
             // tmp = lk/wi
-            mpfr_div(tmp, lk, wi, MPFR_RNDN);
+            mpfr_div(tmp, lk, wi, rnd);
          }
          // weights[i] += hp_quad.weight*tmp
-         mpfr_mul(tmp, tmp, hp_quad.GetHPWeight(), MPFR_RNDN);
-         mpfr_add(weights[i], weights[i], tmp, MPFR_RNDN);
+         mpfr_mul(tmp, tmp, hp_quad.GetHPWeight(), rnd);
+         mpfr_add(weights[i], weights[i], tmp, rnd);
 
          if (i == p) { break; }
 
          // update wi *= (i+1)/(i-p)
-         mpfr_mul_si(wi, wi, i+1, MPFR_RNDN);
-         mpfr_div_si(wi, wi, i-p, MPFR_RNDN);
+         mpfr_mul_si(wi, wi, i+1, rnd);
+         mpfr_div_si(wi, wi, i-p, rnd);
       }
    }
    for (int i = 0; i < n; i++)
    {
-      ir->IntPoint(i).weight = mpfr_get_d(weights[i], MPFR_RNDN);
+      ir->IntPoint(i).weight = mpfr_get_d(weights[i], rnd);
       mpfr_clear(weights[i]);
    }
    delete [] weights;
