@@ -33,23 +33,27 @@ namespace mfem
 {
 
 // class SidreDataCollection implementation
-SidreDataCollection::SidreDataCollection(const std::string& collection_name, asctoolkit::sidre::DataGroup* dg)
+SidreDataCollection::SidreDataCollection(const std::string& collection_name, asctoolkit::sidre::DataGroup* rootfile_dg, asctoolkit::sidre::DataGroup* dg)
   : mfem::DataCollection(collection_name.c_str()), 
-    parent_datagroup(dg)
+    parent_datagroup( dg->getParent() ),
+    m_loadCalled(false)
 {
-   bp_grp = dg->createGroup("mfem_data_collections/domain/blueprint/"+name);
+   asctoolkit::slic::debug::checksAreErrors = true;
+
+   bp_grp = dg->createGroup(name+"/blueprint");
    //Currently only rank 0 adds anything to bp_index.
-   bp_index_grp = dg->createGroup("mfem_data_collections/root/blueprint_index/"+name);
-   simdata_grp = dg->createGroup("mfem_data_collections/domain/simdata/"+name);
+   bp_index_grp = rootfile_dg->createGroup("blueprint_index/" + name);
+   simdata_grp = dg->createGroup(name + "/sim");
 }
 
 void SidreDataCollection::SetMesh(Mesh *new_mesh)
 {
-   SetMesh(new_mesh, -1, true);
+   SetMesh(new_mesh, -1, "nodes", true);
 }
 
 void SidreDataCollection::SetMesh(Mesh *new_mesh,
                                   int number_of_domains,
+                                  const std::string& node_positions_field_name,
                                   bool changeDataOwnership)
 {
    namespace sidre = asctoolkit::sidre;
@@ -192,11 +196,13 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
       bp_grp->createViewString("fields/mesh_material_attribute/topology", "mesh" );
    }
 
+   std::string bp_grp_path = bp_grp->getPathName();
+
    // If rank 0, set up blueprint index for topologies group and material attribute field.
    if (myid == 0)
    {
       sidre::DataGroup * bp_index_mesh_grp = bp_index_grp->createGroup("topologies/mesh");
-      bp_index_mesh_grp->createViewString("path", "blueprint/" + name + "/topologies/mesh");
+      bp_index_mesh_grp->createViewString("path", bp_grp_path + "/topologies/mesh");
 
       bp_index_mesh_grp->copyView( bp_grp->getView("topologies/mesh/type") );
       bp_index_mesh_grp->copyView( bp_grp->getView("topologies/mesh/coordset") );
@@ -204,7 +210,8 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
 
       // Create blueprint index fields group.
       sidre::DataGroup * bp_index_field_grp = bp_index_grp->createGroup("fields/mesh_material_attribute");
-      bp_index_grp->createViewScalar( "path", "blueprint/" + name + "/fields/mesh_material_attribute" );
+      bp_index_field_grp->createViewString( "path", bp_grp_path + "/fields/mesh_material_attribute" );
+
       bp_index_field_grp->copyView( bp_grp->getView("fields/mesh_material_attribute/association") );
       bp_index_field_grp->copyView( bp_grp->getView("fields/mesh_material_attribute/topology") );
 
@@ -221,11 +228,11 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
    if( !hasBP && has_bnd_elts)
    {
       // Identify in mesh topology where to find these.
-      bp_grp->createViewString("topologies/mesh/boundary_topology", "mesh_boundary");
+      bp_grp->createViewString("topologies/mesh/boundary_topology", "boundary");
 
       // Find the element shape
       // Note: Assumes homogeneous elements, so only check the first element
-      std::string eltTypeStr = getElementName( static_cast<Element::Type>( new_mesh->GetElement(0)->GetType() ) );
+      std::string eltTypeStr = getElementName( static_cast<Element::Type>( new_mesh->GetBdrElement(0)->GetType() ) );
 
       bp_grp->createViewString("topologies/boundary/type", "unstructured");
       bp_grp->createViewString("topologies/boundary/elements/shape",eltTypeStr);
@@ -243,22 +250,22 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
                                     sidre::INT_ID,
                                     bnd_num_elements);
 
-      bp_grp->createViewString("fields/boundary_material_attribute/topology", "mesh_boundary");
+      bp_grp->createViewString("fields/boundary_material_attribute/topology", "boundary");
    }
 
    // If rank 0, add blueprint index boundary topology.
    if (myid == 0 && has_bnd_elts)
    {
-      bp_index_grp->getGroup("mesh")->copyView( bp_grp->getView("topologies/mesh/boundary_topology") );
+      bp_index_grp->getGroup("topologies/mesh")->copyView( bp_grp->getView("topologies/mesh/boundary_topology") );
 
       sidre::DataGroup * bp_index_bnd_grp = bp_index_grp->createGroup("topologies/boundary");
-      bp_index_bnd_grp->createViewString("path", "blueprint/" + name + "/topologies/boundary");
+      bp_index_bnd_grp->createViewString("path", bp_grp_path + "/topologies/boundary");
       bp_index_bnd_grp->copyView( bp_grp->getView("topologies/boundary/type") );
       bp_index_bnd_grp->copyView( bp_grp->getView("topologies/boundary/coordset") );
 
       // Create blueprint index fields group.
       sidre::DataGroup * bp_index_field_grp = bp_index_grp->createGroup("fields/boundary_material_attribute");
-      bp_index_grp->createViewScalar( "path", "blueprint/" + name + "/fields/boundary_material_attribute" );
+      bp_index_field_grp->createViewScalar( "path", bp_grp_path + "/fields/boundary_material_attribute" );
       bp_index_field_grp->copyView( bp_grp->getView("fields/boundary_material_attribute/association") );
       bp_index_field_grp->copyView( bp_grp->getView("fields/boundary_material_attribute/topology") );
 
@@ -291,10 +298,13 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
 
    if (has_bnd_elts)
    {
+      int * x1 = bp_grp->getView("topologies/boundary/elements/connectivity")->getArray();
+      int * x2 = bp_grp->getView("fields/boundary_material_attribute/values")->getArray();
+
       new_mesh->ChangeBoundaryElementDataOwnership(
-                bp_grp->getView("topologies/mesh_boundary/elements/connectivity")->getArray(),
+                bp_grp->getView("topologies/boundary/elements/connectivity")->getArray(),
                 bnd_element_size * bnd_num_elements,
-                bp_grp->getView("fields/mesh_boundary_material_attribute/values")->getArray(),
+                bp_grp->getView("fields/boundary_material_attribute/values")->getArray(),
                 bnd_num_elements,
                 hasBP,
                 changeDataOwnership);
@@ -309,8 +319,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
 
    const FiniteElementSpace* nFes = new_mesh->GetNodalFESpace();
    int sz = nFes->GetVSize();
-   std::string nodes_field_name = "mesh_nodes";
-   double* gfData = GetFieldData( nodes_field_name.c_str(), sz);
+   double* gfData = GetFieldData( node_positions_field_name.c_str(), sz);
 
    if(!hasBP)
    {
@@ -319,21 +328,34 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
    }
 
    new_mesh->GetNodes()->NewDataAndSize(gfData, sz);
-   RegisterField( nodes_field_name.c_str(), new_mesh->GetNodes());
-
+   RegisterField( node_positions_field_name.c_str(), new_mesh->GetNodes());
 }
-
 
 void SidreDataCollection::Load(const std::string& path, const std::string& protocol)
 {
+   if ( m_loadCalled )
+   {
+      std::string error_msg( "Attempt to call SidreDataCollection::Load() more than once on collection: " + name );
+      MFEM_ERROR( error_msg);
+   }
+   else
+   {
+      simdata_grp->createViewScalar("loadCalled", 1);
+      m_loadCalled = true;
+   }
+
    namespace sidre = asctoolkit::sidre;
    
+   // Hold onto the datastore instance pointer.  When the ds is loaded, all the groups and views are wiped.
+   // After the Load, we need to reset the bp, bp_index, and simdata group pointers.
+   sidre::DataStore * datastore = bp_grp->getDataStore(); 
+
    bool useSerial = true;
 
    std::cout << "Loading Sidre checkpoint: " << path
              << " using protocol: " << protocol << std::endl;
 
-   // write out in serial if non-mpi or for debug
+   // read in serial if non-mpi or for debug
 #ifdef MFEM_USE_MPI
 
    useSerial = false;
@@ -351,29 +373,49 @@ void SidreDataCollection::Load(const std::string& path, const std::string& proto
 
 #endif
 
-   // write out in serial for debugging, or if MPI unavailable
+   // read in serial for debugging, or if MPI unavailable
    if(useSerial)
    {
-       parent_datagroup->getDataStore()->load(path, protocol); //, sidre_dc_group);
+       datastore->load(path, protocol); //, sidre_dc_group);
    }
    
-   //dc_grp = parent_datagroup->getGroup(name);
-   //bp_grp = parent_datagodc_grp->getGroup("blueprint/" + name);
-   //if (myid == 0)
-  // {
-  //    bp_index_grp = parent_datagroup->getGroup(name);
-  // }
-//
-//   SetTime( bp_grp->getView("state/time")->getData<double>() );
-//   SetCycle( bp_grp->getView("state/cycle")->getData<int>() );
-//   SetTimeStep( bp_grp->getView("state/time_step")->getData<double>() );
+   // This code needs to be re-thought out.
+   // Need a good way to reset pointers to blueprint group, bp index group, and sim group after ds loaded.
+   bp_grp = datastore->getRoot()->getGroup("marbl/" + name + "/blueprint");
+   bp_index_grp = datastore->getRoot()->createGroup("blueprint_index/" + name);
+   simdata_grp = datastore->getRoot()->getGroup("marbl/"+name+"/sim");
+
+   SetTime( bp_grp->getView("state/time")->getData<double>() );
+   SetCycle( bp_grp->getView("state/cycle")->getData<int>() );
+   SetTimeStep( bp_grp->getView("state/time_step")->getData<double>() );
 
 }
 
 
 void SidreDataCollection::Save()
 {
+   std::string filename = name;
+   std::string protocol = "sidre_hdf5";
+
+   Save(filename, protocol);
+}
+
+void SidreDataCollection::Save(const std::string& filename, const std::string& protocol)
+{
    namespace sidre = asctoolkit::sidre;
+
+   std::stringstream fNameSstr;
+
+   // Note: If non-empty, prefix_path has a separator ('/') at the end
+   fNameSstr << prefix_path << filename;
+
+   if(cycle >= 0)
+   {
+       fNameSstr << "_" << cycle;
+   }
+   fNameSstr << "_" << num_procs ;
+
+   std::string file_path = fNameSstr.str();
 
    bp_grp->getView("state/cycle")->setScalar(cycle);
    bp_grp->getView("state/time")->setScalar(time);
@@ -385,48 +427,48 @@ void SidreDataCollection::Save()
       bp_index_grp->getView("state/time")->setScalar(time);
    }
 
-   std::string filename, protocol;
+   sidre::DataGroup * domain_file_grp = bp_grp->getParent()->getParent();
 
-   std::stringstream fNameSstr;
-
-   // Note: If non-empty, prefix_path has a separator ('/') at the end
-   fNameSstr << prefix_path << name;
-
-   if(cycle >= 0)
+   if (protocol == "sidre_hdf5")
    {
-       fNameSstr << "_" << cycle;
-   }
-   fNameSstr << "_" << num_procs ;
-
-   // write out in serial if non-mpi or for debug
-   bool useSerial = (num_procs == 1);
 
 #ifdef MFEM_USE_MPI
-
-   ParMesh *par_mesh = dynamic_cast<ParMesh*>(mesh);
-   if (par_mesh)
-   {
-      sidre::DataGroup * domain_file_grp = bp_grp->getParent()->getParent();
-
-      asctoolkit::spio::IOManager writer(par_mesh->GetComm());
-      writer.write(domain_file_grp, num_procs, fNameSstr.str(), "sidre_hdf5");
+      const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
+      asctoolkit::spio::IOManager writer(pmesh->GetComm());
+      writer.write(domain_file_grp, num_procs, file_path, protocol);
+#else
+      // If serial, use sidre group writer.
+      bp_grp->getDataStore()->save( file_path, protocol);//, sidre_dc_group);
+#endif
 
       if (myid == 0)
       {
-         sidre::DataGroup * root_file_grp = bp_index_grp->getParent()->getParent();
-         writer.writeGroupToRootFile( root_file_grp, fNameSstr.str() + ".root"  );
-      }
-   }
-   else
-   {
-      useSerial = true;
-   }
-
+         sidre::DataGroup * blueprint_indicies_grp = bp_index_grp->getParent();
+#ifdef MFEM_USE_MPI
+         writer.writeGroupToRootFile( blueprint_indicies_grp, file_path + ".root"  );
+#else
+         // If serial, use sidre group writer.
+         bp_indicies_grp->getDataStore()->save(file_path + ".root", protocol);//, sidre_dc_group);
 #endif
 
-   // write out in serial for debugging, or if MPI unavailable
-   if(useSerial)
+      }
+   }
+   // If not hdf5, use sidre group writer for both parallel and serial.  SPIO only supports HDF5.
+   else
    {
+      if (myid == 0)
+      {
+         sidre::DataGroup * blueprint_indicies_grp = bp_index_grp->getParent();
+         blueprint_indicies_grp->getDataStore()->save(file_path + ".root", protocol);//, sidre_dc_group);
+      }
+
+      fNameSstr << "_" << myid;
+      file_path = fNameSstr.str();
+      bp_grp->getDataStore()->save(file_path, protocol);//, sidre_dc_group);
+
+   }
+
+   /*
       protocol = "conduit_json";
       filename = fNameSstr.str() + ".conduit_json";
       bp_grp->getDataStore()->save(filename, protocol);//, sidre_dc_group);
@@ -438,7 +480,7 @@ void SidreDataCollection::Save()
       protocol = "sidre_hdf5";
       filename = fNameSstr.str() + ".sidre_hdf5";
       bp_grp->getDataStore()->save(filename, protocol);//, sidre_dc_group);
-   }
+*/
 }
 
 

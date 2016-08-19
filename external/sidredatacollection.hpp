@@ -43,22 +43,25 @@ public:
    typedef int mfem_int_t;
    typedef double mfem_double_t;
 
-   SidreDataCollection(const std::string& collection_name, asctoolkit::sidre::DataGroup * dg);
+   SidreDataCollection(const std::string& collection_name, asctoolkit::sidre::DataGroup * rootfile_dg, asctoolkit::sidre::DataGroup * dg);
 
    void RegisterField(const char* field_name, GridFunction *gf);
 
    /// Verify we will delete the mesh and fields if we own them
    virtual ~SidreDataCollection() {}
 
-//   void CopyMesh(std::string name, Mesh *new_mesh);
-
    void SetMesh(Mesh *new_mesh);
 
-   void SetMesh(Mesh *new_mesh, int number_of_domains, bool changeDataOwnership);
+   void SetMesh(Mesh *new_mesh,
+                int number_of_domains,
+                const std::string& node_positions_field_name,
+                bool changeDataOwnership);
 
    void setMeshStream(std::istream& input) {}
 
    void Save();
+
+   void Save(const std::string& filename, const std::string& protocol);
 
    void Load(const std::string& path, const std::string& protocol = "sidre_hdf5");
 
@@ -93,7 +96,7 @@ public:
 
       namespace sidre = asctoolkit::sidre;
 
-      sidre::DataGroup* f = bp_grp->getGroup("array_data");
+      sidre::DataGroup* f = simdata_grp->getGroup("array_data");
       if( ! f->hasView( field_name ) )
       {
           f->createViewAndAllocate(field_name, sidre::detail::SidreTT<T>::id, sz);
@@ -119,6 +122,8 @@ private:
    asctoolkit::sidre::DataGroup * simdata_grp;
    asctoolkit::sidre::DataGroup * bp_grp;
    asctoolkit::sidre::DataGroup * bp_index_grp;
+
+   bool m_loadCalled;
 
    std::string getElementName( Element::Type elementEnum );
 

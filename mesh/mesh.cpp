@@ -2233,7 +2233,6 @@ void Mesh::ChangeElementDataOwnership(int *indices,
       size_t max_attributes, bool zerocopy, bool changeDataOwnership)
       
 {
-   std::cerr << "change data ownership " << zerocopy << " " << changeDataOwnership << std::endl;
    ChangeElementObjectDataOwnership(elements, NumOfElements,
          indices, max_indices, attributes, max_attributes, zerocopy, changeDataOwnership);
 }

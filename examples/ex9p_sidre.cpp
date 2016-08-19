@@ -155,8 +155,14 @@ int main(int argc, char *argv[])
    // Create datastore
    namespace sidre = asctoolkit::sidre;
    sidre::DataStore ds;
-   DataCollection * dc = new SidreDataCollection("ex9p_unrefined_mesh", ds.getRoot() );
-   SidreDataCollection * sdc = new SidreDataCollection("ex9p_refined_mesh", ds.getRoot());
+   sidre::DataGroup * global_grp = ds.getRoot()->createGroup("mfem_global");
+   sidre::DataGroup * domain_grp = ds.getRoot()->createGroup("mfem");
+
+   // Create data collections
+   SidreDataCollection * dc = new SidreDataCollection("ex9p_refined_mesh", global_grp, domain_grp );
+   SidreDataCollection * dc_unrefined = new SidreDataCollection("ex9p_unrefined_mesh", global_grp, domain_grp );
+   dc->SetPrefixPath("ex9p_sidre_output");
+
    asctoolkit::slic::debug::checksAreErrors = true;
 
    // 3. Read the serial mesh from the given mesh file on all processors. We can
@@ -165,7 +171,7 @@ int main(int argc, char *argv[])
    int dim = mesh->Dimension();
 
    // Create snapshot of initial topology.
-//   sdc->SetMesh(mesh, 1, false);
+   dc_unrefined->SetMesh(mesh, 1, false);
 
    // 4. Define the ODE solver used for time integration. Several explicit
    //    Runge-Kutta methods are available.
@@ -364,6 +370,9 @@ int main(int argc, char *argv[])
    if (1)
    {
       dc->Save();
+      dc->Save("ex9p_dump.sidre_hdf5", "sidre_hdf5");
+      dc->Save("ex9p_dump.json", "json");
+      dc->Save("ex9p_dump.conduit_json", "conduit_json");
    }
    // 12. Save the final solution in parallel. This output can be viewed later
    //     using GLVis: "glvis -np <np> -m ex9-mesh -g ex9-final".
