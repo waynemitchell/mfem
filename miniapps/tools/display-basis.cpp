@@ -747,7 +747,7 @@ update_basis(vector<socketstream*> & sock,  const VisWinLayout & vwl,
          vec = true;
          break;
       case 'l':
-         FEC = new L2_FECollection(bOrder, dim, L2_FECollection::GaussLegendre,
+         FEC = new L2_FECollection(bOrder, dim, BasisType::GaussLegendre,
                                    mType);
          vec = false;
          break;
