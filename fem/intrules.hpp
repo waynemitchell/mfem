@@ -235,7 +235,7 @@ public:
 class QuadratureFunctions1D
 {
 public:
-   /** @name Methods for calculating qudrature rules.
+   /** @name Methods for calculating quadrature rules.
        These methods calculate the actual points and weights for the different
        types of quadrature rules. */
    ///@{

@@ -1874,7 +1874,8 @@ RT_FECollection::RT_FECollection(const int p, const int dim,
    }
 }
 
-// This is a special constructor only used by RT_Trace_FECollection
+// This is a special protected constructor only used by RT_Trace_FECollection
+// and DG_Interface_FECollection
 RT_FECollection::RT_FECollection(const int p, const int dim, const int map_type,
                                  const bool signs, const int ob_type)
    : ob_type(ob_type)

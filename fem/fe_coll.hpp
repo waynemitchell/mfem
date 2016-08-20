@@ -19,7 +19,7 @@
 namespace mfem
 {
 
-/// All possible basis types. Not all elements can use all BasisType(s).
+/// Possible basis types. Note that not all elements can use all BasisType(s).
 class BasisType
 {
 public:
@@ -56,7 +56,7 @@ public:
    {
       static const char *name[] =
       {
-         "Gauss-Legengre", "Gauss-Lobatto", "Positive (Bernstein)",
+         "Gauss-Legendre", "Gauss-Lobatto", "Positive (Bernstein)",
          "Open uniform", "Closed uniform"
       };
       return name[Check(b_type)];
@@ -243,10 +243,11 @@ protected:
    void InitFaces(const int p, const int dim, const int map_type,
                   const bool signs);
 
-   // Constructor used by the constructor of RT_Trace_FECollection
+   // Constructor used by the constructor of the RT_Trace_FECollection and
+   // DG_Interface_FECollection classes
    RT_FECollection(const int p, const int dim, const int map_type,
                    const bool signs,
-                   const int ob_type = Quadrature1D::GaussLegendre);
+                   const int ob_type = BasisType::GaussLegendre);
 
 public:
    RT_FECollection(const int p, const int dim,

@@ -213,7 +213,7 @@ public:
          }
          // p1 is Legendre polynomial
 
-         // derivative of the Legenre polynomial:
+         // derivative of the Legendre polynomial:
          // pp = n * (z*p1-p2) / (z*z - 1);
          mpfr_fms(pp, z, p1, p2, rnd);
          mpfr_mul_si(pp, pp, n, rnd);
@@ -432,13 +432,13 @@ void QuadratureFunctions1D::GaussLobatto(const int np, IntegrationRule* ir)
       (2) abscissa are the interval endpoints.
 
       The interior x_i are the zeros of P'_{np-1}(x). The weights of the
-      interior points on ther interval [-1,1] are:
+      interior points on the interval [-1,1] are:
 
       w_i = 2/(np*(np-1)*[P_{np-1}(x_i)]^2)
 
       The end point weights (on [-1,1]) are: w_{end} = 2/(np*(np-1)).
 
-      The interior absicca are found via a nonlinear solve, the initial guess
+      The interior abscissa are found via a nonlinear solve, the initial guess
       for each point is the corresponding Chebyshev point.
 
       After we find all points on the interval [-1,1], we will map and scale the
