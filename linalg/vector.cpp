@@ -490,6 +490,24 @@ void Vector::GetSubVector(const Array<int> &dofs, double *elem_data) const
    }
 }
 
+void Vector::SetSubVector(const Array<int> &dofs, const double value)
+{
+   const int n = dofs.Size();
+
+   for (int i = 0; i < n; i++)
+   {
+      const int j = dofs[i];
+      if (j >= 0)
+      {
+         data[j] = value;
+      }
+      else
+      {
+         data[-1-j] = -value;
+      }
+   }
+}
+
 void Vector::SetSubVector(const Array<int> &dofs, const Vector &elemvect)
 {
    int i, j, n = dofs.Size();
