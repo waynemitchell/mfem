@@ -546,27 +546,27 @@ int main(int argc, char *argv[])
       int Wx = 0, Wy = 0; // window position
       int Ww = 350, Wh = 350; // window size
       int offx = Ww+10, offy = Wh+45; // window offsets
-      
+
       miniapps::VisualizeField(vis_P, vishost, visport,
-		     P_gf, "Electric Potential (Phi)", Wx, Wy, Ww, Wh);
+                               P_gf, "Electric Potential (Phi)", Wx, Wy, Ww, Wh);
       Wx += offx;
-      
+
       miniapps::VisualizeField(vis_E, vishost, visport,
-		     E_gf, "Electric Field (E)", Wx, Wy, Ww, Wh);
+                               E_gf, "Electric Field (E)", Wx, Wy, Ww, Wh);
       Wx += offx;
-      
+
       miniapps::VisualizeField(vis_B, vishost, visport,
-		     B_gf, "Magnetic Field (B)", Wx, Wy, Ww, Wh);
+                               B_gf, "Magnetic Field (B)", Wx, Wy, Ww, Wh);
       Wx = 0;
       Wy += offy;
-      
+
       miniapps::VisualizeField(vis_w, vishost, visport,
-		     w_gf, "Joule Heating", Wx, Wy, Ww, Wh);
+                               w_gf, "Joule Heating", Wx, Wy, Ww, Wh);
 
       Wx += offx;
-      
+
       miniapps::VisualizeField(vis_T, vishost, visport,
-		     T_gf, "Temperature", Wx, Wy, Ww, Wh);
+                               T_gf, "Temperature", Wx, Wy, Ww, Wh);
 
    }
 
@@ -732,31 +732,31 @@ int main(int argc, char *argv[])
          if (visualization)
          {
 
-	   int Wx = 0, Wy = 0; // window position
-	   int Ww = 350, Wh = 350; // window size
-	   int offx = Ww+10, offy = Wh+45; // window offsets
-	   
-	   miniapps::VisualizeField(vis_P, vishost, visport,
-			  P_gf, "Electric Potential (Phi)", Wx, Wy, Ww, Wh);
-	   Wx += offx;
-	   
-	   miniapps::VisualizeField(vis_E, vishost, visport,
-			  E_gf, "Electric Field (E)", Wx, Wy, Ww, Wh);
-	   Wx += offx;
-	   
-	   miniapps::VisualizeField(vis_B, vishost, visport,
-			  B_gf, "Magnetic Field (B)", Wx, Wy, Ww, Wh);
-	   
-	   Wx = 0;
-	   Wy += offy;
+            int Wx = 0, Wy = 0; // window position
+            int Ww = 350, Wh = 350; // window size
+            int offx = Ww+10, offy = Wh+45; // window offsets
 
-	   miniapps::VisualizeField(vis_w, vishost, visport,
-			  w_gf, "Joule Heating", Wx, Wy, Ww, Wh);
-	   
-	   Wx += offx;
-	   
-	   miniapps::VisualizeField(vis_T, vishost, visport,
-			  T_gf, "Temperature", Wx, Wy, Ww, Wh);
+            miniapps::VisualizeField(vis_P, vishost, visport,
+                                     P_gf, "Electric Potential (Phi)", Wx, Wy, Ww, Wh);
+            Wx += offx;
+
+            miniapps::VisualizeField(vis_E, vishost, visport,
+                                     E_gf, "Electric Field (E)", Wx, Wy, Ww, Wh);
+            Wx += offx;
+
+            miniapps::VisualizeField(vis_B, vishost, visport,
+                                     B_gf, "Magnetic Field (B)", Wx, Wy, Ww, Wh);
+
+            Wx = 0;
+            Wy += offy;
+
+            miniapps::VisualizeField(vis_w, vishost, visport,
+                                     w_gf, "Joule Heating", Wx, Wy, Ww, Wh);
+
+            Wx += offx;
+
+            miniapps::VisualizeField(vis_T, vishost, visport,
+                                     T_gf, "Temperature", Wx, Wy, Ww, Wh);
          }
 
          if (visit)
