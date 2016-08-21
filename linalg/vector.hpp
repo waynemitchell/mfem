@@ -177,6 +177,8 @@ public:
    void GetSubVector(const Array<int> &dofs, Vector &elemvect) const;
    void GetSubVector(const Array<int> &dofs, double *elem_data) const;
 
+   /// Set the entries listed in `dofs` to the given `value`.
+   void SetSubVector(const Array<int> &dofs, const double value);
    void SetSubVector(const Array<int> &dofs, const Vector &elemvect);
    void SetSubVector(const Array<int> &dofs, double *elem_data);
 

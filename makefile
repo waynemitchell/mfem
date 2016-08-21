@@ -175,11 +175,17 @@ ifeq ($(MFEM_USE_NETCDF),YES)
    ALL_LIBS += $(NETCDF_LIB)
 endif
 
+# MPFR library configuration
+ifeq ($(MFEM_USE_MPFR),YES)
+   INCFLAGS += $(MPFR_OPT)
+   ALL_LIBS += $(MPFR_LIB)
+endif
+
 # List of all defines that may be enabled in config.hpp and config.mk:
 MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_USE_LAPACK\
  MFEM_THREAD_SAFE MFEM_USE_OPENMP MFEM_USE_MEMALLOC MFEM_TIMER_TYPE\
  MFEM_USE_MESQUITE MFEM_USE_SUITESPARSE MFEM_USE_GECKO MFEM_USE_SUPERLU\
- MFEM_USE_GNUTLS MFEM_USE_NETCDF
+ MFEM_USE_GNUTLS MFEM_USE_NETCDF MFEM_USE_MPFR
 
 # List of makefile variables that will be written to config.mk:
 MFEM_CONFIG_VARS = MFEM_CXX MFEM_CPPFLAGS MFEM_CXXFLAGS MFEM_INC_DIR\
@@ -240,6 +246,7 @@ all: lib
 	$(MAKE) -C examples
 	$(MAKE) -C miniapps/common
 	$(MAKE) -C miniapps/meshing
+	$(MAKE) -C miniapps/tools
 	$(MAKE) -C miniapps/electromagnetics
 	$(MAKE) -C miniapps/performance
 
@@ -282,6 +289,8 @@ test: lib
 	@$(MAKE) -C examples test
 	@echo "Running meshing miniapps..."
 	@$(MAKE) -C miniapps/meshing test
+	@echo "Running tools miniapps..."
+	@$(MAKE) -C miniapps/tools test
 	@echo "Running electromagnetic miniapps..."
 	@$(MAKE) -C miniapps/electromagnetics test
 	@echo "Running high-performance miniapps..."
@@ -293,6 +302,7 @@ clean:
 	$(MAKE) -C examples clean
 	$(MAKE) -C miniapps/common clean
 	$(MAKE) -C miniapps/meshing clean
+	$(MAKE) -C miniapps/tools clean
 	$(MAKE) -C miniapps/electromagnetics clean
 	$(MAKE) -C miniapps/performance clean
 
@@ -319,6 +329,8 @@ install: libmfem.a
 	$(MAKE) -C config config-mk CONFIG_MK=config-install.mk
 	$(INSTALL) -m 640 config/config-install.mk $(PREFIX)/config.mk
 	rm -f config/config-install.mk
+# install test.mk at root of install tree
+	$(INSTALL) -m 640 config/test.mk $(PREFIX)/test.mk
 
 $(CONFIG_MK):
 	$(info )
@@ -349,6 +361,7 @@ status info:
 	$(info MFEM_USE_GECKO       = $(MFEM_USE_GECKO))
 	$(info MFEM_USE_GNUTLS      = $(MFEM_USE_GNUTLS))
 	$(info MFEM_USE_NETCDF      = $(MFEM_USE_NETCDF))
+	$(info MFEM_USE_MPFR        = $(MFEM_USE_MPFR))
 	$(info MFEM_CXX             = $(value MFEM_CXX))
 	$(info MFEM_CPPFLAGS        = $(value MFEM_CPPFLAGS))
 	$(info MFEM_CXXFLAGS        = $(value MFEM_CXXFLAGS))
