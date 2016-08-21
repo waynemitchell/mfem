@@ -19,6 +19,70 @@
 namespace mfem
 {
 
+/// Possible basis types. Note that not all elements can use all BasisType(s).
+class BasisType
+{
+public:
+   enum
+   {
+      GaussLegendre = 0,  ///< Open type
+      GaussLobatto  = 1,  ///< Closed type
+      Positive      = 2,  ///< Bernstein polynomials
+      OpenUniform   = 3,
+      ClosedUniform = 4
+   };
+   /** @brief If the input does not represents a valid BasisType, abort with an
+       error; otherwise return the input. */
+   static int Check(int b_type)
+   {
+      MFEM_VERIFY(0 <= b_type && b_type < 5, "unknown BasisType: " << b_type);
+      return b_type;
+   }
+   /** @brief Get the corresponding Quadrature1D constant, when that makes
+       sense; otherwise return Quadrature1D::Invalid. */
+   static int GetQuadrature1D(int b_type)
+   {
+      switch (b_type)
+      {
+         case GaussLegendre: return Quadrature1D::GaussLegendre;
+         case GaussLobatto:  return Quadrature1D::GaussLobatto;
+         case OpenUniform:   return Quadrature1D::OpenUniform;
+         case ClosedUniform: return Quadrature1D::ClosedUniform;
+      }
+      return Quadrature1D::Invalid;
+   }
+   /// Check and convert a BasisType constant to a string identifier.
+   static const char *Name(int b_type)
+   {
+      static const char *name[] =
+      {
+         "Gauss-Legendre", "Gauss-Lobatto", "Positive (Bernstein)",
+         "Open uniform", "Closed uniform"
+      };
+      return name[Check(b_type)];
+   }
+   /// Check and convert a BasisType constant to a char basis identifier.
+   static char GetChar(int b_type)
+   {
+      static const char ident[] = { 'g', 'G', 'P', 'u', 'U' };
+      return ident[Check(b_type)];
+   }
+   /// Convert char basis identifier to a BasisType constant.
+   static int GetType(char b_ident)
+   {
+      switch (b_ident)
+      {
+         case 'g': return GaussLegendre;
+         case 'G': return GaussLobatto;
+         case 'P': return Positive;
+         case 'u': return OpenUniform;
+         case 'U': return ClosedUniform;
+      }
+      MFEM_ABORT("unknown BasisType identifier");
+      return -1;
+   }
+};
+
 /** Collection of finite elements from the same family in multiple dimensions.
     This class is used to match the degrees of freedom of a FiniteElementSpace
     between elements, and to provide the finite element restriction from an
@@ -61,6 +125,8 @@ public:
 
    virtual ~FiniteElementCollection() { }
 
+   /** @brief Factory method: return a newly allocated FiniteElementCollection
+       according to the given name. */
    static FiniteElementCollection *New(const char *name);
 
    /** @brief Get the local dofs for a given sub-manifold.
@@ -76,15 +142,9 @@ public:
 /// Arbitrary order H1-conforming (continuous) finite elements.
 class H1_FECollection : public FiniteElementCollection
 {
-public:
-   enum BasisType
-   {
-      GaussLobatto = 0, // Nodal basis, with nodes at the Gauss-Lobatto points
-      Positive     = 1  // Positive basis, Bernstein polynomials
-   };
 
 protected:
-   BasisType m_type;
+   int m_type;
    char h1_name[32];
    FiniteElement *H1_Elements[Geometry::NumGeom];
    int H1_dof[Geometry::NumGeom];
@@ -92,7 +152,7 @@ protected:
 
 public:
    explicit H1_FECollection(const int p, const int dim = 3,
-                            const int type = GaussLobatto);
+                            const int type = BasisType::GaussLobatto);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return H1_Elements[GeomType]; }
@@ -102,7 +162,7 @@ public:
    virtual const char *Name() const { return h1_name; }
    FiniteElementCollection *GetTraceCollection() const;
 
-   BasisType GetBasisType() const { return m_type; }
+   int GetBasisType() const { return m_type; }
 
    virtual ~H1_FECollection();
 };
@@ -113,7 +173,7 @@ class H1Pos_FECollection : public H1_FECollection
 {
 public:
    explicit H1Pos_FECollection(const int p, const int dim = 3)
-      : H1_FECollection(p, dim, Positive) { }
+      : H1_FECollection(p, dim, BasisType::Positive) { }
 };
 
 /** Arbitrary order "H^{1/2}-conforming" trace finite elements defined on the
@@ -123,22 +183,14 @@ class H1_Trace_FECollection : public H1_FECollection
 {
 public:
    H1_Trace_FECollection(const int p, const int dim,
-                         const int type = GaussLobatto);
+                         const int type = BasisType::GaussLobatto);
 };
 
 /// Arbitrary order "L2-conforming" discontinuous finite elements.
 class L2_FECollection : public FiniteElementCollection
 {
-public:
-   enum BasisType
-   {
-      GaussLegendre = 0, // Nodal basis, with nodes at the Gauss-Legendre points
-      GaussLobatto  = 1, // Nodal basis, with nodes at the Gauss-Lobatto points
-      Positive      = 2  // Positive basis, Bernstein polynomials
-   };
-
 private:
-   BasisType m_type;
+   int m_type; // BasisType
    char d_name[32];
    ScalarFiniteElement *L2_Elements[Geometry::NumGeom];
    ScalarFiniteElement *Tr_Elements[Geometry::NumGeom];
@@ -146,7 +198,8 @@ private:
    int *TriDofOrd[6]; // for rotating triangle dofs in 2D
 
 public:
-   L2_FECollection(const int p, const int dim, const int type = GaussLegendre,
+   L2_FECollection(const int p, const int dim,
+                   const int type = BasisType::GaussLegendre,
                    const int map_type = FiniteElement::VALUE);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
@@ -168,7 +221,7 @@ public:
       return Tr_Elements[GeomType];
    }
 
-   BasisType GetBasisType() const { return m_type; }
+   int GetBasisType() const { return m_type; }
 
    virtual ~L2_FECollection();
 };
@@ -180,6 +233,7 @@ typedef L2_FECollection DG_FECollection;
 class RT_FECollection : public FiniteElementCollection
 {
 protected:
+   int ob_type; // open BasisType
    char rt_name[32];
    FiniteElement *RT_Elements[Geometry::NumGeom];
    int RT_dof[Geometry::NumGeom];
@@ -189,13 +243,16 @@ protected:
    void InitFaces(const int p, const int dim, const int map_type,
                   const bool signs);
 
-   // Constructor used by the constructor of RT_Trace_FECollection
+   // Constructor used by the constructor of the RT_Trace_FECollection and
+   // DG_Interface_FECollection classes
    RT_FECollection(const int p, const int dim, const int map_type,
-                   const bool signs)
-   { InitFaces(p, dim, map_type, signs); }
+                   const bool signs,
+                   const int ob_type = BasisType::GaussLegendre);
 
 public:
-   RT_FECollection(const int p, const int dim);
+   RT_FECollection(const int p, const int dim,
+                   const int cb_type = BasisType::GaussLobatto,
+                   const int ob_type = BasisType::GaussLegendre);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return RT_Elements[GeomType]; }
@@ -215,7 +272,8 @@ class RT_Trace_FECollection : public RT_FECollection
 {
 public:
    RT_Trace_FECollection(const int p, const int dim,
-                         const int map_type = FiniteElement::INTEGRAL);
+                         const int map_type = FiniteElement::INTEGRAL,
+                         const int ob_type = BasisType::GaussLegendre);
 };
 
 /** Arbitrary order discontinuous finite elements defined on the interface
@@ -238,7 +296,9 @@ protected:
    int *SegDofOrd[2], *TriDofOrd[6], *QuadDofOrd[8];
 
 public:
-   ND_FECollection(const int p, const int dim);
+   ND_FECollection(const int p, const int dim,
+                   const int cb_type = BasisType::GaussLobatto,
+                   const int ob_type = BasisType::GaussLegendre);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return ND_Elements[GeomType]; }
@@ -257,7 +317,9 @@ public:
 class ND_Trace_FECollection : public ND_FECollection
 {
 public:
-   ND_Trace_FECollection(const int p, const int dim);
+   ND_Trace_FECollection(const int p, const int dim,
+                         const int cb_type = BasisType::GaussLobatto,
+                         const int ob_type = BasisType::GaussLegendre);
 };
 
 /// Arbitrary order non-uniform rational B-splines (NURBS) finite elements.
