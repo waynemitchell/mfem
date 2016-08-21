@@ -1367,7 +1367,7 @@ void Mesh::ReadCubit(named_ifstream &input, int &curved, int &read_gf)
    size_t *num_nod_per_el  = new size_t[num_el_blk];
    size_t *num_side_in_ss  = new size_t[num_side_sets];
 
-   int previous_num_nod_per_el;
+   int previous_num_nod_per_el = 0;
    for (int i = 0; i < (int) num_el_blk; i++)
    {
       sprintf(temp_str, "num_el_in_blk%d", i+1);
@@ -1396,7 +1396,7 @@ void Mesh::ReadCubit(named_ifstream &input, int &curved, int &read_gf)
       previous_num_nod_per_el = num_nod_per_el[i];
    }
 
-   int order;
+   int order = 0;
    if (num_nod_per_el[0] == 4 || num_nod_per_el[0] == 8)
    {
       order = 1;
@@ -1496,7 +1496,7 @@ void Mesh::ReadCubit(named_ifstream &input, int &curved, int &read_gf)
 
    // convert (elem,side) pairs to 2D elements
 
-   int num_nod_per_side;
+   int num_nod_per_side = 0;
    if (num_nod_per_el[0] == 4)
    {
       num_nod_per_side = 3;
@@ -1592,7 +1592,7 @@ void Mesh::ReadCubit(named_ifstream &input, int &curved, int &read_gf)
       for (int i = 0; i < (int) num_el_in_blk[iblk]; i++)
       {
          int NumNodePerEl = num_nod_per_el[iblk];
-         int NumVertPerEl;
+         int NumVertPerEl = 0;
          if (NumNodePerEl == 8 || NumNodePerEl == 27)
          {
             NumVertPerEl = 8;
@@ -1714,7 +1714,7 @@ void Mesh::ReadCubit(named_ifstream &input, int &curved, int &read_gf)
    if (order == 2)
    {
       curved = 1;
-      int *mymap;
+      int *mymap = NULL;
 
       if (num_nod_per_el[0] == 10)
       {

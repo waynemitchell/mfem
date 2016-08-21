@@ -33,7 +33,8 @@ class H1_ParFESpace : public ParFiniteElementSpace
 {
 public:
    H1_ParFESpace(ParMesh *m,
-                 const int p, const int space_dim = 3, const int type = 0,
+                 const int p, const int space_dim = 3,
+                 const int type = BasisType::GaussLobatto,
                  int vdim = 1, int order = Ordering::byNODES);
    ~H1_ParFESpace();
 private:
