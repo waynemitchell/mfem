@@ -125,6 +125,8 @@ private:
 
    bool m_loadCalled;
 
+	void RegisterFieldInBPIndex(asctoolkit::sidre::DataGroup * bp_field_group);
+
    std::string getElementName( Element::Type elementEnum );
 
    /**

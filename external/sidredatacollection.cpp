@@ -144,7 +144,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
    if (myid == 0)
    {
       bp_index_grp->createViewString("coordsets/coords/path", "blueprint/" + name + "/coordsets/coords");
-      bp_index_grp->copyView( bp_grp->getView("coordsets/coords/type") );
+      bp_index_grp->getGroup("coordsets/coords")->copyView( bp_grp->getView("coordsets/coords/type") );
 
       std::string coord_system = "unknown";
       if ( bp_grp->getGroup("coordsets/coords/values")->hasView("x") &&
@@ -218,7 +218,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
       int number_of_components = 1;
       if ( bp_grp->hasGroup("fields/mesh_material_attribute/values") )
       {
-         number_of_components = bp_grp->getGroup("fields/mesh_material_attributes")->getNumViews();
+         number_of_components = bp_grp->getGroup("fields/mesh_material_attributes/values")->getNumViews();
       }
 
       bp_index_field_grp->createViewScalar("number_of_components", number_of_components);
@@ -272,7 +272,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
       int number_of_components = 1;
       if ( bp_grp->hasGroup("fields/boundary_material_attribute/values") )
       {
-         number_of_components = bp_grp->getGroup("fields/boundary_material_attributes")->getNumViews();
+         number_of_components = bp_grp->getGroup("fields/boundary_material_attributes/values")->getNumViews();
       }
 
       bp_index_field_grp->createViewScalar("number_of_components", number_of_components);
@@ -732,6 +732,40 @@ void SidreDataCollection::addVectorBasedGridFunction(const char* field_name, Gri
    }
 }
 
+// Should only be called on mpi rank 0 ( or if serial problem ).
+void SidreDataCollection::RegisterFieldInBPIndex(asctoolkit::sidre::DataGroup * bp_field_grp)
+{
+   namespace sidre = asctoolkit::sidre;
+   const std::string& field_name = bp_field_grp->getName();
+   sidre::DataGroup * bp_index_field_grp = bp_index_grp->createGroup("fields/"+field_name);
+
+   bp_index_field_grp->createViewScalar( "path", bp_field_grp->getPathName() );
+   bp_index_field_grp->copyView( bp_field_grp->getView("topology") );
+   if(bp_field_grp->hasView("basis"))
+   {
+      bp_index_field_grp->copyView( bp_field_grp->getView("basis") );
+   }
+   else if(bp_field_grp->hasView("association"))
+   {
+      bp_index_field_grp->copyView( bp_field_grp->getView("association") );
+   }
+   else
+   {
+      std::string errorMessage = " Field " + bp_field_grp->getName() + " is missing association or basis entry in blueprint.";
+      MFEM_ERROR( errorMessage );
+   }
+
+
+   int number_of_components = 1;
+   if ( bp_field_grp->hasGroup("values") )
+   {
+      number_of_components = bp_field_grp->getGroup("values")->getNumViews();
+   }
+
+   bp_index_field_grp->createViewScalar("number_of_components", number_of_components);
+
+}
+
 void SidreDataCollection::RegisterField(const char* field_name, GridFunction *gf)
 {
    namespace sidre = asctoolkit::sidre;
@@ -746,7 +780,6 @@ void SidreDataCollection::RegisterField(const char* field_name, GridFunction *gf
       }
 
       sidre::DataGroup* grp = f->getGroup( field_name );
-
 
       // Set the basis string using the gf's finite element space, overwrite if necessary
       if(!grp->hasView("basis"))
@@ -777,6 +810,7 @@ void SidreDataCollection::RegisterField(const char* field_name, GridFunction *gf
       }
    }
 
+   RegisterFieldInBPIndex( f->getGroup(field_name) );
    DataCollection::RegisterField(field_name, gf);
 }
 

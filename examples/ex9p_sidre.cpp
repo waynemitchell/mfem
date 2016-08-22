@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
    int dim = mesh->Dimension();
 
    // Create snapshot of initial topology.
-   dc_unrefined->SetMesh(mesh, 1, false);
+   dc_unrefined->SetMesh(mesh, 1, "nodes", false);
 
    // 4. Define the ODE solver used for time integration. Several explicit
    //    Runge-Kutta methods are available.

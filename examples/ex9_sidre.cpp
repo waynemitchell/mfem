@@ -160,7 +160,7 @@ int main(int argc, char *argv[])
 
    // In a parallel problem, only rank 0 needs to do this.
    // Set mesh, but do not change data ownership.
-   sdc->SetMesh(mesh, 1, false);
+   sdc->SetMesh(mesh, 1, "nodes", false);
    
    // 3. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement, where 'ref_levels' is a
