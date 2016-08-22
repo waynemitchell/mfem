@@ -57,6 +57,54 @@ public:
       return const_cast<Operator &>(*this);
    }
 
+   /// Prolongation operator from linear algebra (linear system) vectors, to
+   /// input vectors for the operator. NULL means identity.
+   virtual const Operator *GetProlongation() const { return NULL; }
+   /// Restriction operator from input vectors for the operator to linear
+   /// algebra (linear system) vectors. NULL means identity.
+   virtual const Operator *GetRestriction() const  { return NULL; }
+
+   /** Assuming square operator, form the operator linear system A(X) = B,
+       corresponding to it and the right-hand side b, by applying any necessary
+       transformations such as: parallel assembly, conforming constraints for
+       non-conforming AMR and eliminating boundary conditions. Note that static
+       condensation and hybridization are not supported for general operators
+       (cf. the analogous FormLinearSystem method for bilinear forms).
+
+       The constraints are specified through the prolongation and restriction
+       operators above, P and R, which are e.g. available through the (parallel)
+       finite element space of any (parallel) bilinear form operator. We assume
+       that the operator is square, using the same input and output space, so we
+       have: A(X) = [P^t (*this) P](X), B = P^t b, and x = P(X).
+
+       The vector x must contain the essential boundary condition values. These
+       are eliminated through the ConstrainedOperator class and the vector X is
+       initialized by setting its essential entries to the boundry conditions
+       and all other entries to zero (copy_interior == 0) or copied from x
+       (copy_interior != 0).
+
+       This method can be called multiple times (with the same ess_tdof_list
+       array) to initialize different right-hand sides and boundary condition
+       values.
+
+       After solving the linear system A(X) = B, the (finite element) solution x
+       can be recovered by calling RecoverFEMSolution (with the same vectors X,
+       b, and x).
+
+       NOTE: The caller is responsible for destroying the output operator A!
+       NOTE: If there are no transformations, X simply reuses the data of x. */
+   void FormLinearSystem(const Array<int> &ess_tdof_list,
+                         Vector &x, Vector &b,
+                         Operator* &A, Vector &X, Vector &B,
+                         int copy_interior = 0);
+
+   /** Call this method after solving a linear system constructed using the
+       Operator::FormLinearSystem to recover the solution as an input vector, x,
+       for the operator (presumably a finite element grid function). This method
+       has identical signature to the analogous method for bilinear forms,
+       though currently b is not being used for general operators. */
+   virtual void RecoverFEMSolution(const Vector &X, const Vector &b, Vector &x);
+
    /// Prints operator with input size n and output size m in matlab format.
    void PrintMatlab (std::ostream & out, int n = 0, int m = 0) const;
 
@@ -228,12 +276,14 @@ class ConstrainedOperator : public Operator
 protected:
    Array<int> constraint_list;
    Operator *A;
+   bool own_A;
    mutable Vector z, w;
 
 public:
    /// Specify the unconstrained operator and a list of vector entries to
    /// constrain (i.e. list[i] is analogous to an essential-dof).
-   explicit ConstrainedOperator(Operator *A, const Array<int> &list);
+   explicit ConstrainedOperator(Operator *A, const Array<int> &list,
+                                bool own_A=false);
 
    /// Eliminate "essential boundary condition" values specified in x from a
    /// given right-hand side b: z = A((0,xb)); bi -= zi, bb = xb.
@@ -242,7 +292,7 @@ public:
    /// Constrained operator action: z = A((xi,0)); yi = zi, yb = xb.
    virtual void Mult(const Vector &x, Vector &y) const;
 
-   virtual ~ConstrainedOperator() { }
+   virtual ~ConstrainedOperator() { if (own_A) { delete A; } }
 };
 
 }

@@ -232,9 +232,6 @@ int main(int argc, char *argv[])
       fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
    }
 
-   HypreParMatrix *P = fespace->Dof_TrueDof_Matrix();
-   const SparseMatrix *R = fespace->GetRestrictionMatrix();
-
    // 10. Set up the parallel linear form b(.) which corresponds to the
    //     right-hand side of the FEM linear system, which in this case is
    //     (1,phi_i) where phi_i are the basis functions in fespace.
@@ -269,7 +266,7 @@ int main(int argc, char *argv[])
    a->UsePrecomputedSparsity();
 
    HPCBilinearForm *a_hpc = NULL;
-   ConstrainedOperator *a_oper = NULL;
+   Operator *a_oper = NULL;
 
    if (!perf)
    {
@@ -284,8 +281,6 @@ int main(int argc, char *argv[])
       if (matrix_free)
       {
          a_hpc->Assemble(); // Chooses between ::MultAssembled and ::MultUnassembled
-         RAPOperator *a_hpc_par = new RAPOperator(*P, *a_hpc, *P);
-         a_oper = new ConstrainedOperator(a_hpc_par, ess_tdof_list);
       }
       else
       {
@@ -304,12 +299,11 @@ int main(int argc, char *argv[])
    Vector B, X;
    if (perf && matrix_free)
    {
-      // Variational restriction with P
-      X.SetSize(fespace->TrueVSize());
-      B.SetSize(X.Size());
-      P->MultTranspose(*b, B);
-      R->Mult(x, X);
-      a_oper->EliminateRHS(X, B);
+      a_hpc->FormLinearSystem(ess_tdof_list, x, *b, a_oper, X, B);
+      if (myid == 0)
+      {
+         cout << "Size of linear system: " << a_hpc->Height() << endl;
+      }
    }
    else
    {
@@ -344,7 +338,7 @@ int main(int argc, char *argv[])
    //     local finite element solution on each processor.
    if (perf && matrix_free)
    {
-      P->Mult(X, x);
+      a_hpc->RecoverFEMSolution(X, *b, x);
    }
    else
    {

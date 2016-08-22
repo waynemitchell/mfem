@@ -108,6 +108,13 @@ public:
    ParFiniteElementSpace *SCParFESpace() const
    { return static_cond ? static_cond->GetParTraceFESpace() : NULL; }
 
+   /// Assessor method for the parallel finite element space prolongation matrix
+   virtual const Operator *GetProlongation() const
+   { return pfes->Dof_TrueDof_Matrix(); }
+   /// Assessor method for the parallel finite element space restriction matrix
+   virtual const Operator *GetRestriction() const
+   { return pfes->GetRestrictionMatrix(); }
+
    /** Form the linear system A X = B, corresponding to the current bilinear
        form and b(.), by applying any necessary transformations such as:
        eliminating boundary conditions; applying conforming constraints for

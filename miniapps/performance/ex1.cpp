@@ -217,7 +217,7 @@ int main(int argc, char *argv[])
    a->UsePrecomputedSparsity();
 
    HPCBilinearForm *a_hpc = NULL;
-   ConstrainedOperator *a_oper = NULL;
+   Operator *a_oper = NULL;
 
    if (!perf)
    {
@@ -232,7 +232,6 @@ int main(int argc, char *argv[])
       if (matrix_free)
       {
          a_hpc->Assemble(); // Chooses between ::MultAssembled and ::MultUnassembled
-         a_oper = new ConstrainedOperator(a_hpc, ess_tdof_list);
       }
       else
       {
@@ -248,10 +247,8 @@ int main(int argc, char *argv[])
    Vector B, X;
    if (perf && matrix_free)
    {
-      // X and B point to the same data as x and b
-      X.NewDataAndSize(x.GetData(), x.Size());
-      B.NewDataAndSize(b->GetData(), b->Size());
-      a_oper->EliminateRHS(X, B);
+      a_hpc->FormLinearSystem(ess_tdof_list, x, *b, a_oper, X, B);
+      cout << "Size of linear system: " << a_hpc->Height() << endl;
    }
    else
    {
@@ -282,7 +279,7 @@ int main(int argc, char *argv[])
    // 13. Recover the solution as a finite element grid function.
    if (perf && matrix_free)
    {
-      x = X;
+      a_hpc->RecoverFEMSolution(X, *b, x);
    }
    else
    {
