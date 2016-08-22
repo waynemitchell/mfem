@@ -129,7 +129,7 @@ public:
        After solving the linear system, the finite element solution x can be
        recovered by calling RecoverFEMSolution (with the same vectors X, b, and
        x). */
-   void FormLinearSystem(Array<int> &ess_tdof_list, Vector &x, Vector &b,
+   void FormLinearSystem(const Array<int> &ess_tdof_list, Vector &x, Vector &b,
                          HypreParMatrix &A, Vector &X, Vector &B,
                          int copy_interior = 0);
 

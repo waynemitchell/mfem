@@ -92,7 +92,7 @@ public:
    static const int  dofs_1d     = P+1;
 
    // Type for run-time parameter for the constructor
-   typedef H1_FECollection::BasisType parameter_type;
+   typedef int parameter_type;
 
 protected:
    const FiniteElement *my_fe;
@@ -101,13 +101,13 @@ protected:
    void Init(const parameter_type type_)
    {
       type = type_;
-      if (type == H1_FECollection::GaussLobatto)
+      if (type == BasisType::GaussLobatto)
       {
          H1_SegmentElement *fe = new H1_SegmentElement(P);
          my_fe = fe;
          my_dof_map = &fe->GetDofMap();
       }
-      else if (type == H1_FECollection::Positive)
+      else if (type == BasisType::Positive)
       {
          H1Pos_SegmentElement *fe = new H1Pos_SegmentElement(P);
          my_fe = fe;
@@ -120,7 +120,7 @@ protected:
    }
 
 public:
-   H1_FiniteElement(const parameter_type type_ = H1_FECollection::GaussLobatto)
+   H1_FiniteElement(const parameter_type type_ = BasisType::GaussLobatto)
    {
       Init(type_);
    }
@@ -158,7 +158,7 @@ public:
    static const bool tensor_prod = false;
 
    // Type for run-time parameter for the constructor
-   typedef H1_FECollection::BasisType parameter_type;
+   typedef int parameter_type;
 
 protected:
    const FiniteElement *my_fe;
@@ -166,11 +166,11 @@ protected:
    void Init(const parameter_type type_)
    {
       type = type_;
-      if (type == H1_FECollection::GaussLobatto)
+      if (type == BasisType::GaussLobatto)
       {
          my_fe = new H1_TriangleElement(P);
       }
-      else if (type == H1_FECollection::Positive)
+      else if (type == BasisType::Positive)
       {
          my_fe = new H1Pos_TriangleElement(P);
       }
@@ -181,7 +181,7 @@ protected:
    }
 
 public:
-   H1_FiniteElement(const parameter_type type_ = H1_FECollection::GaussLobatto)
+   H1_FiniteElement(const parameter_type type_ = BasisType::GaussLobatto)
    {
       Init(type_);
    }
@@ -215,7 +215,7 @@ public:
    static const int dofs_1d = P+1;
 
    // Type for run-time parameter for the constructor
-   typedef H1_FECollection::BasisType parameter_type;
+   typedef int parameter_type;
 
 protected:
    const FiniteElement *my_fe, *my_fe_1d;
@@ -224,14 +224,14 @@ protected:
    void Init(const parameter_type type_)
    {
       type = type_;
-      if (type == H1_FECollection::GaussLobatto)
+      if (type == BasisType::GaussLobatto)
       {
          H1_QuadrilateralElement *fe = new H1_QuadrilateralElement(P);
          my_fe = fe;
          my_dof_map = &fe->GetDofMap();
          my_fe_1d = new L2_SegmentElement(P, 1);
       }
-      else if (type == H1_FECollection::Positive)
+      else if (type == BasisType::Positive)
       {
          H1Pos_QuadrilateralElement *fe = new H1Pos_QuadrilateralElement(P);
          my_fe = fe;
@@ -245,7 +245,7 @@ protected:
    }
 
 public:
-   H1_FiniteElement(const parameter_type type_ = H1_FECollection::GaussLobatto)
+   H1_FiniteElement(const parameter_type type_ = BasisType::GaussLobatto)
    {
       Init(type_);
    }
@@ -283,7 +283,7 @@ public:
    static const bool tensor_prod = false;
 
    // Type for run-time parameter for the constructor
-   typedef H1_FECollection::BasisType parameter_type;
+   typedef int parameter_type;
 
 protected:
    const FiniteElement *my_fe;
@@ -291,11 +291,11 @@ protected:
    void Init(const parameter_type type_)
    {
       type = type_;
-      if (type == H1_FECollection::GaussLobatto)
+      if (type == BasisType::GaussLobatto)
       {
          my_fe = new H1_TetrahedronElement(P);
       }
-      else if (type == H1_FECollection::Positive)
+      else if (type == BasisType::Positive)
       {
          my_fe = new H1Pos_TetrahedronElement(P);
       }
@@ -306,7 +306,7 @@ protected:
    }
 
 public:
-   H1_FiniteElement(const parameter_type type_ = H1_FECollection::GaussLobatto)
+   H1_FiniteElement(const parameter_type type_ = BasisType::GaussLobatto)
    {
       Init(type_);
    }
@@ -340,7 +340,7 @@ public:
    static const int dofs_1d = P+1;
 
    // Type for run-time parameter for the constructor
-   typedef H1_FECollection::BasisType parameter_type;
+   typedef int parameter_type;
 
 protected:
    const FiniteElement *my_fe, *my_fe_1d;
@@ -350,14 +350,14 @@ protected:
    void Init(const parameter_type type_)
    {
       type = type_;
-      if (type == H1_FECollection::GaussLobatto)
+      if (type == BasisType::GaussLobatto)
       {
          H1_HexahedronElement *fe = new H1_HexahedronElement(P);
          my_fe = fe;
          my_dof_map = &fe->GetDofMap();
          my_fe_1d = new L2_SegmentElement(P, 1);
       }
-      else if (type == H1_FECollection::Positive)
+      else if (type == BasisType::Positive)
       {
          H1Pos_HexahedronElement *fe = new H1Pos_HexahedronElement(P);
          my_fe = fe;
@@ -371,7 +371,7 @@ protected:
    }
 
 public:
-   H1_FiniteElement(const parameter_type type_ = H1_FECollection::GaussLobatto)
+   H1_FiniteElement(const parameter_type type_ = BasisType::GaussLobatto)
    {
       Init(type_);
    }
@@ -414,7 +414,7 @@ public:
    static const int  dofs_1d     = P+1;
 
    // Type for run-time parameter for the constructor
-   typedef L2_FECollection::BasisType parameter_type;
+   typedef int parameter_type;
 
 protected:
    const FiniteElement *my_fe, *my_fe_1d;
@@ -422,20 +422,18 @@ protected:
 
    void Init(const parameter_type type_)
    {
-      type = type_;
+      type = BasisType::Check(type_);
+      int pt_type = BasisType::GetQuadrature1D(type);
       switch (type)
       {
-         case L2_FECollection::GaussLegendre:
-         case L2_FECollection::GaussLobatto:
-            my_fe = new L2_FE_type(P, type);
-            my_fe_1d = (TP && dim != 1) ? new L2_SegmentElement(P, type) : NULL;
-            break;
-         case L2_FECollection::Positive:
+         case BasisType::Positive:
             my_fe = new L2Pos_FE_type(P);
             my_fe_1d = (TP && dim != 1) ? new L2Pos_SegmentElement(P) : NULL;
             break;
          default:
-            MFEM_ABORT("invalid basis type");
+            my_fe = new L2_FE_type(P, type);
+            my_fe_1d = (TP && dim != 1) ? new L2_SegmentElement(P, pt_type) :
+                       NULL;
       }
    }
 
@@ -481,7 +479,7 @@ protected:
            L2Pos_SegmentElement,P+1,true> base_class;
 public:
    typedef typename base_class::parameter_type parameter_type;
-   L2_FiniteElement(const parameter_type type_ = L2_FECollection::GaussLegendre)
+   L2_FiniteElement(const parameter_type type_ = BasisType::GaussLegendre)
       : base_class(type_) { }
    L2_FiniteElement(const FiniteElementCollection &fec)
       : base_class(fec) { }
@@ -498,7 +496,7 @@ protected:
            L2Pos_TriangleElement,((P+1)*(P+2))/2,false> base_class;
 public:
    typedef typename base_class::parameter_type parameter_type;
-   L2_FiniteElement(const parameter_type type_ = L2_FECollection::GaussLegendre)
+   L2_FiniteElement(const parameter_type type_ = BasisType::GaussLegendre)
       : base_class(type_) { }
    L2_FiniteElement(const FiniteElementCollection &fec)
       : base_class(fec) { }
@@ -515,7 +513,7 @@ protected:
            L2Pos_QuadrilateralElement,(P+1)*(P+1),true> base_class;
 public:
    typedef typename base_class::parameter_type parameter_type;
-   L2_FiniteElement(const parameter_type type_ = L2_FECollection::GaussLegendre)
+   L2_FiniteElement(const parameter_type type_ = BasisType::GaussLegendre)
       : base_class(type_) { }
    L2_FiniteElement(const FiniteElementCollection &fec)
       : base_class(fec) { }
@@ -532,7 +530,7 @@ protected:
            L2Pos_TetrahedronElement,((P+1)*(P+2)*(P+3))/6,false> base_class;
 public:
    typedef typename base_class::parameter_type parameter_type;
-   L2_FiniteElement(const parameter_type type_ = L2_FECollection::GaussLegendre)
+   L2_FiniteElement(const parameter_type type_ = BasisType::GaussLegendre)
       : base_class(type_) { }
    L2_FiniteElement(const FiniteElementCollection &fec)
       : base_class(fec) { }
@@ -549,7 +547,7 @@ protected:
            L2Pos_HexahedronElement,(P+1)*(P+1)*(P+1),true> base_class;
 public:
    typedef typename base_class::parameter_type parameter_type;
-   L2_FiniteElement(const parameter_type type_ = L2_FECollection::GaussLegendre)
+   L2_FiniteElement(const parameter_type type_ = BasisType::GaussLegendre)
       : base_class(type_) { }
    L2_FiniteElement(const FiniteElementCollection &fec)
       : base_class(fec) { }
