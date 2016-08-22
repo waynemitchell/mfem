@@ -3,17 +3,17 @@
 // Compile with: make ex9p
 //
 // Sample runs:
-//    mpirun -np 4 ex9p -m ../data/periodic-segment.mesh -p 0 -dt 0.005
-//    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 0 -dt 0.01
-//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -p 0 -dt 0.01
-//    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 1 -dt 0.005 -tf 9
-//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -p 1 -dt 0.005 -tf 9
-//    mpirun -np 4 ex9p -m ../data/amr-quad.mesh -p 1 -rp 1 -dt 0.002 -tf 9
-//    mpirun -np 4 ex9p -m ../data/star-q3.mesh -p 1 -rp 1 -dt 0.004 -tf 9
-//    mpirun -np 4 ex9p -m ../data/disc-nurbs.mesh -p 1 -rp 1 -dt 0.005 -tf 9
-//    mpirun -np 4 ex9p -m ../data/disc-nurbs.mesh -p 2 -rp 1 -dt 0.005 -tf 9
-//    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 3 -rp 2 -dt 0.0025 -tf 9 -vs 20
-//    mpirun -np 4 ex9p -m ../data/periodic-cube.mesh -p 0 -o 2 -rp 1 -dt 0.01 -tf 8
+//    mpirun -np 4 ex9p -m ../../data/periodic-segment.mesh -p 0 -dt 0.005
+//    mpirun -np 4 ex9p -m ../../data/periodic-square.mesh -p 0 -dt 0.01
+//    mpirun -np 4 ex9p -m ../../data/periodic-hexagon.mesh -p 0 -dt 0.01
+//    mpirun -np 4 ex9p -m ../../data/periodic-square.mesh -p 1 -dt 0.005 -tf 9
+//    mpirun -np 4 ex9p -m ../../data/periodic-hexagon.mesh -p 1 -dt 0.005 -tf 9
+//    mpirun -np 4 ex9p -m ../../data/amr-quad.mesh -p 1 -rp 1 -dt 0.002 -tf 9
+//    mpirun -np 4 ex9p -m ../../data/star-q3.mesh -p 1 -rp 1 -dt 0.004 -tf 9
+//    mpirun -np 4 ex9p -m ../../data/disc-nurbs.mesh -p 1 -rp 1 -dt 0.005 -tf 9
+//    mpirun -np 4 ex9p -m ../../data/disc-nurbs.mesh -p 2 -rp 1 -dt 0.005 -tf 9
+//    mpirun -np 4 ex9p -m ../../data/periodic-square.mesh -p 3 -rp 2 -dt 0.0025 -tf 9 -vs 20
+//    mpirun -np 4 ex9p -m ../../data/periodic-cube.mesh -p 0 -o 2 -rp 1 -dt 0.01 -tf 8
 //
 // Description:  This example code solves the time-dependent advection equation
 //               du/dt + v.grad(u) = 0, where v is a given fluid velocity, and
@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
 
    // 2. Parse command-line options.
    problem = 0;
-   const char *mesh_file = "../data/periodic-hexagon.mesh";
+   const char *mesh_file = "../../data/periodic-hexagon.mesh";
    int ser_ref_levels = 2;
    int par_ref_levels = 0;
    int order = 3;
@@ -161,7 +161,7 @@ int main(int argc, char *argv[])
    // Create data collections
    SidreDataCollection * dc = new SidreDataCollection("ex9p_refined_mesh", global_grp, domain_grp );
    SidreDataCollection * dc_unrefined = new SidreDataCollection("ex9p_unrefined_mesh", global_grp, domain_grp );
-   dc->SetPrefixPath("ex9p_sidre_output");
+   dc->SetPrefixPath("ex9p_output");
 
    asctoolkit::slic::debug::checksAreErrors = true;
 
@@ -274,8 +274,8 @@ int main(int argc, char *argv[])
 
    {
       ostringstream mesh_name, sol_name;
-      mesh_name << "ex9-mesh." << setfill('0') << setw(6) << myid;
-      sol_name << "ex9-init." << setfill('0') << setw(6) << myid;
+      mesh_name << "ex9p_sidre_output/ex9-mesh." << setfill('0') << setw(6) << myid;
+      sol_name << "ex9p_sidre_output/ex9-init." << setfill('0') << setw(6) << myid;
       ofstream omesh(mesh_name.str().c_str());
       omesh.precision(precision);
       pmesh->Print(omesh);
@@ -285,6 +285,7 @@ int main(int argc, char *argv[])
    }
 
    VisItDataCollection visit_dc("Example9-Parallel", pmesh);
+   visit_dc.SetPrefixPath("ex9p_output");
    visit_dc.RegisterField("solution", u);
    if (visit)
    {
@@ -379,7 +380,7 @@ int main(int argc, char *argv[])
    {
       *u = *U;
       ostringstream sol_name;
-      sol_name << "ex9-final." << setfill('0') << setw(6) << myid;
+      sol_name << "ex9p_sidre_output/ex9-final." << setfill('0') << setw(6) << myid;
       ofstream osol(sol_name.str().c_str());
       osol.precision(precision);
       u->Save(osol);
