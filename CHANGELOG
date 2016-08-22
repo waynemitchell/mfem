@@ -7,16 +7,37 @@
 
                                http://mfem.org
 
+
 Version 3.2.1, not yet released
 ===============================
 - Rewrote the Volta and Tesla solver classes to avoid using linear algebra
   objects when possible. This greatly simplifies the code, reduces memory
   requirements, and eliminates unnecessary computation. It also fixed a bug
-  with divergence cleaning in Tesla.
+  with divergence cleaning in the Tesla miniapp.
+
+- Added support for different numerical quadrature schemes and finite element
+  basis points. Different basis points can be selected via optional integer
+  argument(s) to the finite element collection constructor of type BasisType:
+  * H1 elements can use GaussLobatto (default) or ClosedUniform;
+  * L2 elements can use GaussLegendre (default), GaussLobatto, Positive,
+       UniformClosed, or UniformOpen;
+  * RT can now use open basis that is GaussLegendre (default) or UniformOpen
+       and closed basis that is GaussLobatto (default) or UniformClosed;
+  * ND elements can use the same type of basis points as RT elements.
+
+- GaussLegendre, GaussLobatto, UniformClosed and UniformOpen integration rules
+  can be directly constructed with an optional parameter of type Quadrature1D:
+     IntegrationRules gl(0 , Quadrature1D::GaussLobatto);
+     const IntegrationRule *ir = gl(Geometry::SEGMENT, 5); // 4pt 1D rule
+  The global IntRules object continues to use GaussLegendre.
 
 - Added a simple miniapp, display-basis, for displaying the various types
   of finite element basis functions within single elements. This is part of
   the new miniapps/tools directory.
+
+- Added optional support for software-based higher-precision arithmetic with
+  the MPFR library. When MFEM_USE_MPFR is enabled, the 1D quadrature rules will
+  be computed precisely, at least for rules with up to 65-points.
 
 
 Version 3.2, released on June 30, 2016
