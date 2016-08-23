@@ -168,7 +168,7 @@ protected:
       }
       else
       {
-         my_fe = new H1Pos_TriangleElement(P);
+         my_fe = new H1_TriangleElement(P);
       }
    }
 
