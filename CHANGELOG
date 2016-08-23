@@ -43,11 +43,6 @@ Version 3.2.1, not yet released
   from the CVODE, ARKODE and KINSOL libraries of the SUNDIALS suite (version 2.7
   or higher of SUNDIALS is required).
 
-New and updated examples
-------------------------
-- Examples 9/9p, 10/10p can use ARKODE and CVODE time integrators.
-- Example 10/10p can solve its non-linear problem with KINSOL.
-
 
 Version 3.2, released on June 30, 2016
 ======================================
