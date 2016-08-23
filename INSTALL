@@ -252,7 +252,7 @@ The specific libraries and their options are:
 - METIS, required for the parallel build, i.e. when MFEM_USE_MPI = YES. If using
   METIS 5, set MFEM_USE_METIS_5 = YES (default is to use METIS 4).
   URL: http://glaros.dtc.umn.edu/gkhome/metis/metis/overview
-  Options: METIS_OPT (currently not used/needed), METIS_LIB.
+  Options: METIS_OPT, METIS_LIB.
 
 - LAPACK (optional), used when MFEM_USE_LAPACK = YES. Alternative, optimized
   implementations can also be used, e.g. the ATLAS project.
@@ -276,7 +276,9 @@ The specific libraries and their options are:
   Options: SUITESPARSE_OPT, SUITESPARSE_LIB.
 
 - SuperLU_DIST (optional), used when MFEM_USE_SUPERLU = YES. Note that
-  SuperLU_DIST requires ParMETIS which, in turn, requires METIS (see above URL).
+  SuperLU_DIST requires ParMETIS, which includes METIS 5 in its distribution.
+  Both ParMETIS and the included METIS 5 should be built and installed in the
+  same location.
   URL: http://crd-legacy.lbl.gov/~xiaoye/SuperLU
   Options: SUPERLU_OPT, SUPERLU_LIB.
 
