@@ -100,14 +100,8 @@ protected:
    parameter_type type; // run-time specified basis type
    void Init(const parameter_type type_)
    {
-      type = type_;
-      if (type == BasisType::GaussLobatto)
-      {
-         H1_SegmentElement *fe = new H1_SegmentElement(P);
-         my_fe = fe;
-         my_dof_map = &fe->GetDofMap();
-      }
-      else if (type == BasisType::Positive)
+      type = BasisType::Check(type_);
+      if (type == BasisType::Positive)
       {
          H1Pos_SegmentElement *fe = new H1Pos_SegmentElement(P);
          my_fe = fe;
@@ -115,7 +109,9 @@ protected:
       }
       else
       {
-         MFEM_ABORT("invalid basis type!");
+         H1_SegmentElement *fe = new H1_SegmentElement(P);
+         my_fe = fe;
+         my_dof_map = &fe->GetDofMap();
       }
    }
 
@@ -165,18 +161,14 @@ protected:
    parameter_type type; // run-time specified basis type
    void Init(const parameter_type type_)
    {
-      type = type_;
-      if (type == BasisType::GaussLobatto)
-      {
-         my_fe = new H1_TriangleElement(P);
-      }
-      else if (type == BasisType::Positive)
+      type = BasisType::Check(type_);
+      if (type == BasisType::Positive)
       {
          my_fe = new H1Pos_TriangleElement(P);
       }
       else
       {
-         MFEM_ABORT("invalid basis type!");
+         my_fe = new H1_TriangleElement(P);
       }
    }
 
@@ -223,15 +215,8 @@ protected:
    parameter_type type; // run-time specified basis type
    void Init(const parameter_type type_)
    {
-      type = type_;
-      if (type == BasisType::GaussLobatto)
-      {
-         H1_QuadrilateralElement *fe = new H1_QuadrilateralElement(P);
-         my_fe = fe;
-         my_dof_map = &fe->GetDofMap();
-         my_fe_1d = new L2_SegmentElement(P, 1);
-      }
-      else if (type == BasisType::Positive)
+      type = BasisType::Check(type_);
+      if (type == BasisType::Positive)
       {
          H1Pos_QuadrilateralElement *fe = new H1Pos_QuadrilateralElement(P);
          my_fe = fe;
@@ -240,7 +225,10 @@ protected:
       }
       else
       {
-         MFEM_ABORT("invalid basis type!");
+         H1_QuadrilateralElement *fe = new H1_QuadrilateralElement(P);
+         my_fe = fe;
+         my_dof_map = &fe->GetDofMap();
+         my_fe_1d = new L2_SegmentElement(P, 1);
       }
    }
 
@@ -349,15 +337,8 @@ protected:
 
    void Init(const parameter_type type_)
    {
-      type = type_;
-      if (type == BasisType::GaussLobatto)
-      {
-         H1_HexahedronElement *fe = new H1_HexahedronElement(P);
-         my_fe = fe;
-         my_dof_map = &fe->GetDofMap();
-         my_fe_1d = new L2_SegmentElement(P, 1);
-      }
-      else if (type == BasisType::Positive)
+      type = BasisType::Check(type_);
+      if (type == BasisType::Positive)
       {
          H1Pos_HexahedronElement *fe = new H1Pos_HexahedronElement(P);
          my_fe = fe;
@@ -366,7 +347,10 @@ protected:
       }
       else
       {
-         MFEM_ABORT("invalid basis type!");
+         H1_HexahedronElement *fe = new H1_HexahedronElement(P);
+         my_fe = fe;
+         my_dof_map = &fe->GetDofMap();
+         my_fe_1d = new L2_SegmentElement(P, 1);
       }
    }
 
