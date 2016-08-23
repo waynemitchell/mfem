@@ -29,15 +29,7 @@ Version 3.2.1, not yet released
   can be directly constructed with an optional parameter of type Quadrature1D:
      IntegrationRules gl(0 , Quadrature1D::GaussLobatto);
      const IntegrationRule *ir = gl(Geometry::SEGMENT, 5); // 4pt 1D rule
-  The global IntRules object continues to use GaussLegendre.
-
-- Added a simple miniapp, display-basis, for displaying the various types
-  of finite element basis functions within single elements. This is part of
-  the new miniapps/tools directory.
-
-- Added optional support for software-based higher-precision arithmetic with
-  the MPFR library. When MFEM_USE_MPFR is enabled, the 1D quadrature rules will
-  be computed precisely, at least for rules with up to 65-points.
+- Better support for METIS version 5 and above.
 
 New and updated examples and miniapps
 -------------------------------------
