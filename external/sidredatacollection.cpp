@@ -186,7 +186,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
                                  mesh_num_indices);
 
       bp_grp->createViewString("topologies/mesh/coordset", "coords");
-      bp_grp->createViewString("topologies/mesh/mfem_grid_function", "mesh_nodes");
+      bp_grp->createViewString("topologies/mesh/mfem_grid_function",node_positions_field_name);
 
       // Add mesh elements material attribute field to blueprint
       bp_grp->createViewString("fields/mesh_material_attribute/association", "element");
@@ -364,7 +364,7 @@ void SidreDataCollection::Load(const std::string& path, const std::string& proto
    {
        sidre::DataGroup * domain_file_grp = bp_grp->getParent()->getParent();
        asctoolkit::spio::IOManager reader(par_mesh->GetComm());
-       reader.read(domain_file_grp, path);
+       reader.read(datastore->getRoot(), path);
    }
    else
    {
@@ -435,7 +435,8 @@ void SidreDataCollection::Save(const std::string& filename, const std::string& p
 #ifdef MFEM_USE_MPI
       const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
       asctoolkit::spio::IOManager writer(pmesh->GetComm());
-      writer.write(domain_file_grp, num_procs, file_path, protocol);
+      sidre::DataStore * datastore = bp_grp->getDataStore(); 
+      writer.write(datastore->getRoot(), num_procs, file_path, protocol);
 #else
       // If serial, use sidre group writer.
       bp_grp->getDataStore()->save( file_path, protocol);//, sidre_dc_group);
