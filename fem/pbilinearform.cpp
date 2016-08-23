@@ -266,34 +266,12 @@ void ParBilinearForm::FormLinearSystem(
    const Array<int> &ess_tdof_list, Vector &x, Vector &b,
    HypreParMatrix &A, Vector &X, Vector &B, int copy_interior)
 {
-   HypreParMatrix &P = *pfes->Dof_TrueDof_Matrix();
-   const SparseMatrix &R = *pfes->GetRestrictionMatrix();
-   Array<int> ess_rtdof_list;
-
    // Finish the matrix assembly and perform BC elimination, storing the
    // eliminated part of the matrix.
-   if (static_cond)
-   {
-      static_cond->ConvertListToReducedTrueDofs(ess_tdof_list, ess_rtdof_list);
-      if (!static_cond->HasEliminatedBC())
-      {
-         static_cond->Finalize();
-         static_cond->EliminateReducedTrueDofs(ess_rtdof_list, 0);
-      }
-   }
-   else if (mat)
-   {
-      MFEM_VERIFY(p_mat == NULL && p_mat_e == NULL,
-                  "The ParBilinearForm must be updated with Update() before "
-                  "re-assembling the ParBilinearForm.");
-      Finalize();
-      p_mat = ParallelAssemble();
-      delete mat;
-      mat = NULL;
-      delete mat_e;
-      mat_e = NULL;
-      p_mat_e = p_mat->EliminateRowsCols(ess_tdof_list);
-   }
+   FormSystemMatrix(ess_tdof_list, A);
+
+   HypreParMatrix &P = *pfes->Dof_TrueDof_Matrix();
+   const SparseMatrix &R = *pfes->GetRestrictionMatrix();
 
    // Transform the system and perform the elimination in B, based on the
    // essential BC values from x. Restrict the BC part of x in X, and set the
@@ -302,13 +280,7 @@ void ParBilinearForm::FormLinearSystem(
    if (static_cond)
    {
       // Schur complement reduction to the exposed dofs
-      static_cond->ReduceRHS(b, B);
-      static_cond->ReduceSolution(x, X);
-      EliminateBC(static_cond->GetParallelMatrix(),
-                  static_cond->GetParallelMatrixElim(),
-                  ess_rtdof_list, X, B);
-      if (!copy_interior) { X.SetSubVectorComplement(ess_rtdof_list, 0.0); }
-      A.MakeRef(static_cond->GetParallelMatrix());
+      static_cond->ReduceSystem(x, b, X, B, copy_interior);
    }
    else if (hybridization)
    {
@@ -321,7 +293,6 @@ void ParBilinearForm::FormLinearSystem(
       hybridization->ReduceRHS(true_B, B);
       X.SetSize(B.Size());
       X = 0.0;
-      A.MakeRef(hybridization->GetParallelMatrix());
    }
    else
    {
@@ -332,7 +303,47 @@ void ParBilinearForm::FormLinearSystem(
       R.Mult(x, X);
       EliminateBC(*p_mat, *p_mat_e, ess_tdof_list, X, B);
       if (!copy_interior) { X.SetSubVectorComplement(ess_tdof_list, 0.0); }
-      A.MakeRef(*p_mat);
+   }
+}
+
+void ParBilinearForm::FormSystemMatrix(const Array<int> &ess_tdof_list,
+                                       HypreParMatrix &A)
+{
+   // Finish the matrix assembly and perform BC elimination, storing the
+   // eliminated part of the matrix.
+   if (static_cond)
+   {
+      if (!static_cond->HasEliminatedBC())
+      {
+         static_cond->SetEssentialTrueDofs(ess_tdof_list);
+         static_cond->Finalize();
+         static_cond->EliminateReducedTrueDofs(0);
+      }
+      A.MakeRef(static_cond->GetParallelMatrix());
+   }
+   else
+   {
+      if (mat)
+      {
+         MFEM_VERIFY(p_mat == NULL && p_mat_e == NULL,
+                     "The ParBilinearForm must be updated with Update() before "
+                     "re-assembling the ParBilinearForm.");
+         Finalize();
+         p_mat = ParallelAssemble();
+         delete mat;
+         mat = NULL;
+         delete mat_e;
+         mat_e = NULL;
+         p_mat_e = p_mat->EliminateRowsCols(ess_tdof_list);
+      }
+      if (hybridization)
+      {
+         A.MakeRef(hybridization->GetParallelMatrix());
+      }
+      else
+      {
+         A.MakeRef(*p_mat);
+      }
    }
 }
 

@@ -32,10 +32,11 @@ using namespace mfem;
 
 /** After spatial discretization, the conduction model can be written as:
  *
- *     du/dt = M^{-1}((\kappa + \alpha u) -Ku)
+ *     du/dt = M^{-1}(-Ku)
  *
  *  where u is the vector representing the temperature, M is the mass matrix,
- *  and K is the diffusion matrix.
+ *  and K is the diffusion operator with diffusivity depending on u:
+ *  (\kappa + \alpha u).
  *
  *  Class ConductionOperator represents the right-hand side of the above ODE.
  */
@@ -43,15 +44,20 @@ class ConductionOperator : public TimeDependentOperator
 {
 protected:
    FiniteElementSpace &fespace;
+   Array<int> ess_tdof_list; // this list remains empty for pure Neumann b.c.
 
    BilinearForm *M;
    BilinearForm *K;
 
+   SparseMatrix Mmat, Kmat;
+   SparseMatrix *T; // T = M + dt K
+   double current_dt;
+
    CGSolver M_solver; // Krylov solver for inverting the mass matrix M
    DSmoother M_prec;  // Preconditioner for the mass matrix M
 
-   CGSolver K_solver; // Implicit solver for M + dt K
-   DSmoother K_prec;  // Preconditioner for the implicit solver
+   CGSolver T_solver; // Implicit solver for T = M + dt K
+   DSmoother T_prec;  // Preconditioner for the implicit solver
 
    double alpha, kappa;
 
@@ -66,6 +72,7 @@ public:
        This is the only requirement for high-order SDIRK implicit integration.*/
    virtual void ImplicitSolve(const double dt, const Vector &u, Vector &k);
 
+   /// Update the diffusion BilinearForm K using the given true-dof vector `u`.
    void SetParameters(const Vector &u);
 
    virtual ~ConductionOperator();
@@ -167,21 +174,22 @@ int main(int argc, char *argv[])
    H1_FECollection fe_coll(order, dim);
    FiniteElementSpace fespace(mesh, &fe_coll);
 
-   int fe_size = fespace.GetVSize();
+   int fe_size = fespace.GetTrueVSize();
    cout << "Number of temperature unknowns: " << fe_size << endl;
 
-   Vector u(fe_size);
-   GridFunction u_gf;
-   u_gf.MakeRef(&fespace, u, 0);
+   GridFunction u_gf(&fespace);
 
    // 6. Set the initial conditions for u. All boundaries are considered
    //    natural.
    FunctionCoefficient u_0(InitialTemperature);
    u_gf.ProjectCoefficient(u_0);
+   Vector u;
+   u_gf.GetTrueDofs(u);
 
    // 7. Initialize the conduction operator and the visualization.
    ConductionOperator oper(fespace, alpha, kappa, u);
 
+   u_gf.SetFromTrueDofs(u);
    {
       ofstream omesh("ex16.mesh");
       omesh.precision(precision);
@@ -243,6 +251,7 @@ int main(int argc, char *argv[])
       {
          cout << "step " << ti << ", t = " << t << endl;
 
+         u_gf.SetFromTrueDofs(u);
          if (visualization)
          {
             sout << "solution\n" << *mesh << u_gf << flush;
@@ -275,16 +284,15 @@ int main(int argc, char *argv[])
 
 ConductionOperator::ConductionOperator(FiniteElementSpace &f, double al,
                                        double kap, const Vector &u)
-   : TimeDependentOperator(f.GetVSize(), 0.0), fespace(f), M(NULL), K(NULL),
-     z(height)
+   : TimeDependentOperator(f.GetTrueVSize(), 0.0), fespace(f), M(NULL), K(NULL),
+     T(NULL), current_dt(0.0), z(height)
 {
    const double rel_tol = 1e-8;
-   const int skip_zero_entries = 0;
 
    M = new BilinearForm(&fespace);
    M->AddDomainIntegrator(new MassIntegrator());
-   M->Assemble(skip_zero_entries);
-   M->Finalize(skip_zero_entries);
+   M->Assemble();
+   M->FormSystemMatrix(ess_tdof_list, Mmat);
 
    M_solver.iterative_mode = false;
    M_solver.SetRelTol(rel_tol);
@@ -292,20 +300,19 @@ ConductionOperator::ConductionOperator(FiniteElementSpace &f, double al,
    M_solver.SetMaxIter(30);
    M_solver.SetPrintLevel(0);
    M_solver.SetPreconditioner(M_prec);
-   M_solver.SetOperator(M->SpMat());
+   M_solver.SetOperator(Mmat);
 
    alpha = al;
    kappa = kap;
 
-   K_solver.iterative_mode = false;
-   K_solver.SetRelTol(rel_tol);
-   K_solver.SetAbsTol(0.0);
-   K_solver.SetMaxIter(100);
-   K_solver.SetPrintLevel(0);
-   K_solver.SetPreconditioner(K_prec);
+   T_solver.iterative_mode = false;
+   T_solver.SetRelTol(rel_tol);
+   T_solver.SetAbsTol(0.0);
+   T_solver.SetMaxIter(100);
+   T_solver.SetPrintLevel(0);
+   T_solver.SetPreconditioner(T_prec);
 
    SetParameters(u);
-
 }
 
 void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
@@ -313,7 +320,7 @@ void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
    // Compute:
    //    du_dt = M^{-1}*-K(u)
    // for du_dt
-   K->Mult(u, z);
+   Kmat.Mult(u, z);
    z.Neg(); // z = -z
    M_solver.Mult(z, du_dt);
 }
@@ -324,37 +331,42 @@ void ConductionOperator::ImplicitSolve(const double dt,
    // Solve the equation:
    //    du_dt = M^{-1}*[-K(u + dt*du_dt)]
    // for du_dt
-   SparseMatrix *T = Add(1.0, M->SpMat(), dt, K->SpMat());
-   K_solver.SetOperator(*T);
-   K->Mult(u, z);
+   if (!T)
+   {
+      T = Add(1.0, Mmat, dt, Kmat);
+      current_dt = dt;
+      T_solver.SetOperator(*T);
+   }
+   MFEM_VERIFY(dt == current_dt, ""); // SDIRK methods use the same dt
+   Kmat.Mult(u, z);
    z.Neg();
-   K_solver.Mult(z, du_dt);
-   delete T;
+   T_solver.Mult(z, du_dt);
 }
 
 void ConductionOperator::SetParameters(const Vector &u)
 {
-   const int skip_zero_entries = 0;
-
-   Vector u_alpha(height);
-   u_alpha = kappa;
-   u_alpha.Add(alpha, u);
+   GridFunction u_alpha_gf(&fespace);
+   u_alpha_gf.SetFromTrueDofs(u);
+   for (int i = 0; i < u_alpha_gf.Size(); i++)
+   {
+      u_alpha_gf(i) = kappa + alpha*u_alpha_gf(i);
+   }
 
    delete K;
-
    K = new BilinearForm(&fespace);
-   GridFunction u_alpha_gf;
-   u_alpha_gf.MakeRef(&fespace, u_alpha, 0);
 
    GridFunctionCoefficient u_coeff(&u_alpha_gf);
 
    K->AddDomainIntegrator(new DiffusionIntegrator(u_coeff));
-   K->Assemble(skip_zero_entries);
-   K->Finalize(skip_zero_entries);
+   K->Assemble();
+   K->FormSystemMatrix(ess_tdof_list, Kmat);
+   delete T;
+   T = NULL; // re-compute T on the next ImplicitSolve
 }
 
 ConductionOperator::~ConductionOperator()
 {
+   delete T;
    delete M;
    delete K;
 }

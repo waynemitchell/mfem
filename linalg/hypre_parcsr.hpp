@@ -80,6 +80,38 @@ void hypre_ParCSRMatrixBooleanMatvec(hypre_ParCSRMatrix *A,
                                      HYPRE_Bool beta,
                                      HYPRE_Bool *y);
 
+/** Perform the operation A += beta*B, assuming that the sparsity pattern of
+    A contains that of B. */
+HYPRE_Int
+hypre_CSRMatrixSum(hypre_CSRMatrix *A,
+                   HYPRE_Complex    beta,
+                   hypre_CSRMatrix *B);
+
+/** Return a new matrix containing the sum of A and B, assuming that both
+    matrices use the same row and column partitions and the same col_map_offd
+    arrays. */
+hypre_ParCSRMatrix *
+hypre_ParCSRMatrixAdd(hypre_ParCSRMatrix *A,
+                      hypre_ParCSRMatrix *B);
+
+/** Perform the operation A += beta*B, assuming that both matrices use the
+    same row and column partitions and the same col_map_offd arrays. Also,
+    it is assumed that the sparsity pattern of A contains that of B. */
+HYPRE_Int
+hypre_ParCSRMatrixSum(hypre_ParCSRMatrix *A,
+                      HYPRE_Complex       beta,
+                      hypre_ParCSRMatrix *B);
+
+/** Initialize all entries of A with value. */
+HYPRE_Int
+hypre_CSRMatrixSetConstantValues(hypre_CSRMatrix *A,
+                                 HYPRE_Complex    value);
+
+/** Initialize all entries of A with value. */
+HYPRE_Int
+hypre_ParCSRMatrixSetConstantValues(hypre_ParCSRMatrix *A,
+                                    HYPRE_Complex       value);
+
 } // namespace mfem::internal
 
 } // namespace mfem

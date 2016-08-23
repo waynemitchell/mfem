@@ -372,6 +372,27 @@ public:
       internal::hypre_ParCSRMatrixBooleanMatvec(A, alpha, x, beta, y);
    }
 
+   /// Initialize all entries with value.
+   HypreParMatrix &operator=(double value)
+   { internal::hypre_ParCSRMatrixSetConstantValues(A, value); return *this; }
+
+   /** Perform the operation `*this += B`, assuming that both matrices use the
+       same row and column partitions and the same col_map_offd arrays. Also,
+       it is assumed that the sparsity pattern of `*this` contains that of `B`.
+   */
+   HypreParMatrix &operator+=(const HypreParMatrix &B) { return Add(1.0, B); }
+
+   /** Perform the operation `*this += beta*B`, assuming that both matrices use
+       the same row and column partitions and the same col_map_offd arrays.
+       Also, it is assumed that the sparsity pattern of `*this` contains that of
+       `B`. */
+   HypreParMatrix &Add(const double beta, const HypreParMatrix &B)
+   {
+      MFEM_VERIFY(internal::hypre_ParCSRMatrixSum(A, beta, B.A) == 0,
+                  "error in hypre_ParCSRMatrixSum");
+      return *this;
+   }
+
    /** Multiply A on the left by a block-diagonal parallel matrix D. Return
        a new parallel matrix, D*A. If D has a different number of rows than A,
        D's row starts array needs to be given (as returned by the methods
@@ -413,6 +434,12 @@ public:
    /// Calls hypre's destroy function
    virtual ~HypreParMatrix() { Destroy(); }
 };
+
+/** @brief Return a new matrix `C = alpha*A + beta*B`, assuming that both `A`
+    and `B` use the same row and column partitions and the same `col_map_offd`
+    arrays. */
+HypreParMatrix *Add(double alpha, const HypreParMatrix &A,
+                    double beta,  const HypreParMatrix &B);
 
 /// Returns the matrix A * B
 HypreParMatrix * ParMult(HypreParMatrix *A, HypreParMatrix *B);

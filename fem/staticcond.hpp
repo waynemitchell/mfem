@@ -85,6 +85,8 @@ class StaticCondensation
    double *A_data;
    int *A_ipiv;
 
+   Array<int> ess_rtdof_list;
+
 public:
    /// Construct a StaticCondensation object.
    StaticCondensation(FiniteElementSpace *fespace);
@@ -122,9 +124,18 @@ public:
    /// Finalize the construction of the Schur complement matrix.
    void Finalize();
 
+   /// Determine and save internally essential reduced true dofs.
+   void SetEssentialTrueDofs(const Array<int> &ess_tdof_list)
+   { ConvertListToReducedTrueDofs(ess_tdof_list, ess_rtdof_list); }
+
    /// Eliminate the given reduced true dofs from the Schur complement matrix S.
    void EliminateReducedTrueDofs(const Array<int> &ess_rtdof_list,
                                  int keep_diagonal);
+
+   /// @brief Eliminate the internal reduced true dofs (set using
+   /// SetEssentialTrueDofs) from the Schur complement matrix S.
+   void EliminateReducedTrueDofs(int keep_diagonal)
+   { EliminateReducedTrueDofs(ess_rtdof_list, keep_diagonal); }
 
    /** Return true if essential boundary conditions have been eliminated from
        the Schur complement matrix. */
@@ -158,6 +169,15 @@ public:
    /** Restrict a solution vector on the full FE space dofs to a vector on the
        reduced/trace true FE space dofs. */
    void ReduceSolution(const Vector &sol, Vector &sc_sol) const;
+
+   /** @brief Set the reduced solution `X` and r.h.s `B` vectors from the full
+       linear system solution `x` and r.h.s. `b` vectors.
+
+       This method should be called after the internal reduced essential dofs
+       have been set using SetEssentialTrueDofs and the both the Schur
+       complement and its eliminated part have been finalized. */
+   void ReduceSystem(Vector &x, Vector &b, Vector &X, Vector &B,
+                     int copy_interior = 0) const;
 
    /** Restrict a marker Array on the true FE space dofs to a marker Array on
        the reduced/trace true FE space dofs. */

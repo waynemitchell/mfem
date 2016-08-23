@@ -412,6 +412,26 @@ void StaticCondensation::ReduceSolution(const Vector &sol, Vector &sc_sol) const
    }
 }
 
+void StaticCondensation::ReduceSystem(Vector &x, Vector &b, Vector &X,
+                                      Vector &B, int copy_interior) const
+{
+   ReduceRHS(b, B);
+   ReduceSolution(x, X);
+   if (!Parallel())
+   {
+      S_e->AddMult(X, B, -1.);
+      S->PartMult(ess_rtdof_list, X, B);
+   }
+   else
+   {
+      EliminateBC(*pS, *pS_e, ess_rtdof_list, X, B);
+   }
+   if (!copy_interior)
+   {
+      X.SetSubVectorComplement(ess_rtdof_list, 0.0);
+   }
+}
+
 void StaticCondensation::ConvertMarkerToReducedTrueDofs(
    const Array<int> &ess_tdof_marker, Array<int> &ess_rtdof_marker) const
 {
