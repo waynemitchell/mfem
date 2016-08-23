@@ -371,9 +371,9 @@ int main(int argc, char *argv[])
    if (1)
    {
       dc->Save();
-      dc->Save("ex9p_dump.sidre_hdf5", "sidre_hdf5");
-      dc->Save("ex9p_dump.json", "json");
-      dc->Save("ex9p_dump.conduit_json", "conduit_json");
+      dc->Save("ex9p_dump", "sidre_hdf5");
+      dc->Save("ex9p_dump", "json");
+      dc->Save("ex9p_dump", "conduit_json");
    }
    // 12. Save the final solution in parallel. This output can be viewed later
    //     using GLVis: "glvis -np <np> -m ex9-mesh -g ex9-final".

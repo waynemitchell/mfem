@@ -69,12 +69,9 @@ $(MFEM_LIB_FILE):
 clean: clean-build clean-exec
 
 clean-build:
-	rm -f *.o *~ $(SEQ_EXAMPLES) $(PAR_EXAMPLES)
+	rm -f *.o *~ $(PAR_EXAMPLES)
 	rm -rf *.dSYM *.TVD.*breakpoints
+	rm -rf  ex9p_output
 
 clean-exec:
-	@rm -f refined.mesh displaced.mesh mesh.* ex5.mesh
-	@rm -rf Example5* Example9* Example15*
-	@rm -f sphere_refined.* sol.* sol_u.* sol_p.*
-	@rm -f ex9.mesh ex9-mesh.* ex9-init.* ex9-final.*
-	@rm -f deformed.* velocity.* elastic_energy.* mode_*
+	@rm -f ex9p_sidre

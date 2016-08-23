@@ -140,10 +140,12 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
       }
    }
 
+   std::string bp_grp_path = bp_grp->getPathName();
+
    // If rank 0, set up blueprint index for coordinate set.
    if (myid == 0)
    {
-      bp_index_grp->createViewString("coordsets/coords/path", "blueprint/" + name + "/coordsets/coords");
+      bp_index_grp->createViewString("coordsets/coords/path", bp_grp_path + "/coordsets/coords");
       bp_index_grp->getGroup("coordsets/coords")->copyView( bp_grp->getView("coordsets/coords/type") );
 
       std::string coord_system = "unknown";
@@ -195,8 +197,6 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
 
       bp_grp->createViewString("fields/mesh_material_attribute/topology", "mesh" );
    }
-
-   std::string bp_grp_path = bp_grp->getPathName();
 
    // If rank 0, set up blueprint index for topologies group and material attribute field.
    if (myid == 0)
@@ -429,8 +429,8 @@ void SidreDataCollection::Save(const std::string& filename, const std::string& p
 
    sidre::DataGroup * domain_file_grp = bp_grp->getParent()->getParent();
 
-   if (protocol == "sidre_hdf5")
-   {
+//   if (protocol == "sidre_hdf5")
+//   {
 
 #ifdef MFEM_USE_MPI
       const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
@@ -445,13 +445,22 @@ void SidreDataCollection::Save(const std::string& filename, const std::string& p
       {
          sidre::DataGroup * blueprint_indicies_grp = bp_index_grp->getParent();
 #ifdef MFEM_USE_MPI
-         writer.writeGroupToRootFile( blueprint_indicies_grp, file_path + ".root"  );
+         if (protocol == "sidre_hdf5")
+         {
+            writer.writeGroupToRootFile( blueprint_indicies_grp, file_path + ".root"  );
+         }
+         // Root file support only available in hdf5.
+         else
+         {
+            writer.write(blueprint_indicies_grp, 1, file_path + ".root", protocol);
+         }
 #else
          // If serial, use sidre group writer.
          bp_indicies_grp->getDataStore()->save(file_path + ".root", protocol);//, sidre_dc_group);
 #endif
 
       }
+#if 0
    }
    // If not hdf5, use sidre group writer for both parallel and serial.  SPIO only supports HDF5.
    else
@@ -467,7 +476,7 @@ void SidreDataCollection::Save(const std::string& filename, const std::string& p
       bp_grp->getDataStore()->save(file_path, protocol);//, sidre_dc_group);
 
    }
-
+#endif
    /*
       protocol = "conduit_json";
       filename = fNameSstr.str() + ".conduit_json";
