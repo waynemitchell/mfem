@@ -61,6 +61,10 @@ void mfem_error(const char *msg)
       }
       std::cerr << "(" << name_p << "+0x" << std::hex << offp - 1 << ") [0x"
                 << ip - 1 << "]" << std::endl;
+      if (demangle_status == 0)
+      {
+         free(name_demangle);
+      }
    }
 #endif
 
