@@ -21,7 +21,6 @@
 #include <string>
 #include <cstdio>       // for snprintf()
 
-#include "sidre/sidre.hpp"
 #ifdef MFEM_USE_MPI
   #include "spio/IOManager.hpp"
 #endif

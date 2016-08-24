@@ -15,7 +15,6 @@
 #include "../config/config.hpp"
 #include "../fem/fe.hpp"
 #include "element.hpp"
-#include "allocator.hpp"
 
 namespace mfem
 {
@@ -24,8 +23,6 @@ namespace mfem
 class Triangle : public Element
 {
 protected:
-   //int indices[3];
-   //int *indices;
 
    unsigned transform;
 

@@ -14,7 +14,6 @@
 
 #include "../config/config.hpp"
 #include "element.hpp"
-#include "allocator.hpp"
 
 namespace mfem
 {
@@ -22,9 +21,6 @@ namespace mfem
 /// Data type line segment element
 class Segment : public Element
 {
-protected:
-   //int indices[2];
-   //int *indices;
 
 public:
    typedef Geometry::Constants<Geometry::SEGMENT> geom_t;

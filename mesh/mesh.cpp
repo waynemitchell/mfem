@@ -2265,62 +2265,6 @@ void Mesh::ChangeVertexDataOwnership(double *vertex_data,
    }
 }
 
-
-/*
-// TODO: use real error objects
-int Mesh::reinitFromElementAllocators(Geometry::Type elems_type, Geometry::Type bndry_type) {
-   for (int i = 0; i < elements.Size(); i++) {
-      elements[i] = NewElement(elems_type, *element_allocator);
-   }
-   NumOfElements = elements.Size();
-
-   for (int i = 0; i < boundary.Size(); i++) {
-      boundary[i] = NewElement(bndry_type, *boundary_allocator);
-   }
-   NumOfBdrElements = boundary.Size();
-
-   return 0;
-}
-
-int Mesh::initElementAllocators(ElementAllocator *elm_alloc,
-                         ElementAllocator *bndry_alloc,
-                         Allocator *_vertices_allocator) 
-{
-   own_allocators = false;
-   if (elm_alloc) {
-      element_allocator = elm_alloc;
-      elm_alloc->set_elements(&elements);
-   }
-   else {
-      element_allocator = &null_allocator;
-   }
-   if (bndry_alloc) {
-      boundary_allocator = bndry_alloc;
-	   bndry_alloc->set_elements(&boundary);
-   }
-   else {
-      boundary_allocator = &null_allocator;
-   }
-   vertices_allocator = _vertices_allocator;
-   return 0;
-}
-*/
-
-/*
-Mesh::Mesh(std::istream &input, 
-           ElementAllocator *elm_alloc,
-           ElementAllocator *bndry_alloc,
-           Allocator *_vertices_allocator,
-           int generate_edges, int refine,
-           bool fix_orientation)
-{
-   initElementAllocators(elm_alloc, bndry_alloc, _vertices_allocator);
-   Init();
-   InitTables();
-   Load(input, generate_edges, refine, fix_orientation);
-}
-*/
-
 int numOfVerticesFromGeometry(Geometry::Type t) {
    switch(t) {
       case Geometry::POINT:
@@ -2366,7 +2310,7 @@ Mesh::Mesh(double *vertices, int num_vertices,
    NumOfVertices = num_vertices;
 
    for (int i = 0; i < num_elements; i++) {
-      elements[i] = NewElement(element_type, int_ptr_pair(element_indices + 
+      elements[i] = NewElement(element_type, Element::int_ptr_pair(element_indices + 
                i * element_index_stride, element_attributes + i));
    }
    NumOfElements = num_elements;
@@ -2385,7 +2329,7 @@ Mesh::Mesh(double *vertices, int num_vertices,
    }
 
    for (int i = 0; i < num_boundary_elements; i++) {
-      boundary[i] = NewElement(boundary_type, int_ptr_pair(boundary_indices + 
+      boundary[i] = NewElement(boundary_type, Element::int_ptr_pair(boundary_indices + 
                i * boundary_index_stride, boundary_attributes + i));
    }
    NumOfBdrElements = num_boundary_elements;
@@ -2394,7 +2338,7 @@ Mesh::Mesh(double *vertices, int num_vertices,
    // SetAttributes();
 }
 
-Element *Mesh::NewElement(int geom, int_ptr_pair external_data)
+Element *Mesh::NewElement(int geom, Element::int_ptr_pair external_data)
 {
    switch (geom)
    {

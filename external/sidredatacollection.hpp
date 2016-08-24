@@ -17,6 +17,7 @@
 #ifdef MFEM_USE_SIDRE
 
 #include "../fem/datacollection.hpp"
+#include "sidre/sidre.hpp"
 
 namespace mfem
 {
