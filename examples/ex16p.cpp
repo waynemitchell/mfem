@@ -3,12 +3,17 @@
 // Compile with: make ex16p
 //
 // Sample runs:  mpirun -np 4 ex16p
+//               mpirun -np 4 ex16p -m ../data/inline-tri.mesh
+//               mpirun -np 4 ex16p -m ../data/disc-nurbs.mesh -tf 2
 //               mpirun -np 4 ex16p -s 1 -a 0.0 -k 1.0
 //               mpirun -np 4 ex16p -s 2 -a 1.0 -k 0.0
 //               mpirun -np 8 ex16p -s 3 -a 0.5 -k 0.5 -o 4
 //               mpirun -np 4 ex16p -s 14 -dt 1.0e-4 -tf 4.0e-2 -vs 40
 //               mpirun -np 16 ex16p -m ../data/fichera-q2.mesh
 //               mpirun -np 16 ex16p -m ../data/escher-p2.mesh
+//               mpirun -np 8 ex16p -m ../data/beam-tet.mesh -tf 10 -dt 0.1
+//               mpirun -np 4 ex16p -m ../data/amr-quad.mesh -o 4 -rs 0 -rp 0
+//               mpirun -np 4 ex16p -m ../data/amr-hex.mesh -o 2 -rs 0 -rp 0
 //
 // Description:  This example solves a time dependent nonlinear heat equation
 //               problem of the form du/dt = C(u), with a non-linear diffusion
@@ -124,7 +129,7 @@ int main(int argc, char *argv[])
                   "Time step.");
    args.AddOption(&alpha, "-a", "--alpha",
                   "Alpha coefficient.");
-   args.AddOption(&alpha, "-k", "--kappa",
+   args.AddOption(&kappa, "-k", "--kappa",
                   "Kappa coefficient offset.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",

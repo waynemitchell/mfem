@@ -3,12 +3,15 @@
 // Compile with: make ex16
 //
 // Sample runs:  ex16
+//               ex16 -m ../data/inline-tri.mesh
+//               ex16 -m ../data/disc-nurbs.mesh -tf 2
 //               ex16 -s 1 -a 0.0 -k 1.0
 //               ex16 -s 2 -a 1.0 -k 0.0
 //               ex16 -s 3 -a 0.5 -k 0.5 -o 4
 //               ex16 -s 14 -dt 1.0e-4 -tf 4.0e-2 -vs 40
 //               ex16 -m ../data/fichera-q2.mesh
 //               ex16 -m ../data/escher.mesh
+//               ex16 -m ../data/beam-tet.mesh -tf 10 -dt 0.1
 //
 // Description:  This example solves a time dependent nonlinear heat equation
 //               problem of the form du/dt = C(u), with a non-linear diffusion
@@ -114,7 +117,7 @@ int main(int argc, char *argv[])
                   "Time step.");
    args.AddOption(&alpha, "-a", "--alpha",
                   "Alpha coefficient.");
-   args.AddOption(&alpha, "-k", "--kappa",
+   args.AddOption(&kappa, "-k", "--kappa",
                   "Kappa coefficient offset.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
