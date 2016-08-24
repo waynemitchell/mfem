@@ -2349,8 +2349,6 @@ Mesh::Mesh(double *vertices, int num_vertices,
       int dimension, int space_dimension,
       int generate_faces, int refine, bool fix_orientation)
 {
-   cout << "I'm not sure if this constuctor will create working mesh." << endl
-        << "There may be some finalizing yet to be done";
    if (space_dimension == -1)
    {
       space_dimension = dimension;
