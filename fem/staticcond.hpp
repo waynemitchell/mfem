@@ -174,8 +174,8 @@ public:
        linear system solution `x` and r.h.s. `b` vectors.
 
        This method should be called after the internal reduced essential dofs
-       have been set using SetEssentialTrueDofs and the both the Schur
-       complement and its eliminated part have been finalized. */
+       have been set using SetEssentialTrueDofs and both the Schur complement
+       and its eliminated part have been finalized. */
    void ReduceSystem(Vector &x, Vector &b, Vector &X, Vector &B,
                      int copy_interior = 0) const;
 

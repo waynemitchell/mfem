@@ -377,15 +377,13 @@ public:
    { internal::hypre_ParCSRMatrixSetConstantValues(A, value); return *this; }
 
    /** Perform the operation `*this += B`, assuming that both matrices use the
-       same row and column partitions and the same col_map_offd arrays. Also,
-       it is assumed that the sparsity pattern of `*this` contains that of `B`.
-   */
+       same row and column partitions and the same col_map_offd arrays. We also
+       assume that the sparsity pattern of `*this` contains that of `B`. */
    HypreParMatrix &operator+=(const HypreParMatrix &B) { return Add(1.0, B); }
 
    /** Perform the operation `*this += beta*B`, assuming that both matrices use
-       the same row and column partitions and the same col_map_offd arrays.
-       Also, it is assumed that the sparsity pattern of `*this` contains that of
-       `B`. */
+       the same row and column partitions and the same col_map_offd arrays. We
+       also assume that the sparsity pattern of `*this` contains that of `B`. */
    HypreParMatrix &Add(const double beta, const HypreParMatrix &B)
    {
       MFEM_VERIFY(internal::hypre_ParCSRMatrixSum(A, beta, B.A) == 0,

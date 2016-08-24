@@ -10,11 +10,9 @@
 
 Version 3.2.1, not yet released
 ===============================
-- Rewrote the Volta and Tesla solver classes to avoid using linear algebra
-  objects when possible. This greatly simplifies the code, reduces memory
-  requirements, and eliminates unnecessary computation. It also fixed a bug
-  with divergence cleaning in the Tesla miniapp.
 
+Coordinated general quadrature and nodal finite element basis types
+-------------------------------------------------------------------
 - Added support for different numerical quadrature schemes and finite element
   basis points. Different basis points can be selected via optional integer
   argument(s) to the finite element collection constructor of type BasisType:
@@ -31,20 +29,27 @@ Version 3.2.1, not yet released
      const IntegrationRule *ir = gl(Geometry::SEGMENT, 5); // 4pt 1D rule
   The global IntRules object continues to use GaussLegendre.
 
+New and updated examples and miniapps
+-------------------------------------
+- Added new example code, Example 16/16p, demonstrating the solution of a
+  time-dependent nonlinear heat equation in serial and in parallel.
+
 - Added a simple miniapp, display-basis, for displaying the various types
   of finite element basis functions within single elements. This is part of
   the new miniapps/tools directory.
 
+- Rewrote the Volta and Tesla solver classes to avoid using linear algebra
+  objects when possible. This greatly simplifies the code, reduces memory
+  requirements, and eliminates unnecessary computation. It also fixed a bug
+  with divergence cleaning in the Tesla miniapp.
+
+Miscellaneous
+-------------
 - Added optional support for software-based higher-precision arithmetic with
   the MPFR library. When MFEM_USE_MPFR is enabled, the 1D quadrature rules will
   be computed precisely, at least for rules with up to 65-points.
 
 - Better support for METIS version 5 and above.
-
-New and updated examples and miniapps
--------------------------------------
-- Added new example code, Example 16/16p, demonstrating the solution of a
-  time-dependent nonlinear heat equation in serial and in parallel.
 
 
 Version 3.2, released on June 30, 2016
