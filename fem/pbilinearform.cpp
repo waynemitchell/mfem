@@ -328,7 +328,8 @@ void ParBilinearForm::FormSystemMatrix(const Array<int> &ess_tdof_list,
          MFEM_VERIFY(p_mat == NULL && p_mat_e == NULL,
                      "The ParBilinearForm must be updated with Update() before "
                      "re-assembling the ParBilinearForm.");
-         Finalize();
+         const int remove_zeros = 0;
+         Finalize(remove_zeros);
          p_mat = ParallelAssemble();
          delete mat;
          mat = NULL;

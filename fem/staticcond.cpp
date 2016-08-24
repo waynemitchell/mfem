@@ -234,9 +234,9 @@ void StaticCondensation::AssembleBdrMatrix(int el, const DenseMatrix &elmat)
 
 void StaticCondensation::Finalize()
 {
+   const int skip_zeros = 0;
    if (!Parallel())
    {
-      const int skip_zeros = 0;
       S->Finalize(skip_zeros);
       if (S_e) { S_e->Finalize(skip_zeros); }
       const SparseMatrix *cP = tr_fes->GetConformingProlongation();
@@ -260,8 +260,8 @@ void StaticCondensation::Finalize()
    {
 #ifdef MFEM_USE_MPI
       if (!S) { return; }  // already finalized
-      S->Finalize();
-      if (S_e) { S_e->Finalize(); }
+      S->Finalize(skip_zeros);
+      if (S_e) { S_e->Finalize(skip_zeros); }
       HypreParMatrix *dS =
          new HypreParMatrix(tr_pfes->GetComm(), tr_pfes->GlobalVSize(),
                             tr_pfes->GetDofOffsets(), S);
