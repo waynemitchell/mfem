@@ -108,10 +108,10 @@ public:
    ParFiniteElementSpace *SCParFESpace() const
    { return static_cond ? static_cond->GetParTraceFESpace() : NULL; }
 
-   /// Assessor method for the parallel finite element space prolongation matrix
+   /// Get the parallel finite element space prolongation matrix
    virtual const Operator *GetProlongation() const
    { return pfes->Dof_TrueDof_Matrix(); }
-   /// Assessor method for the parallel finite element space restriction matrix
+   /// Get the parallel finite element space restriction matrix
    virtual const Operator *GetRestriction() const
    { return pfes->GetRestrictionMatrix(); }
 

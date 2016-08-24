@@ -110,10 +110,10 @@ public:
       delete [] assembled_data;
    }
 
-   /// Assessor method for the input finite element space prolongation matrix
+   /// Get the input finite element space prolongation matrix
    virtual const Operator *GetProlongation() const
    { return ((FiniteElementSpace &)in_fes).GetProlongationMatrix(); }
-   /// Assessor method for the input finite element space restriction matrix
+   /// Get the input finite element space restriction matrix
    virtual const Operator *GetRestriction() const
    { return ((FiniteElementSpace &)in_fes).GetRestrictionMatrix(); }
 

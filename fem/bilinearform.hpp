@@ -202,10 +202,10 @@ public:
    /// Assembles the form i.e. sums over all domain/bdr integrators.
    void Assemble(int skip_zeros = 1);
 
-   /// Assessor method for the finite element space prolongation matrix
+   /// Get the finite element space prolongation matrix
    virtual const Operator *GetProlongation() const
    { return fes->GetConformingProlongation(); }
-   /// Assessor method for the finite element space restriction matrix
+   /// Get the finite element space restriction matrix
    virtual const Operator *GetRestriction() const
    { return fes->GetConformingRestriction(); }
 
