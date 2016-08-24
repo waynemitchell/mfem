@@ -39,6 +39,8 @@ Version 3.2.1, not yet released
   the MPFR library. When MFEM_USE_MPFR is enabled, the 1D quadrature rules will
   be computed precisely, at least for rules with up to 65-points.
 
+- Better support for METIS version 5 and above.
+
 
 Version 3.2, released on June 30, 2016
 ======================================
