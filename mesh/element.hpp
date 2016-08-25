@@ -30,6 +30,7 @@ class Mesh;
 class Element
 {
 public:
+	typedef std::pair<int*, int*> int_ptr_pair; 
    static int NumOfIndices[6];
 protected:
    /// Element's attribute (specifying material property, etc).

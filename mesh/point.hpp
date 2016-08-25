@@ -14,7 +14,6 @@
 
 #include "../config/config.hpp"
 #include "element.hpp"
-#include "allocator.hpp"
 
 namespace mfem
 {
@@ -22,9 +21,6 @@ namespace mfem
 /// Data type point element
 class Point : public Element
 {
-protected:
-   //int indices[1];
-   //int *indices;
 
 public:
    static const size_t NUM_INDICES = 1;

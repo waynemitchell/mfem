@@ -14,7 +14,6 @@
 
 #include "../config/config.hpp"
 #include "element.hpp"
-#include "allocator.hpp"
 
 namespace mfem
 {
@@ -22,9 +21,6 @@ namespace mfem
 /// Data type hexahedron element
 class Hexahedron : public Element
 {
-protected:
-   //int indices[8];
-   //int *indices;
 
 public:
    static const size_t NUM_INDICES = 8;

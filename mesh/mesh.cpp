@@ -2311,7 +2311,7 @@ Mesh::Mesh(double *vertices, int num_vertices,
    NumOfVertices = num_vertices;
 
    for (int i = 0; i < num_elements; i++) {
-      elements[i] = NewElement(element_type, int_ptr_pair(element_indices + 
+      elements[i] = NewElement(element_type, Element::int_ptr_pair(element_indices + 
                i * element_index_stride, element_attributes + i));
    }
    NumOfElements = num_elements;
@@ -2343,7 +2343,7 @@ Mesh::Mesh(double *vertices, int num_vertices,
    // SetAttributes();
 }
 
-Element *Mesh::NewElement(int geom, int_ptr_pair external_data)
+Element *Mesh::NewElement(int geom, Element::int_ptr_pair external_data)
 {
    switch (geom)
    {

@@ -14,7 +14,6 @@
 
 #include "../config/config.hpp"
 #include "element.hpp"
-#include "allocator.hpp"
 
 namespace mfem
 {
@@ -23,7 +22,6 @@ namespace mfem
 class Tetrahedron : public Element
 {
 protected:
-   //int indices[4];
 
    /** The refinement flag keeps (in order) :
        1. Two marked edges given with local index (0..5) for the two faces
