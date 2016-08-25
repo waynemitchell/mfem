@@ -2330,7 +2330,7 @@ Mesh::Mesh(double *vertices, int num_vertices,
    }
    if (num_boundary_elements > 0) {
       for (int i = 0; i < num_boundary_elements; i++) {
-         boundary[i] = NewElement(boundary_type, int_ptr_pair(boundary_indices + 
+         boundary[i] = NewElement(boundary_type, Element::int_ptr_pair(boundary_indices + 
                   i * boundary_index_stride, boundary_attributes + i));
       }
    }
