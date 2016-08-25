@@ -2298,15 +2298,21 @@ void DGElasticityIntegrator::AssembleFaceMatrix(
    FaceElementTransformations &Trans, DenseMatrix &elmat)
 {
    if (Trans.Elem2No < 0)
+   {
       AssembleBoundaryFaceMatrix(el1, Trans, elmat);
+   }
    else
+   {
       AssembleInteriorFaceMatrix(el1, el2, Trans, elmat);
+   }
 
    // elmat := -elmat + sigma*elmat^t + jmat
    if (kappa != 0.0)
    {
-      for (int i = 0; i < elmat.Height(); ++i) {
-         for (int j = 0; j < i; ++j) {
+      for (int i = 0; i < elmat.Height(); ++i)
+      {
+         for (int j = 0; j < i; ++j)
+         {
             double aij = elmat(i,j), aji = elmat(j,i), mij = jmat(i,j);
             elmat(i,j) = sigma*aji - aij + mij;
             elmat(j,i) = sigma*aij - aji + mij;
@@ -2316,8 +2322,10 @@ void DGElasticityIntegrator::AssembleFaceMatrix(
    }
    else
    {
-      for (int i = 0; i < elmat.Height(); ++i) {
-         for (int j = 0; j < i; ++j) {
+      for (int i = 0; i < elmat.Height(); ++i)
+      {
+         for (int j = 0; j < i; ++j)
+         {
             double aij = elmat(i,j), aji = elmat(j,i);
             elmat(i,j) = sigma*aji - aij;
             elmat(j,i) = sigma*aij - aji;
@@ -2487,31 +2495,43 @@ void DGElasticityIntegrator::AssembleBoundaryFaceMatrix(
       const double w = ip.weight;
 
       if (dim == 1)
+      {
          nor(0) = 2*eip.x - 1.0;
+      }
       else
+      {
          CalcOrtho(Trans.Face->Jacobian(), nor);
+      }
 
       const double L = lambda->Eval(*Trans.Elem1, eip);
       const double M = mu->Eval(*Trans.Elem1, eip);
       const double jmatcoef = kappa * (L + 2.0*M) * w * (nor*nor)/detJ;
 
-      for (int j2 = 0; j2 < dim; ++j2) {
-         for (int j1 = 0; j1 < ndofs; ++j1) {
+      for (int j2 = 0; j2 < dim; ++j2)
+      {
+         for (int j1 = 0; j1 < ndofs; ++j1)
+         {
             const int j = j2*ndofs + j1;
-            for (int i2 = 0; i2 < dim; ++i2) {
-               for (int i1 = 0; i1 < ndofs; ++i1) {
+            for (int i2 = 0; i2 < dim; ++i2)
+            {
+               for (int i1 = 0; i1 < ndofs; ++i1)
+               {
                   const int i = i2*ndofs + i1;
                   // first term
                   elmat(i, j) += shape(i1) * L * w * dshape_phys(j1, j2) * nor(i2);
                   // second term
-                  if (i2 == j2) {
+                  if (i2 == j2)
+                  {
                      for (int r = 0; r < dim; ++r)
+                     {
                         elmat(i, j) += shape(i1) * M * w * dshape_phys(j1, r) * nor(r);
+                     }
                   }
                   // third term
                   elmat(i, j) += shape(i1) * M * w * dshape_phys(j1, i2) * nor(j2);
                   // jmat (only lower triangle)
-                  if (kappa_is_nonzero && i2 == j2 && i >= j) {
+                  if (kappa_is_nonzero && i2 == j2 && i >= j)
+                  {
                      jmat(i, j) += jmatcoef * shape(i1) * shape(j1);
                   }
                }
@@ -2610,7 +2630,8 @@ void DGElasticityIntegrator::AssembleInteriorFaceMatrix(
       const IntegrationPoint &ip = ir->IntPoint(pind);
       Trans.Face->SetIntPoint(&ip);
 
-      IntegrationPoint eip1; // integration point in the reference space on the face of el1
+      IntegrationPoint
+      eip1; // integration point in the reference space on the face of el1
       Trans.Loc1.Transform(ip, eip1);
       Trans.Elem1->SetIntPoint(&eip1);
 
@@ -2623,7 +2644,8 @@ void DGElasticityIntegrator::AssembleInteriorFaceMatrix(
       Mult(dshape1, adjJ1, dshape_phys1);
       dshape_phys1 *= 1.0 / detJ1;
 
-      IntegrationPoint eip2; // integration point in the reference space on the face of el2
+      IntegrationPoint
+      eip2; // integration point in the reference space on the face of el2
       Trans.Loc2.Transform(ip, eip2);
       Trans.Elem2->SetIntPoint(&eip2);
 
@@ -2641,34 +2663,47 @@ void DGElasticityIntegrator::AssembleInteriorFaceMatrix(
       const double w = 0.5 * ip.weight;
 
       if (dim == 1)
+      {
          nor(0) = 2*eip1.x - 1.0;
+      }
       else
+      {
          CalcOrtho(Trans.Face->Jacobian(), nor);
+      }
 
       const double L1 = lambda->Eval(*Trans.Elem1, eip1);
       const double L2 = lambda->Eval(*Trans.Elem2, eip2);
       const double M1 = mu->Eval(*Trans.Elem1, eip1);
       const double M2 = mu->Eval(*Trans.Elem2, eip2);
 
-      const double jmatcoef = kappa * w * (nor*nor) * ((L1+2.0*M1)/detJ1 + (L2+2.0*M2)/detJ2);
+      const double jmatcoef = kappa * w * (nor*nor) * ((L1+2.0*M1)/detJ1 +
+                                                       (L2+2.0*M2)/detJ2);
 
-      for (int j2 = 0; j2 < dim; ++j2) {
-         for (int j1 = 0; j1 < ndof1; ++j1) {
+      for (int j2 = 0; j2 < dim; ++j2)
+      {
+         for (int j1 = 0; j1 < ndof1; ++j1)
+         {
             const int j = j2*ndof1 + j1;
-            for (int i2 = 0; i2 < dim; ++i2) {
-               for (int i1 = 0; i1 < ndof1; ++i1) {
+            for (int i2 = 0; i2 < dim; ++i2)
+            {
+               for (int i1 = 0; i1 < ndof1; ++i1)
+               {
                   const int i = i2*ndof1 + i1;
                   // first term
                   elmat(i, j) += shape1(i1) * L1 * w * dshape_phys1(j1, j2) * nor(i2);
                   // second term
-                  if (i2 == j2) {
+                  if (i2 == j2)
+                  {
                      for (int r = 0; r < dim; ++r)
+                     {
                         elmat(i, j) += shape1(i1) * M1 * w * dshape_phys1(j1, r) * nor(r);
+                     }
                   }
                   // third term
                   elmat(i, j) += shape1(i1) * M1 * w * dshape_phys1(j1, i2) * nor(j2);
                   // jmat (only lower triangle)
-                  if (kappa_is_nonzero && i2 == j2 && i >= j) {
+                  if (kappa_is_nonzero && i2 == j2 && i >= j)
+                  {
                      jmat(i, j) += jmatcoef * shape1(i1) * shape1(j1);
                   }
                }
@@ -2676,23 +2711,31 @@ void DGElasticityIntegrator::AssembleInteriorFaceMatrix(
          }
       }
 
-      for (int j2 = 0; j2 < dim; ++j2) {
-         for (int j1 = 0; j1 < ndof1; ++j1) {
+      for (int j2 = 0; j2 < dim; ++j2)
+      {
+         for (int j1 = 0; j1 < ndof1; ++j1)
+         {
             const int j = j2*ndof1 + j1;
-            for (int i2 = 0; i2 < dim; ++i2) {
-               for (int i1 = 0; i1 < ndof2; ++i1) {
+            for (int i2 = 0; i2 < dim; ++i2)
+            {
+               for (int i1 = 0; i1 < ndof2; ++i1)
+               {
                   const int i = dim*ndof1 + i2*ndof2 + i1;
                   // first term
                   elmat(i, j) -= shape2(i1) * L1 * w * dshape_phys1(j1, j2) * nor(i2);
                   // second term
-                  if (i2 == j2) {
+                  if (i2 == j2)
+                  {
                      for (int r = 0; r < dim; ++r)
+                     {
                         elmat(i, j) -= shape2(i1) * M1 * w * dshape_phys1(j1, r) * nor(r);
+                     }
                   }
                   // third term
                   elmat(i, j) -= shape2(i1) * M1 * w * dshape_phys1(j1, i2) * nor(j2);
                   // jmat (only lower triangle)
-                  if (kappa_is_nonzero && i2 == j2) {
+                  if (kappa_is_nonzero && i2 == j2)
+                  {
                      jmat(i, j) -= jmatcoef * shape2(i1) * shape1(j1);
                   }
                }
@@ -2700,18 +2743,25 @@ void DGElasticityIntegrator::AssembleInteriorFaceMatrix(
          }
       }
 
-      for (int j2 = 0; j2 < dim; ++j2) {
-         for (int j1 = 0; j1 < ndof2; ++j1) {
+      for (int j2 = 0; j2 < dim; ++j2)
+      {
+         for (int j1 = 0; j1 < ndof2; ++j1)
+         {
             const int j = dim*ndof1 + j2*ndof2 + j1;
-            for (int i2 = 0; i2 < dim; ++i2) {
-               for (int i1 = 0; i1 < ndof1; ++i1) {
+            for (int i2 = 0; i2 < dim; ++i2)
+            {
+               for (int i1 = 0; i1 < ndof1; ++i1)
+               {
                   const int i = i2*ndof1 + i1;
                   // first term
                   elmat(i, j) += shape1(i1) * L2 * w * dshape_phys2(j1, j2) * nor(i2);
                   // second term
-                  if (i2 == j2) {
+                  if (i2 == j2)
+                  {
                      for (int r = 0; r < dim; ++r)
+                     {
                         elmat(i, j) += shape1(i1) * M2 * w * dshape_phys2(j1, r) * nor(r);
+                     }
                   }
                   // third term
                   elmat(i, j) += shape1(i1) * M2 * w * dshape_phys2(j1, i2) * nor(j2);
@@ -2721,23 +2771,31 @@ void DGElasticityIntegrator::AssembleInteriorFaceMatrix(
          }
       }
 
-      for (int j2 = 0; j2 < dim; ++j2) {
-         for (int j1 = 0; j1 < ndof2; ++j1) {
+      for (int j2 = 0; j2 < dim; ++j2)
+      {
+         for (int j1 = 0; j1 < ndof2; ++j1)
+         {
             const int j = dim*ndof1 + j2*ndof2 + j1;
-            for (int i2 = 0; i2 < dim; ++i2) {
-               for (int i1 = 0; i1 < ndof2; ++i1) {
+            for (int i2 = 0; i2 < dim; ++i2)
+            {
+               for (int i1 = 0; i1 < ndof2; ++i1)
+               {
                   const int i = dim*ndof1 + i2*ndof2 + i1;
                   // first term
                   elmat(i, j) -= shape2(i1) * L2 * w * dshape_phys2(j1, j2) * nor(i2);
                   // second term
-                  if (i2 == j2) {
+                  if (i2 == j2)
+                  {
                      for (int r = 0; r < dim; ++r)
+                     {
                         elmat(i, j) -= shape2(i1) * M2 * w * dshape_phys2(j1, r) * nor(r);
+                     }
                   }
                   // third term
                   elmat(i, j) -= shape2(i1) * M2 * w * dshape_phys2(j1, i2) * nor(j2);
                   // jmat (only lower triangle)
-                  if (kappa_is_nonzero && i2 == j2 && i >= j) {
+                  if (kappa_is_nonzero && i2 == j2 && i >= j)
+                  {
                      jmat(i, j) += jmatcoef * shape2(i1) * shape2(j1);
                   }
                }
