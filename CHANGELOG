@@ -61,13 +61,15 @@ New and updated examples and miniapps
 
 Miscellaneous
 -------------
+- Added optional support for the time integration and non-linear solvers methods
+  from the CVODE, ARKODE and KINSOL libraries of the SUNDIALS suite (version 2.7
+  or higher of SUNDIALS is required).
+
 - Added optional support for software-based higher-precision arithmetic with
   the MPFR library. When MFEM_USE_MPFR is enabled, the 1D quadrature rules will
   be computed precisely, at least for rules with up to 65-points.
 
-- Added optional support for the time integration and non-linear solvers methods
-  from the CVODE, ARKODE and KINSOL libraries of the SUNDIALS suite (version 2.7
-  or higher of SUNDIALS is required).
+- Better support for METIS version 5 and above.
 
 
 Version 3.2, released on June 30, 2016
