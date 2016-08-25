@@ -10,6 +10,7 @@
 // Software Foundation) version 2.1 dated February 1999.
 
 #include "error.hpp"
+#include "array.hpp"
 #include <cstdlib>
 #include <iostream>
 
@@ -43,29 +44,46 @@ void mfem_error(const char *msg)
    unw_word_t ip, offp;
 
    unw_getcontext(&uc);
-   unw_init_local(&cursor, &uc);
+   int ret = unw_init_local(&cursor, &uc);
 
    std::cerr << "libunwind backtrace:" << std::endl;
-   while (unw_step(&cursor) > 0)
+   int cntr = 0;
+   Array<long> addrs;
+   do
    {
+      if (ret < 0) break;
       unw_get_proc_name (&cursor, name, UNW_NAME_LEN, &offp);
       unw_get_reg(&cursor, UNW_REG_IP, &ip);
+      addrs.Append(ip - 1);
       char *name_p = name;
       int demangle_status;
+
       // __cxa_demangle is not standard, but works with GCC, Intel, PGI, Clang
       char *name_demangle =
          abi::__cxa_demangle(name, NULL, NULL, &demangle_status);
-      if (demangle_status == 0) // default to mangled name if something goes wrong
+      if (demangle_status == 0) // use mangled name if something goes wrong
       {
          name_p = name_demangle;
       }
-      std::cerr << "(" << name_p << "+0x" << std::hex << offp - 1 << ") [0x"
-                << ip - 1 << "]" << std::endl;
+
+      std::cerr << cntr++ << ") [0x" << std::hex << ip - 1 << "]: "
+                << name_p << std::endl;
+
       if (demangle_status == 0)
       {
          free(name_demangle);
       }
+   } while (unw_step(&cursor) > 0);
+   std::cerr << "Addresses for caller line number lookup, use: "
+             << "addr2line -Cfi -e <exe> addr1 [addr2 [...]]"
+             << std::endl << std::hex;
+   for (int i = 0; i < cntr; i++)
+   {
+      std::cerr << "0x" << addrs[i] << " ";
    }
+   std::cerr << std::endl;
+
+
 #endif
 
 #ifdef MFEM_USE_MPI
