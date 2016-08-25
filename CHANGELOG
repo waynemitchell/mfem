@@ -29,10 +29,26 @@ Coordinated general quadrature and nodal finite element basis types
      const IntegrationRule *ir = gl(Geometry::SEGMENT, 5); // 4pt 1D rule
   The global IntRules object continues to use GaussLegendre.
 
+FEM <-> linear system interface for action-only linear operators
+----------------------------------------------------------------
+- Added a new class, ConstrainedOperator, which can impose essential boundary
+  conditions using only the action, Mult(), of a given square linear Operator.
+
+- Added a FormLinearSystem + RecoverFEMSolution functionality for square linear
+  Operators that are available only through their action. This includes all
+  necessary transformations, such as: parallel assembly, conforming constraints
+  for non-conforming AMR and eliminating boundary conditions. (Hybridization and
+  static condensation are not supported.) See examples in miniapps/peformance.
+
 New and updated examples and miniapps
 -------------------------------------
 - Added new example code, Example 16/16p, demonstrating the solution of a
   time-dependent nonlinear heat equation in serial and in parallel.
+
+- The HPC examples in miniapps/performance now have a -mf/--matrix-free option
+  illustrating optimized "partial assembly" operator evaluation. This is now the
+  default in these examples, to switch to optimized matrix assembly instead use
+  the -asm/--assembly option.
 
 - Added a simple miniapp, display-basis, for displaying the various types
   of finite element basis functions within single elements. This is part of

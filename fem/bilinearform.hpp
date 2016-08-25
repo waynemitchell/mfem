@@ -202,6 +202,13 @@ public:
    /// Assembles the form i.e. sums over all domain/bdr integrators.
    void Assemble(int skip_zeros = 1);
 
+   /// Get the finite element space prolongation matrix
+   virtual const Operator *GetProlongation() const
+   { return fes->GetConformingProlongation(); }
+   /// Get the finite element space restriction matrix
+   virtual const Operator *GetRestriction() const
+   { return fes->GetConformingRestriction(); }
+
    /** Form the linear system A X = B, corresponding to the current bilinear
        form and b(.), by applying any necessary transformations such as:
        eliminating boundary conditions; applying conforming constraints for
@@ -234,7 +241,7 @@ public:
    /** Call this method after solving a linear system constructed using the
        FormLinearSystem method to recover the solution as a GridFunction-size
        vector in x. Use the same arguments as in the FormLinearSystem call. */
-   void RecoverFEMSolution(const Vector &X, const Vector &b, Vector &x);
+   virtual void RecoverFEMSolution(const Vector &X, const Vector &b, Vector &x);
 
    /// Compute and store internally all element matrices.
    void ComputeElementMatrices();
