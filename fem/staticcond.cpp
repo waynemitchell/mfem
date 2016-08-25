@@ -424,7 +424,9 @@ void StaticCondensation::ReduceSystem(Vector &x, Vector &b, Vector &X,
    }
    else
    {
+#ifdef MFEM_USE_MPI
       EliminateBC(*pS, *pS_e, ess_rtdof_list, X, B);
+#endif
    }
    if (!copy_interior)
    {
