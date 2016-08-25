@@ -133,6 +133,9 @@ public:
                          HypreParMatrix &A, Vector &X, Vector &B,
                          int copy_interior = 0);
 
+   /// Form the linear sytem matrix A, see FormLinearSystem for details.
+   void FormSystemMatrix(const Array<int> &ess_tdof_list, HypreParMatrix &A);
+
    /** Call this method after solving a linear system constructed using the
        FormLinearSystem method to recover the solution as a ParGridFunction-size
        vector in x. Use the same arguments as in the FormLinearSystem call. */
