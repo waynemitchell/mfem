@@ -77,15 +77,15 @@ public:
        ParBilinearForm::FormLinearSystem).
 
        The constraints are specified through the prolongation P from
-       GetProlongation(), and restriction R from GetRestriction() mehods, which
+       GetProlongation(), and restriction R from GetRestriction() methods, which
        are e.g. available through the (parallel) finite element space of any
        (parallel) bilinear form operator. We assume that the operator is square,
-       using the same input and output space, so we have:
-       `A(X)=[P^t (*this) P](X)`, `B=P^t(b)`, and `x=P(X)`.
+       using the same input and output space, so we have: `A(X)=[P^t (*this)
+       P](X)`, `B=P^t(b)`, and `x=P(X)`.
 
        The vector @a x must contain the essential boundary condition values.
        These are eliminated through the ConstrainedOperator class and the vector
-       @a X is initialized by setting its essential entries to the boundry
+       @a X is initialized by setting its essential entries to the boundary
        conditions and all other entries to zero (@a copy_interior == 0) or
        copied from @a x (@a copy_interior != 0).
 
@@ -278,7 +278,7 @@ public:
 };
 
 
-/** @brief Square Operator for imposing essential boudary conditions using only
+/** @brief Square Operator for imposing essential boundary conditions using only
     the action, Mult(), of a given unconstrained Operator.
 
     Square operator constrained by fixing certain entries in the solution to
