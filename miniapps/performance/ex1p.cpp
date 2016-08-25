@@ -111,6 +111,16 @@ int main(int argc, char *argv[])
       MPI_Finalize();
       return 1;
    }
+   if (static_cond && perf && matrix_free)
+   {
+      if (myid == 0)
+      {
+         cout << "\nStatic condensation can not be used with matrix-free"
+              " evaluation!\n" << endl;
+      }
+      MPI_Finalize();
+      return 2;
+   }
    if (myid == 0)
    {
       args.PrintOptions(cout);
@@ -280,11 +290,11 @@ int main(int argc, char *argv[])
       a_hpc = new HPCBilinearForm(integ_t(coeff_t(1.0)), *fespace);
       if (matrix_free)
       {
-         a_hpc->Assemble(); // Chooses between ::MultAssembled and ::MultUnassembled
+         a_hpc->Assemble(); // partial assembly
       }
       else
       {
-         a_hpc->AssembleBilinearForm(*a);
+         a_hpc->AssembleBilinearForm(*a); // full local matrix assembly
       }
    }
    tic_toc.Stop();
@@ -300,9 +310,10 @@ int main(int argc, char *argv[])
    if (perf && matrix_free)
    {
       a_hpc->FormLinearSystem(ess_tdof_list, x, *b, a_oper, X, B);
+      HYPRE_Int glob_size = fespace->GlobalTrueVSize();
       if (myid == 0)
       {
-         cout << "Size of linear system: " << a_hpc->Height() << endl;
+         cout << "Size of linear system: " << glob_size << endl;
       }
    }
    else
@@ -327,11 +338,10 @@ int main(int argc, char *argv[])
    }
    else
    {
-      HypreSolver *amg = new HypreBoomerAMG(A);
+      HypreBoomerAMG amg(A);
       pcg->SetOperator(A);
-      pcg->SetPreconditioner(*amg);
+      pcg->SetPreconditioner(amg);
       pcg->Mult(B, X);
-      delete amg;
    }
 
    // 15. Recover the parallel grid function corresponding to X. This is the

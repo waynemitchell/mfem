@@ -101,6 +101,12 @@ int main(int argc, char *argv[])
       args.PrintUsage(cout);
       return 1;
    }
+   if (static_cond && perf && matrix_free)
+   {
+      cout << "\nStatic condensation can not be used with matrix-free"
+           " evaluation!\n" << endl;
+      return 2;
+   }
    args.PrintOptions(cout);
 
    // 2. Read the mesh from the given mesh file. We can handle triangular,
@@ -231,11 +237,11 @@ int main(int argc, char *argv[])
       a_hpc = new HPCBilinearForm(integ_t(coeff_t(1.0)), *fespace);
       if (matrix_free)
       {
-         a_hpc->Assemble(); // Chooses between ::MultAssembled and ::MultUnassembled
+         a_hpc->Assemble(); // partial assembly
       }
       else
       {
-         a_hpc->AssembleBilinearForm(*a);
+         a_hpc->AssembleBilinearForm(*a); // full matrix assembly
       }
    }
    tic_toc.Stop();
@@ -253,7 +259,7 @@ int main(int argc, char *argv[])
    else
    {
       a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
-      cout << "Size of linear system: " << a->Height() << endl;
+      cout << "Size of linear system: " << A.Height() << endl;
    }
 
    if (perf && matrix_free)
