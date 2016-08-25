@@ -228,7 +228,7 @@ protected:
          H1_QuadrilateralElement *fe = new H1_QuadrilateralElement(P, BasisType::GetQuadrature1D(type));
          my_fe = fe;
          my_dof_map = &fe->GetDofMap();
-         my_fe_1d = new L2_SegmentElement(P, 1);
+         my_fe_1d = new L2_SegmentElement(P, BasisType::GetQuadrature1D(type));
       }
    }
 
