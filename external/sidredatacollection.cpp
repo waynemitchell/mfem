@@ -47,12 +47,11 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name, asc
 
 void SidreDataCollection::SetMesh(Mesh *new_mesh)
 {
-   SetMesh(new_mesh, -1, "nodes", true);
+   SetMesh(new_mesh, -1, true);
 }
 
 void SidreDataCollection::SetMesh(Mesh *new_mesh,
                                   int number_of_domains,
-                                  const std::string& node_positions_field_name,
                                   bool changeDataOwnership)
 {
    namespace sidre = asctoolkit::sidre;
@@ -185,7 +184,16 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
                                  mesh_num_indices);
 
       bp_grp->createViewString("topologies/mesh/coordset", "coords");
-      bp_grp->createViewString("topologies/mesh/mfem_grid_function",node_positions_field_name);
+
+      if ( m_nodePositionsFieldName.empty() )
+      {
+         std::string errorString("A mesh node positions field has not been specified.  Please call setNodePositionsFieldName before calling SetMesh.");
+         MFEM_ERROR(errorString);
+      }
+      else
+      {
+         bp_grp->createViewString("topologies/mesh/mfem_grid_function",m_nodePositionsFieldName);
+      }
 
       // Add mesh elements material attribute field to blueprint
       bp_grp->createViewString("fields/mesh_material_attribute/association", "element");
@@ -308,26 +316,23 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
                 hasBP,
                 changeDataOwnership);
    }
+   
+   // Note:
+   // We are no longer automatically registering the mesh node position field in the data collection.
+   // If this is needed, the below code can be uncommented.
 
-   // copy mesh nodes grid function
+   // const FiniteElementSpace* nFes = new_mesh->GetNodalFESpace();
+   //int sz = nFes->GetVSize();
+   //double* gfData = GetFieldData( "nodes", sz);
 
-   //  When not restart, copy data from mesh to datastore
-   //  In both cases, set the mesh version to point to this
-   // Remove once we directly load the mesh into the datastore
-   // Note: There is likely a much better way to do this
+   //if(!hasBP)
+   //{
+   //   double* meshNodeData = new_mesh->GetNodes()->GetData();
+   //   std::memcpy(gfData, meshNodeData, sizeof(double) * sz);
+   //}
 
-   const FiniteElementSpace* nFes = new_mesh->GetNodalFESpace();
-   int sz = nFes->GetVSize();
-   double* gfData = GetFieldData( node_positions_field_name.c_str(), sz);
-
-   if(!hasBP)
-   {
-      double* meshNodeData = new_mesh->GetNodes()->GetData();
-      std::memcpy(gfData, meshNodeData, sizeof(double) * sz);
-   }
-
-   new_mesh->GetNodes()->NewDataAndSize(gfData, sz);
-   RegisterField( node_positions_field_name.c_str(), new_mesh->GetNodes());
+   //new_mesh->GetNodes()->NewDataAndSize(gfData, sz);
+   //RegisterField( "nodes", new_mesh->GetNodes());
 }
 
 void SidreDataCollection::Load(const std::string& path, const std::string& protocol)
@@ -390,6 +395,10 @@ void SidreDataCollection::Load(const std::string& path, const std::string& proto
 
 }
 
+void SidreDataCollection::SetNodePositionsFieldName(const std::string& fieldName)
+{
+   m_nodePositionsFieldName = fieldName;
+}
 
 void SidreDataCollection::Save()
 {

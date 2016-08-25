@@ -51,11 +51,12 @@ public:
    /// Verify we will delete the mesh and fields if we own them
    virtual ~SidreDataCollection() {}
 
+   void SetNodePositionsFieldName(const std::string& fieldName);
+
    void SetMesh(Mesh *new_mesh);
 
    void SetMesh(Mesh *new_mesh,
                 int number_of_domains,
-                const std::string& node_positions_field_name,
                 bool changeDataOwnership);
 
    void setMeshStream(std::istream& input) {}
@@ -123,6 +124,8 @@ private:
    asctoolkit::sidre::DataGroup * simdata_grp;
    asctoolkit::sidre::DataGroup * bp_grp;
    asctoolkit::sidre::DataGroup * bp_index_grp;
+
+	std::string m_nodePositionsFieldName;
 
    bool m_loadCalled;
 
