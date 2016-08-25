@@ -347,7 +347,7 @@ ConductionOperator::ConductionOperator(ParFiniteElementSpace &f, double al,
 
    M = new ParBilinearForm(&fespace);
    M->AddDomainIntegrator(new MassIntegrator());
-   M->Assemble(0); // keep zeros in sparsity pattern to simplify M + dt K
+   M->Assemble(0); // keep sparsity pattern of M and K the same
    M->FormSystemMatrix(ess_tdof_list, Mmat);
 
    M_solver.iterative_mode = false;
@@ -415,7 +415,7 @@ void ConductionOperator::SetParameters(const Vector &u)
    GridFunctionCoefficient u_coeff(&u_alpha_gf);
 
    K->AddDomainIntegrator(new DiffusionIntegrator(u_coeff));
-   K->Assemble(0); // keep zeros in sparsity pattern, to simplify M + dt K
+   K->Assemble(0); // keep sparsity pattern of M and K the same
    K->FormSystemMatrix(ess_tdof_list, Kmat);
    delete T;
    T = NULL; // re-compute T on the next ImplicitSolve
