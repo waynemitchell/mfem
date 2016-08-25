@@ -143,7 +143,7 @@ public:
    /** Call this method after solving a linear system constructed using the
        FormLinearSystem method to recover the solution as a ParGridFunction-size
        vector in x. Use the same arguments as in the FormLinearSystem call. */
-   void RecoverFEMSolution(const Vector &X, const Vector &b, Vector &x);
+   virtual void RecoverFEMSolution(const Vector &X, const Vector &b, Vector &x);
 
    virtual void Update(FiniteElementSpace *nfes = NULL);
 

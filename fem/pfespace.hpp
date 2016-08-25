@@ -121,6 +121,9 @@ private:
    void GetDofs(int type, int index, Array<int>& dofs);
    void ReorderFaceDofs(Array<int> &dofs, int orient);
 
+   /// Build the P and R matrices.
+   void Build_Dof_TrueDof_Matrix();
+
    // Used when the ParMesh is non-conforming, i.e. pmesh->pncmesh != NULL.
    // Constructs the matrices P and R. Determines ltdof_size. Calls
    // GenerateGlobalOffsets(). Constructs ldof_ltdof.
@@ -184,7 +187,8 @@ public:
    virtual void GetFaceDofs(int i, Array<int> &dofs) const;
 
    /// The true dof-to-dof interpolation matrix
-   HypreParMatrix *Dof_TrueDof_Matrix();
+   HypreParMatrix *Dof_TrueDof_Matrix()
+   { if (!P) { Build_Dof_TrueDof_Matrix(); } return P; }
 
    /** @brief For a non-conforming mesh, construct and return the interpolation
        matrix from the partially conforming true dofs to the local dofs. The
@@ -235,7 +239,7 @@ public:
    { return Dof_TrueDof_Matrix(); }
    /// Get the R matrix which restricts a local dof vector to true dof vector.
    virtual const SparseMatrix *GetRestrictionMatrix()
-   { if (!R) { Dof_TrueDof_Matrix(); } return R; }
+   { Dof_TrueDof_Matrix(); return R; }
 
    // Face-neighbor functions
    void ExchangeFaceNbrData();

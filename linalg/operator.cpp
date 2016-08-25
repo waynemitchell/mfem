@@ -18,33 +18,6 @@
 namespace mfem
 {
 
-void Operator::PrintMatlab (std::ostream & out, int n, int m) const
-{
-   using namespace std;
-   if (n == 0) { n = width; }
-   if (m == 0) { m = height; }
-
-   Vector x(n), y(m);
-   x = 0.0;
-
-   int i, j;
-   out << setiosflags(ios::scientific | ios::showpos);
-   for (i = 0; i < n; i++)
-   {
-      if (i != 0)
-      {
-         x(i-1) = 0.0;
-      }
-      x(i) = 1.0;
-      Mult(x,y);
-      for (j = 0; j < m; j++)
-         if (y(j))
-         {
-            out << j+1 << " " << i+1 << " " << y(j) << '\n';
-         }
-   }
-}
-
 void Operator::FormLinearSystem(const Array<int> &ess_tdof_list,
                                 Vector &x, Vector &b,
                                 Operator* &Aout, Vector &X, Vector &B,
@@ -96,18 +69,46 @@ void Operator::RecoverFEMSolution(const Vector &X, const Vector &b, Vector &x)
    }
 }
 
+void Operator::PrintMatlab(std::ostream & out, int n, int m) const
+{
+   using namespace std;
+   if (n == 0) { n = width; }
+   if (m == 0) { m = height; }
+
+   Vector x(n), y(m);
+   x = 0.0;
+
+   out << setiosflags(ios::scientific | ios::showpos);
+   for (int i = 0; i < n; i++)
+   {
+      x(i) = 1.0;
+      Mult(x, y);
+      for (int j = 0; j < m; j++)
+      {
+         if (y(j))
+         {
+            out << j+1 << " " << i+1 << " " << y(j) << '\n';
+         }
+      }
+      x(i) = 0.0;
+   }
+}
+
 
 ConstrainedOperator::ConstrainedOperator(Operator *A, const Array<int> &list,
                                          bool _own_A)
    : Operator(A->Height(), A->Width()), A(A), own_A(_own_A)
 {
    constraint_list.MakeRef(list);
-   z.SetSize(height);
-   w.SetSize(height);
+   int aux_size = (constraint_list.Size() > 0) ? height : 0;
+   z.SetSize(aux_size);
+   w.SetSize(aux_size);
 }
 
 void ConstrainedOperator::EliminateRHS(const Vector &x, Vector &b) const
 {
+   if (constraint_list.Size() == 0) { return; }
+
    w = 0.0;
 
    for (int i = 0; i < constraint_list.Size(); i++)
@@ -127,6 +128,12 @@ void ConstrainedOperator::EliminateRHS(const Vector &x, Vector &b) const
 
 void ConstrainedOperator::Mult(const Vector &x, Vector &y) const
 {
+   if (constraint_list.Size() == 0)
+   {
+      A->Mult(x, y);
+      return;
+   }
+
    z = x;
 
    for (int i = 0; i < constraint_list.Size(); i++)
