@@ -2265,6 +2265,7 @@ void Mesh::ChangeVertexDataOwnership(double *vertex_data,
    }
 }
 
+
 int numOfVerticesFromGeometry(Geometry::Type t) {
    switch(t) {
       case Geometry::POINT:
@@ -2327,10 +2328,14 @@ Mesh::Mesh(double *vertices, int num_vertices,
                                break;
       default: throw std::runtime_error("cannot finialize mesh");
    }
-
-   for (int i = 0; i < num_boundary_elements; i++) {
-      boundary[i] = NewElement(boundary_type, Element::int_ptr_pair(boundary_indices + 
-               i * boundary_index_stride, boundary_attributes + i));
+   if (num_boundary_elements > 0) {
+      for (int i = 0; i < num_boundary_elements; i++) {
+         boundary[i] = NewElement(boundary_type, Element::int_ptr_pair(boundary_indices + 
+                  i * boundary_index_stride, boundary_attributes + i));
+      }
+   }
+   else {
+      GenerateBoundaryElements();
    }
    NumOfBdrElements = num_boundary_elements;
    
