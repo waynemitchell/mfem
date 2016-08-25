@@ -77,6 +77,13 @@ public:
 
    int VectorDim() const;
 
+   /// @brief Extract the true-dofs from the GridFunction. If all dofs are true,
+   /// then `tv` will be set to point to the data of `*this`.
+   void GetTrueDofs(Vector &tv) const;
+
+   /// Set the GridFunction from the given true-dof vector.
+   virtual void SetFromTrueDofs(const Vector &tv);
+
    /// Returns the values in the vertices of i'th element for dimension vdim.
    void GetNodalValues(int i, Array<double> &nval, int vdim = 1) const;
 
