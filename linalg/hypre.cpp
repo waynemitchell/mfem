@@ -125,18 +125,6 @@ HypreParVector::HypreParVector(ParFiniteElementSpace *pfes)
    own_ParVector = 1;
 }
 
-HypreParVector::operator hypre_ParVector*() const
-{
-   return x;
-}
-
-#ifndef HYPRE_PAR_VECTOR_STRUCT
-HypreParVector::operator HYPRE_ParVector() const
-{
-   return (HYPRE_ParVector) x;
-}
-#endif
-
 Vector * HypreParVector::GlobalVector() const
 {
    hypre_Vector *hv = hypre_ParVectorToVectorAll(*this);

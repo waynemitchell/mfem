@@ -733,13 +733,19 @@ int Mesh::GetFaceElementType(int Face) const
 
 void Mesh::Init()
 {
-   NumOfVertices = NumOfElements = NumOfBdrElements = NumOfEdges = -1;
+   // in order of declaration:
+   Dim = spaceDim = 0;
+   NumOfVertices = -1;
+   NumOfElements = NumOfBdrElements = 0;
+   NumOfEdges = NumOfFaces = 0;
+   BaseGeom = BaseBdrGeom = -2; // invailid
+   meshgen = 0;
+   sequence = 0;
    Nodes = NULL;
    own_nodes = 1;
    NURBSext = NULL;
    ncmesh = NULL;
    last_operation = Mesh::NONE;
-   sequence = 0;
 }
 
 void Mesh::InitTables()
@@ -798,13 +804,13 @@ void Mesh::SetAttributes()
 
 void Mesh::InitMesh(int _Dim, int _spaceDim, int NVert, int NElem, int NBdrElem)
 {
+   Init();
+   InitTables();
+
    Dim = _Dim;
    spaceDim = _spaceDim;
 
    BaseGeom = BaseBdrGeom = -1;
-
-   Init();
-   InitTables();
 
    NumOfVertices = 0;
    vertices.SetSize(NVert);  // just allocate space for vertices
@@ -1849,10 +1855,10 @@ void Mesh::Make2D(int nx, int ny, Element::Type type, int generate_edges,
 {
    int i, j, k;
 
-   Dim = spaceDim = 2;
-
    Init();
    InitTables();
+
+   Dim = spaceDim = 2;
 
    // Creates quadrilateral mesh
    if (type == Element::QUADRILATERAL)
@@ -2009,14 +2015,14 @@ void Mesh::Make1D(int n, double sx)
 {
    int j, ind[1];
 
+   Init();
+   InitTables();
+
    Dim = 1;
    spaceDim = 1;
 
    BaseGeom = Geometry::SEGMENT;
    BaseBdrGeom = Geometry::POINT;
-
-   Init();
-   InitTables();
 
    meshgen = 1;
 
@@ -2167,8 +2173,6 @@ Mesh::Mesh(const char *filename, int generate_edges, int refine,
    // Initialization as in the default constructor
    Init();
    InitTables();
-   meshgen = 0;
-   Dim = 0;
 
    named_ifstream imesh(filename);
    if (!imesh)

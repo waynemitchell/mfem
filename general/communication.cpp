@@ -113,6 +113,7 @@ void GroupTopology::Create(ListOfIntegerSets &groups, int mpitag)
 
    // build group_mgroup
    group_mgroup.SetSize(NGroups());
+   group_mgroup[0] = 0; // the local group
 
    int send_counter = 0;
    int recv_counter = 0;
@@ -194,6 +195,40 @@ void GroupTopology::Create(ListOfIntegerSets &groups, int mpitag)
    delete [] requests;
 }
 
+void GroupTopology::Save(ostream &out) const
+{
+   // write the group_lproc table; the number of rows is the number of groups
+   group_lproc.Save(out);
+   out << '\n';
+
+   // write the groupmaster_lproc array (size = number of groups)
+   groupmaster_lproc.Save(out, 1);
+   out << '\n';
+
+   // write the lproc_proc array, i.e. the mapping local-proc-index ->
+   // global-proc-index (mpi rank in MyComm); the size of the array is the
+   // number of neighbor processors
+   lproc_proc.Save(out);
+   out << '\n';
+
+   // write the group_mgroup array (size = number of groups)
+   group_mgroup.Save(out, 1);
+}
+
+void GroupTopology::Load(istream &in)
+{
+   group_lproc.Load(in);
+
+   groupmaster_lproc.Load(NGroups(), in);
+
+   lproc_proc.Load(in);
+
+   MFEM_VERIFY(lproc_proc[0] == MyRank(), "mismatch in MPI ranks: from file: "
+               << lproc_proc[0] << ", actual: " << MyRank());
+
+   group_mgroup.Load(NGroups(), in);
+}
+
 
 // specializations of the MPITypeMap static member
 template<> const MPI_Datatype MPITypeMap<int>::mpi_type = MPI_INT;
@@ -260,15 +295,20 @@ void GroupCommunicator::Finalize()
 }
 
 template <class T>
-void GroupCommunicator::Bcast(T *ldata)
+void GroupCommunicator::Bcast(T *ldata, int layout)
 {
-   if (group_buf_size == 0)
-   {
-      return;
-   }
+   if (group_buf_size == 0) { return; }
 
-   group_buf.SetSize(group_buf_size*sizeof(T));
-   T *buf = (T *)group_buf.GetData();
+   T *buf;
+   if (layout == 0)
+   {
+      group_buf.SetSize(group_buf_size*sizeof(T));
+      buf = (T *)group_buf.GetData();
+   }
+   else
+   {
+      buf = ldata;
+   }
 
    int i, gr, request_counter = 0;
 
@@ -277,10 +317,7 @@ void GroupCommunicator::Bcast(T *ldata)
       const int nldofs = group_ldof.RowSize(gr);
 
       // ignore groups without dofs
-      if (nldofs == 0)
-      {
-         continue;
-      }
+      if (nldofs == 0) { continue; }
 
       if (!gtopo.IAmMaster(gr)) // we are not the master
       {
@@ -295,11 +332,14 @@ void GroupCommunicator::Bcast(T *ldata)
       }
       else // we are the master
       {
-         // fill send buffer
-         const int *ldofs = group_ldof.GetRow(gr);
-         for (i = 0; i < nldofs; i++)
+         if (layout == 0)
          {
-            buf[i] = ldata[ldofs[i]];
+            // fill send buffer
+            const int *ldofs = group_ldof.GetRow(gr);
+            for (i = 0; i < nldofs; i++)
+            {
+               buf[i] = ldata[ldofs[i]];
+            }
          }
 
          const int  gs  = gtopo.GetGroupSize(gr);
@@ -324,37 +364,34 @@ void GroupCommunicator::Bcast(T *ldata)
 
    MPI_Waitall(request_counter, requests, statuses);
 
-   // copy the received data from the buffer to ldata
-   buf = (T *)group_buf.GetData();
-   for (gr = 1; gr < group_ldof.Size(); gr++)
+   if (layout == 0)
    {
-      const int nldofs = group_ldof.RowSize(gr);
-
-      // ignore groups without dofs
-      if (nldofs == 0)
+      // copy the received data from the buffer to ldata
+      buf = (T *)group_buf.GetData();
+      for (gr = 1; gr < group_ldof.Size(); gr++)
       {
-         continue;
-      }
+         const int nldofs = group_ldof.RowSize(gr);
 
-      if (!gtopo.IAmMaster(gr)) // we are not the master
-      {
-         const int *ldofs = group_ldof.GetRow(gr);
-         for (i = 0; i < nldofs; i++)
+         // ignore groups without dofs
+         if (nldofs == 0) { continue; }
+
+         if (!gtopo.IAmMaster(gr)) // we are not the master
          {
-            ldata[ldofs[i]] = buf[i];
+            const int *ldofs = group_ldof.GetRow(gr);
+            for (i = 0; i < nldofs; i++)
+            {
+               ldata[ldofs[i]] = buf[i];
+            }
          }
+         buf += nldofs;
       }
-      buf += nldofs;
    }
 }
 
 template <class T>
 void GroupCommunicator::Reduce(T *ldata, void (*Op)(OpData<T>))
 {
-   if (group_buf_size == 0)
-   {
-      return;
-   }
+   if (group_buf_size == 0) { return; }
 
    int i, gr, request_counter = 0;
    OpData<T> opd;
@@ -367,10 +404,7 @@ void GroupCommunicator::Reduce(T *ldata, void (*Op)(OpData<T>))
       opd.nldofs = group_ldof.RowSize(gr);
 
       // ignore groups without dofs
-      if (opd.nldofs == 0)
-      {
-         continue;
-      }
+      if (opd.nldofs == 0) { continue; }
 
       opd.ldofs = group_ldof.GetRow(gr);
 
@@ -422,10 +456,7 @@ void GroupCommunicator::Reduce(T *ldata, void (*Op)(OpData<T>))
       opd.nldofs = group_ldof.RowSize(gr);
 
       // ignore groups without dofs
-      if (opd.nldofs == 0)
-      {
-         continue;
-      }
+      if (opd.nldofs == 0) { continue; }
 
       if (!gtopo.IAmMaster(gr)) // we are not the master
       {
