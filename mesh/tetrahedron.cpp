@@ -128,28 +128,28 @@ void Tetrahedron::GetMarkedFace(const int face, int *fv)
    ParseRefinementFlag(re, type, flag);
    switch (face)
    {
-   case 0:
-      switch (re[1])
-      {
-      case 1: fv[0] = indices[1]; fv[1] = indices[2]; fv[2] = indices[3]; break;
-      case 4: fv[0] = indices[3]; fv[1] = indices[1]; fv[2] = indices[2]; break;
-      case 5: fv[0] = indices[2]; fv[1] = indices[3]; fv[2] = indices[1]; break;
-      }
-      break;
-   case 1:
-      switch (re[0])
-      {
-      case 2: fv[0] = indices[2]; fv[1] = indices[0]; fv[2] = indices[3]; break;
-      case 3: fv[0] = indices[0]; fv[1] = indices[3]; fv[2] = indices[2]; break;
-      case 5: fv[0] = indices[3]; fv[1] = indices[2]; fv[2] = indices[0]; break;
-      }
-      break;
-   case 2:
-      fv[0] = indices[0]; fv[1] = indices[1]; fv[2] = indices[3];
-      break;
-   case 3:
-      fv[0] = indices[1]; fv[1] = indices[0]; fv[2] = indices[2];
-      break;
+      case 0:
+         switch (re[1])
+         {
+            case 1: fv[0] = indices[1]; fv[1] = indices[2]; fv[2] = indices[3]; break;
+            case 4: fv[0] = indices[3]; fv[1] = indices[1]; fv[2] = indices[2]; break;
+            case 5: fv[0] = indices[2]; fv[1] = indices[3]; fv[2] = indices[1]; break;
+         }
+         break;
+      case 1:
+         switch (re[0])
+         {
+            case 2: fv[0] = indices[2]; fv[1] = indices[0]; fv[2] = indices[3]; break;
+            case 3: fv[0] = indices[0]; fv[1] = indices[3]; fv[2] = indices[2]; break;
+            case 5: fv[0] = indices[3]; fv[1] = indices[2]; fv[2] = indices[0]; break;
+         }
+         break;
+      case 2:
+         fv[0] = indices[0]; fv[1] = indices[1]; fv[2] = indices[3];
+         break;
+      case 3:
+         fv[0] = indices[1]; fv[1] = indices[0]; fv[2] = indices[2];
+         break;
    }
 }
 

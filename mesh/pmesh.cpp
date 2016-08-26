@@ -4425,11 +4425,15 @@ void ParMesh::ParPrint(ostream &out) const
       Array<int> svert_group(svert_lvert.Size());
       for (int i = 0, k = 0; i < group_svert.Size(); )
          for (int end = group_svert.GetI()[++i]; k < end; k++)
+         {
             svert_group[group_svert.GetJ()[k]] = i;
+         }
 
       out << "\nshared_vertices\n" << svert_lvert.Size() << '\n';
       for (int i = 0; i < svert_lvert.Size(); i++)
+      {
          out << svert_group[i] << ' ' << svert_lvert[i] << '\n';
+      }
    }
 
    // write the shared edges (group, lverts)
@@ -4438,7 +4442,9 @@ void ParMesh::ParPrint(ostream &out) const
       Array<int> sedge_group(shared_edges.Size());
       for (int i = 0, k = 0; i < group_sedge.Size(); )
          for (int end = group_sedge.GetI()[++i]; k < end; k++)
+         {
             sedge_group[group_sedge.GetJ()[k]] = i;
+         }
 
       out << "\nshared_edges\n" << shared_edges.Size() << '\n';
       for (int i = 0; i < shared_edges.Size(); i++)
@@ -4454,7 +4460,9 @@ void ParMesh::ParPrint(ostream &out) const
       Array<int> sface_group(shared_faces.Size());
       for (int i = 0, k = 0; i < group_sface.Size(); )
          for (int end = group_sface.GetI()[++i]; k < end; k++)
+         {
             sface_group[group_sface.GetJ()[k]] = i;
+         }
 
       out << "\nshared_faces\n" << shared_faces.Size() << '\n';
       for (int i = 0; i < shared_faces.Size(); i++)
@@ -4468,9 +4476,13 @@ void ParMesh::ParPrint(ostream &out) const
 
    out << "\ntotal_shared_vertices " << svert_lvert.Size() << '\n';
    if (Dim >= 2)
+   {
       out << "total_shared_edges " << shared_edges.Size() << '\n';
+   }
    if (Dim >= 3)
+   {
       out << "total_shared_faces " << shared_faces.Size() << '\n';
+   }
    for (int gr = 1; gr < GetNGroups(); gr++)
    {
       {
@@ -4478,7 +4490,9 @@ void ParMesh::ParPrint(ostream &out) const
          const int *sv = group_svert.GetRow(gr-1);
          out << "\ngroup " << gr << "\nshared_vertices " << nv << '\n';
          for (int i = 0; i < nv; i++)
+         {
             out << svert_lvert[sv[i]] << '\n';
+         }
       }
       if (Dim >= 2)
       {
@@ -4497,7 +4511,9 @@ void ParMesh::ParPrint(ostream &out) const
          const int *sf = group_sface.GetRow(gr-1);
          out << "\nshared_faces " << nf << '\n';
          for (int i = 0; i < nf; i++)
+         {
             PrintElementWithoutAttr(shared_faces[sf[i]], out);
+         }
       }
    }
 
