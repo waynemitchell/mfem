@@ -51,7 +51,7 @@ void mfem_error(const char *msg)
    Array<long> addrs;
    do
    {
-      if (ret < 0) break;
+      if (ret < 0) { break; }
       unw_get_proc_name (&cursor, name, UNW_NAME_LEN, &offp);
       unw_get_reg(&cursor, UNW_REG_IP, &ip);
       addrs.Append(ip - 1);
@@ -73,7 +73,8 @@ void mfem_error(const char *msg)
       {
          free(name_demangle);
       }
-   } while (unw_step(&cursor) > 0);
+   }
+   while (unw_step(&cursor) > 0);
    std::cerr << "Addresses for caller line number lookup, use: "
              << "addr2line -Cfi -e <exe> addr1 [addr2 [...]]"
              << std::endl << std::hex;

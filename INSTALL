@@ -157,9 +157,9 @@ MFEM_DEBUG = YES/NO
    and consistency checks that may simplify bug-hunting.
 
 MFEM_USE_LIBUNWIND = YES/NO
-   Use libunwind to print a stacktrace whenever mfem_error is called. The
+   Use libunwind to print a stacktrace whenever mfem_error is raised. The
    information printed is enough to determine the line numbers where the
-   error originated, provided MFEM_DEBUG=YES or OPTIM_FLAGS includes `-g'.
+   error originated, provided MFEM_DEBUG=YES or build flags include `-g'.
 
 MFEM_USE_METIS_5 = YES/NO
    Specify the version of the METIS library - 5 (YES) or 4 (NO).
@@ -304,8 +304,10 @@ The specific libraries and their options are:
   URL: http://mpfr.org, it depends on the GMP library: https://gmplib.org
   Options: MPFR_OPT, MPFR_LIB.
 
-- Libunwind (optional), used when MFEM_USE_LIBUNWIND = YES
-  URL: http://www.nongnu.org/libunwind/
+- Libunwind (optional), used when MFEM_USE_LIBUNWIND = YES. The library is
+  included with OS X (as of version 10.11). On Linux it could be installed with
+  the libunwind-devel package.
+  URL: http://www.nongnu.org/libunwind
   Options: LIBUNWIND_OPT, LIBUNWIND_LIB.
 
 
