@@ -1340,6 +1340,23 @@ void HypreParMatrix::Destroy()
    }
 }
 
+HypreParMatrix *Add(double alpha, const HypreParMatrix &A,
+                    double beta,  const HypreParMatrix &B)
+{
+   hypre_ParCSRMatrix *C_hypre =
+      internal::hypre_ParCSRMatrixAdd(const_cast<HypreParMatrix &>(A),
+                                      const_cast<HypreParMatrix &>(B));
+   MFEM_VERIFY(C_hypre, "error in hypre_ParCSRMatrixAdd");
+
+   hypre_MatvecCommPkgCreate(C_hypre);
+   HypreParMatrix *C = new HypreParMatrix(C_hypre);
+   *C = 0.0;
+   C->Add(alpha, A);
+   C->Add(beta, B);
+
+   return C;
+}
+
 HypreParMatrix * ParMult(HypreParMatrix *A, HypreParMatrix *B)
 {
    hypre_ParCSRMatrix * ab;
