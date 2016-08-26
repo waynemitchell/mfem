@@ -67,6 +67,9 @@ Miscellaneous
 
 - Better support for METIS version 5 and above.
 
+- Provide informative backtraces in mfem_error using libunwind when
+  MFEM_USE_LIBUNWIND is enabled.
+
 
 Version 3.2, released on June 30, 2016
 ======================================
