@@ -304,6 +304,10 @@ The specific libraries and their options are:
   URL: http://mpfr.org, it depends on the GMP library: https://gmplib.org
   Options: MPFR_OPT, MPFR_LIB.
 
+- Libunwind (optional), used when MFEM_USE_LIBUNWIND = YES
+  URL: http://www.nongnu.org/libunwind/
+  Options: LIBUNWIND_OPT, LIBUNWIND_LIB.
+
 
 Building without GNU make
 =========================
