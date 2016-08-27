@@ -107,6 +107,7 @@ int main(int argc, char *argv[])
            " evaluation!\n" << endl;
       return 2;
    }
+   if (!perf) { matrix_free = false; }
    args.PrintOptions(cout);
 
    // 2. Read the mesh from the given mesh file. We can handle triangular,
