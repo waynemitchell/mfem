@@ -149,12 +149,17 @@ int main(int argc, char *argv[])
    enum PCType { NONE, AMG };
    PCType pc_choice;
    if (!strcmp(pc,"amg"))
+   {
       pc_choice = AMG;
+   }
+   else if (matrix_free)
+   {
+      pc_choice = NONE;
+   }
    else
-      if (matrix_free)
-         pc_choice = NONE;
-      else
-         pc_choice = AMG;
+   {
+      pc_choice = AMG;
+   }
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
@@ -391,7 +396,9 @@ int main(int argc, char *argv[])
       if (pc_choice == AMG)
       {
          if (myid == 0)
+         {
             cout << "Assembling Linear System for BoomerAMG" << endl;
+         }
          Vector X_tmp, B_tmp;
          a_lor->FormLinearSystem(ess_tdof_list, x, *b, A, X_tmp, B_tmp);
          //a->FormLinearSystem(ess_tdof_list, x, *b, A, X_tmp, B_tmp);
@@ -447,7 +454,8 @@ int main(int argc, char *argv[])
          tic_toc.Stop();
          if (myid == 0)
          {
-            cout << "Time per A (sparsified) op: " << tic_toc.RealTime() / max_its << "s." << endl;
+            cout << "Time per A (sparsified) op: " << tic_toc.RealTime() / max_its << "s."
+                 << endl;
          }
          tic_toc.Clear();
          tic_toc.Start();
@@ -465,7 +473,9 @@ int main(int argc, char *argv[])
       }
       pcg->Mult(B, X);
       if (pc_choice == AMG)
+      {
          delete amg;
+      }
    }
    else
    {
@@ -478,7 +488,8 @@ int main(int argc, char *argv[])
    tic_toc.Stop();
    if (myid == 0)
    {
-      cout << "Time per CG step: " << tic_toc.RealTime() / pcg->GetNumIterations() << "s." << endl;
+      cout << "Time per CG step: " << tic_toc.RealTime() / pcg->GetNumIterations() <<
+           "s." << endl;
    }
 
    // 15. Recover the parallel grid function corresponding to X. This is the

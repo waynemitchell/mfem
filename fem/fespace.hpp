@@ -134,7 +134,7 @@ public:
 
    // Create a low order refinement of the mesh
    virtual void LowOrderRefinement(int order, FiniteElementSpace *& fes_lor,
-                     SparseMatrix &P, SparseMatrix &R);
+                                   SparseMatrix &P, SparseMatrix &R);
 
    /// Returns the mesh
    inline Mesh *GetMesh() const { return mesh; }

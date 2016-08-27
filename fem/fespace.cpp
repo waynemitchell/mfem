@@ -920,22 +920,27 @@ FiniteElementSpace::FiniteElementSpace(Mesh *mesh,
    BuildElementToDofTable();
 }
 
-void FiniteElementSpace::LowOrderRefinement(int order, FiniteElementSpace *& fes_lor,
-      SparseMatrix &P, SparseMatrix &R)
+void FiniteElementSpace::LowOrderRefinement(int order,
+                                            FiniteElementSpace *& fes_lor,
+                                            SparseMatrix &P, SparseMatrix &R)
 {
    if (order != 1)
+   {
       mfem_error("FiniteElementSpace::LowOrderRefinement : order != 1");
+   }
 
    // the same finite element basis will be used on the LOR mesh,
    // but of different order (HACK: use 1st order)
    const FiniteElementCollection *fec_hoc = FEColl();
    FiniteElementCollection *fec_lor = new H1_FECollection(1, mesh->Dimension());
 
-   int p = GetOrder(1); // HACK: get order for first element, assume all have same order.
+   // HACK: get order for first element, assume all have same order.
+   int p = GetOrder(1);
 
    //HACK: Assume order = 1 : all nodes become vertices of new elements
    Mesh *mesh_lor = new Mesh(mesh->Dimension(), mesh->GetNE() * pow(p + 1, 2),
-         mesh->GetNE() * pow(p, 2), mesh->GetNBE() * p , mesh->SpaceDimension());
+                             mesh->GetNE() * pow(p, 2), mesh->GetNBE() * p,
+                             mesh->SpaceDimension());
 
    // Build the low order refined mesh from the original mesh.
    // TODO: add a test to make sure we are on Quad elements, fe != NULL

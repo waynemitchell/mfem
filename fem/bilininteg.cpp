@@ -203,13 +203,17 @@ void DiffusionIntegrator::AssembleElementMatrix
    }
 
    if (!sparsify)
+   {
       return;
+   }
 
    STable *connect_table = buildConnectionTable(&el);
 
    // iterate through Element matrix rows and create sparsity
    if (el.GetGeomType() != Geometry::SQUARE && el.GetGeomType() != Geometry::CUBE)
+   {
       return;
+   }
    for (int i = 0; i < elmat.Height(); i++)
    {
       for (int j = 0; j < elmat.Width(); j++)
@@ -241,37 +245,37 @@ STable* buildConnectionTable(FiniteElement const *el)
          {
             if (i != 0)
                connect_table->Push(dof_map_[i * (p + 1) + j],
-                     dof_map_[(i - 1) * (p + 1) + j]);
+                                   dof_map_[(i - 1) * (p + 1) + j]);
             if (i != p)
                connect_table->Push(dof_map_[i * (p + 1) + j],
-                     dof_map_[(i + 1) * (p + 1) + j ]);
+                                   dof_map_[(i + 1) * (p + 1) + j ]);
             if (j != 0)
                connect_table->Push(dof_map_[i * (p + 1) + j],
-                     dof_map_[i * (p + 1) + j - 1]);
+                                   dof_map_[i * (p + 1) + j - 1]);
             if (j != p)
                connect_table->Push(dof_map_[i * (p + 1) + j],
-                     dof_map_[i * (p + 1) + j + 1]);
+                                   dof_map_[i * (p + 1) + j + 1]);
             if (i != 0)
             {
                if (j != 0)
                   connect_table->Push(dof_map_[i * (p + 1) + j],
-                        dof_map_[(i - 1) * (p + 1) + j - 1]);
+                                      dof_map_[(i - 1) * (p + 1) + j - 1]);
                if (j != p)
                   connect_table->Push(dof_map_[i * (p + 1) + j],
-                        dof_map_[(i - 1) * (p + 1) + j + 1]);
+                                      dof_map_[(i - 1) * (p + 1) + j + 1]);
             }
             if (i != p)
             {
                if (j != 0)
                   connect_table->Push(dof_map_[i * (p + 1) + j],
-                        dof_map_[(i + 1) * (p + 1) + j - 1]);
+                                      dof_map_[(i + 1) * (p + 1) + j - 1]);
                if (j != p)
                   connect_table->Push(dof_map_[i * (p + 1) + j],
-                        dof_map_[(i + 1) * (p + 1) + j + 1]);
+                                      dof_map_[(i + 1) * (p + 1) + j + 1]);
             }
 
             connect_table->Push(dof_map_[i * (p + 1) + j],
-                  dof_map_[i * (p + 1) + j]);
+                                dof_map_[i * (p + 1) + j]);
          }
       }
       delete fe;
@@ -295,101 +299,101 @@ STable* buildConnectionTable(FiniteElement const *el)
                   if (j != 0) // j - 1
                   {
                      connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                           dof_map_[(i - 1) * (p + 1) * (p + 1) + (j - 1) * (p + 1) + k]);
+                                         dof_map_[(i - 1) * (p + 1) * (p + 1) + (j - 1) * (p + 1) + k]);
                      if (k != 0) // k - 1
                         connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                              dof_map_[(i - 1) * (p + 1) * (p + 1) + (j - 1) * (p + 1) + k - 1]);
+                                            dof_map_[(i - 1) * (p + 1) * (p + 1) + (j - 1) * (p + 1) + k - 1]);
                      if (k != p) // k + 1
                         connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                              dof_map_[(i - 1) * (p + 1) * (p + 1) + (j - 1) * (p + 1) + k + 1]);
+                                            dof_map_[(i - 1) * (p + 1) * (p + 1) + (j - 1) * (p + 1) + k + 1]);
                   }
                   if (j != p) // j + 1
                   {
                      connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                           dof_map_[(i - 1) * (p + 1) * (p + 1) + (j + 1) * (p + 1) + k]);
+                                         dof_map_[(i - 1) * (p + 1) * (p + 1) + (j + 1) * (p + 1) + k]);
                      if (k != 0) // k - 1
                         connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                              dof_map_[(i - 1) * (p + 1) * (p + 1) + (j + 1) * (p + 1) + k - 1]);
+                                            dof_map_[(i - 1) * (p + 1) * (p + 1) + (j + 1) * (p + 1) + k - 1]);
                      if (k != p) // k + 1
                         connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                              dof_map_[(i - 1) * (p + 1) * (p + 1) + (j + 1) * (p + 1) + k + 1]);
+                                            dof_map_[(i - 1) * (p + 1) * (p + 1) + (j + 1) * (p + 1) + k + 1]);
                   }
                   if (k != 0) // k - 1
                      connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                           dof_map_[(i - 1) * (p + 1) * (p + 1) + j * (p + 1) + k - 1]);
+                                         dof_map_[(i - 1) * (p + 1) * (p + 1) + j * (p + 1) + k - 1]);
                   if (k != p) // k + 1
                      connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                           dof_map_[(i - 1) * (p + 1) * (p + 1) + j * (p + 1) + k + 1]);
+                                         dof_map_[(i - 1) * (p + 1) * (p + 1) + j * (p + 1) + k + 1]);
                   connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                        dof_map_[(i - 1) * (p + 1) * (p + 1) + j * (p + 1) + k]); // i - 1
+                                      dof_map_[(i - 1) * (p + 1) * (p + 1) + j * (p + 1) + k]); // i - 1
                }
                if (i != p) // i + 1
                {
                   if (j != 0) // j - 1
                   {
                      connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                           dof_map_[(i + 1) * (p + 1) * (p + 1) + (j - 1) * (p + 1) + k]);
+                                         dof_map_[(i + 1) * (p + 1) * (p + 1) + (j - 1) * (p + 1) + k]);
                      if (k != 0) // k - 1
                         connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                              dof_map_[(i + 1) * (p + 1) * (p + 1) + (j - 1) * (p + 1) + k - 1]); // i - 1
+                                            dof_map_[(i + 1) * (p + 1) * (p + 1) + (j - 1) * (p + 1) + k - 1]); // i - 1
                      if (k != p) // k + 1
                         connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                              dof_map_[(i + 1) * (p + 1) * (p + 1) + (j - 1) * (p + 1) + k + 1]); // i - 1
+                                            dof_map_[(i + 1) * (p + 1) * (p + 1) + (j - 1) * (p + 1) + k + 1]); // i - 1
                   }
                   if (j != p) // j + 1
                   {
                      connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                           dof_map_[(i + 1) * (p + 1) * (p + 1) + (j + 1) * (p + 1) + k]);
+                                         dof_map_[(i + 1) * (p + 1) * (p + 1) + (j + 1) * (p + 1) + k]);
                      if (k != 0) // k - 1
                         connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                              dof_map_[(i + 1) * (p + 1) * (p + 1) + (j + 1) * (p + 1) + k - 1]); // i - 1
+                                            dof_map_[(i + 1) * (p + 1) * (p + 1) + (j + 1) * (p + 1) + k - 1]); // i - 1
                      if (k != p) // k + 1
                         connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                              dof_map_[(i + 1) * (p + 1) * (p + 1) + (j + 1) * (p + 1) + k + 1]);
+                                            dof_map_[(i + 1) * (p + 1) * (p + 1) + (j + 1) * (p + 1) + k + 1]);
                   }
                   if (k != 0) // k - 1
                      connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                           dof_map_[(i + 1) * (p + 1) * (p + 1) + j * (p + 1) + k - 1]); // i - 1
+                                         dof_map_[(i + 1) * (p + 1) * (p + 1) + j * (p + 1) + k - 1]); // i - 1
                   if (k != p) // k + 1
                      connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                           dof_map_[(i + 1) * (p + 1) * (p + 1) + j * (p + 1) + k + 1]);
+                                         dof_map_[(i + 1) * (p + 1) * (p + 1) + j * (p + 1) + k + 1]);
 
                   connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                        dof_map_[ (i + 1) * (p + 1) * (p + 1) + j * (p + 1) + k]); // i + 1
+                                      dof_map_[ (i + 1) * (p + 1) * (p + 1) + j * (p + 1) + k]); // i + 1
                }
 
                if (j != 0)
                {
                   if (k != 0)
                      connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                           dof_map_[i * (p + 1) * (p + 1) + (j - 1) * (p + 1) + k - 1]);
+                                         dof_map_[i * (p + 1) * (p + 1) + (j - 1) * (p + 1) + k - 1]);
                   if (k != p)
                      connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                           dof_map_[i * (p + 1) * (p + 1) + (j - 1) * (p + 1) + k + 1]);
+                                         dof_map_[i * (p + 1) * (p + 1) + (j - 1) * (p + 1) + k + 1]);
                   connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                        dof_map_[i * (p + 1) * (p + 1) + (j - 1) * (p + 1) + k]); // j - 1
+                                      dof_map_[i * (p + 1) * (p + 1) + (j - 1) * (p + 1) + k]); // j - 1
                }
                if (j != p) // j + 1
                {
                   if (k != 0) // k - 1
                      connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                           dof_map_[i * (p + 1) * (p + 1) + (j + 1) * (p + 1) + k - 1]);
+                                         dof_map_[i * (p + 1) * (p + 1) + (j + 1) * (p + 1) + k - 1]);
                   if (k != p) // k + 1
                      connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                           dof_map_[i * (p + 1) * (p + 1) + (j + 1) * (p + 1) + k + 1]);
+                                         dof_map_[i * (p + 1) * (p + 1) + (j + 1) * (p + 1) + k + 1]);
                   connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                        dof_map_[i * (p + 1) * (p + 1) + (j + 1) * (p + 1) + k]); // j + 1
+                                      dof_map_[i * (p + 1) * (p + 1) + (j + 1) * (p + 1) + k]); // j + 1
                }
                if (k != 0)
                   connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                        dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k - 1]); // k - 1
+                                      dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k - 1]); // k - 1
                if (k != p)
                   connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                        dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k + 1]); // k + 1
+                                      dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k + 1]); // k + 1
 
                // i, j, k
                connect_table->Push(dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k],
-                     dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k]);
+                                   dof_map_[i * (p + 1) * (p + 1) + j * (p + 1) + k]);
             }
          }
       }

@@ -2130,26 +2130,32 @@ ParFiniteElementSpace::ParallelDerefinementMatrix(int old_ndofs,
    return R;
 }
 
-void ParFiniteElementSpace::ParLowOrderRefinement(int order, ParFiniteElementSpace *& fes_lor,
-      HypreParMatrix &P, HypreParMatrix &R)
+void ParFiniteElementSpace::ParLowOrderRefinement(int order,
+                                                  ParFiniteElementSpace *& fes_lor,
+                                                  HypreParMatrix &P, HypreParMatrix &R)
 {
    if (order != 1)
+   {
       mfem_error("FiniteElementSpace::LowOrderRefinement : order != 1");
+   }
 
    if (mesh->Dimension() != 2 && mesh->Dimension() != 3)
+   {
       mfem_error("only implemented for Hexahedron and Quadrilateral elements in 2D/3D");
+   }
 
    // the same finite element basis will be used on the LOR mesh,
    // but of different order (HACK: use 1st order)
    const FiniteElementCollection *fec_hoc = FEColl();
    FiniteElementCollection *fec_lor = new H1_FECollection(1, mesh->Dimension());
 
-   int p = GetOrder(1); // HACK: get order for first element, assume all have same order.
+   int p = GetOrder(
+              1); // HACK: get order for first element, assume all have same order.
    int o = mesh->Dimension();
 
    //HACK: Assume order = 1 : all nodes become vertices of new elements
    Mesh *mesh_lor = new Mesh(o, mesh->GetNE() * pow(p + 1, o),
-      mesh->GetNE() * pow(p, o));
+                             mesh->GetNE() * pow(p, o));
 
    // Build the low order refined mesh from the original mesh.
    // TODO: add a test to make sure we are on Quad elements, fe != NULL
@@ -2215,7 +2221,8 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order, ParFiniteElementSpa
                   v[3] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + (k + 1) * (p + 1) + l]];
                   v[4] = vdofs[dof_map_[ (j + 1) * (p + 1) * (p + 1) + k * (p + 1) + l]];
                   v[5] = vdofs[dof_map_[ (j + 1) * (p + 1) * (p + 1) + k * (p + 1) + l + 1]];
-                  v[6] = vdofs[dof_map_[ (j + 1) * (p + 1) * (p + 1) + (k + 1) * (p + 1) + l + 1]];
+                  v[6] = vdofs[dof_map_[ (j + 1) * (p + 1) * (p + 1) + (k + 1) *
+                                         (p + 1) + l + 1]];
                   v[7] = vdofs[dof_map_[ (j + 1) * (p + 1) * (p + 1) + (k + 1) * (p + 1) + l]];
                   mesh_lor->AddHex(v, mesh->GetAttribute(i));
                }
@@ -2234,7 +2241,8 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order, ParFiniteElementSpa
 
    ParMesh *pmesh_lor = new ParMesh(MyComm, *mesh_lor);
 
-   fes_lor = new ParFiniteElementSpace(pmesh_lor, fec_lor, GetVDim(), GetOrdering());
+   fes_lor = new ParFiniteElementSpace(pmesh_lor, fec_lor, GetVDim(),
+                                       GetOrdering());
    fes_lor->GetMesh()->SetCurvature(order, false, -1, GetOrdering());
 }
 
