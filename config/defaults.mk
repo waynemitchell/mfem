@@ -70,9 +70,9 @@ MFEM_USE_GNUTLS      = NO
 MFEM_USE_NETCDF      = NO
 MFEM_USE_MPFR        = NO
 
-LIBUNWIND_OPT =
+LIBUNWIND_OPT = -g
 ifneq ($(SYSNAME),Darwin)
-   LIBUNWIND_LIB = -lunwind
+   LIBUNWIND_LIB = -lunwind -ldl
 else
    LIBUNWIND_LIB =
 endif

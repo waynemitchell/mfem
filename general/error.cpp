@@ -19,7 +19,13 @@
 #define UNW_NAME_LEN 512
 #include <libunwind.h>
 #include <cxxabi.h>
+#if defined(__APPLE__) || defined(__linux__)
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
 #endif
+#include <dlfcn.h>
+#endif
+#endif // MFEM_USE_LIBUNWIND
 
 #ifdef MFEM_USE_MPI
 #include <mpi.h>
@@ -37,23 +43,24 @@ void mfem_error(const char *msg)
       // very bad thing if all your processors try to do it at the same time.
       std::cerr << "\n\n" << msg << "\n";
    }
+
 #ifdef MFEM_USE_LIBUNWIND
    char name[UNW_NAME_LEN];
    unw_cursor_t cursor;
    unw_context_t uc;
    unw_word_t ip, offp;
 
-   unw_getcontext(&uc);
-   int ret = unw_init_local(&cursor, &uc);
+   int err = unw_getcontext(&uc);
+   err = err ? err : unw_init_local(&cursor, &uc);
 
-   std::cerr << "libunwind backtrace:" << std::endl;
+   std::cerr << "Backtrace:" << std::endl;
    int cntr = 0;
-   Array<long> addrs;
+   Array<unw_word_t> addrs;
    do
    {
-      if (ret < 0) { break; }
-      unw_get_proc_name (&cursor, name, UNW_NAME_LEN, &offp);
-      unw_get_reg(&cursor, UNW_REG_IP, &ip);
+      err = err ? err : unw_get_proc_name(&cursor, name, UNW_NAME_LEN, &offp);
+      err = err ? err : unw_get_reg(&cursor, UNW_REG_IP, &ip);
+      if (err) { break; }
       addrs.Append(ip - 1);
       char *name_p = name;
       int demangle_status;
@@ -75,17 +82,37 @@ void mfem_error(const char *msg)
       }
    }
    while (unw_step(&cursor) > 0);
-   std::cerr << "Addresses for caller line number lookup, use: "
-             << "addr2line -Cfi -e <exe> addr1 [addr2 [...]]"
-             << std::endl << std::hex;
-   for (int i = 0; i < cntr; i++)
+#if defined(__APPLE__) || defined(__linux__)
+   if (cntr > 0)
    {
-      std::cerr << "0x" << addrs[i] << " ";
-   }
-   std::cerr << std::endl;
-
-
+      std::cerr << "\nLookup backtrace source lines:";
+      const char *fname = NULL;
+      for (int i = 0; i < cntr; i++)
+      {
+         Dl_info info;
+         err = !dladdr((void*)addrs[i], &info);
+         if (err)
+         {
+            fname = "<exe>";
+         }
+         else if (fname != info.dli_fname)
+         {
+            fname = info.dli_fname;
+            std::cerr << '\n';
+#ifdef __linux__
+            std::cerr << "addr2line -C -e " << fname;
+#else
+            std::cerr << "atos -o " << fname << " -l "
+                      << (err ? 0 : info.dli_fbase);
 #endif
+         }
+         std::cerr << " 0x" << addrs[i];
+      }
+      std::cerr << '\n';
+   }
+#endif
+   std::cerr << std::endl;
+#endif // MFEM_USE_LIBUNWIND
 
 #ifdef MFEM_USE_MPI
    MPI_Abort(MPI_COMM_WORLD, 1);

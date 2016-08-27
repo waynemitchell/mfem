@@ -355,6 +355,7 @@ status info:
 	$(info MFEM_USE_MPI         = $(MFEM_USE_MPI))
 	$(info MFEM_USE_METIS_5     = $(MFEM_USE_METIS_5))
 	$(info MFEM_DEBUG           = $(MFEM_DEBUG))
+	$(info MFEM_USE_LIBUNWIND   = $(MFEM_USE_LIBUNWIND))
 	$(info MFEM_USE_LAPACK      = $(MFEM_USE_LAPACK))
 	$(info MFEM_THREAD_SAFE     = $(MFEM_THREAD_SAFE))
 	$(info MFEM_USE_OPENMP      = $(MFEM_USE_OPENMP))
