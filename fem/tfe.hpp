@@ -109,8 +109,8 @@ protected:
       }
       else
       {
-         H1_SegmentElement *fe =
-            new H1_SegmentElement(P, BasisType::GetQuadrature1D(type));
+         int pt_type = BasisType::GetQuadrature1D(type);
+         H1_SegmentElement *fe = new H1_SegmentElement(P, pt_type);
          my_fe = fe;
          my_dof_map = &fe->GetDofMap();
       }
@@ -226,11 +226,11 @@ protected:
       }
       else
       {
-         H1_QuadrilateralElement *fe =
-            new H1_QuadrilateralElement(P, BasisType::GetQuadrature1D(type));
+         int pt_type = BasisType::GetQuadrature1D(type);
+         H1_QuadrilateralElement *fe = new H1_QuadrilateralElement(P, pt_type);
          my_fe = fe;
          my_dof_map = &fe->GetDofMap();
-         my_fe_1d = new L2_SegmentElement(P, BasisType::GetQuadrature1D(type));
+         my_fe_1d = new L2_SegmentElement(P, pt_type);
       }
    }
 
@@ -345,11 +345,11 @@ protected:
       }
       else
       {
-         H1_HexahedronElement *fe =
-            new H1_HexahedronElement(P, BasisType::GetQuadrature1D(type));
+         int pt_type = BasisType::GetQuadrature1D(type);
+         H1_HexahedronElement *fe = new H1_HexahedronElement(P, pt_type);
          my_fe = fe;
          my_dof_map = &fe->GetDofMap();
-         my_fe_1d = new L2_SegmentElement(P, 1);
+         my_fe_1d = new L2_SegmentElement(P, pt_type);
       }
    }
 
