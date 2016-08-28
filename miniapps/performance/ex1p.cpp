@@ -121,6 +121,7 @@ int main(int argc, char *argv[])
       MPI_Finalize();
       return 2;
    }
+   if (!perf) { matrix_free = false; }
    if (myid == 0)
    {
       args.PrintOptions(cout);
