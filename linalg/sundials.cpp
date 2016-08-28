@@ -28,7 +28,7 @@
 
 // This just hides a warning (to be removed after it's fixed in SUNDIALS).
 #ifdef MSG_TIME_INT
-  #undef MSG_TIME_INT
+#undef MSG_TIME_INT
 #endif
 
 #include <arkode/arkode_impl.h>
@@ -48,7 +48,7 @@ using namespace std;
 static void ConnectNVector(mfem::Vector &mv, N_Vector &nv)
 {
    nv = N_VMake_Serial(mv.Size(),
-                      static_cast<realtype *>(mv.GetData()));
+                       static_cast<realtype *>(mv.GetData()));
    MFEM_ASSERT(static_cast<void *>(nv) != NULL, "N_VMake_Serial() failed!");
 }
 
@@ -124,7 +124,7 @@ static int KinSolJacAction(N_Vector v, N_Vector Jv, N_Vector u,
    ConnectMFEMVector(Jv, mfem_Jv);
 
    mfem::Operator &J =
-         static_cast<mfem::Operator *>(user_data)->GetGradient(mfem_u);
+      static_cast<mfem::Operator *>(user_data)->GetGradient(mfem_u);
    J.Mult(mfem_v, mfem_Jv);
    return 0;
 }
@@ -153,7 +153,7 @@ static int WrapLinearCVSolve(CVodeMem cv_mem, N_Vector b,
    ConnectMFEMVector(b, solve_b);
 
    mfem::SundialsLinearSolveOperator *op =
-         static_cast<mfem::SundialsLinearSolveOperator *>(cv_mem->cv_lmem);
+      static_cast<mfem::SundialsLinearSolveOperator *>(cv_mem->cv_lmem);
    op->SolveJacobian(&solve_b, &solve_y, cv_mem->cv_gamma);
    return 0;
 }
@@ -190,7 +190,7 @@ static int WrapLinearARKSolve(ARKodeMem ark_mem, N_Vector b,
    ConnectMFEMVector(b, solve_b);
 
    mfem::SundialsLinearSolveOperator *op =
-         static_cast<mfem::SundialsLinearSolveOperator *>(ark_mem->ark_lmem);
+      static_cast<mfem::SundialsLinearSolveOperator *>(ark_mem->ark_lmem);
    op->SolveJacobian(&solve_b, &solve_y, ark_mem->ark_gamma);
    return 0;
 }
@@ -447,7 +447,7 @@ ARKODESolver::~ARKODESolver()
 }
 
 KinSolver::KinSolver(Operator &oper, Vector &mfem_u,
-                             bool parallel, bool use_oper_grad)
+                     bool parallel, bool use_oper_grad)
    : kin_mem(NULL)
 {
    connectNV = (parallel) ? ConnectParNVector : ConnectNVector;
@@ -486,7 +486,7 @@ void KinSolver::SetScaledStepTol(double tol)
 }
 
 void KinSolver::Solve(Vector &mfem_u,
-                          Vector &mfem_u_scale, Vector &mfem_f_scale)
+                      Vector &mfem_u_scale, Vector &mfem_f_scale)
 {
    (*connectNV)(mfem_u, u);
    (*connectNV)(mfem_u_scale, u_scale);
@@ -494,7 +494,7 @@ void KinSolver::Solve(Vector &mfem_u,
 
    // LINESEARCH might be fancier, but more fragile near convergence.
    int strategy = KIN_LINESEARCH;
-//   int strategy = KIN_NONE;
+   //   int strategy = KIN_NONE;
    int flag = KINSol(kin_mem, u, strategy, u_scale, f_scale);
    MFEM_VERIFY(flag == KIN_SUCCESS || flag == KIN_INITIAL_GUESS_OK,
                "KINSol returned " << flag << " that indicated a problem!");

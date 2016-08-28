@@ -143,7 +143,7 @@ public:
    /// use_oper_grad = true will use oper.GetGradient() to determine
    /// the action of the Jacobian.
    KinSolver(Operator &oper, Vector &mfem_u,
-                 bool parallel, bool use_oper_grad = false);
+             bool parallel, bool use_oper_grad = false);
    ~KinSolver();
 
    void SetPrintLevel(int level);

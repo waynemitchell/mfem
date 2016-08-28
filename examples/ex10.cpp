@@ -337,7 +337,7 @@ int main(int argc, char *argv[])
          ode_solver = new CVODESolver(vx, false, CV_BDF, CV_NEWTON);
          // Custom Jacobian inversion.
          static_cast<CVODESolver *>(ode_solver)->
-            SetLinearSolve(oper.backward_euler_oper);
+         SetLinearSolve(oper.backward_euler_oper);
          break;
       case 6:
          ode_solver = new ARKODESolver(vx, false, false); break;
@@ -345,7 +345,7 @@ int main(int argc, char *argv[])
          ode_solver = new ARKODESolver(vx, false, false);
          // Custom Jacobian inversion.
          static_cast<ARKODESolver *>(ode_solver)->
-            SetLinearSolve(oper.backward_euler_oper);
+         SetLinearSolve(oper.backward_euler_oper);
          break;
       case 15:
          ode_solver = new CVODESolver(vx, false); break;
