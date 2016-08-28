@@ -329,16 +329,15 @@ int main(int argc, char *argv[])
    // 8. Perform time-integration (looping over the time iterations, ti, with a
    //    time-step dt).
    double t = 0.0;
+   CVODESolver *cvode_solver;
+   ARKODESolver *arkode_solver;
    switch (ode_solver_type)
    {
-      CVODESolver *cvode_solver;
-      ARKODESolver *arkode_solver;
-
       case 4:
          ode_solver = new CVODESolver(vx, false, CV_BDF, CV_NEWTON); break;
       case 5:
          ode_solver = cvode_solver =
-            new CVODESolver(vx, false, CV_BDF, CV_NEWTON);
+                         new CVODESolver(vx, false, CV_BDF, CV_NEWTON);
          // Custom Jacobian inversion.
          cvode_solver->SetLinearSolve(oper.backward_euler_oper);
          break;
