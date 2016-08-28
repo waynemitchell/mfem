@@ -207,10 +207,22 @@ FiniteElementCollection *FiniteElementCollection::New(const char *name)
    {
       fec = new DG_Interface_FECollection(atoi(name + 13), atoi(name + 9));
    }
+   else if (!strncmp(name, "DG_Iface@", 9))
+   {
+      fec = new DG_Interface_FECollection(atoi(name + 15), atoi(name + 11),
+                                          FiniteElement::VALUE,
+                                          BasisType::GetType(name[9]));
+   }
    else if (!strncmp(name, "DG_IntIface_", 12))
    {
       fec = new DG_Interface_FECollection(atoi(name + 16), atoi(name + 12),
                                           FiniteElement::INTEGRAL);
+   }
+   else if (!strncmp(name, "DG_IntIface@", 12))
+   {
+      fec = new DG_Interface_FECollection(atoi(name + 18), atoi(name + 14),
+                                          FiniteElement::INTEGRAL,
+                                          BasisType::GetType(name[12]));
    }
    else if (!strncmp(name, "RT_", 3))
    {
@@ -1528,7 +1540,7 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
       }
       else
       {
-         H1_Elements[Geometry::TRIANGLE] = new H1_TriangleElement(p);
+         H1_Elements[Geometry::TRIANGLE] = new H1_TriangleElement(p, pt_type);
          H1_Elements[Geometry::SQUARE] = new H1_QuadrilateralElement(p,pt_type);
       }
 
@@ -1588,8 +1600,8 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
          }
          else
          {
-            // TODO: support for pt_type for tets
-            H1_Elements[Geometry::TETRAHEDRON] = new H1_TetrahedronElement(p);
+            H1_Elements[Geometry::TETRAHEDRON] =
+               new H1_TetrahedronElement(p, pt_type);
             H1_Elements[Geometry::CUBE] = new H1_HexahedronElement(p, pt_type);
          }
       }
@@ -1852,6 +1864,7 @@ RT_FECollection::RT_FECollection(const int p, const int dim,
    const int pp1 = p + 1;
    if (dim == 2)
    {
+      // TODO: cp_type, op_type for triangles
       RT_Elements[Geometry::TRIANGLE] = new RT_TriangleElement(p);
       RT_dof[Geometry::TRIANGLE] = p*pp1;
 
@@ -1862,6 +1875,7 @@ RT_FECollection::RT_FECollection(const int p, const int dim,
    }
    else if (dim == 3)
    {
+      // TODO: cp_type, op_type for tets
       RT_Elements[Geometry::TETRAHEDRON] = new RT_TetrahedronElement(p);
       RT_dof[Geometry::TETRAHEDRON] = p*pp1*(p + 2)/2;
 
@@ -2073,19 +2087,23 @@ RT_Trace_FECollection::RT_Trace_FECollection(const int p, const int dim,
 
 
 DG_Interface_FECollection::DG_Interface_FECollection(const int p, const int dim,
-                                                     const int map_type)
-   : RT_FECollection(p, dim, map_type, false)
+                                                     const int map_type,
+                                                     const int ob_type)
+   : RT_FECollection(p, dim, map_type, false, ob_type)
 {
-   if (map_type == FiniteElement::VALUE)
+   MFEM_VERIFY(dim == 2 || dim == 3, "Wrong dimension, dim = " << dim);
+
+   const char *prefix =
+      (map_type == FiniteElement::VALUE) ? "DG_Iface" : "DG_IntIface";
+   if (ob_type == BasisType::GaussLegendre)
    {
-      snprintf(rt_name, 32, "DG_Iface_%dD_P%d", dim, p);
+      snprintf(rt_name, 32, "%s_%dD_P%d", prefix, dim, p);
    }
    else
    {
-      snprintf(rt_name, 32, "DG_IntIface_%dD_P%d", dim, p);
+      snprintf(rt_name, 32, "%s@%c_%dD_P%d", prefix,
+               (int)BasisType::GetChar(ob_type), dim, p);
    }
-
-   MFEM_VERIFY(dim == 2 || dim == 3, "Wrong dimension, dim = " << dim);
 }
 
 ND_FECollection::ND_FECollection(const int p, const int dim,
