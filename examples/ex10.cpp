@@ -183,11 +183,11 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Order (degree) of the finite elements.");
    args.AddOption(&ode_solver_type, "-s", "--ode-solver",
-                  "ODE solver: 1 - Backward Euler, 2 - SDIRK2, 3 - SDIRK3,"
-                  " 4/5 - CVODE default implicit,"
+                  "ODE solver: 1 - Backward Euler, 2 - SDIRK2, 3 - SDIRK3,\n"
+                  "\t            4/5 - CVODE default implicit,"
                   " 6/7 - ARKODE default implicit,\n\t"
-                  "\t    11 - Forward Euler, 12 - RK2, 13 - RK3 SSP,"
-                  " 14 - RK4, 15 - CVODE default explicit,"
+                  "\t    11 - Forward Euler, 12 - RK2, 13 - RK3 SSP, 14 - RK4,\n\t"
+                  "\t    15 - CVODE default explicit,"
                   " 16 - ARKODE default explicit.");
    args.AddOption(&t_final, "-tf", "--t-final",
                   "Final time; start time is 0.");
@@ -331,21 +331,23 @@ int main(int argc, char *argv[])
    double t = 0.0;
    switch (ode_solver_type)
    {
+      CVODESolver *cvode_solver;
+      ARKODESolver *arkode_solver;
+
       case 4:
          ode_solver = new CVODESolver(vx, false, CV_BDF, CV_NEWTON); break;
       case 5:
-         ode_solver = new CVODESolver(vx, false, CV_BDF, CV_NEWTON);
+         ode_solver = cvode_solver =
+            new CVODESolver(vx, false, CV_BDF, CV_NEWTON);
          // Custom Jacobian inversion.
-         static_cast<CVODESolver *>(ode_solver)->
-         SetLinearSolve(oper.backward_euler_oper);
+         cvode_solver->SetLinearSolve(oper.backward_euler_oper);
          break;
       case 6:
          ode_solver = new ARKODESolver(vx, false, false); break;
       case 7:
-         ode_solver = new ARKODESolver(vx, false, false);
+         ode_solver = arkode_solver = new ARKODESolver(vx, false, false);
          // Custom Jacobian inversion.
-         static_cast<ARKODESolver *>(ode_solver)->
-         SetLinearSolve(oper.backward_euler_oper);
+         arkode_solver->SetLinearSolve(oper.backward_euler_oper);
          break;
       case 15:
          ode_solver = new CVODESolver(vx, false); break;
