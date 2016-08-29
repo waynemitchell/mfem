@@ -74,6 +74,7 @@ int main(int argc, char *argv[])
    // 1. Parse command-line options.
    const char *mesh_file = "../../data/fichera.mesh";
    int order = sol_p;
+   const char *basis_type = "G"; // Gauss-Lobatto
    bool static_cond = false;
    bool visualization = 1;
    bool perf = true;
@@ -85,6 +86,8 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
+   args.AddOption(&basis_type, "-b", "--basis-type",
+                  "Basis: G - Gauss-Lobatto, P - Positive, U - Uniform");
    args.AddOption(&perf, "-perf", "--hpc-version", "-std", "--standard-version",
                   "Enable high-performance, tensor-based, assembly/evaluation.");
    args.AddOption(&matrix_free, "-mf", "--matrix-free", "-asm", "--assembly",
@@ -109,6 +112,10 @@ int main(int argc, char *argv[])
    }
    if (!perf) { matrix_free = false; }
    args.PrintOptions(cout);
+
+   // See class BasisType in fem/fe_coll.hpp for available basis types
+   int basis = BasisType::GetType(basis_type[0]);
+   cout << "Using " << BasisType::Name(basis) << " basis ..." << endl;
 
    // 2. Read the mesh from the given mesh file. We can handle triangular,
    //    quadrilateral, tetrahedral, hexahedral, surface and volume meshes with
@@ -155,7 +162,7 @@ int main(int argc, char *argv[])
    FiniteElementCollection *fec;
    if (order > 0)
    {
-      fec = new H1_FECollection(order, dim);
+      fec = new H1_FECollection(order, dim, basis);
    }
    else if (mesh->GetNodes())
    {
@@ -164,7 +171,7 @@ int main(int argc, char *argv[])
    }
    else
    {
-      fec = new H1_FECollection(order = 1, dim);
+      fec = new H1_FECollection(order = 1, dim, basis);
    }
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
    cout << "Number of finite element unknowns: "
