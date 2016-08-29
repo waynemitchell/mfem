@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
 {
    // 1. Parse command-line options.
    const char *mesh_file = "../../data/fichera.mesh";
-   int basis_indx = 0; // Gauss-Lobatto
+   int basis = 0; // Gauss-Lobatto
    int order = sol_p;
    bool static_cond = false;
    bool visualization = 1;
@@ -87,8 +87,8 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
-   args.AddOption(&basis_indx, "-b", "--basis-type",
-                  "Basis; `0': Gauss-Lobatto, `1': Bernstein, `2': Uniform");
+   args.AddOption(&basis, "-b", "--basis-type",
+                  "Basis: 0 - Gauss-Lobatto, 1 - Bernstein, 2 - Uniform");
    args.AddOption(&perf, "-perf", "--hpc-version", "-std", "--standard-version",
                   "Enable high-performance, tensor-based, assembly/evaluation.");
    args.AddOption(&matrix_free, "-mf", "--matrix-free", "-asm", "--assembly",
@@ -114,19 +114,11 @@ int main(int argc, char *argv[])
    if (!perf) { matrix_free = false; }
    args.PrintOptions(cout);
 
-   // See BasisType::GetType for (possibly) more avail. bases
-   const char bases[] = { 'G', 'P', 'U'};
-   int basis;
-   if (basis_indx >= strlen(bases) || basis_indx < 0)
-   {
-      cerr << "Invalid basis type provided" << endl;
-      return 1;
-   }
-   else
-   {
-      basis = BasisType::GetType(bases[basis_indx]);
-      cout << "Basis type of " << BasisType::Name(basis) << " chosen." << endl;
-   }
+   // See class BasisType in fem/fe_coll.hpp for available basis types
+   const char bases[] = "GPU";
+   if (basis >= (int) strlen(bases) || basis < 0) { basis = 0; }
+   basis = BasisType::GetType(bases[basis]);
+   cout << "Using " << BasisType::Name(basis) << " basis ..." << endl;
 
    // 2. Read the mesh from the given mesh file. We can handle triangular,
    //    quadrilateral, tetrahedral, hexahedral, surface and volume meshes with

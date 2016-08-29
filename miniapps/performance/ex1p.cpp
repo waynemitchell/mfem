@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
    // 2. Parse command-line options.
    const char *mesh_file = "../../data/fichera.mesh";
    int order = sol_p;
-   int basis_indx = 0; // Gauss-Lobatto basis
+   int basis = 0; // Gauss-Lobatto basis
    bool static_cond = false;
    bool visualization = 1;
    bool perf = true;
@@ -93,8 +93,8 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
-   args.AddOption(&basis_indx, "-b", "--basis-type",
-                  "Basis; `0': Gauss-Lobatto, `1': Bernstein, `2': Uniform");
+   args.AddOption(&basis, "-b", "--basis-type",
+                  "Basis: 0 - Gauss-Lobatto, 1 - Bernstein, 2 - Uniform");
    args.AddOption(&perf, "-perf", "--hpc-version", "-std", "--standard-version",
                   "Enable high-performance, tensor-based, assembly/evaluation.");
    args.AddOption(&matrix_free, "-mf", "--matrix-free", "-asm", "--assembly",
@@ -132,24 +132,12 @@ int main(int argc, char *argv[])
    }
 
    // See BasisType::GetType for (possibly) more avail. bases
-   const char bases[] = { 'G', 'P', 'U'};
-   int basis;
-   if (basis_indx >= strlen(bases) || basis_indx < 0)
+   const char bases[] = "GPU";
+   if (basis >= (int) strlen(bases) || basis < 0) { basis = 0; }
+   basis = BasisType::GetType(bases[basis]);
+   if (myid == 0)
    {
-      if (myid == 0)
-      {
-         cerr << "Invalid basis type provided" << endl;
-      }
-      return 1;
-   }
-   else
-   {
-      basis = BasisType::GetType(bases[basis_indx]);
-      if (myid == 0)
-      {
-         cout << "Basis type of " << BasisType::Name(basis) << " chosen."
-              << endl;
-      }
+      cout << "Using " << BasisType::Name(basis) << " basis ..." << endl;
    }
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
