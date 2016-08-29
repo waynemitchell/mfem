@@ -39,7 +39,6 @@
 //               optional connection to the GLVis tool for visualization.
 
 #include "mfem-performance.hpp"
-#include <cstring>
 #include <fstream>
 #include <iostream>
 
@@ -81,7 +80,7 @@ int main(int argc, char *argv[])
    // 2. Parse command-line options.
    const char *mesh_file = "../../data/fichera.mesh";
    int order = sol_p;
-   int basis = 0; // Gauss-Lobatto basis
+   const char *basis_type = "G"; // Gauss-Lobatto
    bool static_cond = false;
    bool visualization = 1;
    bool perf = true;
@@ -93,8 +92,8 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
-   args.AddOption(&basis, "-b", "--basis-type",
-                  "Basis: 0 - Gauss-Lobatto, 1 - Bernstein, 2 - Uniform");
+   args.AddOption(&basis_type, "-b", "--basis-type",
+                  "Basis: G - Gauss-Lobatto, P - Positive, U - Uniform");
    args.AddOption(&perf, "-perf", "--hpc-version", "-std", "--standard-version",
                   "Enable high-performance, tensor-based, assembly/evaluation.");
    args.AddOption(&matrix_free, "-mf", "--matrix-free", "-asm", "--assembly",
@@ -131,10 +130,8 @@ int main(int argc, char *argv[])
       args.PrintOptions(cout);
    }
 
-   // See BasisType::GetType for (possibly) more avail. bases
-   const char bases[] = "GPU";
-   if (basis >= (int) strlen(bases) || basis < 0) { basis = 0; }
-   basis = BasisType::GetType(bases[basis]);
+   // See class BasisType in fem/fe_coll.hpp for available basis types
+   int basis = BasisType::GetType(basis_type[0]);
    if (myid == 0)
    {
       cout << "Using " << BasisType::Name(basis) << " basis ..." << endl;
