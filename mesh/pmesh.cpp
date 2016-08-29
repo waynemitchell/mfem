@@ -682,10 +682,8 @@ ParMesh::ParMesh(MPI_Comm comm, istream &input)
    // read the serial part of the mesh
    int gen_edges = 1;
    int refine    = 1;
-   refine = 0;
    bool fix_orientation = false;
    Load(input, gen_edges, refine, fix_orientation);
-   refine = 1;
 
    skip_comment_lines(input, '#');
 
@@ -876,6 +874,15 @@ ParMesh::ParMesh(MPI_Comm comm, istream &input)
          {
             DoNodeReorder(old_v_to_v, old_elem_vert);
          }
+         else
+         {
+            GetElementToFaceTable();
+            GenerateFaces();
+            if (el_to_edge)
+            {
+               NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+            }
+         }
          delete old_elem_vert;
          delete old_v_to_v;
 #endif
@@ -1011,10 +1018,20 @@ ParMesh::ParMesh(MPI_Comm comm, istream &input)
       {
          DoNodeReorder(v_to_v, old_elem_vert);
       }
+      else
+      {
+         GetElementToFaceTable();
+         GenerateFaces();
+         if (el_to_edge)
+         {
+            NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+         }
+      }
       delete old_elem_vert;
    }
    delete v_to_v;
-#endif
+
+#endif // Version B format
 
    // If the mesh has Nodes, convert them from GridFunction to ParGridFunction?
 

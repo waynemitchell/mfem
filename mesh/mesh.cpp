@@ -1587,6 +1587,7 @@ void Mesh::DoNodeReorder(DSTable *old_v_to_v, Table *old_elem_vert)
          CheckBdrElementOrientation();
       }
    }
+   Nodes->FESpace()->RebuildElementToDofTable();
 }
 
 void Mesh::FinalizeTetMesh(int generate_edges, int refine, bool fix_orientation)
@@ -2558,8 +2559,6 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
             delete old_elem_vert;
             delete old_v_to_v;
          }
-
-         Nodes->FESpace()->RebuildElementToDofTable();
 
          // TODO: maybe introduce Mesh::NODE_REORDER operation and FESpace::
          // NodeReorderMatrix and do Nodes->Update() instead of DoNodeReorder?
@@ -4250,8 +4249,6 @@ void Mesh::ReorientTetMesh()
       DoNodeReorder(old_v_to_v, old_elem_vert);
       delete old_elem_vert;
       delete old_v_to_v;
-
-      Nodes->FESpace()->RebuildElementToDofTable();
    }
 }
 
