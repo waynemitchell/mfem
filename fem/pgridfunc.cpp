@@ -92,11 +92,6 @@ void ParGridFunction::AddDistribute(double a, const Vector *tv)
    pfes->Dof_TrueDof_Matrix()->Mult(a, *tv, 1.0, *this);
 }
 
-void ParGridFunction::GetTrueDofs(Vector &tv) const
-{
-   pfes->GetRestrictionMatrix()->Mult(*this, tv);
-}
-
 HypreParVector *ParGridFunction::GetTrueDofs() const
 {
    HypreParVector *tv = pfes->NewTrueDofVector();

@@ -39,6 +39,7 @@
 //               optional connection to the GLVis tool for visualization.
 
 #include "mfem-performance.hpp"
+#include <cstring>
 #include <fstream>
 #include <iostream>
 
@@ -108,6 +109,7 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../../data/fichera.mesh";
    const char *pc = "default";
    int order = sol_p;
+   int basis_indx = 0; // Gauss-Lobatto basis
    bool static_cond = false;
    bool visualization = 1;
    bool perf = true;
@@ -119,6 +121,8 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
+   args.AddOption(&basis_indx, "-b", "--basis-type",
+                  "Basis; `0': Gauss-Lobatto, `1': Bernstein, `2': Uniform");
    args.AddOption(&perf, "-perf", "--hpc-version", "-std", "--standard-version",
                   "Enable high-performance, tensor-based, assembly/evaluation.");
    args.AddOption(&matrix_free, "-mf", "--matrix-free", "-asm", "--assembly",
@@ -141,6 +145,17 @@ int main(int argc, char *argv[])
       MPI_Finalize();
       return 1;
    }
+   if (static_cond && perf && matrix_free)
+   {
+      if (myid == 0)
+      {
+         cout << "\nStatic condensation can not be used with matrix-free"
+              " evaluation!\n" << endl;
+      }
+      MPI_Finalize();
+      return 2;
+   }
+   if (!perf) { matrix_free = false; }
    if (myid == 0)
    {
       args.PrintOptions(cout);
@@ -159,6 +174,27 @@ int main(int argc, char *argv[])
    else
    {
       pc_choice = AMG;
+   }
+
+   // See BasisType::GetType for (possibly) more avail. bases
+   const char bases[] = { 'G', 'P', 'U'};
+   int basis;
+   if (basis_indx >= strlen(bases) || basis_indx < 0)
+   {
+      if (myid == 0)
+      {
+         cerr << "Invalid basis type provided" << endl;
+      }
+      return 1;
+   }
+   else
+   {
+      basis = BasisType::GetType(bases[basis_indx]);
+      if (myid == 0)
+      {
+         cout << "Basis type of " << BasisType::Name(basis) << " chosen."
+              << endl;
+      }
    }
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
@@ -229,7 +265,7 @@ int main(int argc, char *argv[])
    FiniteElementCollection *fec;
    if (order > 0)
    {
-      fec = new H1_FECollection(order, dim);
+      fec = new H1_FECollection(order, dim, basis);
    }
    else if (pmesh->GetNodes())
    {
@@ -241,7 +277,7 @@ int main(int argc, char *argv[])
    }
    else
    {
-      fec = new H1_FECollection(order = 1, dim);
+      fec = new H1_FECollection(order = 1, dim, basis);
    }
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
 
@@ -283,9 +319,6 @@ int main(int argc, char *argv[])
       fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
    }
 
-   HypreParMatrix *P = fespace->Dof_TrueDof_Matrix();
-   const SparseMatrix *R = fespace->GetRestrictionMatrix();
-
    // 10. Set up the parallel linear form b(.) which corresponds to the
    //     right-hand side of the FEM linear system, which in this case is
    //     (1,phi_i) where phi_i are the basis functions in fespace.
@@ -321,9 +354,9 @@ int main(int argc, char *argv[])
    //a->UsePrecomputedSparsity();
 
    HPCBilinearForm *a_hpc = NULL;
-   ConstrainedOperator *a_oper = NULL;
    HPCBilinearForm_lor *a_hpc_lor = NULL;
-   ConstrainedOperator *a_oper_lor = NULL;
+   Operator *a_oper = NULL;
+   Operator *a_oper_lor = NULL;
 
    if (!perf)
    {
@@ -346,12 +379,8 @@ int main(int argc, char *argv[])
       */
       if (matrix_free)
       {
-         a_hpc->Assemble(); // Chooses between ::MultAssembled and ::MultUnassembled
-         a_hpc_lor->Assemble(); // Chooses between ::MultAssembled and ::MultUnassembled
-         RAPOperator *a_hpc_par = new RAPOperator(*P, *a_hpc, *P);
-         RAPOperator *a_hpc_par_lor = new RAPOperator(*P, *a_hpc_lor, *P);
-         a_oper = new ConstrainedOperator(a_hpc_par, ess_tdof_list);
-         a_oper_lor = new ConstrainedOperator(a_hpc_par_lor, ess_tdof_list);
+         a_hpc->Assemble(); // partial assembly 
+         a_hpc_lor->Assemble(); // partial assembly
          if (pc_choice == AMG)
          {
             // Choosing between these is helpful because the standard assembly has
@@ -366,7 +395,7 @@ int main(int argc, char *argv[])
       }
       else
       {
-         a_hpc->AssembleBilinearForm(*a);
+         a_hpc->AssembleBilinearForm(*a); // full local matrix assembly
       }
    }
    tic_toc.Stop();
@@ -382,17 +411,6 @@ int main(int argc, char *argv[])
    Vector B_cp, X_cp;
    if (perf && matrix_free)
    {
-      // Variational restriction with P
-      X.SetSize(fespace->TrueVSize());
-      B.SetSize(X.Size());
-      X_cp.SetSize(fespace->TrueVSize());
-      B_cp.SetSize(X.Size());
-      P->MultTranspose(*b, B);
-      P->MultTranspose(*b, B_cp);
-      R->Mult(x, X);
-      R->Mult(x, X_cp);
-      a_oper->EliminateRHS(X, B);
-      a_oper_lor->EliminateRHS(X_cp, B_cp);
       if (pc_choice == AMG)
       {
          if (myid == 0)
@@ -402,6 +420,13 @@ int main(int argc, char *argv[])
          Vector X_tmp, B_tmp;
          a_lor->FormLinearSystem(ess_tdof_list, x, *b, A, X_tmp, B_tmp);
          //a->FormLinearSystem(ess_tdof_list, x, *b, A, X_tmp, B_tmp);
+      }
+      a_hpc->FormLinearSystem(ess_tdof_list, x, *b, a_oper, X, B);
+      a_hpc_lor->FormLinearSystem(ess_tdof_list, x, *b, a_oper_lor, X_cp, B_cp);
+      HYPRE_Int glob_size = fespace->GlobalTrueVSize();
+      if (myid == 0)
+      {
+         cout << "Size of linear system: " << glob_size << endl;
       }
    }
    else
@@ -479,11 +504,10 @@ int main(int argc, char *argv[])
    }
    else
    {
-      HypreSolver *amg = new HypreBoomerAMG(A);
+      HypreBoomerAMG amg(A);
       pcg->SetOperator(A);
-      pcg->SetPreconditioner(*amg);
+      pcg->SetPreconditioner(amg);
       pcg->Mult(B, X);
-      delete amg;
    }
    tic_toc.Stop();
    if (myid == 0)
@@ -496,7 +520,7 @@ int main(int argc, char *argv[])
    //     local finite element solution on each processor.
    if (perf && matrix_free)
    {
-      P->Mult(X, x);
+      a_hpc->RecoverFEMSolution(X, *b, x);
    }
    else
    {

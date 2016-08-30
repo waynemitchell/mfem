@@ -39,6 +39,7 @@
 //               optional connection to the GLVis tool for visualization.
 
 #include "mfem-performance.hpp"
+#include <cstring>
 #include <fstream>
 #include <iostream>
 
@@ -95,6 +96,7 @@ int main(int argc, char *argv[])
 {
    // 1. Parse command-line options.
    const char *mesh_file = "../../data/fichera.mesh";
+   int basis_indx = 0; // Gauss-Lobatto
    int order = sol_p;
    bool static_cond = false;
    bool visualization = 1;
@@ -107,6 +109,8 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
+   args.AddOption(&basis_indx, "-b", "--basis-type",
+                  "Basis; `0': Gauss-Lobatto, `1': Bernstein, `2': Uniform");
    args.AddOption(&perf, "-perf", "--hpc-version", "-std", "--standard-version",
                   "Enable high-performance, tensor-based, assembly/evaluation.");
    args.AddOption(&matrix_free, "-mf", "--matrix-free", "-asm", "--assembly",
@@ -123,7 +127,28 @@ int main(int argc, char *argv[])
       args.PrintUsage(cout);
       return 1;
    }
+   if (static_cond && perf && matrix_free)
+   {
+      cout << "\nStatic condensation can not be used with matrix-free"
+           " evaluation!\n" << endl;
+      return 2;
+   }
+   if (!perf) { matrix_free = false; }
    args.PrintOptions(cout);
+
+   // See BasisType::GetType for (possibly) more avail. bases
+   const char bases[] = { 'G', 'P', 'U'};
+   int basis;
+   if (basis_indx >= strlen(bases) || basis_indx < 0)
+   {
+      cerr << "Invalid basis type provided" << endl;
+      return 1;
+   }
+   else
+   {
+      basis = BasisType::GetType(bases[basis_indx]);
+      cout << "Basis type of " << BasisType::Name(basis) << " chosen." << endl;
+   }
 
    // 2. Read the mesh from the given mesh file. We can handle triangular,
    //    quadrilateral, tetrahedral, hexahedral, surface and volume meshes with
@@ -170,7 +195,7 @@ int main(int argc, char *argv[])
    FiniteElementCollection *fec;
    if (order > 0)
    {
-      fec = new H1_FECollection(order, dim);
+      fec = new H1_FECollection(order, dim, basis);
    }
    else if (mesh->GetNodes())
    {
@@ -179,7 +204,7 @@ int main(int argc, char *argv[])
    }
    else
    {
-      fec = new H1_FECollection(order = 1, dim);
+      fec = new H1_FECollection(order = 1, dim, basis);
    }
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
 
@@ -245,9 +270,9 @@ int main(int argc, char *argv[])
    a->UsePrecomputedSparsity();
 
    HPCBilinearForm *a_hpc = NULL;
-   ConstrainedOperator *a_oper = NULL;
    HPCBilinearForm_lor *a_hpc_lor = NULL;
-   ConstrainedOperator *a_oper_lor = NULL;
+   Operator *a_oper = NULL;
+   Operator *a_oper_lor = NULL;
 
    if (!perf)
    {
@@ -262,15 +287,13 @@ int main(int argc, char *argv[])
       a_hpc_lor = new HPCBilinearForm_lor(integ_t(coeff_t(1.0)), *fespace_lor);
       if (matrix_free)
       {
-         a_hpc->Assemble(); // Chooses between ::MultAssembled and ::MultUnassembled
-         a_hpc_lor->Assemble(); // Chooses between ::MultAssembled and ::MultUnassembled
-         a_oper = new ConstrainedOperator(a_hpc, ess_tdof_list);
-         a_oper_lor = new ConstrainedOperator(a_hpc_lor, ess_tdof_list);
+         a_hpc->Assemble(); // partial assembly
+         a_hpc_lor->Assemble(); // partial assembly
       }
       else
       {
-         a_hpc->AssembleBilinearForm(*a);
-         a_hpc_lor->AssembleBilinearForm(*a_lor);
+         a_hpc->AssembleBilinearForm(*a); // full matrix assembly
+         a_hpc_lor->AssembleBilinearForm(*a_lor); // full matrix assembly
       }
    }
    tic_toc.Stop();
@@ -283,18 +306,14 @@ int main(int argc, char *argv[])
    Vector B_cp, X_cp;
    if (perf && matrix_free)
    {
-      // X and B point to the same data as x and b
-      X.NewDataAndSize(x.GetData(), x.Size());
-      B.NewDataAndSize(b->GetData(), b->Size());
-      X_cp.NewDataAndSize(x.GetData(), x.Size());
-      B_cp.NewDataAndSize(b->GetData(), b->Size());
-      a_oper->EliminateRHS(X, B);
-      a_oper_lor->EliminateRHS(X_cp, B_cp);
+      a_hpc->FormLinearSystem(ess_tdof_list, x, *b, a_oper, X, B);
+      a_hpc_lor->FormLinearSystem(ess_tdof_list, x, *b, a_oper_lor, X_cp, B_cp);
+      cout << "Size of linear system: " << a_hpc->Height() << endl;
    }
    else
    {
       a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
-      cout << "Size of linear system: " << a->Height() << endl;
+      cout << "Size of linear system: " << A.Height() << endl;
    }
 
    if (perf && matrix_free)
@@ -321,7 +340,7 @@ int main(int argc, char *argv[])
    // 13. Recover the solution as a finite element grid function.
    if (perf && matrix_free)
    {
-      x = X;
+      a_hpc->RecoverFEMSolution(X, *b, x);
    }
    else
    {

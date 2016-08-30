@@ -148,6 +148,8 @@ public:
    const SparseMatrix *GetConformingProlongation();
    const SparseMatrix *GetConformingRestriction();
 
+   virtual const Operator *GetProlongationMatrix()
+   { return GetConformingProlongation(); }
    virtual const SparseMatrix *GetRestrictionMatrix()
    { return GetConformingRestriction(); }
 

@@ -342,17 +342,14 @@ void ParFiniteElementSpace::GenerateGlobalOffsets()
    }
 }
 
-HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
+void ParFiniteElementSpace::Build_Dof_TrueDof_Matrix() // matrix P
 {
-   if (P)
-   {
-      return P;
-   }
+   if (P) { return; }
 
    if (Nonconforming())
    {
       GetParallelConformingInterpolation();
-      return P;
+      return;
    }
 
    int ldof  = GetVSize();
@@ -406,8 +403,6 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
    SparseMatrix Pdiag;
    P->GetDiag(Pdiag);
    R = Transpose(Pdiag);
-
-   return P;
 }
 
 void ParFiniteElementSpace::DivideByGroupSize(double *vec)
@@ -490,8 +485,7 @@ int ParFiniteElementSpace::GetLocalTDofNumber(int ldof)
 {
    if (Nonconforming())
    {
-      MFEM_VERIFY(P, "Dof_TrueDof_Matrix() needs to be called before "
-                  "GetLocalTDofNumber()");
+      Dof_TrueDof_Matrix(); // inline method
 
       return ldof_ltdof[ldof]; // NOTE: contains -1 for slaves/DOFs we don't own
    }

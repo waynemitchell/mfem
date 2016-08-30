@@ -109,8 +109,8 @@ protected:
       }
       else
       {
-         H1_SegmentElement *fe =
-            new H1_SegmentElement(P, BasisType::GetQuadrature1D(type));
+         int pt_type = BasisType::GetQuadrature1D(type);
+         H1_SegmentElement *fe = new H1_SegmentElement(P, pt_type);
          my_fe = fe;
          my_dof_map = &fe->GetDofMap();
       }
@@ -162,14 +162,15 @@ protected:
    parameter_type type; // run-time specified basis type
    void Init(const parameter_type type_)
    {
-      type = BasisType::Check(type_);
+      type = type_;
       if (type == BasisType::Positive)
       {
          my_fe = new H1Pos_TriangleElement(P);
       }
       else
       {
-         my_fe = new H1_TriangleElement(P);
+         int pt_type = BasisType::GetQuadrature1D(type);
+         my_fe = new H1_TriangleElement(P, pt_type);
       }
    }
 
@@ -226,11 +227,11 @@ protected:
       }
       else
       {
-         H1_QuadrilateralElement *fe =
-            new H1_QuadrilateralElement(P, BasisType::GetQuadrature1D(type));
+         int pt_type = BasisType::GetQuadrature1D(type);
+         H1_QuadrilateralElement *fe = new H1_QuadrilateralElement(P, pt_type);
          my_fe = fe;
          my_dof_map = &fe->GetDofMap();
-         my_fe_1d = new L2_SegmentElement(P, BasisType::GetQuadrature1D(type));
+         my_fe_1d = new L2_SegmentElement(P, pt_type);
       }
    }
 
@@ -280,14 +281,15 @@ protected:
    parameter_type type; // run-time specified basis type
    void Init(const parameter_type type_)
    {
-      type = BasisType::Check(type_);
+      type = type_;
       if (type == BasisType::Positive)
       {
          my_fe = new H1Pos_TetrahedronElement(P);
       }
       else
       {
-         my_fe = new H1_TetrahedronElement(P);
+         int pt_type = BasisType::GetQuadrature1D(type);
+         my_fe = new H1_TetrahedronElement(P, pt_type);
       }
    }
 
@@ -345,11 +347,11 @@ protected:
       }
       else
       {
-         H1_HexahedronElement *fe =
-            new H1_HexahedronElement(P, BasisType::GetQuadrature1D(type));
+         int pt_type = BasisType::GetQuadrature1D(type);
+         H1_HexahedronElement *fe = new H1_HexahedronElement(P, pt_type);
          my_fe = fe;
          my_dof_map = &fe->GetDofMap();
-         my_fe_1d = new L2_SegmentElement(P, 1);
+         my_fe_1d = new L2_SegmentElement(P, pt_type);
       }
    }
 
@@ -405,16 +407,17 @@ protected:
 
    void Init(const parameter_type type_)
    {
-      type = BasisType::Check(type_);
-      int pt_type = BasisType::GetQuadrature1D(type);
+      type = type_;
       switch (type)
       {
          case BasisType::Positive:
             my_fe = new L2Pos_FE_type(P);
             my_fe_1d = (TP && dim != 1) ? new L2Pos_SegmentElement(P) : NULL;
             break;
+
          default:
-            my_fe = new L2_FE_type(P, type);
+            int pt_type = BasisType::GetQuadrature1D(type);
+            my_fe = new L2_FE_type(P, pt_type);
             my_fe_1d = (TP && dim != 1) ? new L2_SegmentElement(P, pt_type) :
                        NULL;
       }

@@ -7312,12 +7312,11 @@ void H1Pos_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
 }
 
 
-H1_TriangleElement::H1_TriangleElement(const int p)
+H1_TriangleElement::H1_TriangleElement(const int p, const int type)
    : NodalFiniteElement(2, Geometry::TRIANGLE, ((p + 1)*(p + 2))/2, p,
                         FunctionSpace::Pk)
 {
-   // TODO: add an option for the type of the closed points
-   const double *cp = poly1d.ClosedPoints(p);
+   const double *cp = poly1d.ClosedPoints(p, VerifyClosed(type));
 
 #ifndef MFEM_THREAD_SAFE
    shape_x.SetSize(p + 1);
@@ -7432,12 +7431,11 @@ void H1_TriangleElement::CalcDShape(const IntegrationPoint &ip,
 }
 
 
-H1_TetrahedronElement::H1_TetrahedronElement(const int p)
+H1_TetrahedronElement::H1_TetrahedronElement(const int p, const int type)
    : NodalFiniteElement(3, Geometry::TETRAHEDRON, ((p + 1)*(p + 2)*(p + 3))/6,
                         p, FunctionSpace::Pk)
 {
-   // TODO: add an option for the type of the closed points
-   const double *cp = poly1d.ClosedPoints(p);
+   const double *cp = poly1d.ClosedPoints(p, VerifyClosed(type));
 
 #ifndef MFEM_THREAD_SAFE
    shape_x.SetSize(p + 1);
