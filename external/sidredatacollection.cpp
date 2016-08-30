@@ -356,9 +356,6 @@ void SidreDataCollection::Load(const std::string& path, const std::string& proto
 
    bool useSerial = true;
 
-   std::cout << "Loading Sidre checkpoint: " << path
-             << " using protocol: " << protocol << std::endl;
-
    // read in serial if non-mpi or for debug
 #ifdef MFEM_USE_MPI
 
