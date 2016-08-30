@@ -46,11 +46,11 @@ using namespace std;
 using namespace mfem;
 
 // Define template parameters for optimized build.
-const Geometry::Type geom     = Geometry::SQUARE; // mesh elements  (default: hex)
-const int            mesh_p   = 3;              // mesh curvature (default: 3)
-const int            sol_p    = 3;              // solution order (default: 3)
-const int            mesh_lor_p   = 1;              // mesh curvature (default: 3)
-const int            sol_lor_p    = 1;              // solution order (default: 3)
+const Geometry::Type geom         = Geometry::SQUARE; // mesh elements  (default: hex)
+const int            mesh_p       = 3;                // mesh curvature (default: 3)
+const int            sol_p        = 3;                // solution order (default: 3)
+const int            mesh_lor_p   = 1;                // mesh curvature (default: 3)
+const int            sol_lor_p    = 1;                // solution order (default: 3)
 const int            rdim     = Geometry::Constants<geom>::Dimension;
 const int            ir_order = 2*sol_p+rdim-1;
 const int            ir_order_lor = 2*sol_lor_p+rdim-1;
@@ -93,7 +93,8 @@ typedef H1_FiniteElementSpace<sol_fe_lor_t>       sol_fes_lor_t;
 typedef TIntegrationRule<geom,ir_order_lor>       int_rule_lor_t;
 
 // Static bilinear form type, combining the above types
-typedef TBilinearForm<mesh_lor_t,sol_fes_lor_t,int_rule_lor_t,integ_t> HPCBilinearForm_lor;
+typedef TBilinearForm<mesh_lor_t,sol_fes_lor_t,int_rule_lor_t,integ_t>
+HPCBilinearForm_lor;
 //typedef TBilinearForm<mesh_lor_t,sol_fes_lor_t,int_rule_lor_t,integ_pw_t> HPCBilinearForm_lor;
 
 int main(int argc, char *argv[])
@@ -166,13 +167,16 @@ int main(int argc, char *argv[])
    {
       pc_choice = AMG;
    }
-   else if (matrix_free)
-   {
-      pc_choice = NONE;
-   }
    else
    {
-      pc_choice = AMG;
+      if (matrix_free)
+      {
+         pc_choice = NONE;
+      }
+      else
+      {
+         pc_choice = AMG;
+      }
    }
 
    // See class BasisType in fem/fe_coll.hpp for available basis types
@@ -265,11 +269,14 @@ int main(int argc, char *argv[])
       fec = new H1_FECollection(order = 1, dim, basis);
    }
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
+   fespace->BuildDofToArrays();
 
    ParFiniteElementSpace *fespace_lor = NULL;
    HypreParMatrix P_lor;
    HypreParMatrix R_lor;
    fespace->ParLowOrderRefinement(1, fespace_lor, P_lor, R_lor);
+   std::ofstream fout("LOR.mesh");
+   fespace_lor->GetMesh()->Print(fout);
 
    HYPRE_Int size = fespace->GlobalTrueVSize();
    if (myid == 0)
@@ -372,10 +379,10 @@ int main(int argc, char *argv[])
             // new sparsification approximations
             //a_hpc->AssembleBilinearForm(*a);
             a_hpc_lor->AssembleBilinearForm(*a_lor);
-            //a->AddDomainIntegrator(new DiffusionIntegrator(one, true));
+            a->AddDomainIntegrator(new DiffusionIntegrator(one, true));
             //PWConstCoefficient pwConst(constants);
             //a->AddDomainIntegrator(new DiffusionIntegrator(pwConst, true));
-            //a->Assemble();
+            a->Assemble();
          }
       }
       else
@@ -429,6 +436,14 @@ int main(int argc, char *argv[])
    pcg->SetMaxIter(500);
    pcg->SetPrintLevel(1);
 
+   /*
+   CGSolver *pcg_lor;
+   pcg_lor = new CGSolver(MPI_COMM_WORLD);
+   pcg_lor->SetRelTol(1e-6);
+   pcg_lor->SetMaxIter(500);
+   pcg_lor->SetPrintLevel(2);
+   */
+
    tic_toc.Clear();
    tic_toc.Start();
    if (perf && matrix_free)
@@ -438,6 +453,9 @@ int main(int argc, char *argv[])
       if (pc_choice == AMG)
       {
          amg = new HypreBoomerAMG(A);
+         //pcg_lor->SetOperator(*a_oper_lor);
+         //pcg_lor->SetPreconditioner(*amg);
+         //pcg->SetPreconditioner(*pcg_lor);
          pcg->SetPreconditioner(*amg);
          // timing the application of AMG / operator
          tic_toc.Clear();

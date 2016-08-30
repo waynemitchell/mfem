@@ -2141,22 +2141,30 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order,
    // the same finite element basis will be used on the LOR mesh,
    // but of different order (HACK: use 1st order)
    const FiniteElementCollection *fec_hoc = FEColl();
-   FiniteElementCollection *fec_lor = new H1_FECollection(1, mesh->Dimension());
+   int type = dynamic_cast<const H1_FECollection *>(fec_hoc)->GetBasisType();
+   FiniteElementCollection *fec_lor = new H1_FECollection(1, mesh->Dimension(),
+                                                          BasisType::GaussLobatto);
 
-   int p = GetOrder(
-              1); // HACK: get order for first element, assume all have same order.
+   // HACK: get order for first element, assume all have same order.
+   int p = GetOrder(1);
    int o = mesh->Dimension();
 
-   //HACK: Assume order = 1 : all nodes become vertices of new elements
+   //HACK: Assume order = 1 : all ir nodes become vertices of new elements
    Mesh *mesh_lor = new Mesh(o, mesh->GetNE() * pow(p + 1, o),
                              mesh->GetNE() * pow(p, o));
 
    // Build the low order refined mesh from the original mesh.
-   // TODO: add a test to make sure we are on Quad elements, fe != NULL
    for (int j = 0; j < GetNDofs(); j++)
    {
       double coords[3];
-      mesh->GetNode(j, coords);
+      int el = GetElementForDof(j);
+      ElementTransformation *eltrans = GetElementTransformation(el);
+
+      int ldof = GetLocalDofForDof(j);
+      const IntegrationRule &ir = GetFE(el)->GetNodes();
+      Vector phys_coords(coords, 3);
+      eltrans->Transform(ir.IntPoint(ldof), phys_coords);
+
       mesh_lor->AddVertex(coords);
    }
    for (int i = 0; i < mesh->GetNE(); i++)
@@ -2168,21 +2176,45 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order,
       const int *dof_map_;
       if (mesh->Dimension() == 2)
       {
-         const H1_QuadrilateralElement *fe =
-            dynamic_cast<const H1_QuadrilateralElement *>(GetFE(i));
          if (GetElementType(i) != Element::QUADRILATERAL)
+         {
             mfem_error("Element is not a Quad!");
-         dof_map = const_cast<Array<int> *>(&fe->GetDofMap());
-         dof_map_ = dof_map->GetData();
+         }
+         if (type == BasisType::Positive)
+         {
+            const H1Pos_QuadrilateralElement *fe =
+               dynamic_cast<const H1Pos_QuadrilateralElement *>(GetFE(i));
+            dof_map = const_cast<Array<int> *>(&fe->GetDofMap());
+            dof_map_ = dof_map->GetData();
+         }
+         else
+         {
+            const H1_QuadrilateralElement *fe =
+               dynamic_cast<const H1_QuadrilateralElement *>(GetFE(i));
+            dof_map = const_cast<Array<int> *>(&fe->GetDofMap());
+            dof_map_ = dof_map->GetData();
+         }
       }
-      else
+      else // mesh->Dimension() == 3
       {
-         const H1_HexahedronElement *fe =
-            dynamic_cast<const H1_HexahedronElement *>(GetFE(i));
          if (GetElementType(i) != Element::HEXAHEDRON)
+         {
             mfem_error("Element is not a Hex!");
-         dof_map = const_cast<Array<int> *>(&fe->GetDofMap());
-         dof_map_ = dof_map->GetData();
+         }
+         if (type == BasisType::Positive)
+         {
+            const H1Pos_HexahedronElement *fe =
+               dynamic_cast<const H1Pos_HexahedronElement *>(GetFE(i));
+            dof_map = const_cast<Array<int> *>(&fe->GetDofMap());
+            dof_map_ = dof_map->GetData();
+         }
+         else
+         {
+            const H1_HexahedronElement *fe =
+               dynamic_cast<const H1_HexahedronElement *>(GetFE(i));
+            dof_map = const_cast<Array<int> *>(&fe->GetDofMap());
+            dof_map_ = dof_map->GetData();
+         }
       }
 
       if (mesh->Dimension() == 2)
