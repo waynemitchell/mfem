@@ -145,6 +145,9 @@ public:
    /// Set the path where the DataCollection will be saved.
    void SetPrefixPath(const char *prefix);
 
+   /// Get the path where the DataCollection will be saved.
+   const char* GetPrefixPath() const { return prefix_path.c_str(); }
+
    /** Save the collection to disk. By default, everything is saved in a
        directory with name "collection_name" or "collection_name_cycle" for
        time-dependent simulations. */
