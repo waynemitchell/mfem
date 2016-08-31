@@ -129,8 +129,8 @@ ifeq ($(MFEM_USE_SIDRE),YES)
    CONDUIT_DIR ?= @MFEM_DIR@/../conduit/P.lc_linux/install
    HDF5_DIR ?= /usr/local/tools/hdf5-gnu-serial-1.8.16
 
-   INCFLAGS += -I$(SIDRE_DIR)/include -I$(CONDUIT_DIR)/include -I$(HDF5_DIR)/include
-   ALL_LIBS += -L$(SIDRE_DIR)/lib -L$(CONDUIT_DIR)/lib -L$(HDF5_DIR)/lib -Wl,-rpath=$(HDF5_DIR)/lib -lsidre -lslic -lcommon -lconduit -lconduit_relay -llibb64 -lhdf5 -lz -ldl
+   INCFLAGS += -I$(SIDRE_DIR)/include -I$(CONDUIT_DIR)/include/conduit -I$(HDF5_DIR)/include
+   ALL_LIBS += -L$(SIDRE_DIR)/lib -L$(CONDUIT_DIR)/lib -L$(HDF5_DIR)/lib -Wl,-rpath=$(HDF5_DIR)/lib -lsidre -lslic -lcommon -lconduit -lconduit_relay -lconduit_b64 -lhdf5 -lz -ldl
 
    ifeq ($(MFEM_USE_MPI),YES)
      ALL_LIBS += -lspio
