@@ -351,6 +351,30 @@ void SparseMatrix::SortColumnIndices()
    isSorted = true;
 }
 
+void SparseMatrix::MoveDiagonalFirst()
+{
+   MFEM_VERIFY(Finalized(), "Matrix is not Finalized!");
+
+   for (int row = 0, end = 0; row < height; row++)
+   {
+      int start = end, j;
+      end = I[row+1];
+      for (j = start; true; j++)
+      {
+         MFEM_VERIFY(j < end, "diagonal entry not found in row = " << row);
+         if (J[j] == row) { break; }
+      }
+      const double diag = A[j];
+      for ( ; j > start; j--)
+      {
+         J[j] = J[j-1];
+         A[j] = A[j-1];
+      }
+      J[start] = row;
+      A[start] = diag;
+   }
+}
+
 double &SparseMatrix::Elem(int i, int j)
 {
    return operator()(i,j);

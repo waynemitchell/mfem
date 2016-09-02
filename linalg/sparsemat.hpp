@@ -140,12 +140,16 @@ public:
     */
    void SetWidth(int width_ = -1);
 
-   /// Returns the actual Width of the matrix
+   /// Returns the actual Width of the matrix.
    /*! This method can be called for matrices finalized or not. */
    int ActualWidth();
 
-   /// Sort the column indices corresponding to each row
+   /// Sort the column indices corresponding to each row.
    void SortColumnIndices();
+
+   /** @brief Move the diagonal entry to the first position in each row,
+       preserving the order of the rest of the columns. */
+   void MoveDiagonalFirst();
 
    /// Returns reference to a_{ij}.
    virtual double &Elem(int i, int j);
