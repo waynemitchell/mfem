@@ -657,6 +657,92 @@ ParMesh::ParMesh(const ParNCMesh &pncmesh)
    have_face_nbr_data = false;
 }
 
+ParMesh::ParMesh(Mesh &mesh,
+                 GroupTopology &_gtopo,
+                 Table &_group_svert,
+                 Table &_group_sedge,
+                 Table &_group_sface,
+                 Array<int> &_svert_lvert,
+                 Array<int> &_sedge_ledge,
+                 Array<int> &_sface_lface)
+   : Mesh(mesh, false),
+     group_svert(_group_svert),
+     group_sedge(_group_sedge),
+     group_sface(_group_sface),
+     gtopo(_gtopo)
+{
+   MyComm = gtopo.GetComm();
+   MPI_Comm_size(MyComm, &NRanks);
+   MPI_Comm_rank(MyComm, &MyRank);
+
+   // TODO
+   have_face_nbr_data = false;
+   pncmesh = NULL;
+
+   _svert_lvert.Copy(svert_lvert);
+   _sedge_ledge.Copy(sedge_ledge);
+   _sface_lface.Copy(sface_lface);
+
+   // Create element objects for the shared entities
+   int num_sedges = sedge_ledge.Size();
+   int num_sfaces = sface_lface.Size();
+   shared_edges.SetSize(num_sedges);
+   for (int i = 0; i < shared_edges.Size(); i++)
+   {
+      Array<int> vert;
+      GetEdgeVertices(sedge_ledge[i], vert);
+      shared_edges[i] = new Segment(vert[0],vert[1]);
+   }
+   shared_faces.SetSize(num_sfaces);
+   for (int i = 0; i < shared_faces.Size(); i++)
+   {
+      shared_faces[i] = mesh.GetFace(sface_lface[i])->Duplicate(this);
+   }
+
+   // Prepare tet meshes for refinement
+   int refine = 1;
+   bool shared_tri_faces = false;
+   for (int i = 0; i < shared_faces.Size(); i++)
+   {
+      if (shared_faces[i]->GetType() == Element::TRIANGLE)
+      {
+         shared_tri_faces = true;
+         break;
+      }
+   }
+   if (shared_tri_faces && refine)
+   {
+      DSTable *v_to_v = NULL;
+      Table *old_elem_vert = NULL;
+      if (Nodes)
+      {
+         PrepareNodeReorder(&v_to_v, &old_elem_vert);
+      }
+
+      // Re-mark all tets to ensure consistency accross MPI tasks; also mark
+      // the shared triangle faces using the consistently marked tets.
+      ParMarkTetMeshForRefinement(*v_to_v);
+
+      if (Nodes)
+      {
+         DoNodeReorder(v_to_v, old_elem_vert);
+      }
+      else
+      {
+         GetElementToFaceTable();
+         GenerateFaces();
+         if (el_to_edge)
+         {
+            NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+         }
+      }
+      delete old_elem_vert;
+      delete v_to_v;
+   }
+
+   // TODO: AMR meshes, NURBS meshes?
+}
+
 ParMesh::ParMesh(MPI_Comm comm, istream &input)
    : gtopo(comm)
 {

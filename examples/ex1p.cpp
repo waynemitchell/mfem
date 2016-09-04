@@ -249,6 +249,19 @@ int main(int argc, char *argv[])
       pmesh->ParPrint(pmesh_ofs);
    }
 
+#if 0
+   if (par_mesh_prefix == string_none)
+   {
+      ostringstream pmesh_name;
+      ParMesh *pmesh_copy = pmesh->Copy();
+      pmesh_name << "pmesh_copy." << setfill('0') << setw(6) << myid;
+      ofstream pmesh_ofs(pmesh_name.str().c_str());
+      pmesh_ofs.precision(8);
+      pmesh_copy->ParPrint(pmesh_ofs);
+      delete pmesh_copy;
+   }
+#endif
+
    // 15. Send the solution by socket to a GLVis server.
    if (visualization)
    {
