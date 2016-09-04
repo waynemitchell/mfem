@@ -580,6 +580,19 @@ void QuadratureFunctions1D::ClosedUniform(const int np,
    CalculateUniformWeights(ir, Quadrature1D::ClosedUniform);
 }
 
+void QuadratureFunctions1D::OpenHalfUniform(const int np, IntegrationRule* ir)
+{
+   ir->SetSize(np);
+
+   // Open half points: the centers of np uniform intervals
+   for (int i = 0; i < np ; ++i)
+   {
+      ir->IntPoint(i).x = double(2*i+1) / (2*np);
+   }
+
+   CalculateUniformWeights(ir, Quadrature1D::OpenHalfUniform);
+}
+
 void QuadratureFunctions1D::GivePolyPoints(const int np, double *pts,
                                            const int type)
 {
@@ -605,6 +618,11 @@ void QuadratureFunctions1D::GivePolyPoints(const int np, double *pts,
       case Quadrature1D::ClosedUniform:
       {
          ClosedUniform(np,&ir);
+         break;
+      }
+      case Quadrature1D::OpenHalfUniform:
+      {
+         OpenHalfUniform(np, &ir);
          break;
       }
       default:
@@ -683,18 +701,23 @@ void QuadratureFunctions1D::CalculateUniformWeights(IntegrationRule *ir,
    hp_quad.SetRelTol(-48); // rtol = 2^(-48) ~ 3.5e-15
    const int p = n-1;
    const int m = p/2+1; // number of points for Gauss-Legendre quadrature
-   int hinv = 0, ioffset = 0;
+   int hinv = 0, ihoffset = 0; // x_i = (i+ihoffset/2)/hinv
    switch (type)
    {
       case Quadrature1D::ClosedUniform:
          // x_i = i/p, i=0,...,p
          hinv = p;
-         ioffset = 0;
+         ihoffset = 0;
          break;
       case Quadrature1D::OpenUniform:
-         // x_i = i/(p+2), i=1,...,p+1
+         // x_i = (i+1)/(p+2), i=0,...,p
          hinv = p+2;
-         ioffset = 1;
+         ihoffset = 2;
+         break;
+      case Quadrature1D::OpenHalfUniform:
+         // x_i = (i+1/2)/(p+1), i=0,...,p
+         hinv = p+1;
+         ihoffset = 1;
          break;
       default:
          MFEM_ABORT("invalid Quadrature1D type: " << type);
@@ -710,16 +733,17 @@ void QuadratureFunctions1D::CalculateUniformWeights(IntegrationRule *ir,
       hp_quad.ComputeGaussLegendrePoint(m, j);
 
       // Compute l = \prod_{i=0}^p (x-x_i) and lk = l/(x-x_k), where
-      // x = hp_quad.GetHPPoint(), x_i = (i+ioffset)/hinv, and x_k is the node
-      // closest to x, i.e. k = min(max(round(x*hinv)-ioffset,0),p)
+      // x = hp_quad.GetHPPoint(), x_i = (i+ihoffset/2)/hinv, and x_k is the
+      // node closest to x, i.e. k = min(max(round(x*hinv-ihoffset/2),0),p)
       mpfr_mul_si(tmp, hp_quad.GetHPPoint(), hinv, rnd);
+      mpfr_sub_d(tmp, tmp, 0.5*ihoffset, rnd);
       mpfr_round(tmp, tmp);
-      int k = min(max((int)mpfr_get_si(tmp, rnd)-ioffset, 0), p);
+      int k = min(max((int)mpfr_get_si(tmp, rnd), 0), p);
       mpfr_set_si(lk, 1, rnd);
       for (int i = 0; i <= p; i++)
       {
-         mpfr_set_si(tmp, i+ioffset, rnd);
-         mpfr_div_si(tmp, tmp, hinv, rnd);
+         mpfr_set_si(tmp, 2*i+ihoffset, rnd);
+         mpfr_div_si(tmp, tmp, 2*hinv, rnd);
          mpfr_sub(tmp, hp_quad.GetHPPoint(), tmp, rnd);
          if (i != k)
          {
@@ -737,8 +761,8 @@ void QuadratureFunctions1D::CalculateUniformWeights(IntegrationRule *ir,
          if (i != k)
          {
             // tmp = l/(wi*(x - x_i))
-            mpfr_set_si(tmp, i+ioffset, rnd);
-            mpfr_div_si(tmp, tmp, hinv, rnd);
+            mpfr_set_si(tmp, 2*i+ihoffset, rnd);
+            mpfr_div_si(tmp, tmp, 2*hinv, rnd);
             mpfr_sub(tmp, hp_quad.GetHPPoint(), tmp, rnd);
             mpfr_mul(tmp, tmp, wi, rnd);
             mpfr_div(tmp, l, tmp, rnd);
@@ -792,6 +816,7 @@ int Quadrature1D::CheckOpen(int type)
       case GaussLobatto:
       case OpenUniform:
       case ClosedUniform:
+      case OpenHalfUniform:
          return type; // all types can work as open
       default:
          return Invalid;
@@ -1007,6 +1032,13 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
          // Closed Newton Cotes is exact for n-(n+1)%2 = n-1+n%2
          n = Order | 1; // n is always odd
          quad_func.ClosedUniform(n, ir);
+         break;
+      }
+      case Quadrature1D::OpenHalfUniform:
+      {
+         // Open half Newton Cotes is exact for n-(n+1)%2 = n-1+n%2
+         n = Order | 1; // n is always odd
+         quad_func.OpenHalfUniform(n, ir);
          break;
       }
       default:
