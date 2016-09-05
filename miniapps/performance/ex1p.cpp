@@ -154,12 +154,12 @@ int main(int argc, char *argv[])
       args.PrintOptions(cout);
    }
 
-   enum PCType { NONE, LORAMG, SPARSIFYAMG, DENSEAMG };
+   enum PCType { NONE, LOR, SPARSIFY, DENSE };
    PCType pc_choice;
-   if (!strcmp(pc, "dense")) { pc_choice = DENSEAMG; }
-   else if (!strcmp(pc, "lor")) { pc_choice = LORAMG; }
+   if (!strcmp(pc, "dense")) { pc_choice = DENSE; }
+   else if (!strcmp(pc, "lor")) { pc_choice = LOR; }
    else if (!strcmp(pc, "none")) { pc_choice = NONE; }
-   else if (!strcmp(pc, "sparsify")) { pc_choice = SPARSIFYAMG; }
+   else if (!strcmp(pc, "sparsify")) { pc_choice = SPARSIFY; }
    else if (!strcmp(pc,"default"))
    {
       if (matrix_free) {
@@ -167,7 +167,7 @@ int main(int argc, char *argv[])
       }
       else
       {
-         pc_choice = DENSEAMG;
+         pc_choice = DENSE;
       }
    }
    else
@@ -266,13 +266,13 @@ int main(int argc, char *argv[])
       fec = new H1_FECollection(order = 1, dim, basis);
    }
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
-   fespace->BuildDofToArrays();
 
    ParFiniteElementSpace *fespace_lor = NULL;
    HypreParMatrix P_lor, R_lor;
-   if (pc_choice == LORAMG)
+   if (pc_choice == LOR)
    {
-      fespace->ParLowOrderRefinement(1, fespace_lor, P_lor, R_lor);
+      fespace->BuildDofToArrays();
+      fespace->ParLowOrderRefinement(sol_lor_p, fespace_lor, P_lor, R_lor);
    }
 
    HYPRE_Int size = fespace->GlobalTrueVSize();
@@ -326,7 +326,7 @@ int main(int argc, char *argv[])
    //     that will hold the matrix corresponding to the Laplacian operator.
    ParBilinearForm *a = new ParBilinearForm(fespace);
    ParBilinearForm *a_pc = NULL;
-   if (pc_choice == LORAMG)
+   if (pc_choice == LOR)
    {
       a_pc = new ParBilinearForm(fespace_lor);
    }
@@ -348,12 +348,11 @@ int main(int argc, char *argv[])
    tic_toc.Clear();
    tic_toc.Start();
    // Pre-allocate sparsity assuming dense element matrices
-   //a->UsePrecomputedSparsity();
+   a->UsePrecomputedSparsity();
 
    HPCBilinearForm *a_hpc = NULL;
    HPCBilinearForm_lor *a_hpc_lor = NULL;
    Operator *a_oper = NULL;
-   Operator *a_oper_lor = NULL;
 
    if (!perf)
    {
@@ -385,7 +384,7 @@ int main(int argc, char *argv[])
    //     preconditioner from hypre.
 
    // Setup the operator matrix
-   HypreParMatrix A, A_pc;
+   HypreParMatrix A;
    Vector B, X;
    if (perf && matrix_free)
    {
@@ -406,6 +405,7 @@ int main(int argc, char *argv[])
    }
 
    // Setup the preconditioner
+   HypreParMatrix A_pc;
    if (pc_choice != NONE)
    {
       if (myid == 0)
@@ -416,20 +416,20 @@ int main(int argc, char *argv[])
       tic_toc.Start();
 
       Vector X_tmp, B_tmp;
-      if (pc_choice == LORAMG)
+      if (pc_choice == LOR)
       {
          a_hpc_lor = new HPCBilinearForm_lor(integ_t(coeff_t(1.0)),
                                              *fespace_lor);
          a_hpc_lor->AssembleBilinearForm(*a_pc);
          a_pc->FormLinearSystem(ess_tdof_list, x, *b, A_pc, X_tmp, B_tmp);
       }
-      else if (pc_choice == SPARSIFYAMG)
+      else if (pc_choice == SPARSIFY)
       {
          a_pc->AddDomainIntegrator(new DiffusionIntegrator(one, true));
          a_pc->Assemble();
          a_pc->FormLinearSystem(ess_tdof_list, x, *b, A_pc, X_tmp, B_tmp);
       }
-      else if (pc_choice == DENSEAMG)
+      else if (pc_choice == DENSE)
       {
          if (!perf)
          {

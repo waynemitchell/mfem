@@ -46,7 +46,7 @@ using namespace std;
 using namespace mfem;
 
 // Define template parameters for optimized build.
-const Geometry::Type geom         = Geometry::SQUARE; // mesh elements  (default: hex)
+const Geometry::Type geom         = Geometry::CUBE; // mesh elements  (default: hex)
 const int            mesh_p       = 3;              // mesh curvature (default: 3)
 const int            sol_p        = 3;              // solution order (default: 3)
 const int            mesh_lor_p   = 1;              // mesh curvature (default: 3)
@@ -75,16 +75,16 @@ typedef TBilinearForm<mesh_t,sol_fes_t,int_rule_t,integ_t> HPCBilinearForm;
 // Low order refined types
 
 // Static mesh type
-typedef H1_FiniteElement<geom,mesh_lor_p>              mesh_lor_fe_t;
-typedef H1_FiniteElementSpace<mesh_lor_fe_t>  mesh_lor_fes_t;
-typedef TMesh<mesh_lor_fes_t>                 mesh_lor_t;
+typedef H1_FiniteElement<geom,mesh_lor_p>       mesh_lor_fe_t;
+typedef H1_FiniteElementSpace<mesh_lor_fe_t>    mesh_lor_fes_t;
+typedef TMesh<mesh_lor_fes_t>                   mesh_lor_t;
 
 // Static solution finite element space type
-typedef H1_FiniteElement<geom,sol_lor_p>                  sol_fe_lor_t;
-typedef H1_FiniteElementSpace<sol_fe_lor_t>       sol_fes_lor_t;
+typedef H1_FiniteElement<geom,sol_lor_p>        sol_fe_lor_t;
+typedef H1_FiniteElementSpace<sol_fe_lor_t>     sol_fes_lor_t;
 
 // Static quadrature, coefficient and integrator types
-typedef TIntegrationRule<geom,ir_order_lor>       int_rule_lor_t;
+typedef TIntegrationRule<geom,ir_order_lor>     int_rule_lor_t;
 
 // Static bilinear form type, combining the above types
 typedef TBilinearForm<mesh_lor_t,sol_fes_lor_t,int_rule_lor_t,integ_t> HPCBilinearForm_lor;
@@ -95,6 +95,7 @@ int main(int argc, char *argv[])
 {
    // 1. Parse command-line options.
    const char *mesh_file = "../../data/fichera.mesh";
+   const char *pc = "default";
    int order = sol_p;
    const char *basis_type = "G"; // Gauss-Lobatto
    bool static_cond = false;
@@ -120,6 +121,9 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
+   args.AddOption(&pc, "-pc", "--preconditioner",
+                  "Preconditioner to use: `lor' for LOR BoomerAMG Prec., `sparsify' for"
+                  "Sparsified BoomerAMG Prec., `dense' for Dense BoomerAMG Prec., `none'.");
    args.Parse();
    if (!args.Good())
    {
@@ -134,6 +138,28 @@ int main(int argc, char *argv[])
    }
    if (!perf) { matrix_free = false; }
    args.PrintOptions(cout);
+
+   enum PCType { NONE, LOR, SPARSIFY, DENSE };
+   PCType pc_choice;
+   if (!strcmp(pc, "dense")) { pc_choice = DENSE; }
+   else if (!strcmp(pc, "lor")) { pc_choice = LOR; }
+   else if (!strcmp(pc, "none")) { pc_choice = NONE; }
+   else if (!strcmp(pc, "sparsify")) { pc_choice = SPARSIFY; }
+   else if (!strcmp(pc,"default"))
+   {
+      if (matrix_free) {
+         pc_choice = NONE;
+      }
+      else
+      {
+         pc_choice = DENSE;
+      }
+   }
+   else
+   {
+      mfem_error("Invalid Preconditioner specified");
+      return 2;
+   }
 
    // See class BasisType in fem/fe_coll.hpp for available basis types
    int basis = BasisType::GetType(basis_type[0]);
@@ -171,7 +197,7 @@ int main(int argc, char *argv[])
    //    elements.
    {
       int ref_levels =
-         (int)floor(log(5000./mesh->GetNE())/log(2.)/dim);
+         (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
@@ -198,9 +224,12 @@ int main(int argc, char *argv[])
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
 
    FiniteElementSpace *fespace_lor = NULL;
-   SparseMatrix P;
-   SparseMatrix R;
-   fespace->LowOrderRefinement(1, fespace_lor, P, R);
+   SparseMatrix P, R;
+   if (pc_choice == LOR)
+   {
+      fespace->BuildDofToArrays();
+      fespace->LowOrderRefinement(sol_lor_p, fespace_lor, P, R);
+   }
    cout << "Number of finite element unknowns: "
         << fespace->GetTrueVSize() << endl;
 
@@ -244,7 +273,15 @@ int main(int argc, char *argv[])
    // 10. Set up the bilinear form a(.,.) on the finite element space that will
    //     hold the matrix corresponding to the Laplacian operator -Delta.
    BilinearForm *a = new BilinearForm(fespace);
-   BilinearForm *a_lor = new BilinearForm(fespace_lor);
+   BilinearForm *a_pc = NULL;
+   if (pc_choice == LOR)
+   {
+      a_pc = new BilinearForm(fespace_lor);
+   }
+   else if (pc_choice != NONE)
+   {
+      a_pc = new BilinearForm(fespace);
+   }
 
    // 11. Assemble the bilinear form and the corresponding linear system,
    //     applying any necessary transformations such as: eliminating boundary
@@ -261,7 +298,6 @@ int main(int argc, char *argv[])
    HPCBilinearForm *a_hpc = NULL;
    HPCBilinearForm_lor *a_hpc_lor = NULL;
    Operator *a_oper = NULL;
-   Operator *a_oper_lor = NULL;
 
    if (!perf)
    {
@@ -273,16 +309,14 @@ int main(int argc, char *argv[])
    {
       // High-performance assembly/evaluation using the templated operator type
       a_hpc = new HPCBilinearForm(integ_t(coeff_t(1.0)), *fespace);
-      a_hpc_lor = new HPCBilinearForm_lor(integ_t(coeff_t(1.0)), *fespace_lor);
+
       if (matrix_free)
       {
          a_hpc->Assemble(); // partial assembly
-         a_hpc_lor->Assemble(); // partial assembly
       }
       else
       {
          a_hpc->AssembleBilinearForm(*a); // full matrix assembly
-         a_hpc_lor->AssembleBilinearForm(*a_lor); // full matrix assembly
       }
    }
    tic_toc.Stop();
@@ -290,13 +324,14 @@ int main(int argc, char *argv[])
 
    // 12. Solve the system A X = B with CG. In the standard case, use a simple
    //     symmetric Gauss-Seidel preconditioner.
+
+   // Setup the operator matrix
    SparseMatrix A;
    Vector B, X;
    Vector B_cp, X_cp;
    if (perf && matrix_free)
    {
       a_hpc->FormLinearSystem(ess_tdof_list, x, *b, a_oper, X, B);
-      a_hpc_lor->FormLinearSystem(ess_tdof_list, x, *b, a_oper_lor, X_cp, B_cp);
       cout << "Size of linear system: " << a_hpc->Height() << endl;
    }
    else
@@ -305,18 +340,70 @@ int main(int argc, char *argv[])
       cout << "Size of linear system: " << A.Height() << endl;
    }
 
+   // Setup the preconditioner
+   SparseMatrix A_pc;
+   if (pc_choice != NONE)
+   {
+      cout << "Assembling Linear System for the GS Preconditioner ... " << endl;
+      tic_toc.Clear();
+      tic_toc.Start();
+
+      Vector X_tmp, B_tmp;
+      if (pc_choice == LOR)
+      {
+         a_hpc_lor = new HPCBilinearForm_lor(integ_t(coeff_t(1.0)),
+                                             *fespace_lor);
+         a_hpc_lor->AssembleBilinearForm(*a_pc);
+         a_pc->FormLinearSystem(ess_tdof_list, x, *b, A_pc, X_tmp, B_tmp);
+      }
+      else if (pc_choice == SPARSIFY)
+      {
+         a_pc->AddDomainIntegrator(new DiffusionIntegrator(one, true));
+         a_pc->Assemble();
+         a_pc->FormLinearSystem(ess_tdof_list, x, *b, A_pc, X_tmp, B_tmp);
+      }
+      else if (pc_choice == DENSE)
+      {
+         if (!perf)
+         {
+            A_pc.MakeRef(A);
+         }
+         else
+         {
+            a_hpc->AssembleBilinearForm(*a_pc);
+            a_pc->FormLinearSystem(ess_tdof_list, x, *b, A_pc, X_tmp, B_tmp);
+         }
+      }
+      tic_toc.Stop();
+      cout << " done, " << tic_toc.RealTime() << "s." << endl;
+   }
+
    if (perf && matrix_free)
    {
       // Cannot utilize Gauss-Seidel preconditioner with how matrix-free operator
       // handles essential BCs. See ConstrainedOperator.
-      CG(*a_oper, B, X, 1, 5000, 1e-12, 0.0);
-      CG(*a_oper_lor, B_cp, X_cp, 1, 5000, 1e-12, 0.0);
+      if (pc_choice == NONE)
+      {
+         CG(*a_oper, B, X, 1, 500, 1e-12, 0.0);
+      }
+      else
+      {
+         GSSmoother M(A_pc);
+         PCG(*a_oper, M, B, X, 1, 500, 1e-12, 0.0);
+      }
    }
    else
    {
 #ifndef MFEM_USE_SUITESPARSE
-      GSSmoother M(A);
-      PCG(A, M, B, X, 1, 500, 1e-12, 0.0);
+      if (pc_choice != NONE)
+      {
+         GSSmoother M(A_pc);
+         PCG(A, M, B, X, 1, 500, 1e-12, 0.0);
+      }
+      else
+      {
+         CG(A, B, X, 1, 500, 1e-12, 0.0);
+      }
 #else
       // If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
       UMFPackSolver umf_solver;
@@ -355,30 +442,6 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *mesh << x << flush;
    }
 
-   FunctionCoefficient u_fcn(GaussianFunction);
-
-   int ndofs = fespace->GetVSize();
-   int ndofs_lor = fespace_lor->GetVSize();
-
-   Vector u(ndofs);
-   GridFunction u_gf;
-   u_gf.MakeRef(fespace, u, 0);
-
-   u_gf.ProjectCoefficient(u_fcn);
-
-   Vector u_lor(ndofs_lor);
-   GridFunction u_gf_lor;
-   u_gf_lor.MakeRef(fespace_lor, u_lor, 0);
-
-   u_gf_lor.ProjectCoefficient(u_fcn);
-
-   Vector diff;
-   diff.SetSize(u_lor.Size());
-   subtract(u_lor, u, diff);
-
-   std::cout << "Error in approximation of exp(-||x||^2): " << diff.Normlinf() << std::endl;
-   std::cout << "Maximum value of u_lor: " << u_lor.Normlinf() << std::endl;
-
    // 16. Free the used memory.
    delete a;
    delete a_hpc;
@@ -389,9 +452,4 @@ int main(int argc, char *argv[])
    delete mesh;
 
    return 0;
-}
-
-double GaussianFunction(const Vector &x)
-{
-   return exp(-1.0*x.Norml2());
 }
