@@ -162,7 +162,8 @@ int main(int argc, char *argv[])
    else if (!strcmp(pc, "sparsify")) { pc_choice = SPARSIFY; }
    else if (!strcmp(pc,"default"))
    {
-      if (matrix_free) {
+      if (matrix_free)
+      {
          pc_choice = NONE;
       }
       else
