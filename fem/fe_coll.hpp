@@ -25,17 +25,18 @@ class BasisType
 public:
    enum
    {
-      GaussLegendre = 0,  ///< Open type
-      GaussLobatto  = 1,  ///< Closed type
-      Positive      = 2,  ///< Bernstein polynomials
-      OpenUniform   = 3,
-      ClosedUniform = 4
+      GaussLegendre   = 0,  ///< Open type
+      GaussLobatto    = 1,  ///< Closed type
+      Positive        = 2,  ///< Bernstein polynomials
+      OpenUniform     = 3,  ///< Nodes: x_i = (i+1)/(n+1), i=0,...,n-1
+      ClosedUniform   = 4,  ///< Nodes: x_i = i/(n-1),     i=0,...,n-1
+      OpenHalfUniform = 5   ///< Nodes: x_i = (i+1/2)/n,   i=0,...,n-1
    };
    /** @brief If the input does not represents a valid BasisType, abort with an
        error; otherwise return the input. */
    static int Check(int b_type)
    {
-      MFEM_VERIFY(0 <= b_type && b_type < 5, "unknown BasisType: " << b_type);
+      MFEM_VERIFY(0 <= b_type && b_type < 6, "unknown BasisType: " << b_type);
       return b_type;
    }
    /** @brief Get the corresponding Quadrature1D constant, when that makes
@@ -44,10 +45,11 @@ public:
    {
       switch (b_type)
       {
-         case GaussLegendre: return Quadrature1D::GaussLegendre;
-         case GaussLobatto:  return Quadrature1D::GaussLobatto;
-         case OpenUniform:   return Quadrature1D::OpenUniform;
-         case ClosedUniform: return Quadrature1D::ClosedUniform;
+         case GaussLegendre:   return Quadrature1D::GaussLegendre;
+         case GaussLobatto:    return Quadrature1D::GaussLobatto;
+         case OpenUniform:     return Quadrature1D::OpenUniform;
+         case ClosedUniform:   return Quadrature1D::ClosedUniform;
+         case OpenHalfUniform: return Quadrature1D::OpenHalfUniform;
       }
       return Quadrature1D::Invalid;
    }
@@ -57,14 +59,14 @@ public:
       static const char *name[] =
       {
          "Gauss-Legendre", "Gauss-Lobatto", "Positive (Bernstein)",
-         "Open uniform", "Closed uniform"
+         "Open uniform", "Closed uniform", "Open half uniform"
       };
       return name[Check(b_type)];
    }
    /// Check and convert a BasisType constant to a char basis identifier.
    static char GetChar(int b_type)
    {
-      static const char ident[] = { 'g', 'G', 'P', 'u', 'U' };
+      static const char ident[] = { 'g', 'G', 'P', 'u', 'U', 'o' };
       return ident[Check(b_type)];
    }
    /// Convert char basis identifier to a BasisType constant.
@@ -77,6 +79,7 @@ public:
          case 'P': return Positive;
          case 'u': return OpenUniform;
          case 'U': return ClosedUniform;
+         case 'o': return OpenHalfUniform;
       }
       MFEM_ABORT("unknown BasisType identifier");
       return -1;
@@ -283,7 +286,8 @@ class DG_Interface_FECollection : public RT_FECollection
 {
 public:
    DG_Interface_FECollection(const int p, const int dim,
-                             const int map_type = FiniteElement::VALUE);
+                             const int map_type = FiniteElement::VALUE,
+                             const int ob_type = BasisType::GaussLegendre);
 };
 
 /// Arbitrary order H(curl)-conforming Nedelec finite elements.

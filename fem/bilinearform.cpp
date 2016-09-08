@@ -148,6 +148,32 @@ void BilinearForm::EnableHybridization(FiniteElementSpace *constr_space,
    hybridization->Init(ess_tdof_list);
 }
 
+void BilinearForm::UseSparsity(int *I, int *J, bool isSorted)
+{
+   if (static_cond) { return; }
+
+   if (mat)
+   {
+      if (mat->Finalized() && mat->GetI() == I && mat->GetJ() == J)
+      {
+         return; // mat is already using the given sparsity
+      }
+      delete mat;
+   }
+   height = width = fes->GetVSize();
+   mat = new SparseMatrix(I, J, NULL, height, width, false, true, isSorted);
+}
+
+void BilinearForm::UseSparsity(SparseMatrix &A)
+{
+   MFEM_ASSERT(A.Height() == fes->GetVSize() && A.Width() == fes->GetVSize(),
+               "invalid matrix A dimensions: "
+               << A.Height() << " x " << A.Width());
+   MFEM_ASSERT(A.Finalized(), "matrix A must be Finalized");
+
+   UseSparsity(A.GetI(), A.GetJ(), A.areColumnsSorted());
+}
+
 double& BilinearForm::Elem (int i, int j)
 {
    return mat -> Elem(i,j);
