@@ -4,7 +4,7 @@
 #   - SuperLUDist_LIBRARY_DIRS
 #   - SuperLUDist_LIBRARIES
 
-find_package(OpenMP REQUIRED)
+find_package(OpenMP)
 find_package(BLAS REQUIRED)
 find_package(ParMETIS REQUIRED)
 

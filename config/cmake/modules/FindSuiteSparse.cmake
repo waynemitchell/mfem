@@ -17,7 +17,7 @@ find_package(METIS REQUIRED)
 # librt?
 
 if (METIS_VERSION_5)
-  message(FATAL_ERROR " *** SuiteSparse requires METIS v4!")
+  message(STATUS " *** Warning: using SuiteSparse with METIS v5!")
 endif()
 
 # Quick return
