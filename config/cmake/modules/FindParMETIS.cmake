@@ -9,6 +9,10 @@
 
 find_package(METIS QUIET)
 
+if (NOT METIS_VERSION_5)
+  message(FATAL_ERROR " *** ParMETIS requires METIS v5!")
+endif()
+
 # Find the header
 find_path(ParMETIS_INCLUDE_DIRS parmetis.h
   HINTS ${ParMETIS_DIR} $ENV{ParMETIS_DIR} ${METIS_DIR} $ENV{METIS_DIR}
@@ -39,5 +43,7 @@ endif()
 # This handles "REQUIRED" etc keywords
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(ParMETIS
-  DEFAULT_MSG
+  " *** ParMETIS library not found. Please set ParMETIS_DIR."
   ParMETIS_LIBRARIES ParMETIS_INCLUDE_DIRS ParMETIS_LIBRARY_DIRS)
+# For older cmake versions
+set(ParMETIS_FOUND ${PARMETIS_FOUND})

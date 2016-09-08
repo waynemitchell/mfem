@@ -27,7 +27,7 @@ else()
 endif()
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(NETCDF
-  DEFAULT_MSG
+find_package_handle_standard_args(NetCDF
+  " *** NetCDF libarary not found. Please set NETCDF_DIR."
   NETCDF_LIBRARIES NETCDF_INCLUDE_DIRS NETCDF_LIBRARY_DIRS)
 

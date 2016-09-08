@@ -35,6 +35,8 @@ if (MFEM_USE_MPI)
   list(APPEND SRCS
     pmesh.cpp
     pncmesh.cpp)
+  # If this list (HDRS -> HEADERS) is used for install, we probably want the
+  # headers added all the time.
   list(APPEND HDRS
     pmesh.hpp
     pncmesh.hpp)
@@ -42,6 +44,8 @@ endif()
 
 if (MFEM_USE_MESQUITE)
   list(APPEND SRCS mesquite.cpp)
+  # If this list (HDRS -> HEADERS) is used for install, we probably want the
+  # header added all the time.
   list(APPEND HDRS mesquite.hpp)
 endif()
 

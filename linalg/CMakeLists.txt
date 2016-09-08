@@ -34,6 +34,8 @@ if (MFEM_USE_MPI)
   list(APPEND SRCS
     hypre.cpp
     hypre_parcsr.cpp)
+  # If this list (HDRS -> HEADERS) is used for install, we probably want the
+  # headers added all the time.
   list(APPEND HDRS
     hypre.hpp
     hypre_parcsr.hpp)
@@ -41,6 +43,8 @@ endif()
     
 if (MFEM_USE_SUPERLU)
   list(APPEND SRCS superlu.cpp)
+  # If this list (HDRS -> HEADERS) is used for install, we probably want the
+  # header added all the time.
   list(APPEND HDRS superlu.hpp)
 endif()
 

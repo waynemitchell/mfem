@@ -825,16 +825,14 @@ void dsyevr_Eigensystem(DenseMatrix &a, Vector &ev, DenseMatrix *evect)
            << M << "/" << N << endl;
       mfem_error();
    }
-   for (IL = 0; IL < N; IL++)
-      if (!finite(W[IL]))
-      {
-         mfem_error("dsyevr_Eigensystem(...): !finite value in W");
-      }
-   for (IL = 0; IL < N*N; IL++)
-      if (!finite(Z[IL]))
-      {
-         mfem_error("dsyevr_Eigensystem(...): !finite value in Z");
-      }
+   if (CheckFinite(W, N) > 0)
+   {
+      mfem_error("dsyevr_Eigensystem(...): inf/nan values in W");
+   }
+   if (CheckFinite(Z, N*N) > 0)
+   {
+      mfem_error("dsyevr_Eigensystem(...): inf/nan values in Z");
+   }
    VU = 0.0;
    for (IL = 0; IL < N; IL++)
       for (IU = 0; IU <= IL; IU++)

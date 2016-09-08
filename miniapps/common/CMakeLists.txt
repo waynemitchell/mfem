@@ -1,7 +1,11 @@
 set(MFEM_MINIAPPS_COMMON_SOURCES
-  fem_extras.cpp)
+  mesh_extras.cpp
+  fem_extras.cpp
+  )
 set(MFEM_MINIAPPS_COMMON_HEADERS
-  fem_extras.hpp)
+  mesh_extras.hpp
+  fem_extras.hpp
+  )
 
 if (MFEM_USE_MPI)
   list(APPEND MFEM_MINIAPPS_COMMON_SOURCES

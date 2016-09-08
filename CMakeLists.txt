@@ -1,86 +1,55 @@
 cmake_minimum_required(VERSION 2.8.11)
 
-project(mfem)
+project(mfem CXX)
+
+if(NOT (CMAKE_VERSION VERSION_GREATER 2.8.11))
+   # This seems to be needed by: find_package(BLAS REQUIRED)
+   enable_language(C)
+endif()
 
 # CMake needs to know where to find things
 set(MFEM_CMAKE_PATH ${PROJECT_SOURCE_DIR}/config/cmake)
 set(CMAKE_MODULE_PATH ${MFEM_CMAKE_PATH}/modules)
 
-# MFEM options. Set to mimic the default "default.mk" file.
-option(MFEM_USE_MPI "Enable MPI parallel build" OFF)
-option(MFEM_USE_LAPACK "Enable LAPACK usage" OFF)
-option(MFEM_USE_OPENMP "Enable OpenMP usage" OFF)
-option(MFEM_USE_MESQUITE "Enable MESQUITE usage" OFF)
-option(MFEM_USE_SUITESPARSE "Enable SuiteSparse usage" OFF)
-option(MFEM_USE_GECKO "Enable GECKO usage" OFF)
-option(MFEM_USE_SUPERLU "Enable SuperLU-dist usage" OFF)
-option(MFEM_USE_GNUTLS "Enable GNUTLS usage" OFF)
-option(MFEM_USE_NETCDF "Enable NETCDF usage" OFF)
-option(MFEM_USE_MEMALLOC "Enable MEMALLOC usage" ON)
-option(MFEM_THREAD_SAFE "Enable thread safety" OFF)
-
-# Allow a user to disable testing, examples, and/or miniapps at
-# CONFIGURE TIME if they don't want/need them (e.g. if MFEM is "just a
-# dependency" and all they need is the library, building all that
-# stuff adds unnecessary overhead). To match "makefile" behavior, they
-# are all enabled by default.
-option(MFEM_ENABLE_TESTING "Enable the ctest framework for testing" ON)
-option(MFEM_ENABLE_EXAMPLES "Build all of the examples" ON)
-option(MFEM_ENABLE_MINIAPPS "Build all of the miniapps" ON)
+# Load user settings before the defaults - this way the defaults will not
+# overwrite the user set options. If the user has not set all options, we still
+# have the defaults.
+include(${PROJECT_SOURCE_DIR}/config/user.cmake OPTIONAL)
+include(${PROJECT_SOURCE_DIR}/config/defaults.cmake)
 
 # MFEM_DEBUG
-if (CMAKE_BUILD_TYPE MATCHES "DEBUG")
+if (CMAKE_BUILD_TYPE MATCHES "Debug|debug|DEBUG")
   set(MFEM_DEBUG ON)
 else()
   set(MFEM_DEBUG OFF)
 endif()
 
-# MPI
+# MPI -> hypre, METIS
 if (MFEM_USE_MPI)
   find_package(MPI REQUIRED)
   include_directories(${MPI_CXX_INCLUDE_PATH})
-  
   # Parallel MFEM depends on Hypre and Metis
   find_package(HYPRE REQUIRED)
-  set(MFEM_USE_HYPRE ON)
   include_directories(${HYPRE_INCLUDE_DIRS})
-  
   find_package(METIS REQUIRED)
   include_directories(${METIS_INCLUDE_DIRS})
-  set(MFEM_USE_METIS ON)
 endif()
 
-# SuperLU_dist can only be enabled if parallel
-if (MFEM_USE_SUPERLU)
-  if (MFEM_USE_MPI)
-    find_package(SuperLUDist REQUIRED)
-    include_directories(${SuperLUDist_INCLUDE_DIRS})
-  else()
-    message(FATAL_ERROR "SuperLU_DIST requires that MPI be enabled")
-  endif()
-endif()
-
-# LAPACK
-if(MFEM_USE_LAPACK)
+# BLAS, LAPACK
+if (MFEM_USE_LAPACK)
   find_package(BLAS REQUIRED)
   find_package(LAPACK REQUIRED)
 endif()
 
 # OpenMP
 if (MFEM_USE_OPENMP)
-  find_package(OPENMP REQUIRED)
-  if (OPENMP_FOUND)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-  else()
-    message(STATUS "OpenMP NOT FOUND; Content disabled.")
-  endif()
+  find_package(OpenMP REQUIRED)
 endif()
 
-# MESQUITE
+# Mesquite
 if (MFEM_USE_MESQUITE)
   find_package(Mesquite REQUIRED)
-  include_directories(${Mesquite_INCLUDE_DIRS})
+  include_directories(${MESQUITE_INCLUDE_DIRS})
 endif()
 
 # SuiteSparse
@@ -89,16 +58,26 @@ if (MFEM_USE_SUITESPARSE)
   include_directories(${SuiteSparse_INCLUDE_DIRS})
 endif()
 
-# GECKO
+# SuperLU_DIST can only be enabled if parallel
+if (MFEM_USE_SUPERLU)
+  if (MFEM_USE_MPI)
+    find_package(SuperLUDist REQUIRED)
+    include_directories(${SuperLUDist_INCLUDE_DIRS})
+  else()
+    message(FATAL_ERROR " *** SuperLU_DIST requires that MPI be enabled.")
+  endif()
+endif()
+
+# Gecko
 if (MFEM_USE_GECKO)
   find_package(Gecko REQUIRED)
-  include_directories(${Gecko_INCLUDE_DIRS})
+  include_directories(${GECKO_INCLUDE_DIRS})
 endif()
 
 # GnuTLS
 if (MFEM_USE_GNUTLS)
-  find_package(GnuTLS REQUIRED)
-  include_directories(${GNUTLS_INCLUDE_DIR})
+  find_package(_GnuTLS REQUIRED)
+  include_directories(${GNUTLS_INCLUDE_DIRS})
 endif()
 
 # NetCDF
@@ -107,66 +86,53 @@ if (MFEM_USE_NETCDF)
   include_directories(${NETCDF_INCLUDE_DIRS})
 endif()
 
-set(TPL_LIBRARIES "")
-if (GNUTLS_FOUND)
-  list(APPEND TPL_LIBRARIES ${GNUTLS_LIBRARIES})
-endif()
-if (NETCDF_FOUND)
-  list(APPEND TPL_LIBRARIES ${NETCDF_LIBRARIES})
-endif()
-if (SuiteSparse_FOUND)
-  list(APPEND TPL_LIBRARIES ${SuiteSparse_LIBRARIES})
-endif()
-if (HYPRE_FOUND)
-  list(APPEND TPL_LIBRARIES ${HYPRE_LIBRARIES})
-endif()
-if (SuperLUDist_FOUND)
-  list(APPEND TPL_LIBRARIES ${SuperLUDist_LIBRARIES})
-endif()
-if (ParMETIS_FOUND)
-  list(APPEND TPL_LIBRARIES ${ParMETIS_LIBRARIES})
-endif()
-if (METIS_FOUND)
-  list(APPEND TPL_LIBRARIES ${METIS_LIBRARIES})
-endif()
-if (LAPACK_FOUND)
-  list(APPEND TPL_LIBRARIES ${LAPACK_LIBRARIES})
-endif()
-if (BLAS_FOUND)
-  list(APPEND TPL_LIBRARIES ${BLAS_LIBRARIES})
+# MPFR
+if (MFEM_USE_MPFR)
+  find_package(MPFR REQUIRED)
+  include_directories(${MPFR_INCLUDE_DIRS})
 endif()
 
 # MFEM_TIMER_TYPE
-if(NOT MFEM_TIMER_TYPE)
+if (NOT DEFINED MFEM_TIMER_TYPE)
   if (APPLE)
-    set(MFEM_TIMER_TYPE 0)
-  elseif (UNIX)
-    set(MFEM_TIMER_TYPE 2)
-    find_library(RT_LIBRARY rt)
-    list(APPEND TPL_LIBRARIES ${RT_LIBRARY})
+    set(MFEM_TIMER_TYPE 0) # use std::clock from <ctime>
   elseif (WIN32)
-    # TRB: I don't know what this means, but Mikhail had it there, so
-    # it stayed.
-    set(MFEM_TIMER_TYPE 3)
+    set(MFEM_TIMER_TYPE 3) # QueryPerformanceCounter from <windows.h>
   else()
-    set(MFEM_TIMER_TYPE 1)
+    find_package(POSIXClocks)
+    if (POSIXCLOCKS_FOUND)
+      set(MFEM_TIMER_TYPE 2) # use high-resolution POSIX clocks
+    else()
+      set(MFEM_TIMER_TYPE 0) # use std::clock from <ctime>
+    endif()
   endif()
 endif()
 
-# Windows specific
-if (WIN32)
-  set(_USE_MATH_DEFINES ON)
-else()
-  set(_USE_MATH_DEFINES OFF)
+
+# List all posible libraries in order of dependencies.
+set(MFEM_TPLS HYPRE OPENMP MEQUITE SuiteSparse SuperLUDist
+    ParMETIS METIS LAPACK BLAS GECKO GNUTLS NETCDF MPFR POSIXCLOCKS)
+# Add all *_FOUND libraries in the variable TPL_LIBRARIES.
+set(TPL_LIBRARIES "")
+foreach(TPL IN LISTS MFEM_TPLS)
+  if (${TPL}_FOUND)
+    list(APPEND TPL_LIBRARIES ${${TPL}_LIBRARIES})
+  endif()
+endforeach(TPL)
+
+if (OPENMP_FOUND)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
+
+# Windows specific
+set(_USE_MATH_DEFINES ${WIN32})
 
 include_directories(${PROJECT_SOURCE_DIR})
 
-# Configuration file
+# Configuration file, generate config/config.hpp.
 configure_file(
   "${PROJECT_SOURCE_DIR}/config/config.hpp.in_cmake"
   "${PROJECT_SOURCE_DIR}/config/config.hpp")
-include_directories(${PROJECT_SOURCE_DIR}/config)
 
 # Headers and sources
 include(MfemCmakeUtilities)
@@ -180,7 +146,13 @@ add_subdirectory(config)
 
 # Declaring the library
 add_library(mfem ${SOURCES} ${HEADERS})
-target_link_libraries(mfem PUBLIC ${TPL_LIBRARIES})
+list(REMOVE_DUPLICATES TPL_LIBRARIES)
+# message(STATUS " TPL_LIBRARIES = ${TPL_LIBRARIES}")
+if (CMAKE_VERSION VERSION_GREATER 2.8.11)
+  target_link_libraries(mfem PUBLIC ${TPL_LIBRARIES})
+else()
+  target_link_libraries(mfem ${TPL_LIBRARIES})
+endif()
 
 # The examples and miniapps are separate
 if (MFEM_ENABLE_TESTING)

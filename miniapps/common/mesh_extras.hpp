@@ -17,15 +17,13 @@
 #include "mfem.hpp"
 #include <sstream>
 
-using namespace std;
-
 namespace mfem
 {
 
 namespace miniapps
 {
 
-class ElementMeshStream : public stringstream
+class ElementMeshStream : public std::stringstream
 {
 public:
    ElementMeshStream(Element::Type e);

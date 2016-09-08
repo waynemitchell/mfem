@@ -56,6 +56,8 @@ if (MFEM_USE_MPI)
     pgridfunc.cpp
     plinearform.cpp
     pnonlinearform.cpp)
+  # If this list (HDRS -> HEADERS) is used for install, we probably want the
+  # headers added all the time.
   list(APPEND HDRS
     pbilinearform.hpp
     pfespace.hpp

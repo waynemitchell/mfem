@@ -24,7 +24,6 @@ else()
 endif()
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(MESQUITE
-  DEFAULT_MSG
+find_package_handle_standard_args(Mesquite
+  " *** Mesquite library not found. Please set MESQUITE_DIR."
   MESQUITE_LIBRARIES MESQUITE_INCLUDE_DIRS MESQUITE_LIBRARY_DIRS)
-

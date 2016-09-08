@@ -6,7 +6,7 @@
 
 find_path(METIS_INCLUDE_DIRS metis.h
   HINTS ${METIS_DIR} $ENV{METIS_DIR}
-  PATH_SUFFIXES include
+  PATH_SUFFIXES include Lib
   NO_DEFAULT_PATH
   DOC "Directory with METIS header.")
 find_path(METIS_INCLUDE_DIRS metis.h
@@ -81,7 +81,12 @@ int main()
 endfunction()
 
 # Decide if we're using METIS 5
-check_for_metis_5(MFEM_USE_METIS_5)
+check_for_metis_5(METIS_VERSION_5)
+# Expose METIS_VERSION_5 (it is created as INTERNAL) and copy its value to
+# MFEM_USE_METIS_5:
+set(MFEM_USE_METIS_5 ${METIS_VERSION_5})
+unset(METIS_VERSION_5 CACHE)
+set(METIS_VERSION_5 ${MFEM_USE_METIS_5} CACHE BOOL "Is METIS version 5?")
 
 if (CMAKE_VERSION VERSION_GREATER 2.8.11)
   get_filename_component(METIS_LIBRARY_DIRS ${METIS_LIBRARIES} DIRECTORY)
@@ -91,5 +96,5 @@ endif()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(METIS
-  DEFAULT_MSG
+  " *** METIS library not found. Please set METIS_DIR, e.g. ~/metis-4.0.3"
   METIS_LIBRARIES METIS_INCLUDE_DIRS METIS_LIBRARY_DIRS)

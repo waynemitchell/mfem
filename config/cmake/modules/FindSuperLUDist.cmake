@@ -4,6 +4,8 @@
 #   - SuperLUDist_LIBRARY_DIRS
 #   - SuperLUDist_LIBRARIES
 
+find_package(OpenMP REQUIRED)
+find_package(BLAS REQUIRED)
 find_package(ParMETIS REQUIRED)
 
 # Look for superlu_defs.h
@@ -52,5 +54,7 @@ endif()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(SuperLUDist
-  DEFAULT_MSG
+  " *** SuperLU_DIST library not found. Please set SuperLUDist_DIR."
   SuperLUDist_LIBRARIES SuperLUDist_INCLUDE_DIRS SuperLUDist_LIBRARY_DIRS SuperLUDist_VERSION_OK)
+# For older cmake versions
+set(SuperLUDist_FOUND ${SUPERLUDIST_FOUND})

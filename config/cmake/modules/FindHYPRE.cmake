@@ -26,6 +26,6 @@ endif()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(HYPRE
-  DEFAULT_MSG
+  " *** HYPRE library not found. Please set HYPRE_DIR, e.g. ~/hypre-2.10.0b/src/hypre"
   HYPRE_LIBRARIES HYPRE_INCLUDE_DIRS HYPRE_LIBRARY_DIRS)
 

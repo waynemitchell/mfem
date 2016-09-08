@@ -21,7 +21,7 @@ endif()
 
 add_mfem_executable(performance_ex1
   MAIN ex1.cpp
-  LIBRARIES mfem mfem_miniapps_common
+  LIBRARIES mfem
   EXTRA_OPTIONS ${PERFORMANCE_CXX_OPTIONS})
 
 add_test(NAME performance_ex1_ser
@@ -31,7 +31,7 @@ add_test(NAME performance_ex1_ser
 if (MFEM_USE_MPI)
   add_mfem_executable(performance_ex1p
     MAIN ex1p.cpp 
-    LIBRARIES mfem mfem_miniapps_common
+    LIBRARIES mfem
     EXTRA_OPTIONS ${PERFORMANCE_CXX_OPTIONS})
 
   add_test(NAME performance_ex1p_np=4
