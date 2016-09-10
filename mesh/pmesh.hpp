@@ -50,6 +50,8 @@ protected:
    /// Create from a nonconforming mesh.
    ParMesh(const ParNCMesh &pncmesh);
 
+   void ParMarkTetMeshForRefinement(DSTable &v_to_v);
+
    /// Return a number(0-1) identifying how the given edge has been split
    int GetEdgeSplittings(Element *edge, const DSTable &v_to_v, int *middle);
    /// Return a number(0-4) identifying how the given face has been split
@@ -93,6 +95,28 @@ public:
    ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_ = NULL,
            int part_method = 1);
 
+   /// Read a parallel mesh, each MPI rank from its own file/stream.
+   ParMesh(MPI_Comm comm, std::istream &input);
+
+   /** Create a parallel mesh from a local serial mesh plus information
+       about its shared geometric entities. */
+   ParMesh(Mesh &mesh,
+           GroupTopology &_gtopo,
+           Table &_group_svert,
+           Table &_group_sedge,
+           Table &_group_sface,
+           Array<int> &_svert_lvert,
+           Array<int> &_sedge_ledge,
+           Array<int> &_sface_lface);
+
+   /// Testing the above constructor, delete before merge...
+   ParMesh *Copy()
+   {
+      return new ParMesh(*this, gtopo,
+                         group_svert, group_sedge, group_sface,
+                         svert_lvert, sedge_ledge, sface_lface);
+   }
+
    MPI_Comm GetComm() const { return MyComm; }
    int GetNRanks() const { return NRanks; }
    int GetMyRank() const { return MyRank; }
@@ -112,7 +136,7 @@ public:
 
    ParNCMesh* pncmesh;
 
-   int GetNGroups() { return gtopo.NGroups(); }
+   int GetNGroups() const { return gtopo.NGroups(); }
 
    // next 6 methods do not work for the 'local' group 0
    int GroupNVertices(int group) { return group_svert.RowSize(group-1); }
@@ -181,6 +205,9 @@ public:
 
    /// Print various parallel mesh stats
    virtual void PrintInfo(std::ostream &out = std::cout);
+
+   /// Save the mesh in a parallel mesh format.
+   void ParPrint(std::ostream &out) const;
 
    virtual ~ParMesh();
 };

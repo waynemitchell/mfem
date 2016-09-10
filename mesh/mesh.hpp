@@ -190,7 +190,8 @@ protected:
       { line.resize(line.size()-1); }
    }
 
-   void SetMeshGen(); // set 'meshgen'
+   /// Determine the mesh generator bitmask #meshgen, see MeshGenerator().
+   void SetMeshGen();
 
    /// Return the length of the segment from node i to node j.
    double GetLength(int i, int j) const;
@@ -377,7 +378,7 @@ protected:
 
 public:
 
-   Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
+   Mesh() { Init(); InitTables(); }
 
    /** Copy constructor. Performs a deep copy of (almost) all data, so that the
        source mesh can be modified (e.g. deleted, refined) without affecting the
@@ -483,12 +484,15 @@ public:
    void Load(std::istream &input, int generate_edges = 0, int refine = 1,
              bool fix_orientation = true);
 
-   /** Return a bitmask:
-       bit 0 - simplices are present in the mesh (triangles, tets),
-       bit 1 - tensor product elements are present in the mesh (quads, hexes).*/
+   /** @brief Get the mesh generator/type.
+
+       @return A bitmask:
+       - bit 0 - simplices are present in the mesh (triangles, tets),
+       - bit 1 - tensor product elements are present in the mesh (quads, hexes).
+   */
    inline int MeshGenerator() { return meshgen; }
 
-   /** Returns number of vertices.  Vertices are only at the corners of
+   /** @brief Returns number of vertices.  Vertices are only at the corners of
        elements, where you would expect them in the lowest-order mesh. */
    inline int GetNV() const { return NumOfVertices; }
 

@@ -101,6 +101,11 @@ public:
    // neighbor 0 is the local processor
    const int *GetGroup(int g) const { return group_lproc.GetRow(g); }
 
+   /// Save the data using text format.
+   void Save(std::ostream &out) const;
+   /// Load the data using text format.
+   void Load(std::istream &in);
+
    virtual ~GroupTopology() {}
 };
 
@@ -128,23 +133,35 @@ public:
    /// Get a reference to the group topology object
    GroupTopology & GetGroupTopology() { return gtopo; }
 
-   /** Broadcast within each group where the master is the root.
+   /** @brief Broadcast within each group where the master is the root.
+
+       The data @a layout can be:
+       |   |                                                             |
+       |--:|:------------------------------------------------------------|
+       | 0 | data is an array on all ldofs                               |
+       | 1 | data is an array on the shared ldofs as given by group_ldof | */
+   template <class T> void Bcast(T *data, int layout);
+
+   /** @brief Broadcast within each group where the master is the root.
        This method is instantiated for int and double. */
-   template <class T> void Bcast(T *ldata);
+   template <class T> void Bcast(T *ldata) { Bcast<T>(ldata, 0); }
    template <class T> void Bcast(Array<T> &ldata) { Bcast<T>((T *)ldata); }
 
-   /** Data structure on which we define reduce operations. The data is
-       associated with (and the operation is performed on) one group at a
-       time. */
+   /** @brief Data structure on which we define reduce operations.
+
+     The data is associated with (and the operation is performed on) one group
+     at a time. */
    template <class T> struct OpData
    {
       int nldofs, nb, *ldofs;
       T *ldata, *buf;
    };
 
-   /** Reduce within each group where the master is the root. The reduce
-       operation is given by the second argument (see below for list of the
-       supported operations.) This method is instantiated for int and double. */
+   /** @brief Reduce within each group where the master is the root.
+
+       The reduce operation is given by the second argument (see below for list
+       of the supported operations.) This method is instantiated for int and
+       double. */
    template <class T> void Reduce(T *ldata, void (*Op)(OpData<T>));
    template <class T> void Reduce(Array<T> &ldata, void (*Op)(OpData<T>))
    { Reduce<T>((T *)ldata, Op); }

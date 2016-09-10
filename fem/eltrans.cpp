@@ -247,9 +247,7 @@ void IntegrationPointTransformation::Transform (const IntegrationPoint &ip1,
    Vector v (vec, Transf.GetPointMat().Height());
 
    Transf.Transform (ip1, v);
-   ip2.x = vec[0];
-   ip2.y = vec[1];
-   ip2.z = vec[2];
+   ip2.Set(vec, v.Size());
 }
 
 void IntegrationPointTransformation::Transform (const IntegrationRule &ir1,
