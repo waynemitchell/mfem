@@ -99,3 +99,293 @@ function(add_mfem_executable MFEM_EXE_NAME)
     endif()
   endif()
 endfunction()
+
+
+#
+#   MFEM version of find_package that searches for header/library and if
+#   successful, optionally checks building (compile + link) one or more given
+#   code snippets. Additionally, a list of required/optional/alternative
+#   packages are searched for and added to the ${Prefix}_INCLUDE_DIRS and
+#   ${Prefix}_LIBRARIES lists. Defines the following CACHE variables:
+#
+#      ${Prefix}_FOUND
+#      ${Prefix}_INCLUDE_DIRS
+#      ${Prefix}_LIBRARIES
+#
+#   If ${Name}_SKIP_LOOKING_MSG is true, skip the initial "Looking ..." message.
+#
+#   This function is intended to be called from the script Find${Name}.cmake
+#
+function(mfem_find_package Name Prefix DirVar IncSuffixes Header LibSuffixes
+         Lib IncDoc LibDoc)
+
+  # Quick return
+  if (${Prefix}_FOUND)
+    return()
+  elseif (${Prefix}_INCLUDE_DIRS OR ${Prefix}_LIBRARIES)
+    # If ${Prefix}_INCLUDE_DIRS or ${Prefix}_LIBRARIES are defined, accept them
+    # silently.
+    set(${Prefix}_FOUND TRUE CACHE BOOL "${Name} was found." FORCE)
+    return()
+  endif()
+
+  set(EnvDirVar "$ENV{${DirVar}}")
+  if (NOT ${Name}_FIND_QUIETLY)
+    if (NOT ${Name}_SKIP_LOOKING_MSG)
+      message(STATUS "Looking for ${Name} ...")
+    endif()
+    if (${DirVar})
+      message(STATUS "   in ${DirVar} = ${${DirVar}}")
+    endif()
+    if (EnvDirVar)
+      message(STATUS "   in ENV{${DirVar}} = ${EnvDirVar}")
+    endif()
+  endif()
+
+  if (Lib)
+    if (${DirVar} OR EnvDirVar)
+      find_library(${Prefix}_LIBRARIES ${Lib}
+        HINTS ${${DirVar}} ENV ${DirVar}
+        PATH_SUFFIXES ${LibSuffixes}
+        NO_DEFAULT_PATH
+        DOC "${LibDoc}")
+    endif()
+    find_library(${Prefix}_LIBRARIES ${Lib}
+      PATH_SUFFIXES ${LibSuffixes}
+      DOC "${LibDoc}")
+  endif()
+
+  if (Header)
+    if (${DirVar} OR EnvDirVar)
+      find_path(${Prefix}_INCLUDE_DIRS ${Header}
+        HINTS ${${DirVar}} ENV ${DirVar}
+        PATH_SUFFIXES ${IncSuffixes}
+        NO_DEFAULT_PATH
+        DOC "${IncDoc}")
+    endif()
+    find_path(${Prefix}_INCLUDE_DIRS ${Header}
+      PATH_SUFFIXES ${IncSuffixes}
+      DOC "${IncDoc}")
+  endif()
+
+  if (((NOT Lib) OR ${Prefix}_LIBRARIES) AND
+      ((NOT Header) OR ${Prefix}_INCLUDE_DIRS))
+    set(Found TRUE)
+  else()
+    set(Found FALSE)
+  endif()
+
+  # Add required / optional / alternative packages.
+  set(Required "REQUIRED")
+  set(Quiet "")
+  if (${Name}_FIND_QUIETLY)
+    set(Quiet "QUIET")
+  endif()
+  set(Alternative FALSE)
+  foreach(ReqPack IN LISTS ${Name}_REQUIRED_PACKAGES)
+    if (Quiet)
+      set(ReqPackM "${ReqPack} (quiet)")
+    else()
+      set(ReqPackM "${ReqPack}")
+    endif()
+    if ("${ReqPack}" STREQUAL "REQUIRED:")
+      set(Required "REQUIRED")
+    elseif ("${ReqPack}" STREQUAL "OPTIONAL:")
+      set(Required "")
+    elseif ("${ReqPack}" STREQUAL "QUIET:")
+      set(Quiet "QUIET")
+    elseif ("${ReqPack}" STREQUAL "VERBOSE:")
+      set(Quiet "")
+      if (${Name}_FIND_QUIETLY)
+        set(Quiet "QUIET")
+      endif()
+    elseif ("${ReqPack}" STREQUAL "ALT:")
+      set(Alternative TRUE)
+    elseif ((NOT Found) AND Alternative)
+      set(Alternative FALSE)
+      if (NOT ${Name}_FIND_QUIETLY)
+        message(STATUS "${Name}: trying alternative package: ${ReqPackM}")
+      endif()
+      find_package(${ReqPack} ${Quiet})
+      string(TOUPPER ${ReqPack} ReqPACK)
+      if (${ReqPack}_FOUND)
+        set(Found TRUE)
+        set(${Prefix}_LIBRARIES ${${ReqPack}_LIBRARIES})
+        set(${Prefix}_INCLUDE_DIRS ${${ReqPack}_INCLUDE_DIRS})
+      elseif (${ReqPACK}_FOUND)
+        set(Found TRUE)
+        set(${Prefix}_LIBRARIES ${${ReqPACK}_LIBRARIES})
+        set(${Prefix}_INCLUDE_DIRS ${${ReqPACK}_INCLUDE_DIRS})
+      endif()
+    elseif (Alternative)
+      set(Alternative FALSE)
+    else()
+      if (NOT ${Name}_FIND_QUIETLY)
+        if (Required)
+          message(STATUS "${Name}: looking for required package: ${ReqPackM}")
+        else()
+          message(STATUS "${Name}: looking for optional package: ${ReqPackM}")
+        endif()
+      endif()
+      find_package(${ReqPack} ${Required} ${Quiet})
+      if ("${ReqPack}" STREQUAL "MPI")
+        list(APPEND ${Prefix}_LIBRARIES ${MPI_CXX_LIBRARIES})
+        list(APPEND ${Prefix}_INCLUDE_DIRS ${MPI_CXX_INCLUDE_PATH})
+      else()
+        string(TOUPPER ${ReqPack} ReqPACK)
+        if (${ReqPack}_FOUND)
+          list(APPEND ${Prefix}_LIBRARIES ${${ReqPack}_LIBRARIES})
+          list(APPEND ${Prefix}_INCLUDE_DIRS ${${ReqPack}_INCLUDE_DIRS})
+        elseif (${ReqPACK}_FOUND)
+          list(APPEND ${Prefix}_LIBRARIES ${${ReqPACK}_LIBRARIES})
+          list(APPEND ${Prefix}_INCLUDE_DIRS ${${ReqPACK}_INCLUDE_DIRS})
+        endif()
+      endif()
+    endif()
+  endforeach()
+
+  set(ReqVars "")
+  if (NOT ("${${Prefix}_LIBRARIES}" STREQUAL ""))
+    list(APPEND ReqVars ${Prefix}_LIBRARIES)
+    set(ReqLibs 1)
+  endif()
+  if (NOT ("${${Prefix}_INCLUDE_DIRS}" STREQUAL ""))
+    list(APPEND ReqVars ${Prefix}_INCLUDE_DIRS)
+    set(ReqHeaders 1)
+  endif()
+
+  if (Found)
+    if (ReqLibs)
+      list(REMOVE_DUPLICATES ${Prefix}_LIBRARIES)
+    endif()
+    if (ReqHeaders)
+      list(REMOVE_DUPLICATES ${Prefix}_INCLUDE_DIRS)
+    endif()
+    # Write the updated values to the cache.
+    set(${Prefix}_LIBRARIES ${${Prefix}_LIBRARIES} CACHE STRING
+        "${LibDoc}" FORCE)
+    set(${Prefix}_INCLUDE_DIRS ${${Prefix}_INCLUDE_DIRS} CACHE STRING
+        "${IncDoc}" FORCE)
+    set(${Prefix}_FOUND TRUE CACHE BOOL "${Name} was found." FORCE)
+
+    # Check for optional arguments.
+    set(I 9) # 9 is the number of required arguments
+    while(I LESS ARGC)
+      if ("${ARGV${I}}" STREQUAL "CHECK_BUILD")
+        math(EXPR I "${I}+1")
+        set(TestVar "${ARGV${I}}")
+        math(EXPR I "${I}+1")
+        set(TestReq "${ARGV${I}}")
+        math(EXPR I "${I}+1")
+        set(TestSrc "${ARGV${I}}")
+        include(CheckCXXSourceCompiles)
+        set(CMAKE_REQUIRED_INCLUDES ${${Prefix}_INCLUDE_DIRS})
+        set(CMAKE_REQUIRED_LIBRARIES ${${Prefix}_LIBRARIES})
+        set(CMAKE_REQUIRED_QUIET ${${Name}_FIND_QUIETLY})
+        check_cxx_source_compiles("${TestSrc}" ${TestVar})
+        if (TestReq)
+          list(APPEND ReqVars ${TestVar})
+        endif()
+      else()
+        message(FATAL_ERROR "Unknown argument: ${ARGV${I}}")
+      endif()
+      math(EXPR I "${I}+1")
+    endwhile()
+  else()
+    set(${Prefix}_FOUND FALSE CACHE BOOL "${Name} was not found." FORCE)
+  endif()
+  if ("_x_${ReqVars}" STREQUAL "_x_")
+    set(ReqVars ${Prefix}_FOUND)
+  endif()
+  # foreach(ReqVar ${ReqVars})
+  #   message(STATUS "${ReqVar}=${${ReqVar}}")
+  # endforeach()
+
+  include(FindPackageHandleStandardArgs)
+  find_package_handle_standard_args(${Name}
+    " *** ${Name} not found. Please set ${DirVar}." ${ReqVars})
+
+  if (Found AND ReqLibs AND ReqHeaders AND (NOT ${Name}_FIND_QUIETLY))
+    message(STATUS "${Prefix}_INCLUDE_DIRS=${${Prefix}_INCLUDE_DIRS}")
+  endif()
+
+endfunction(mfem_find_package)
+
+
+#
+#   Function checking if the code snippet CheckSrc compiles and links using the
+#   C++ compiler default include and link paths, searching for a particular
+#   library, or no library at all, to link with.
+#
+#   Checks if the code snippet CheckSrc works with:
+#      a) one of the libraries listed in ${Prefix}_LIBRARIES, if any,
+#      b) without any library, just standard C/C++, or
+#      c) with one of the libraries listed in Lib, if any.
+#
+#   Defines the variables:
+#      ${Prefix}_FOUND
+#      ${Prefix}_LIBRARIES (empty if no library is needed)
+#
+#   If ${Name}_SKIP_STANDARD is true, then check (b) above is skipped.
+#
+#   If ${Name}_SKIP_FPHSA is true and the package was not found, skip the call
+#   to the function find_package_handle_standard_args(...).
+#
+#   This function is intended to be called from the script Find${Name}.cmake
+#
+function(mfem_find_library Name Prefix Lib LibDoc CheckVar CheckSrc)
+
+  # Quick return
+  if (${Prefix}_FOUND)
+    return()
+  endif()
+
+  if (NOT ${Name}_FIND_QUIETLY)
+    message(STATUS "Looking for ${Name} ...")
+  endif()
+
+  include(CheckCXXSourceCompiles)
+  foreach(CMAKE_REQUIRED_LIBRARIES ${${Prefix}_LIBRARIES} "" ${Lib})
+    unset(${CheckVar} CACHE)
+    if (CMAKE_REQUIRED_LIBRARIES OR (NOT ${Name}_SKIP_STANDARD))
+      if (NOT ${Name}_FIND_QUIETLY)
+        if (CMAKE_REQUIRED_LIBRARIES)
+          message(STATUS "   checking library: ${CMAKE_REQUIRED_LIBRARIES}")
+        else()
+          message(STATUS "   checking library: <standard c/c++>")
+        endif()
+      endif()
+      if ("${CMAKE_REQUIRED_LIBRARIES}" STREQUAL "")
+        set(ReqVars ${Prefix}_FOUND)
+      else()
+        set(ReqVars ${Prefix}_LIBRARIES)
+      endif()
+      #   CMAKE_REQUIRED_FLAGS = string of compile command line flags
+      #   CMAKE_REQUIRED_DEFINITIONS = list of macros to define (-DFOO=bar)
+      #   CMAKE_REQUIRED_INCLUDES = list of include directories
+      #   CMAKE_REQUIRED_LIBRARIES = list of libraries to link
+      #   CMAKE_REQUIRED_QUIET = execute quietly without messages
+      set(CMAKE_REQUIRED_QUIET ${Name}_FIND_QUIETLY)
+      check_cxx_source_compiles("${CheckSrc}" ${CheckVar})
+      if (${CheckVar})
+        set(${Prefix}_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} CACHE STRING
+            "${LibDoc}" FORCE)
+        break()
+      endif()
+    endif()
+  endforeach()
+
+  if (${CheckVar})
+    set(${Prefix}_FOUND TRUE CACHE BOOL "${Name} was found." FORCE)
+  else()
+    set(${Prefix}_FOUND FALSE CACHE BOOL "${Name} was not found." FORCE)
+  endif()
+
+  if (${Prefix}_FOUND OR (NOT ${Name}_SKIP_FPHSA))
+    # Handle REQUIRED etc
+    include(FindPackageHandleStandardArgs)
+    find_package_handle_standard_args(${Name}
+      " *** ${Name} not found." ${ReqVars})
+  endif()
+
+endfunction(mfem_find_library)

@@ -10,6 +10,7 @@ endif()
 
 # MFEM options. Set to mimic the default "default.mk" file.
 option(MFEM_USE_MPI "Enable MPI parallel build" OFF)
+option(MFEM_USE_LIBUNWIND "Enable backtrace for errors." ON)
 option(MFEM_USE_LAPACK "Enable LAPACK usage" OFF)
 option(MFEM_THREAD_SAFE "Enable thread safety" OFF)
 option(MFEM_USE_OPENMP "Enable OpenMP usage" OFF)
@@ -36,13 +37,26 @@ option(MFEM_ENABLE_MINIAPPS "Build all of the miniapps" ON)
 # Note: if the variables are already in the cache, they are not overwritten.
 set(HYPRE_DIR "" CACHE PATH "Path to the hypre library.")
 set(METIS_DIR "" CACHE PATH "Path to the METIS library.")
+set(LIBUNWIND_DIR "" CACHE PATH "Path to Libunwind.")
 set(MESQUITE_DIR "" CACHE PATH "Path to the Mesquite library.")
 set(SuiteSparse_DIR "" CACHE PATH "Path to the SuiteSparse library.")
+set(SuiteSparse_REQUIRED_PACKAGES "QUIET:" "SuiteSparseUMFPACK" "SuiteSparseKLU"
+    "SuiteSparseAMD" "SuiteSparseBTF" "SuiteSparseCHOLMOD" "SuiteSparseCOLAMD"
+    "SuiteSparseCAMD" "SuiteSparseCCOLAMD" "SuiteSparseCONFIG"
+    "VERBOSE:" "BLAS" "METIS"
+    CACHE STRING "Additional packages required by SuiteSparse.")
 set(ParMETIS_DIR "" CACHE PATH "Path to the ParMETIS library.")
+set(ParMETIS_REQUIRED_PACKAGES "METIS" CACHE STRING
+    "Additional packages required by ParMETIS.")
 set(SuperLUDist_DIR "" CACHE PATH "Path to the SuperLU_DIST library.")
+# SuperLU_DIST may also depend on "OpenMP", depending on how it was compiled.
+set(SuperLUDist_REQUIRED_PACKAGES "MPI" "BLAS" "ParMETIS" CACHE STRING
+    "Additional packages required by SuperLU_DIST.")
 set(GECKO_DIR "" CACHE PATH "Path to the Gecko library.")
 set(GNUTLS_DIR "" CACHE PATH "Path to the GnuTLS library.")
 set(NETCDF_DIR "" CACHE PATH "Path to the NetCDF library.")
+set(NetCDF_REQUIRED_PACKAGES "" CACHE STRING
+    "Additional packages required by NetCDF.")
 set(MPFR_DIR "" CACHE PATH "Path to the MPFR library.")
 
 set(BLAS_INCLUDE_DIRS "" CACHE STRING "Path to BLAS headers.")

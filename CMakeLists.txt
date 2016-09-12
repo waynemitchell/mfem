@@ -35,6 +35,13 @@ if (MFEM_USE_MPI)
   include_directories(${METIS_INCLUDE_DIRS})
 endif()
 
+# Backtrace with libunwind
+if (MFEM_USE_LIBUNWIND)
+  set(MFEMBacktrace_REQUIRED_PACKAGES "Libunwind" "LIBDL" "CXXABIDemangle")
+  find_package(MFEMBacktrace REQUIRED)
+  include_directories(${LIBUNWIND_INCLUDE_DIRS})
+endif()
+
 # BLAS, LAPACK
 if (MFEM_USE_LAPACK)
   find_package(BLAS REQUIRED)
@@ -110,17 +117,19 @@ endif()
 
 
 # List all posible libraries in order of dependencies.
-set(MFEM_TPLS HYPRE OPENMP MEQUITE SuiteSparse SuperLUDist
-    ParMETIS METIS LAPACK BLAS GECKO GNUTLS NETCDF MPFR POSIXCLOCKS)
+set(MFEM_TPLS HYPRE OPENMP MEQUITE SuiteSparse SuperLUDist ParMETIS METIS LAPACK
+    BLAS GECKO GNUTLS NETCDF MPFR POSIXCLOCKS MFEMBacktrace)
 # Add all *_FOUND libraries in the variable TPL_LIBRARIES.
 set(TPL_LIBRARIES "")
 foreach(TPL IN LISTS MFEM_TPLS)
   if (${TPL}_FOUND)
+    message(STATUS "MFEM: using package ${TPL}")
     list(APPEND TPL_LIBRARIES ${${TPL}_LIBRARIES})
   endif()
 endforeach(TPL)
 
 if (OPENMP_FOUND)
+  message(STATUS "MFEM: using package OpenMP")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
