@@ -261,6 +261,38 @@ int GridFunction::VectorDim() const
    return fes->GetMesh()->SpaceDimension();
 }
 
+void GridFunction::GetTrueDofs(Vector &tv) const
+{
+   const SparseMatrix *R = fes->GetRestrictionMatrix();
+   if (!R)
+   {
+      // R is identity -> make tv a reference to *this
+      tv.NewDataAndSize(data, size);
+   }
+   else
+   {
+      tv.SetSize(R->Height());
+      R->Mult(*this, tv);
+   }
+}
+
+void GridFunction::SetFromTrueDofs(const Vector &tv)
+{
+   MFEM_ASSERT(tv.Size() == fes->GetTrueVSize(), "invalid input");
+   const SparseMatrix *cP = fes->GetConformingProlongation();
+   if (!cP)
+   {
+      if (tv.GetData() != data)
+      {
+         *this = tv;
+      }
+   }
+   else
+   {
+      cP->Mult(tv, *this);
+   }
+}
+
 void GridFunction::GetNodalValues(int i, Array<double> &nval, int vdim) const
 {
    Array<int> vdofs;
@@ -2120,6 +2152,7 @@ GridFunction & GridFunction::operator=(double value)
 
 GridFunction & GridFunction::operator=(const Vector &v)
 {
+   MFEM_ASSERT(v.Size() == fes->GetVSize(), "");
    SetSize(v.Size());
    for (int i = 0; i < size; i++)
    {

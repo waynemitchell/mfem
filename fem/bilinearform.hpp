@@ -114,6 +114,20 @@ public:
        present in the bilinear form. */
    void UsePrecomputedSparsity(int ps = 1) { precompute_sparsity = ps; }
 
+   /** @brief Use the given CSR sparsity pattern to allocate the internal
+       SparseMatrix.
+
+       - The @a I and @a J arrays must define a square graph with size equal to
+         GetVSize() of the associated FiniteElementSpace.
+       - This method should be called after enabling static condensation or
+         hybridization, if used.
+       - In the case of static condensation, @a I and @a J are not used.
+       - The ownership of the arrays @a I and @a J remains with the caller. */
+   void UseSparsity(int *I, int *J, bool isSorted);
+
+   /// Use the sparsity of @a A to allocate the internal SparseMatrix.
+   void UseSparsity(SparseMatrix &A);
+
    /** Pre-allocate the internal SparseMatrix before assembly. If the flag
        'precompute sparsity' is set, the matrix is allocated in CSR format (i.e.
        finalized) and the entries are initialized with zeros. */
@@ -202,6 +216,13 @@ public:
    /// Assembles the form i.e. sums over all domain/bdr integrators.
    void Assemble(int skip_zeros = 1);
 
+   /// Get the finite element space prolongation matrix
+   virtual const Operator *GetProlongation() const
+   { return fes->GetConformingProlongation(); }
+   /// Get the finite element space restriction matrix
+   virtual const Operator *GetRestriction() const
+   { return fes->GetConformingRestriction(); }
+
    /** Form the linear system A X = B, corresponding to the current bilinear
        form and b(.), by applying any necessary transformations such as:
        eliminating boundary conditions; applying conforming constraints for
@@ -228,10 +249,13 @@ public:
                          SparseMatrix &A, Vector &X, Vector &B,
                          int copy_interior = 0);
 
+   /// Form the linear sytem matrix A, see FormLinearSystem for details.
+   void FormSystemMatrix(const Array<int> &ess_tdof_list, SparseMatrix &A);
+
    /** Call this method after solving a linear system constructed using the
        FormLinearSystem method to recover the solution as a GridFunction-size
        vector in x. Use the same arguments as in the FormLinearSystem call. */
-   void RecoverFEMSolution(const Vector &X, const Vector &b, Vector &x);
+   virtual void RecoverFEMSolution(const Vector &X, const Vector &b, Vector &x);
 
    /// Compute and store internally all element matrices.
    void ComputeElementMatrices();
