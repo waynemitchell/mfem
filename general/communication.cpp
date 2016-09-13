@@ -546,9 +546,11 @@ GroupCommunicator::~GroupCommunicator()
 
 // instantiate GroupCommunicator::Bcast and Reduce for int and double
 template void GroupCommunicator::Bcast<int>(int *);
+template void GroupCommunicator::Bcast<int>(int *, int);
 template void GroupCommunicator::Reduce<int>(int *, void (*)(OpData<int>));
 
 template void GroupCommunicator::Bcast<double>(double *);
+template void GroupCommunicator::Bcast<double>(double *, int);
 template void GroupCommunicator::Reduce<double>(
    double *, void (*)(OpData<double>));
 
