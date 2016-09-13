@@ -32,17 +32,19 @@ namespace mfem
 {
 
 // class SidreDataCollection implementation
-SidreDataCollection::SidreDataCollection(const std::string& collection_name, asctoolkit::sidre::DataGroup* rootfile_dg, asctoolkit::sidre::DataGroup* dg)
+SidreDataCollection::SidreDataCollection(const std::string& collection_name,
+                                         asctoolkit::sidre::DataGroup* rootfile_dg,
+                                         asctoolkit::sidre::DataGroup* dg)
   : mfem::DataCollection(collection_name.c_str()), 
     parent_datagroup( dg->getParent() ),
     m_loadCalled(false)
 {
    asctoolkit::slic::debug::checksAreErrors = true;
 
-   bp_grp = dg->createGroup(name+"/blueprint");
+   bp_grp = dg->createGroup("blueprint");
    //Currently only rank 0 adds anything to bp_index.
    bp_index_grp = rootfile_dg->createGroup("blueprint_index/" + name);
-   simdata_grp = dg->createGroup(name + "/sim");
+   simdata_grp = dg->createGroup("sim");
 }
 
 void SidreDataCollection::SetMesh(Mesh *new_mesh)
