@@ -1,8 +1,14 @@
 cmake_minimum_required(VERSION 2.8.11)
 
+# Load user settings before the defaults - this way the defaults will not
+# overwrite the user set options. If the user has not set all options, we still
+# have the defaults.
+include(${CMAKE_CURRENT_SOURCE_DIR}/config/user.cmake OPTIONAL)
+include(${CMAKE_CURRENT_SOURCE_DIR}/config/defaults.cmake)
+
 project(mfem CXX)
 
-if(NOT (CMAKE_VERSION VERSION_GREATER 2.8.11))
+if (CMAKE_VERSION VERSION_LESS 3.2)
    # This seems to be needed by: find_package(BLAS REQUIRED)
    enable_language(C)
 endif()
@@ -10,12 +16,6 @@ endif()
 # CMake needs to know where to find things
 set(MFEM_CMAKE_PATH ${PROJECT_SOURCE_DIR}/config/cmake)
 set(CMAKE_MODULE_PATH ${MFEM_CMAKE_PATH}/modules)
-
-# Load user settings before the defaults - this way the defaults will not
-# overwrite the user set options. If the user has not set all options, we still
-# have the defaults.
-include(${PROJECT_SOURCE_DIR}/config/user.cmake OPTIONAL)
-include(${PROJECT_SOURCE_DIR}/config/defaults.cmake)
 
 # MFEM_DEBUG
 if (CMAKE_BUILD_TYPE MATCHES "Debug|debug|DEBUG")
@@ -132,6 +132,9 @@ if (OPENMP_FOUND)
   message(STATUS "MFEM: using package OpenMP")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
+
+message(STATUS "MFEM build type: ${CMAKE_BUILD_TYPE}")
+
 
 # Windows specific
 set(_USE_MATH_DEFINES ${WIN32})

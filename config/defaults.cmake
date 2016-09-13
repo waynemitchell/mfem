@@ -10,7 +10,7 @@ endif()
 
 # MFEM options. Set to mimic the default "default.mk" file.
 option(MFEM_USE_MPI "Enable MPI parallel build" OFF)
-option(MFEM_USE_LIBUNWIND "Enable backtrace for errors." ON)
+option(MFEM_USE_LIBUNWIND "Enable backtrace for errors." OFF)
 option(MFEM_USE_LAPACK "Enable LAPACK usage" OFF)
 option(MFEM_THREAD_SAFE "Enable thread safety" OFF)
 option(MFEM_USE_OPENMP "Enable OpenMP usage" OFF)
@@ -32,10 +32,30 @@ option(MFEM_ENABLE_TESTING "Enable the ctest framework for testing" ON)
 option(MFEM_ENABLE_EXAMPLES "Build all of the examples" ON)
 option(MFEM_ENABLE_MINIAPPS "Build all of the miniapps" ON)
 
+# Allow overwriting of the compiler by setting CXX/MPICXX:
+if (CXX)
+  set(CMAKE_CXX_COMPILER ${CXX})
+  # Avoid some issues when CXX is defined
+  unset(CXX)
+  unset(CXX CACHE)
+endif()
+if (MFEM_USE_MPI)
+  if (MPICXX)
+    # In parallel MPICXX takes precedence, if defined.
+    set(CMAKE_CXX_COMPILER ${MPICXX})
+  endif()
+  # Setting the variables below circumvents autodetection, see FindMPI.cmake.
+  set(MPI_CXX_INCLUDE_PATH "")
+  set(MPI_CXX_LIBRARIES "")
+endif()
+
 # The *_DIR paths below will be the first place searched for the corresponding
 # headers and library. If these fail, then standard cmake search is performed.
 # Note: if the variables are already in the cache, they are not overwritten.
 set(HYPRE_DIR "" CACHE PATH "Path to the hypre library.")
+# If hypre was compiled to depend on BLAS and LAPACK:
+# set(HYPRE_REQUIRED_PACKAGES "BLAS" "LAPACK" CACHE STRING
+#     "Packages that HYPRE depends on.")
 set(METIS_DIR "" CACHE PATH "Path to the METIS library.")
 set(LIBUNWIND_DIR "" CACHE PATH "Path to Libunwind.")
 set(MESQUITE_DIR "" CACHE PATH "Path to the Mesquite library.")
@@ -64,7 +84,5 @@ set(BLAS_LIBRARIES "" CACHE STRING "The BLAS library.")
 set(LAPACK_INCLUDE_DIRS "" CACHE STRING "Path to LAPACK headers.")
 set(LAPACK_LIBRARIES "" CACHE STRING "The LAPACK library.")
 
-# Some useful variables that will not be written to the cache (even if there is
-# a variable with the same name in the cache), commented out to allow
-# initialization from `user.cmake`.
-# set(CMAKE_VERBOSE_MAKEFILE OFF)
+# Some useful variables:
+# set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "Verbose makefiles.")
