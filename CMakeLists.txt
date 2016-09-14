@@ -202,19 +202,19 @@ configure_file(
   "${PROJECT_SOURCE_DIR}/config/config.hpp.in_cmake"
   "${PROJECT_BINARY_DIR}/config/_config.hpp")
 
-# Create substitute mfem.hpp and mfem-performance.hpp in the build directory.
-message(STATUS
-  "Writing substitute headers --> \"mfem.hpp\" --> \"mfem-performance.hpp\"")
-file(WRITE "${PROJECT_BINARY_DIR}/mfem.hpp"
+# Create substitute mfem.hpp and mfem-performance.hpp in the build directory,
+# if it is different from the source directory.
+if (NOT ("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}"))
+  foreach(Header mfem.hpp mfem-performance.hpp)
+    message(STATUS
+      "Writing substitute header --> \"${Header}\"")
+    file(WRITE "${PROJECT_BINARY_DIR}/${Header}"
 "// Auto-generated file.
 #define MFEM_BUILD_DIR ${PROJECT_BINARY_DIR}
-#include \"${PROJECT_SOURCE_DIR}/mfem.hpp\"
+#include \"${PROJECT_SOURCE_DIR}/${Header}\"
 ")
-file(WRITE "${PROJECT_BINARY_DIR}/mfem-performance.hpp"
-"// Auto-generated file.
-#define MFEM_BUILD_DIR ${PROJECT_BINARY_DIR}
-#include \"${PROJECT_SOURCE_DIR}/mfem-performance.hpp\"
-")
+  endforeach()
+endif()
 
 # Create the "test" and "check" targets. "make test"/"ctest" should
 # follow the existing makefile structure. "make check" should just
