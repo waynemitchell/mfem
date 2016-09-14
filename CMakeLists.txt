@@ -8,18 +8,20 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/config/defaults.cmake)
 
 # Allow overwriting of the compiler by setting CXX/MPICXX on the command line
 # or in user.cmake.
-if (CXX)
-  set(CMAKE_CXX_COMPILER ${CXX})
-  # Avoid some issues when CXX is defined
-  unset(CXX)
-  unset(CXX CACHE)
-endif()
-if (MFEM_USE_MPI AND MPICXX)
-  # In parallel MPICXX takes precedence, if defined.
-  set(CMAKE_CXX_COMPILER ${MPICXX})
-  # Setting the variables below circumvents autodetection, see FindMPI.cmake.
-  set(MPI_CXX_INCLUDE_PATH "")
-  set(MPI_CXX_LIBRARIES "")
+if (NOT CMAKE_CXX_COMPILER)
+  if (CXX)
+    set(CMAKE_CXX_COMPILER ${CXX})
+    # Avoid some issues when CXX is defined
+    unset(CXX)
+    unset(CXX CACHE)
+  endif()
+  if (MFEM_USE_MPI AND MPICXX)
+    # In parallel MPICXX takes precedence, if defined.
+    set(CMAKE_CXX_COMPILER ${MPICXX})
+    # Setting the variables below circumvents autodetection, see FindMPI.cmake.
+    set(MPI_CXX_INCLUDE_PATH "")
+    set(MPI_CXX_LIBRARIES "")
+  endif()
 endif()
 
 project(mfem CXX)
@@ -32,13 +34,6 @@ endif()
 # CMake needs to know where to find things
 set(MFEM_CMAKE_PATH ${PROJECT_SOURCE_DIR}/config/cmake)
 set(CMAKE_MODULE_PATH ${MFEM_CMAKE_PATH}/modules)
-
-# Define MFEM_BUILD_DIR to point to the build directory.
-add_definitions("-DMFEM_BUILD_DIR=${PROJECT_BINARY_DIR}")
-
-# Include the source directory where mfem.hpp and mfem-performance.hpp are.
-# TODO: building the library does not require this; just the examples/miniapps.
-include_directories(${PROJECT_SOURCE_DIR})
 
 # MFEM_DEBUG
 if (CMAKE_BUILD_TYPE MATCHES "Debug|debug|DEBUG")
@@ -185,6 +180,10 @@ if (CMAKE_VERSION VERSION_GREATER 2.8.11)
 else()
   target_link_libraries(mfem ${TPL_LIBRARIES})
 endif()
+
+# Define MFEM_BUILD_DIR to point to the build directory.
+target_compile_definitions(mfem PRIVATE
+  "-DMFEM_BUILD_DIR=${PROJECT_BINARY_DIR}")
 
 # The examples and miniapps are separate
 if (MFEM_ENABLE_TESTING)

@@ -33,6 +33,9 @@ if (MFEM_USE_MPI)
     )
 endif()
 
+# Include the source directory where mfem.hpp and mfem-performance.hpp are.
+include_directories(${PROJECT_BINARY_DIR})
+
 # Add one executable per cpp file
 add_mfem_examples(ALL_EXE_SRCS)
 
