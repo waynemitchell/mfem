@@ -158,6 +158,17 @@ public:
    int GetFaceNbrGroup(int fn) const { return face_nbr_group[fn]; }
    int GetFaceNbrRank(int fn) const;
 
+   const Table &GetGroupSharedVertexTable() const { return group_svert; }
+   const Table &GetGroupSharedEdgeTable() const { return group_sedge; }
+   const Table &GetGroupSharedFaceTable() const { return group_sface; }
+
+   const Array<int> &GetSharedLocalVertexTable() const { return svert_lvert; }
+   const Array<int> &GetSharedLocalEdgeTable() const { return sedge_ledge; }
+   const Array<int> &GetSharedLocalFaceTable() const { return sface_lface; }
+
+   const Array<Element *> &GetSharedEdges() const { return shared_edges; }
+   const Array<Element *> &GetSharedFaces() const { return shared_faces; }
+
    /** Similar to Mesh::GetFaceToElementTable with added face-neighbor elements
        with indices offset by the local number of elements. */
    Table *GetFaceToAllElementTable() const;

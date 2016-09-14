@@ -304,11 +304,6 @@ protected:
                                         const DSTable &v_to_v,
                                         Table &el_to_edge);
 
-   /** Return vertex to vertex table. The connections stored in the table
-       are from smaller to bigger vertex index, i.e. if i<j and (i, j) is
-       in the table, then (j, i) is not stored. */
-   void GetVertexToVertexTable(DSTable &) const;
-
    /** Return element to edge table and the indices for the boundary edges.
        The entries in the table are ordered according to the order of the
        nodes in the elements. For example, if T is the element to edge table
@@ -727,6 +722,11 @@ public:
    const Table &ElementToFaceTable() const;
 
    const Table &ElementToEdgeTable() const;
+
+   /** Return vertex to vertex table. The connections stored in the table
+       are from smaller to bigger vertex index, i.e. if i<j and (i, j) is
+       in the table, then (j, i) is not stored. */
+   void GetVertexToVertexTable(DSTable &) const;
 
    ///  The returned Table must be destroyed by the caller
    Table *GetVertexToElementTable();
