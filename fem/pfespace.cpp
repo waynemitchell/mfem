@@ -2303,7 +2303,7 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order,
 
       for (group = 0; group < pmesh->GetNGroups()-1; group++)
       {
-         // Get the group shared objects
+         // Get the group shared objects from coarse ParMesh
          group_svert.GetRow(group, sverts_lor);
          group_sedge.GetRow(group, sedges);
 
@@ -2316,13 +2316,13 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order,
 
             for (int j = 0; j <= edgeint_dofs.Size(); j++)
             {
-               // add a vertex for each interior dof
+               // Add a vertex for each interior dof
                if (j != edgeint_dofs.Size())
                {
                   sverts_lor.Append(svert_lvert_lor.Append(edgeint_dofs[j])-1);
                }
 
-               // update the edges
+               // Update the edges
                if (j == 0)
                {
                   shared_edges_lor.Append(new Segment(v[0], edgeint_dofs[0]));
@@ -2354,7 +2354,7 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order,
          {
             J[i] = sedges_lor[i];
          }
-         // reset these sizes (overwrite data) for correct offset in next group
+         // Reset these sizes (overwrite data) for correct offset in next group
          sverts_lor.SetSize(0);
          sedges_lor.SetSize(0);
       }
@@ -2374,7 +2374,8 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order,
 
    ParMesh *pmesh_lor = new ParMesh(*mesh_lor, GetGroupTopo(),
                                     group_svert, group_sedge, group_sface,
-                                    svert_lvert_lor, sedge_ledge_lor, sface_lface_lor);
+                                    svert_lvert_lor, sedge_ledge_lor,
+                                    sface_lface_lor);
 
    fes_lor = new ParFiniteElementSpace(pmesh_lor, fec_lor, GetVDim(),
                                        GetOrdering());
