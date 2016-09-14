@@ -6,6 +6,22 @@ cmake_minimum_required(VERSION 2.8.11)
 include(${CMAKE_CURRENT_SOURCE_DIR}/config/user.cmake OPTIONAL)
 include(${CMAKE_CURRENT_SOURCE_DIR}/config/defaults.cmake)
 
+# Allow overwriting of the compiler by setting CXX/MPICXX on the command line
+# or in user.cmake.
+if (CXX)
+  set(CMAKE_CXX_COMPILER ${CXX})
+  # Avoid some issues when CXX is defined
+  unset(CXX)
+  unset(CXX CACHE)
+endif()
+if (MFEM_USE_MPI AND MPICXX)
+  # In parallel MPICXX takes precedence, if defined.
+  set(CMAKE_CXX_COMPILER ${MPICXX})
+  # Setting the variables below circumvents autodetection, see FindMPI.cmake.
+  set(MPI_CXX_INCLUDE_PATH "")
+  set(MPI_CXX_LIBRARIES "")
+endif()
+
 project(mfem CXX)
 
 if (CMAKE_VERSION VERSION_LESS 3.2)
@@ -16,6 +32,13 @@ endif()
 # CMake needs to know where to find things
 set(MFEM_CMAKE_PATH ${PROJECT_SOURCE_DIR}/config/cmake)
 set(CMAKE_MODULE_PATH ${MFEM_CMAKE_PATH}/modules)
+
+# Define MFEM_BUILD_DIR to point to the build directory.
+add_definitions("-DMFEM_BUILD_DIR=${PROJECT_BINARY_DIR}")
+
+# Include the source directory where mfem.hpp and mfem-performance.hpp are.
+# TODO: building the library does not require this; just the examples/miniapps.
+include_directories(${PROJECT_SOURCE_DIR})
 
 # MFEM_DEBUG
 if (CMAKE_BUILD_TYPE MATCHES "Debug|debug|DEBUG")
@@ -50,7 +73,11 @@ endif()
 
 # OpenMP
 if (MFEM_USE_OPENMP)
-  find_package(OpenMP REQUIRED)
+  if (MFEM_THREAD_SAFE)
+    find_package(OpenMP REQUIRED)
+  else()
+    message(FATAL_ERROR " *** MFEM_USE_OPENMP requires MFEM_THREAD_SAFE=ON.")
+  endif()
 endif()
 
 # Mesquite
@@ -139,13 +166,6 @@ message(STATUS "MFEM build type: ${CMAKE_BUILD_TYPE}")
 # Windows specific
 set(_USE_MATH_DEFINES ${WIN32})
 
-include_directories(${PROJECT_SOURCE_DIR})
-
-# Configuration file, generate config/config.hpp.
-configure_file(
-  "${PROJECT_SOURCE_DIR}/config/config.hpp.in_cmake"
-  "${PROJECT_SOURCE_DIR}/config/config.hpp")
-
 # Headers and sources
 include(MfemCmakeUtilities)
 set(SOURCES "")
@@ -176,6 +196,25 @@ endif()
 if (MFEM_ENABLE_MINIAPPS)
   add_subdirectory(miniapps)
 endif()
+
+# Generate configuration file in the build directory: config/_config.hpp.
+configure_file(
+  "${PROJECT_SOURCE_DIR}/config/config.hpp.in_cmake"
+  "${PROJECT_BINARY_DIR}/config/_config.hpp")
+
+# Create substitute mfem.hpp and mfem-performance.hpp in the build directory.
+message(STATUS
+  "Writing substitute headers --> \"mfem.hpp\" --> \"mfem-performance.hpp\"")
+file(WRITE "${PROJECT_BINARY_DIR}/mfem.hpp"
+"// Auto-generated file.
+#define MFEM_BUILD_DIR ${PROJECT_BINARY_DIR}
+#include \"${PROJECT_SOURCE_DIR}/mfem.hpp\"
+")
+file(WRITE "${PROJECT_BINARY_DIR}/mfem-performance.hpp"
+"// Auto-generated file.
+#define MFEM_BUILD_DIR ${PROJECT_BINARY_DIR}
+#include \"${PROJECT_SOURCE_DIR}/mfem-performance.hpp\"
+")
 
 # Create the "test" and "check" targets. "make test"/"ctest" should
 # follow the existing makefile structure. "make check" should just

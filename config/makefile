@@ -23,7 +23,7 @@ mfem-info = $(if $(filter YES,$(VERBOSE)),$(info *** [info]$(1)),)
 # $(foreach var,$(MFEM_CONFIG_VARS),$(info $(var) = $(value $(var))))
 
 # Output path + file name for the config header
-CONFIG_HPP = config.hpp
+CONFIG_HPP = _config.hpp
 
 # Output path + file name for the config makefile
 CONFIG_MK = config.mk

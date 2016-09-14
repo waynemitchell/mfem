@@ -186,7 +186,7 @@ ifeq ($(MFEM_USE_MPFR),YES)
    ALL_LIBS += $(MPFR_LIB)
 endif
 
-# List of all defines that may be enabled in config.hpp and config.mk:
+# List of all defines that may be enabled in _config.hpp and config.mk:
 MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_USE_LIBUNWIND\
  MFEM_USE_LAPACK MFEM_THREAD_SAFE MFEM_USE_OPENMP MFEM_USE_MEMALLOC\
  MFEM_TIMER_TYPE MFEM_USE_MESQUITE MFEM_USE_SUITESPARSE MFEM_USE_GECKO\
@@ -325,7 +325,8 @@ install: libmfem.a
 	$(INSTALL) -m 640 mfem.hpp mfem-performance.hpp $(PREFIX_INC)
 # install config include
 	mkdir -p $(PREFIX_INC)/config
-	$(INSTALL) -m 640 config/config.hpp config/tconfig.hpp $(PREFIX_INC)/config
+	$(INSTALL) -m 640 config/_config.hpp $(PREFIX_INC)/config/config.hpp
+	$(INSTALL) -m 640 config/tconfig.hpp $(PREFIX_INC)/config
 # install remaining includes in each subdirectory
 	for dir in $(DIRS); do \
 	   mkdir -p $(PREFIX_INC)/$$dir && \

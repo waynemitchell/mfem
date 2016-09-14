@@ -1,7 +1,17 @@
+# Copyright (c) 2010, Lawrence Livermore National Security, LLC. Produced at the
+# Lawrence Livermore National Laboratory. LLNL-CODE-443211. All Rights reserved.
+# See file COPYRIGHT for details.
+#
+# This file is part of the MFEM library. For more information and source code
+# availability see http://mfem.org.
+#
+# MFEM is free software; you can redistribute it and/or modify it under the
+# terms of the GNU Lesser General Public License (as published by the Free
+# Software Foundation) version 2.1 dated February 1999.
 
-# Copy and edit any of the option(...) or set(...) calls below to the file
-# `user.cmake` to create your own default configuration which will take
-# precedence over this file for CACHE variables (and option(...) in particular).
+# See the file INSTALL for description of the configuration options.
+
+# Default options. To replace these, copy this file to user.cmake and modify it.
 
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING
@@ -32,22 +42,10 @@ option(MFEM_ENABLE_TESTING "Enable the ctest framework for testing" ON)
 option(MFEM_ENABLE_EXAMPLES "Build all of the examples" ON)
 option(MFEM_ENABLE_MINIAPPS "Build all of the miniapps" ON)
 
-# Allow overwriting of the compiler by setting CXX/MPICXX:
-if (CXX)
-  set(CMAKE_CXX_COMPILER ${CXX})
-  # Avoid some issues when CXX is defined
-  unset(CXX)
-  unset(CXX CACHE)
-endif()
-if (MFEM_USE_MPI)
-  if (MPICXX)
-    # In parallel MPICXX takes precedence, if defined.
-    set(CMAKE_CXX_COMPILER ${MPICXX})
-  endif()
-  # Setting the variables below circumvents autodetection, see FindMPI.cmake.
-  set(MPI_CXX_INCLUDE_PATH "")
-  set(MPI_CXX_LIBRARIES "")
-endif()
+# Setting CXX/MPICXX on the command line or in user.cmake will overwrite the
+# autodetected C++ compiler.
+# set(CXX g++)
+# set(MPICXX mpicxx)
 
 # The *_DIR paths below will be the first place searched for the corresponding
 # headers and library. If these fail, then standard cmake search is performed.
