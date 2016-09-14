@@ -2265,7 +2265,116 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order,
       mesh_lor->FinalizeHexMesh(1, 1, true);
    }
 
-   ParMesh *pmesh_lor = new ParMesh(MyComm, *mesh_lor);
+   Table group_svert(pmesh->GetGroupSharedVertexTable());
+   Table group_sedge(pmesh->GetGroupSharedEdgeTable());
+   Table group_sface(pmesh->GetGroupSharedFaceTable());
+
+   Array<int> svert_lvert_lor, sedge_ledge_lor, sface_lface_lor;
+   Array<int> sedge_ledge, sface_lface;
+   Array<Element *> shared_edges_lor, shared_faces_lor;
+   Array<Element *> shared_edges, shared_faces;
+   pmesh->GetSharedLocalVertexTable().Copy(svert_lvert_lor);
+   pmesh->GetSharedLocalEdgeTable().Copy(sedge_ledge);
+   pmesh->GetSharedLocalFaceTable().Copy(sface_lface);
+   pmesh->GetSharedEdges().Copy(shared_edges);
+   pmesh->GetSharedFaces().Copy(shared_faces);
+
+   // update the shared objects for the LOR mesh
+   {
+      int i, attr, ind, *v;
+
+      int group;
+      Array<int> sverts_lor, sedges, sedges_lor;
+
+      int *I_group_svert, *J_group_svert;
+      int *I_group_sedge, *J_group_sedge;
+
+      I_group_svert = new int[pmesh->GetNGroups()+1];
+      I_group_sedge = new int[pmesh->GetNGroups()+1];
+
+      I_group_svert[0] = I_group_svert[1] = 0;
+      I_group_sedge[0] = I_group_sedge[1] = 0;
+
+      // compute the size of the J arrays: p-1 new vertices; p as many edges
+      J_group_svert = new int[group_svert.Size_of_connections()
+                              + (p-1)*group_sedge.Size_of_connections()];
+      J_group_sedge = new int[p*group_sedge.Size_of_connections()];
+
+
+      for (group = 0; group < pmesh->GetNGroups()-1; group++)
+      {
+         // Get the group shared objects
+         group_svert.GetRow(group, sverts_lor);
+         group_sedge.GetRow(group, sedges);
+
+         // Process all the edges
+         for (i = 0; i < group_sedge.RowSize(group); i++)
+         {
+            v = shared_edges[sedges[i]]->GetVertices();
+            Array<int> edgeint_dofs;
+            GetEdgeInteriorVDofs(sedge_ledge[sedges[i]], edgeint_dofs);
+
+            for (int j = 0; j <= edgeint_dofs.Size(); j++)
+            {
+               // add a vertex for each interior dof
+               if (j != edgeint_dofs.Size())
+               {
+                  sverts_lor.Append(svert_lvert_lor.Append(edgeint_dofs[j])-1);
+               }
+
+               // update the edges
+               if (j == 0)
+               {
+                  shared_edges_lor.Append(new Segment(v[0], edgeint_dofs[0]));
+               }
+               else if (j == edgeint_dofs.Size())
+               {
+                  shared_edges_lor.Append(new Segment(edgeint_dofs[j-1], v[1]));
+               }
+               else
+               {
+                  shared_edges_lor.Append(
+                     new Segment(edgeint_dofs[j-1], edgeint_dofs[j]));
+               }
+               sedges_lor.Append(sedge_ledge_lor.Append(-1)-1);
+            }
+         }
+
+         I_group_svert[group+1] = I_group_svert[group] + sverts_lor.Size();
+         I_group_sedge[group+1] = I_group_sedge[group] + sedges_lor.Size();
+
+         int *J;
+         J = J_group_svert+I_group_svert[group];
+         for (i = 0; i < sverts_lor.Size(); i++)
+         {
+            J[i] = sverts_lor[i];
+         }
+         J = J_group_sedge+I_group_sedge[group];
+         for (i = 0; i < sedges_lor.Size(); i++)
+         {
+            J[i] = sedges_lor[i];
+         }
+         // reset these sizes (overwrite data) for correct offset in next group
+         sverts_lor.SetSize(0);
+         sedges_lor.SetSize(0);
+      }
+
+      // Fix the local numbers of shared edges
+      DSTable v_to_v(mesh_lor->GetNV());
+      mesh_lor->GetVertexToVertexTable(v_to_v);
+      for (i = 0; i < shared_edges_lor.Size(); i++)
+      {
+         v = shared_edges_lor[i]->GetVertices();
+         sedge_ledge_lor[i] = v_to_v(v[0], v[1]);
+      }
+
+      group_svert.SetIJ(I_group_svert, J_group_svert);
+      group_sedge.SetIJ(I_group_sedge, J_group_sedge);
+   }
+
+   ParMesh *pmesh_lor = new ParMesh(*mesh_lor, GetGroupTopo(),
+                                    group_svert, group_sedge, group_sface,
+                                    svert_lvert_lor, sedge_ledge_lor, sface_lface_lor);
 
    fes_lor = new ParFiniteElementSpace(pmesh_lor, fec_lor, GetVDim(),
                                        GetOrdering());
