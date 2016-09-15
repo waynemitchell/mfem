@@ -105,7 +105,7 @@ public:
    /// Make the Array own the data
    void MakeDataOwner() { allocsize = abs(allocsize); }
 
-   void ChangeData(T *_data, int asize) 
+   void SetData(T *_data, int asize) 
    { MFEM_ASSERT(allocsize <= 0, "You cannot change the data of a self-allocating Array");
       data = _data; size = asize; allocsize = -asize; };
 

@@ -910,7 +910,12 @@ void Mesh::ReadGmshMesh(std::istream &input)
                   input >> coord[ci];
                }
             }
+// TODO:
+#ifdef CPP11
             vertices[ver] = Vertex(coord, gmsh_dim);
+#else
+            vertices[ver].SetCoords(coord, gmsh_dim);
+#endif
             vertices_map[serial_number] = ver;
          }
          if (static_cast<int>(vertices_map.size()) != NumOfVertices)

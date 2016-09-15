@@ -2247,21 +2247,19 @@ void Mesh::ChangeBoundaryElementDataOwnership(int *indices,
 
 void Mesh::ChangeVertexDataOwnership(double *vertex_data,
       int dim, size_t len_vertex_data, bool zerocopy, bool changeDataOwnership) {
-   if (static_cast<int>(len_vertex_data) < NumOfVertices * dim) {
+   // TODO: remove
+   if (dim != 3) printf("we require dim to be 3\n");
+   if (static_cast<int>(len_vertex_data) < NumOfVertices * 3) {
       throw std::runtime_error("Not enough vertices in external array");
    }
-   // this will loop through all the allocated mfem::Vertex objects,
-   // copy the values into vertex_data,
-   // delete the self allocated data, and assign the correct slice
-   // of data from vertex_data
-   for (int i = 0; i < NumOfVertices; i++) {
-      if (!zerocopy) {
-         memcpy(vertex_data + i * dim, vertices[i](), dim * sizeof(double));
+   if (!zerocopy) memcpy(vertex_data, vertices.GetData(), NumOfVertices * 3 * sizeof(double));
+   if (changeDataOwnership) {
+      if (vertices.OwnsData()) {
+         char *data = reinterpret_cast<char*>(vertices.GetData());
+         delete[] data;
+         vertices.LoseData();
       }
-      if (changeDataOwnership)
-      {
-         vertices[i].SetCoordPtr(vertex_data + i * dim);
-      }
+      vertices.SetData(reinterpret_cast<Vertex*>(vertex_data), NumOfVertices);
    }
 }
 
@@ -2286,7 +2284,7 @@ int numOfVerticesFromGeometry(Geometry::Type t) {
 }
 
 
-Mesh::Mesh(double *vertices, int num_vertices,
+Mesh::Mesh(double *_vertices, int num_vertices,
       int *element_indices, Geometry::Type element_type, 
       int *element_attributes, int num_elements,
       int *boundary_indices, Geometry::Type boundary_type,
@@ -2299,17 +2297,18 @@ Mesh::Mesh(double *vertices, int num_vertices,
       space_dimension = dimension;
    }
 
-   InitMesh(dimension, space_dimension, num_vertices, num_elements,
+   InitMesh(dimension, space_dimension, /*num_vertices*/ 0, num_elements,
          num_boundary_elements);
 
    int element_index_stride = numOfVerticesFromGeometry(element_type);
    int boundary_index_stride = numOfVerticesFromGeometry(boundary_type);
 
-   for (int i = 0; i < num_vertices; i++) {
-         this->vertices[i].SetCoordPtr(vertices + i * dimension);
-   }
+   // assuming Vertex is POD
+   printf("setting vertices\n");
+   vertices.SetData(reinterpret_cast<Vertex*>(_vertices), num_vertices);
    NumOfVertices = num_vertices;
 
+   printf("setting elements\n");
    for (int i = 0; i < num_elements; i++) {
       elements[i] = NewElement(element_type, Element::int_ptr_pair(element_indices + 
                i * element_index_stride, element_attributes + i));
@@ -2328,6 +2327,8 @@ Mesh::Mesh(double *vertices, int num_vertices,
                                break;
       default: throw std::runtime_error("cannot finialize mesh");
    }
+
+   printf("setting boundary elements\n");
    if (num_boundary_elements > 0) {
       for (int i = 0; i < num_boundary_elements; i++) {
          boundary[i] = NewElement(boundary_type, Element::int_ptr_pair(boundary_indices + 
@@ -6489,7 +6490,7 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
       tet2->SetVertices(v[1]);
       tet2->SetAttribute(attr);
 #else
-      Tetrahedron *tet2 = new Tetrahedron(v[1], attr)
+      Tetrahedron *tet2 = new Tetrahedron(v[1], attr);
 #endif
       tet2->ResetTransform(tet->GetTransform());
       elements.Append(tet2);

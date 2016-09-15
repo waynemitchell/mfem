@@ -28,14 +28,26 @@ int main(int argc, char *argv[])
    printf("\n");
 
    Mesh *mesh;
-   double vertices[12] = {0,0,1,0,1,1,0,1,2,0,2,1};
+   // always three dim
+   double vertices[18] = {0,0,0,
+                          1,0,0,
+                          2,0,0,
+                          2,1,0,
+                          1,1,0,
+                          0,1,0};
    int num_vertices = 6;
 
-   int elem_indices[8] = {1,3,4,2,3,5,6,4};
+   int elem_indices[8] = {1,6,5,2,
+                          2,5,4,3};
    int elem_attributes[2] = {0,1};
    int num_elem = 2;
 
-   int bound_indices[12] = {1,2,1,3,3,4,5,6,6,4,4,2};
+   int bound_indices[12] = {1,2,
+                            1,3,
+                            3,4,
+                            5,6,
+                            6,4,
+                            4,2};
    int bound_attributes[6] = {1,1,1,1,1,1};
    int num_bound = 6;
 
@@ -51,18 +63,22 @@ int main(int argc, char *argv[])
    mesh = new Mesh(vertices, num_vertices,
          elem_indices, Geometry::SQUARE, elem_attributes, num_elem,
          bound_indices, Geometry::SEGMENT, bound_attributes, num_bound,
-         2);
+         /*dim=*/2);
+
+   // mfem::Vertex sanity check
+   printf("mfem::Vertex size is %zu\n", sizeof(mfem::Vertex));
+   printf("double[3] size is %zu\n", sizeof(double[3]));
 
    // a bunch of debug printing stuff
    int dim = mesh->Dimension();
    printf("Mesh Dimension: %d\n", dim);
    // print the elements (type Element)
-   const Element*const* e = mesh->GetElementsArray();
+   const Element* const* e = mesh->GetElementsArray();
    int ne = mesh->GetNE();
    for (int i = 0; i < ne; i++) { 
       printf("Element %d is type %d attibute %d and has vertices [", 
             i, e[i]->GetType(), e[i]->GetAttribute());
-      const int *is = e[i]->GetIndices();
+      const int *is = e[i]->_GetIndices();
       int ni = e[i]->GetNVertices();
       for (int j = 0; j < ni; j++) {
          printf(j == ni - 1 ? "%d" : "%d,", is[j]);
@@ -73,7 +89,7 @@ int main(int argc, char *argv[])
    // print the boundary (type Element)
    int nb = mesh->GetNBE();
    for (int i = 0; i < nb; i++) { 
-      const Element* b = mesh->GetBdrElement(i);
+      Element* b = mesh->GetBdrElement(i);
       printf("Boundary Element %d is type %d attibute %d and has vertices [", 
             i, b->GetType(), b->GetAttribute());
       const int *is = b->GetIndices();
@@ -88,7 +104,7 @@ int main(int argc, char *argv[])
    for (int i = 0; i < mesh->GetNV(); i++) {
       double *v = mesh->GetVertex(i);
       printf("Vertex %d is [", i);
-      for (int j = 0; j < dim; j++) {
+      for (int j = 0; j < 3; j++) {
          printf(j == dim - 1 ? "%f" : "%f,", v[j]);
       }
       printf("]\n");

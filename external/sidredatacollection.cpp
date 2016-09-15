@@ -91,9 +91,12 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
    int dim = new_mesh->Dimension();
    MFEM_ASSERT(dim >=1 && dim <= 3, "invalid mesh dimension");
 
+   // With the changes I (Tom) made Vertex is POD and we memcpy to and from the
+   // mfem::Vertex mfem::Array requiring a full sized mfem::Vertex per vertex
+   // aka double[3] -> dim always needs to be three
    // Note: The coordinates in mfem always have three components (regardless of dim)
-   //       but the mesh constructor can handle packed data
-   const int NUM_COORDS = dim;
+   //       but the mesh constructor can handle packed data <- not anymore
+   const int NUM_COORDS = 3; //dim;
 
    // Retrieve some mesh attributes from mesh object
    int num_vertices = new_mesh->GetNV();
@@ -307,6 +310,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
 
    if (has_bnd_elts)
    {
+      // TODO: why are you getting these?
       int * x1 = bp_grp->getView("topologies/boundary/elements/connectivity")->getArray();
       int * x2 = bp_grp->getView("fields/boundary_material_attribute/values")->getArray();
 
@@ -464,7 +468,7 @@ void SidreDataCollection::Save(const std::string& filename, const std::string& p
          }
 #else
          // If serial, use sidre group writer.
-         bp_indicies_grp->getDataStore()->save(file_path + ".root", protocol);//, sidre_dc_group);
+         blueprint_indicies_grp->getDataStore()->save(file_path + ".root", protocol);//, sidre_dc_group);
 #endif
 
       }

@@ -14,52 +14,39 @@
 
 #include "../config/config.hpp"
 #include <stdio.h>
+#include <string.h>
 
 namespace mfem
 {
 
 /// Data type for vertex
-class Vertex
+struct Vertex
 {
-protected:
-   // this is awful 
-   union {
-      double coord[3];
-      double *coord_ptr;
-   };
-   bool is_external;
-   void init(double *_data = 0);
+   double coord[3];
 
-public:
-   Vertex() { printf("called\n"); }
-
-   Vertex(double *_data) { init(_data); }
-
-   Vertex (double *xx, int dim, double *_data = 0);
-   Vertex( double x, double y, double *_data = 0) { init(_data); coord[0] = x; coord[1] = y; coord[2] = 0.; }
-   Vertex( double x, double y, double z, double *_data = 0)
-   { init(_data); coord[0] = x; coord[1] = y; coord[2] = z; }
+   // only in C++11 can we have user-defined constructors for POD type
+#ifdef CPP11
+   Vertex(double *xx, int dim);
+   Vertex(double x, double y) { coord[0] = x; coord[1] = y; coord[2] = 0.; }
+   Vertex(double x, double y, double z) { coord[0] = x; coord[1] = y; coord[2] = z; }
+#else
+   static Vertex* newVertex(double *xx, int dim);
+   static Vertex* newVertex(double x, double y);
+   static Vertex* newVertex(double x, double y, double z);
+   inline void operator=(const Vertex *v) { memcpy(coord, v->coord, 3 * sizeof(double)); }
+#endif
 
    /// Returns pointer to the coordinates of the vertex.
-   inline double * operator() () const { if (is_external) return coord_ptr; else return (double*)coord; }
+   inline double * operator() () const { return (double*)coord; }
 
    /// Returns the i'th coordinate of the vertex.
-   inline double & operator() (int i) { return is_external ? coord_ptr[i] : coord[i]; }
+   inline double & operator() (int i) { return coord[i]; }
 
    /// Returns the i'th coordinate of the vertex.
-   inline const double & operator() (int i) const { if (is_external) return coord_ptr[i]; else return coord[i]; }//is_external ? coord_ptr[i] : coord[i]; }
+   inline const double & operator() (int i) const { return coord[i]; }
 
-   void SetCoordPtr(double *_coord) {
-      coord_ptr = _coord;
-      is_external = true;
-   }
-
-   void SetCoords(const double *p)
-   { if (!is_external) { coord[0] = p[0]; coord[1] = p[1]; coord[2] = p[2]; }
-     else { coord_ptr[0] = p[0]; coord_ptr[1] = p[1]; coord_ptr[2] = p[2]; }
-   }
-
-   ~Vertex() { }
+   void SetCoords(const double *p, size_t dim) { memcpy(coord, p, dim * sizeof(double)); }
+   void SetCoords(const double *p) { coord[0] = p[0]; coord[1] = p[1]; coord[2] = p[2]; }
 };
 
 }

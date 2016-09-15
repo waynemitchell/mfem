@@ -14,24 +14,37 @@
 
 namespace mfem
 {
-
-void Vertex::init(double *_data) {
-   if (_data) {
-      is_external = true;
-      coord_ptr = _data;
-   }
-   else {
-      is_external = false;
-   }
-}
-
-Vertex::Vertex (double *xx, int dim, double *_data)
-{
-   init(_data);
+#ifdef CPP11
+Vertex::Vertex (double *xx, int dim) {
    for (int i = 0; i < dim; i++)
    {
       coord[i] = xx[i];
    }
 }
+#else
+Vertex* Vertex::newVertex(double *xx, int dim) { 
+   Vertex *v = new Vertex();
+   for (int i = 0; i < dim; i++)
+   {
+      v->coord[i] = xx[i];
+   }
+   return v;
+}
 
+Vertex* Vertex::newVertex(double x, double y) { 
+   Vertex *v = new Vertex(); 
+   v->coord[0] = x; 
+   v->coord[1] = y; 
+   v->coord[2] = 0.; 
+   return v; 
+}
+
+Vertex* Vertex::newVertex(double x, double y, double z) { 
+   Vertex *v = new Vertex();
+   v->coord[0] = x; 
+   v->coord[1] = y; 
+   v->coord[2] = z; 
+   return v;
+}
+#endif
 }
