@@ -240,6 +240,8 @@ public:
 
    void GetElementInteriorDofs(int i, Array<int> &dofs) const;
 
+   void GetFaceInteriorDofs(int i, Array<int> &dofs) const;
+
    int GetNumElementInteriorDofs(int i) const
    { return fec->DofForGeometry(mesh->GetElementBaseGeometry(i)); }
 

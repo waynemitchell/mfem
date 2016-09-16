@@ -2273,6 +2273,7 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order,
    Array<int> sedge_ledge, sface_lface;
    Array<Element *> shared_edges_lor, shared_faces_lor;
    Array<Element *> shared_edges, shared_faces;
+   // Copy the shared vertex table from the coarse mesh to avoid duplication
    pmesh->GetSharedLocalVertexTable().Copy(svert_lvert_lor);
    pmesh->GetSharedLocalEdgeTable().Copy(sedge_ledge);
    pmesh->GetSharedLocalFaceTable().Copy(sface_lface);
@@ -2284,21 +2285,36 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order,
       int i, attr, ind, *v;
 
       int group;
-      Array<int> sverts_lor, sedges, sedges_lor;
+      Array<int> sverts_lor, sedges, sedges_lor, sfaces, sfaces_lor;
 
       int *I_group_svert, *J_group_svert;
       int *I_group_sedge, *J_group_sedge;
+      int *I_group_sface, *J_group_sface;
 
       I_group_svert = new int[pmesh->GetNGroups()+1];
       I_group_sedge = new int[pmesh->GetNGroups()+1];
+      I_group_sface = new int[pmesh->GetNGroups()+1];
 
       I_group_svert[0] = I_group_svert[1] = 0;
       I_group_sedge[0] = I_group_sedge[1] = 0;
+      I_group_sface[0] = I_group_sface[1] = 0;
 
-      // compute the size of the J arrays: p-1 new vertices; p as many edges
-      J_group_svert = new int[group_svert.Size_of_connections()
-                              + (p-1)*group_sedge.Size_of_connections()];
-      J_group_sedge = new int[p*group_sedge.Size_of_connections()];
+      if (mesh->Dimension() == 2)
+      {
+         // compute the size of the J arrays:
+         //    p+1 as many vertices; p as many edges
+         J_group_svert = new int[(p+1)*group_sedge.Size_of_connections()];
+         J_group_sedge = new int[p*group_sedge.Size_of_connections()];
+      }
+      else
+      {
+         // compute the size of the J arrays:
+         // p^2 as many faces
+         J_group_svert = new int[(p + 1)*(p + 1)*
+            group_sface.Size_of_connections()];
+         J_group_sedge = new int[2*(p + 1)*p*group_sface.Size_of_connections()];
+         J_group_sface = new int[p*p*group_sface.Size_of_connections()*10];
+      }
 
 
       for (group = 0; group < pmesh->GetNGroups()-1; group++)
@@ -2340,8 +2356,63 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order,
             }
          }
 
+         // Get the group shared objects from coarse ParMesh
+         group_sface.GetRow(group, sfaces_lor);
+         group_sface.GetRow(group, sfaces);
+
+         const Array<int> *dof_map;
+         const int *dof_map_;
+         // Process all faces
+         for (i = 0; i < group_sface.RowSize(group); i++)
+         {
+            Array<int> face_dofs;
+            Array<int> face_int_dofs;
+            GetFaceDofs(sface_lface[sfaces[i]], face_dofs);
+            GetFaceInteriorDofs(sface_lface[sfaces[i]], face_int_dofs);
+
+            //const H1_QuadrilateralElement *fe =
+            //   dynamic_cast<const H1_QuadrilateralElement *>(GetFaceElement(sface_lface[sfaces[i]]));
+            const H1_QuadrilateralElement *fe =
+               dynamic_cast<const H1_QuadrilateralElement *>(new H1_QuadrilateralElement(p));
+            dof_map = const_cast<Array<int> *>(&fe->GetDofMap());
+            dof_map_ = dof_map->GetData();
+
+            // Add a vertex for each face dof
+            for (int j = 0; j < face_int_dofs.Size(); j++)
+            {
+               sverts_lor.Append(svert_lvert_lor.Append(face_int_dofs[j])-1);
+            }
+
+            // loop over the subfaces, adding quads and internal edges as needed
+            for (int j = 0; j < p; j++)
+            {
+               for (int k = 0; k < p; k++)
+               {
+                  v = new int[4];
+                  v[0] = face_dofs[dof_map_[j*(p + 1) + k]];
+                  v[1] = face_dofs[dof_map_[j*(p + 1) + k + 1]];
+                  v[2] = face_dofs[dof_map_[(j + 1)*(p + 1) + k + 1]];
+                  v[3] = face_dofs[dof_map_[(j + 1)*(p + 1) + k]];
+                  if (j != p - 1)
+                  {
+                     shared_edges_lor.Append(new Segment(v[2], v[3]));
+                     sedges_lor.Append(sedge_ledge_lor.Append(-1)-1);
+                  }
+                  if (k != p - 1)
+                  {
+                     shared_edges_lor.Append(new Segment(v[1], v[2]));
+                     sedges_lor.Append(sedge_ledge_lor.Append(-1)-1);
+                  }
+                  shared_faces_lor.Append(new Quadrilateral(v));
+                  sfaces_lor.Append(sface_lface_lor.Append(-1)-1);
+                  delete v;
+               }
+            }
+         }
+
          I_group_svert[group+1] = I_group_svert[group] + sverts_lor.Size();
          I_group_sedge[group+1] = I_group_sedge[group] + sedges_lor.Size();
+         I_group_sface[group+1] = I_group_sface[group] + sfaces_lor.Size();
 
          int *J;
          J = J_group_svert+I_group_svert[group];
@@ -2354,12 +2425,18 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order,
          {
             J[i] = sedges_lor[i];
          }
+         J = J_group_sface+I_group_sface[group];
+         for (i = 0; i < sfaces_lor.Size(); i++)
+         {
+            J[i] = sfaces_lor[i];
+         }
          // Reset these sizes (overwrite data) for correct offset in next group
          sverts_lor.SetSize(0);
          sedges_lor.SetSize(0);
+         sfaces_lor.SetSize(0);
       }
 
-      // Fix the local numbers of shared edges
+      // Fix the local numbers of shared edges and faces
       DSTable v_to_v(mesh_lor->GetNV());
       mesh_lor->GetVertexToVertexTable(v_to_v);
       for (i = 0; i < shared_edges_lor.Size(); i++)
@@ -2368,8 +2445,19 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order,
          sedge_ledge_lor[i] = v_to_v(v[0], v[1]);
       }
 
+      if (mesh->Dimension() == 3)
+      {
+         STable3D *faces_tbl = mesh_lor->GetFacesTable();
+         for (i = 0; i < shared_faces_lor.Size(); i++)
+         {
+            v = shared_faces_lor[i]->GetVertices();
+            sface_lface_lor[i] = (*faces_tbl)(v[0], v[1], v[2], v[3]);
+         }
+      }
+
       group_svert.SetIJ(I_group_svert, J_group_svert);
       group_sedge.SetIJ(I_group_sedge, J_group_sedge);
+      group_sface.SetIJ(I_group_sface, J_group_sface);
    }
 
    ParMesh *pmesh_lor = new ParMesh(*mesh_lor, GetGroupTopo(),

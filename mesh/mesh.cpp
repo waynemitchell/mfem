@@ -1043,6 +1043,8 @@ void Mesh::FinalizeQuadMesh(int generate_edges, int refine,
       NumOfEdges = 0;
    }
 
+   vertices.SetSize(NumOfVertices);
+   elements.SetSize(NumOfElements);
    NumOfFaces = 0;
 
    SetAttributes();
@@ -1655,6 +1657,8 @@ void Mesh::FinalizeHexMesh(int generate_edges, int refine, bool fix_orientation)
       NumOfEdges = 0;
    }
 
+   vertices.SetSize(NumOfVertices);
+   elements.SetSize(NumOfElements);
    SetAttributes();
 
    BaseGeom = Geometry::CUBE;

@@ -208,7 +208,6 @@ protected:
    void PrepareNodeReorder(DSTable **old_v_to_v, Table **old_elem_vert);
    void DoNodeReorder(DSTable *old_v_to_v, Table *old_elem_vert);
 
-   STable3D *GetFacesTable();
    STable3D *GetElementToFaceTable(int ret_ftbl = 0);
 
    /** Red refinement. Element with index i is refined. The default
@@ -589,6 +588,8 @@ public:
 
    /// Returns the face-to-edge Table (3D)
    Table *GetFaceEdgeTable() const;
+
+   STable3D *GetFacesTable();
 
    /// Returns the edge-to-vertex Table (3D)
    Table *GetEdgeVertexTable() const;
