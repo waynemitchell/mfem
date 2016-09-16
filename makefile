@@ -62,18 +62,42 @@ make style
 
 endef
 
-# Path to the mfem directory relative to the compile directory:
-MFEM_DIR = .
-# ... or simply an absolute path
-# MFEM_DIR = $(realpath .)
+# Path to the mfem source directory:
+MFEM_DIR ?= .
+ifneq ($(MFEM_DIR:.=),)
+   SRC = $(MFEM_DIR)/
+else
+   SRC =
+endif
 
-CONFIG_MK = config/config.mk
+MINIAPP_SUBDIRS = common electromagnetics meshing performance tools
+MINIAPP_DIRS = $(foreach d,$(MINIAPP_SUBDIRS),miniapps/$(d))
 
-DEFAULTS_MK = config/defaults.mk
+# Use BUILD_DIR on command line with "config" target;
+# MFEM_BUILD_DIR is written to the file $(BUILD_DIR)/Makefile and it has to be
+# set when reading $(BUILD_DIR)/config/config.mk.
+BUILD_DIR := $(MFEM_BUILD_DIR)
+ifneq ($(BUILD_DIR),)
+   BUILD_DIRS = $(DIRS) config examples $(MINIAPP_DIRS)
+   BUILD_DIR_DEF = -DMFEM_BUILD_DIR=$(MFEM_BUILD_DIR)
+   BLD = $(BUILD_DIR)/
+   ifeq ($(abspath $(BUILD_DIR)),$(CURDIR))
+      BUILD_DIR = .
+      BLD =
+   endif
+else
+   BUILD_DIR = .
+   MFEM_BUILD_DIR = .
+   BLD =
+endif
+
+CONFIG_MK = $(BLD)config/config.mk
+
+DEFAULTS_MK = $(SRC)config/defaults.mk
 include $(DEFAULTS_MK)
 
 # Optional user config file, see config/defaults.mk
-USER_CONFIG = config/user.mk
+USER_CONFIG = $(BLD)config/user.mk
 -include $(USER_CONFIG)
 
 # Helper print-info function
@@ -98,7 +122,7 @@ else
 endif
 
 # Compile flags used by MFEM: CPPFLAGS, CXXFLAGS, plus library flags
-INCFLAGS = -I@MFEM_INC_DIR@
+INCFLAGS =
 # Link flags used by MFEM: library link flags plus LDFLAGS (added last)
 ALL_LIBS = -L@MFEM_LIB_DIR@ -lmfem
 
@@ -194,20 +218,21 @@ MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_USE_LIBUNWIND\
 
 # List of makefile variables that will be written to config.mk:
 MFEM_CONFIG_VARS = MFEM_CXX MFEM_CPPFLAGS MFEM_CXXFLAGS MFEM_INC_DIR\
- MFEM_INCFLAGS MFEM_FLAGS MFEM_LIB_DIR MFEM_LIBS MFEM_LIB_FILE MFEM_BUILD_TAG\
- MFEM_PREFIX
+ MFEM_TPLFLAGS MFEM_INCFLAGS MFEM_FLAGS MFEM_LIB_DIR MFEM_LIBS MFEM_LIB_FILE\
+ MFEM_BUILD_TAG MFEM_PREFIX
 
 # Config vars: values of the form @VAL@ are replaced by $(VAL) in config.mk
 MFEM_CPPFLAGS  ?= $(CPPFLAGS)
 MFEM_CXXFLAGS  ?= $(CXXFLAGS)
-MFEM_INCFLAGS  ?= $(INCFLAGS)
+MFEM_TPLFLAGS  ?= $(INCFLAGS)
+MFEM_INCFLAGS  ?= -I@MFEM_INC_DIR@ @MFEM_TPLFLAGS@
 MFEM_FLAGS     ?= @MFEM_CPPFLAGS@ @MFEM_CXXFLAGS@ @MFEM_INCFLAGS@
 MFEM_LIBS      ?= $(ALL_LIBS) $(LDFLAGS)
 MFEM_LIB_FILE  ?= @MFEM_LIB_DIR@/libmfem.a
 MFEM_BUILD_TAG ?= $(shell uname -snm)
 MFEM_PREFIX    ?= $(PREFIX)
-MFEM_INC_DIR   ?= @MFEM_DIR@
-MFEM_LIB_DIR   ?= @MFEM_DIR@
+MFEM_INC_DIR   ?= $(if $(BUILD_DIR_DEF),@MFEM_BUILD_DIR@,@MFEM_DIR@)
+MFEM_LIB_DIR   ?= $(if $(BUILD_DIR_DEF),@MFEM_BUILD_DIR@,@MFEM_DIR@)
 
 # If we have 'config' target, export variables used by config/makefile
 ifneq (,$(filter config,$(MAKECMDGOALS)))
@@ -225,7 +250,6 @@ ifneq (,$(filter install,$(MAKECMDGOALS)))
    PREFIX_INC := $(PREFIX)/include
    PREFIX_LIB := $(PREFIX)/lib
    MFEM_PREFIX := $(abspath $(PREFIX))
-   MFEM_DIR := $(abspath .)
    MFEM_INC_DIR = $(abspath $(PREFIX_INC))
    MFEM_LIB_DIR = $(abspath $(PREFIX_LIB))
    export $(MFEM_DEFINES) MFEM_DEFINES $(MFEM_CONFIG_VARS) MFEM_CONFIG_VARS
@@ -234,34 +258,42 @@ endif
 
 # Source dirs in logical order
 DIRS = general linalg mesh fem
-SOURCE_FILES = $(foreach dir,$(DIRS),$(wildcard $(dir)/*.cpp))
-OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
+SOURCE_FILES = $(foreach dir,$(DIRS),$(wildcard $(SRC)$(dir)/*.cpp))
+RELSRC_FILES = $(patsubst $(SRC)%,%,$(SOURCE_FILES))
+OBJECT_FILES = $(patsubst $(SRC)%,$(BLD)%,$(SOURCE_FILES:.cpp=.o))
 
 .PHONY: lib all clean distclean install config status info deps serial parallel\
  debug pdebug style check test
 
+.SUFFIXES:
 .SUFFIXES: .cpp .o
-.cpp.o:
-	$(MFEM_CXX) $(MFEM_FLAGS) -c $(<) -o $(@)
+# Remove some default implicit rules
+%:	%.o
+%.o:	%.cpp
+%:	%.cpp
 
+# Default rule.
+lib: $(BLD)libmfem.a
 
-lib: libmfem.a
+# Generate the actual rules.
+$(foreach src,$(RELSRC_FILES),$(eval $(call \
+mfem_make_rule,$(src:.cpp=.o),$(SRC),$(BLD),$(src),,\
+$(MFEM_CXX) $(MFEM_CPPFLAGS) $(MFEM_CXXFLAGS) $(MFEM_TPLFLAGS)\
+ $(BUILD_DIR_DEF) -c $$(<) -o $$(@))))
 
-all: lib
-	$(MAKE) -C examples
-	$(MAKE) -C miniapps/common
-	$(MAKE) -C miniapps/meshing
-	$(MAKE) -C miniapps/tools
-	$(MAKE) -C miniapps/electromagnetics
-	$(MAKE) -C miniapps/performance
+all: examples $(MINIAPP_DIRS)
+
+.PHONY: examples $(MINIAPP_DIRS)
+examples $(MINIAPP_DIRS): lib
+	$(MAKE) -C $(@)
 
 -include deps.mk
 
 $(OBJECT_FILES): $(CONFIG_MK)
 
-libmfem.a: $(OBJECT_FILES)
-	$(AR) $(ARFLAGS) libmfem.a $(OBJECT_FILES)
-	$(RANLIB) libmfem.a
+$(BLD)libmfem.a: $(OBJECT_FILES)
+	$(AR) $(ARFLAGS) $(@) $(OBJECT_FILES)
+	$(RANLIB) $(@)
 
 serial:
 	$(MAKE) config MFEM_USE_MPI=NO MFEM_DEBUG=NO && $(MAKE)
@@ -276,9 +308,10 @@ pdebug:
 	$(MAKE) config MFEM_USE_MPI=YES MFEM_DEBUG=YES && $(MAKE)
 
 deps:
-	rm -f deps.mk
-	for i in $(SOURCE_FILES:.cpp=); do \
-	   $(DEP_CXX) $(MFEM_FLAGS) -MM -MT $${i}.o $${i}.cpp >> deps.mk; done
+	rm -f $(BLD)deps.mk
+	for i in $(RELSRC_FILES:.cpp=); do \
+	   $(DEP_CXX) $(MFEM_FLAGS) -MM -MT $(BLD)$${i}.o $(SRC)$${i}.cpp >> \
+	      $(BLD)deps.mk; done
 
 check: lib
 	@printf "Quick-checking the MFEM library."
@@ -286,10 +319,11 @@ check: lib
 	@$(MAKE) -C examples \
 	$(if $(findstring YES,$(MFEM_USE_MPI)),ex1p-test-par,ex1-test-seq)
 
+# TODO: Use the variable MINIAPP_DIRS.
 test: lib
 	@echo "Testing the MFEM library. This may take a while..."
 	@echo "Building all examples and miniapps..."
-	@make all
+	@$(MAKE) all
 	@echo "Running examples..."
 	@$(MAKE) -C examples test
 	@echo "Running meshing miniapps..."
@@ -304,39 +338,37 @@ test: lib
 
 clean:
 	rm -f */*.o */*~ *~ libmfem.a deps.mk
-	$(MAKE) -C examples clean
-	$(MAKE) -C miniapps/common clean
-	$(MAKE) -C miniapps/meshing clean
-	$(MAKE) -C miniapps/tools clean
-	$(MAKE) -C miniapps/electromagnetics clean
-	$(MAKE) -C miniapps/performance clean
+	for dir in examples $(MINIAPP_DIRS); do \
+	$(MAKE) -C $${dir} clean; done
 
 distclean: clean
 	rm -rf mfem/
 	$(MAKE) -C config clean
+ifndef BUILD_DIR_DEF
 	$(MAKE) -C doc clean
+endif
 
-install: libmfem.a
+install: $(BLD)libmfem.a
 # install static library
 	mkdir -p $(PREFIX_LIB)
-	$(INSTALL) -m 640 libmfem.a $(PREFIX_LIB)
+	$(INSTALL) -m 640 $(BLD)libmfem.a $(PREFIX_LIB)
 # install top level includes
 	mkdir -p $(PREFIX_INC)
-	$(INSTALL) -m 640 mfem.hpp mfem-performance.hpp $(PREFIX_INC)
+	$(INSTALL) -m 640 $(SRC)mfem.hpp $(SRC)mfem-performance.hpp $(PREFIX_INC)
 # install config include
 	mkdir -p $(PREFIX_INC)/config
-	$(INSTALL) -m 640 config/_config.hpp $(PREFIX_INC)/config/config.hpp
-	$(INSTALL) -m 640 config/tconfig.hpp $(PREFIX_INC)/config
+	$(INSTALL) -m 640 $(BLD)config/_config.hpp $(PREFIX_INC)/config/config.hpp
+	$(INSTALL) -m 640 $(SRC)config/tconfig.hpp $(PREFIX_INC)/config
 # install remaining includes in each subdirectory
 	for dir in $(DIRS); do \
 	   mkdir -p $(PREFIX_INC)/$$dir && \
-	   $(INSTALL) -m 640 $$dir/*.hpp $(PREFIX_INC)/$$dir; done
+	   $(INSTALL) -m 640 $(SRC)$$dir/*.hpp $(PREFIX_INC)/$$dir; done
 # install config.mk at root of install tree
-	$(MAKE) -C config config-mk CONFIG_MK=config-install.mk
-	$(INSTALL) -m 640 config/config-install.mk $(PREFIX)/config.mk
-	rm -f config/config-install.mk
+	$(MAKE) -C $(BLD)config config-mk CONFIG_MK=config-install.mk
+	$(INSTALL) -m 640 $(BLD)config/config-install.mk $(PREFIX)/config.mk
+	rm -f $(BLD)config/config-install.mk
 # install test.mk at root of install tree
-	$(INSTALL) -m 640 config/test.mk $(PREFIX)/test.mk
+	$(INSTALL) -m 640 $(SRC)config/test.mk $(PREFIX)/test.mk
 
 $(CONFIG_MK):
 	$(info )
@@ -345,8 +377,30 @@ $(CONFIG_MK):
 	$(info )
 	$(error )
 
-config:
+config: $(if $(BUILD_DIR_DEF),build-config,local-config)
+
+.PHONY: local-config
+local-config:
 	$(MAKE) -C config all
+
+.PHONY: build-config
+build-config:
+	printf "# Auto-generated file.\n%s\n%s\n%s\n" \
+	   "MFEM_DIR = $(abspath $(MFEM_DIR))" \
+	   "MFEM_BUILD_DIR = $(abspath $(BUILD_DIR))" \
+	   "include \$$(MFEM_DIR)/makefile" > $(BLD)Makefile
+	for d in $(BUILD_DIRS); do mkdir -p $(BLD)$${d}; done
+	for dir in config examples $(MINIAPP_DIRS); do \
+	   printf "# Auto-generated file.\n%s\n%s\n" \
+	      "MFEM_DIR = $(abspath $(MFEM_DIR))" \
+	      "include \$$(MFEM_DIR)/$${dir}/makefile" \
+	      > $(BLD)$${dir}/Makefile; done
+	$(MAKE) -C $(BLD)config all
+	cd "$(BUILD_DIR)" && ln -sf "$(abspath $(MFEM_DIR))/data" .
+	for hdr in mfem.hpp mfem-performance.hpp; do \
+	   printf "// Auto-generated file.\n%s\n%s\n" \
+	   "#define MFEM_BUILD_DIR $(abspath $(BUILD_DIR))" \
+	   "#include \"$(abspath $(MFEM_DIR))/$${hdr}\"" > $(BLD)$${hdr}; done
 
 help:
 	$(info $(value MFEM_HELP_MSG))
@@ -372,6 +426,7 @@ status info:
 	$(info MFEM_CXX             = $(value MFEM_CXX))
 	$(info MFEM_CPPFLAGS        = $(value MFEM_CPPFLAGS))
 	$(info MFEM_CXXFLAGS        = $(value MFEM_CXXFLAGS))
+	$(info MFEM_TPLFLAGS        = $(value MFEM_TPLFLAGS))
 	$(info MFEM_INCFLAGS        = $(value MFEM_INCFLAGS))
 	$(info MFEM_FLAGS           = $(value MFEM_FLAGS))
 	$(info MFEM_LIBS            = $(value MFEM_LIBS))
@@ -380,10 +435,11 @@ status info:
 	$(info MFEM_PREFIX          = $(value MFEM_PREFIX))
 	$(info MFEM_INC_DIR         = $(value MFEM_INC_DIR))
 	$(info MFEM_LIB_DIR         = $(value MFEM_LIB_DIR))
+	$(info MFEM_BUILD_DIR       = $(MFEM_BUILD_DIR))
 	@true
 
 ASTYLE = astyle --options=config/mfem.astylerc
-FORMAT_FILES = $(foreach dir,$(DIRS) examples $(wildcard miniapps/*),"$(dir)/*.?pp")
+FORMAT_FILES = $(foreach dir,$(DIRS) examples $(MINIAPP_DIRS),"$(dir)/*.?pp")
 
 style:
 	@if ! $(ASTYLE) $(FORMAT_FILES) | grep Formatted; then\

@@ -10,8 +10,10 @@
 # Software Foundation) version 2.1 dated February 1999.
 
 # Use the MFEM build directory
-MFEM_DIR = ../..
-CONFIG_MK = $(MFEM_DIR)/config/config.mk
+MFEM_DIR ?= ../..
+MFEM_BUILD_DIR ?= ../..
+SRC = $(if $(MFEM_DIR:../..=),$(MFEM_DIR)/miniapps/common/,)
+CONFIG_MK = $(MFEM_BUILD_DIR)/config/config.mk
 # Use the MFEM install directory
 # MFEM_DIR = ../../mfem
 # CONFIG_MK = $(MFEM_DIR)/config.mk
@@ -28,13 +30,15 @@ else
    MINIOBJS = $(SEQ_MINIOBJS) pfem_extras.o
 endif
 
+.SUFFIXES:
+.SUFFIXES: .o .cpp .mk
 .PHONY: all clean
 
 # Remove built-in rule
 %.o: %.cpp
 
 # Replace the default implicit rule for *.cpp files
-%.o: %.cpp $(CONFIG_MK)
+%.o: $(SRC)%.cpp $(CONFIG_MK)
 	$(MFEM_CXX) $(MFEM_FLAGS) -c $(<) -o $(@)
 
 all: $(MINIOBJS)

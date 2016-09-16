@@ -12,11 +12,10 @@
 #ifndef MFEM_TESLA_SOLVER
 #define MFEM_TESLA_SOLVER
 
-#include "../../config/config.hpp"
+#include "../common/pfem_extras.hpp"
 
 #ifdef MFEM_USE_MPI
 
-#include "../common/pfem_extras.hpp"
 #include <string>
 #include <map>
 

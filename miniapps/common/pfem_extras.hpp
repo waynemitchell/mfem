@@ -12,11 +12,10 @@
 #ifndef MFEM_PFEM_EXTRAS
 #define MFEM_PFEM_EXTRAS
 
-#include "../../config/config.hpp"
+#include "mfem.hpp"
 
 #ifdef MFEM_USE_MPI
 
-#include "mfem.hpp"
 #include <cstddef>
 
 namespace mfem

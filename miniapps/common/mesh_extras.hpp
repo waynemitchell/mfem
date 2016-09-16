@@ -12,8 +12,6 @@
 #ifndef MFEM_MESH_EXTRAS
 #define MFEM_MESH_EXTRAS
 
-#include "../../config/config.hpp"
-
 #include "mfem.hpp"
 #include <sstream>
 
