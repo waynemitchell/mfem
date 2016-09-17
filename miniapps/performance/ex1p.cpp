@@ -126,8 +126,8 @@ int main(int argc, char *argv[])
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
    args.AddOption(&pc, "-pc", "--preconditioner",
-                  "Preconditioner to use: `lor' for LOR BoomerAMG Prec., `sparsify' for"
-                  "Sparsified BoomerAMG Prec., `dense' for Dense BoomerAMG Prec., `none'.");
+                  "Preconditioner to use: `lor' for LOR BoomerAMG Prec., "
+                  "`dense' for Dense BoomerAMG Prec., `none'.");
    args.Parse();
    if (!args.Good())
    {
@@ -154,12 +154,11 @@ int main(int argc, char *argv[])
       args.PrintOptions(cout);
    }
 
-   enum PCType { NONE, LOR, SPARSIFY, DENSE };
+   enum PCType { NONE, LOR, DENSE };
    PCType pc_choice;
    if (!strcmp(pc, "dense")) { pc_choice = DENSE; }
    else if (!strcmp(pc, "lor")) { pc_choice = LOR; }
    else if (!strcmp(pc, "none")) { pc_choice = NONE; }
-   else if (!strcmp(pc, "sparsify")) { pc_choice = SPARSIFY; }
    else if (!strcmp(pc,"default"))
    {
       if (matrix_free)
@@ -422,12 +421,6 @@ int main(int argc, char *argv[])
          a_hpc_lor = new HPCBilinearForm_lor(integ_t(coeff_t(1.0)),
                                              *fespace_lor);
          a_hpc_lor->AssembleBilinearForm(*a_pc);
-         a_pc->FormLinearSystem(ess_tdof_list, x, *b, A_pc, X_tmp, B_tmp);
-      }
-      else if (pc_choice == SPARSIFY)
-      {
-         a_pc->AddDomainIntegrator(new DiffusionIntegrator(one, true));
-         a_pc->Assemble();
          a_pc->FormLinearSystem(ess_tdof_list, x, *b, A_pc, X_tmp, B_tmp);
       }
       else if (pc_choice == DENSE)
