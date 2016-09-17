@@ -269,7 +269,7 @@ int main(int argc, char *argv[])
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
 
    ParFiniteElementSpace *fespace_lor = NULL;
-   HypreParMatrix P_lor, R_lor;
+   Operator *P_lor = NULL, *R_lor = NULL;
    if (pc_choice == LOR)
    {
       fespace->BuildDofToArrays();

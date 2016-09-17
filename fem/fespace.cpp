@@ -940,14 +940,11 @@ FiniteElementSpace::FiniteElementSpace(Mesh *mesh,
    BuildElementToDofTable();
 }
 
-void FiniteElementSpace::LowOrderRefinement(int order,
-                                            FiniteElementSpace *& fes_lor,
-                                            SparseMatrix &P, SparseMatrix &R)
+void FiniteElementSpace::BuildLORMesh(int order, Mesh *& mesh_lor)
 {
-
    if (order != 1)
    {
-      mfem_error("FiniteElementSpace::LowOrderRefinement : order != 1");
+      mfem_error("FiniteElementSpace::BuildLORMesh: order != 1");
    }
 
    if (mesh->Dimension() != 2 && mesh->Dimension() != 3)
@@ -956,19 +953,17 @@ void FiniteElementSpace::LowOrderRefinement(int order,
    }
 
    // the same finite element basis will be used on the LOR mesh,
-   // but of different order (HACK: use 1st order)
+   // but of different order
    const FiniteElementCollection *fec_hoc = FEColl();
    int type = dynamic_cast<const H1_FECollection *>(fec_hoc)->GetBasisType();
-   FiniteElementCollection *fec_lor = new H1_FECollection(1, mesh->Dimension(),
-                                                          BasisType::GaussLobatto);
 
-   // HACK: get order for first element, assume all have same order.
+   // Get order for first element, assume all have same order.
    int p = GetOrder(1);
    int o = mesh->Dimension();
 
-   //HACK: Assume order = 1 : all ir nodes become vertices of new elements
-   Mesh *mesh_lor = new Mesh(o, mesh->GetNE() * pow(p + 1, o),
-                             mesh->GetNE() * pow(p, o));
+   // Assume order = 1 : all ir nodes become vertices of new elements
+   mesh_lor = new Mesh(o, mesh->GetNE() * pow(p + 1, o),
+                       mesh->GetNE() * pow(p, o));
 
    // Build the low order refined mesh from the original mesh.
    for (int j = 0; j < GetNDofs(); j++)
@@ -1081,9 +1076,21 @@ void FiniteElementSpace::LowOrderRefinement(int order,
    {
       mesh_lor->FinalizeHexMesh(1, 1, true);
    }
+}
 
+void FiniteElementSpace::LowOrderRefinement(int order,
+                                            FiniteElementSpace *& fes_lor,
+                                            Operator *& P, Operator *& R)
+{
+   Mesh *mesh_lor = NULL;
+   BuildLORMesh(order, mesh_lor);
+
+   FiniteElementCollection *fec_lor =
+      new H1_FECollection(1, mesh->Dimension(), BasisType::GaussLobatto);
    fes_lor = new FiniteElementSpace(mesh_lor, fec_lor, GetVDim(),
                                     GetOrdering());
+   P = new IdentityOperator(GetTrueVSize());
+   R = new IdentityOperator(GetTrueVSize());
    fes_lor->GetMesh()->SetCurvature(order, false, -1, GetOrdering());
 }
 

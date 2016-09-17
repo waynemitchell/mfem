@@ -2125,145 +2125,13 @@ ParFiniteElementSpace::ParallelDerefinementMatrix(int old_ndofs,
 }
 
 void ParFiniteElementSpace::ParLowOrderRefinement(int order,
-                                                  ParFiniteElementSpace *& fes_lor,
-                                                  HypreParMatrix &P, HypreParMatrix &R)
+                                                  ParFiniteElementSpace *&fes_lor,
+                                                  Operator *&P, Operator *&R)
 {
-   if (order != 1)
-   {
-      mfem_error("FiniteElementSpace::LowOrderRefinement : order != 1");
-   }
-
-   if (mesh->Dimension() != 2 && mesh->Dimension() != 3)
-   {
-      mfem_error("only implemented for Hexahedron and Quadrilateral elements in 2D/3D");
-   }
-
-   // the same finite element basis will be used on the LOR mesh,
-   // but of different order (HACK: use 1st order)
-   const FiniteElementCollection *fec_hoc = FEColl();
-   int type = dynamic_cast<const H1_FECollection *>(fec_hoc)->GetBasisType();
-   FiniteElementCollection *fec_lor = new H1_FECollection(1, mesh->Dimension(),
-                                                          BasisType::GaussLobatto);
-
-   // HACK: get order for first element, assume all have same order.
-   int p = GetOrder(1);
    int o = mesh->Dimension();
 
-   //HACK: Assume order = 1 : all ir nodes become vertices of new elements
-   Mesh *mesh_lor = new Mesh(o, mesh->GetNE() * pow(p + 1, o),
-                             mesh->GetNE() * pow(p, o));
-
-   // Build the low order refined mesh from the original mesh.
-   for (int j = 0; j < GetNDofs(); j++)
-   {
-      double coords[3];
-      int el = GetElementForDof(j);
-      ElementTransformation *eltrans = GetElementTransformation(el);
-
-      int ldof = GetLocalDofForDof(j);
-      const IntegrationRule &ir = GetFE(el)->GetNodes();
-      Vector phys_coords(coords, 3);
-      eltrans->Transform(ir.IntPoint(ldof), phys_coords);
-
-      mesh_lor->AddVertex(coords);
-   }
-   for (int i = 0; i < mesh->GetNE(); i++)
-   {
-      Array<int> vdofs;
-      GetElementVDofs(i, vdofs);
-
-      const Array<int> *dof_map;
-      const int *dof_map_;
-      if (mesh->Dimension() == 2)
-      {
-         if (GetElementType(i) != Element::QUADRILATERAL)
-         {
-            mfem_error("Element is not a Quad!");
-         }
-         if (type == BasisType::Positive)
-         {
-            const H1Pos_QuadrilateralElement *fe =
-               dynamic_cast<const H1Pos_QuadrilateralElement *>(GetFE(i));
-            dof_map = const_cast<Array<int> *>(&fe->GetDofMap());
-            dof_map_ = dof_map->GetData();
-         }
-         else
-         {
-            const H1_QuadrilateralElement *fe =
-               dynamic_cast<const H1_QuadrilateralElement *>(GetFE(i));
-            dof_map = const_cast<Array<int> *>(&fe->GetDofMap());
-            dof_map_ = dof_map->GetData();
-         }
-      }
-      else // mesh->Dimension() == 3
-      {
-         if (GetElementType(i) != Element::HEXAHEDRON)
-         {
-            mfem_error("Element is not a Hex!");
-         }
-         if (type == BasisType::Positive)
-         {
-            const H1Pos_HexahedronElement *fe =
-               dynamic_cast<const H1Pos_HexahedronElement *>(GetFE(i));
-            dof_map = const_cast<Array<int> *>(&fe->GetDofMap());
-            dof_map_ = dof_map->GetData();
-         }
-         else
-         {
-            const H1_HexahedronElement *fe =
-               dynamic_cast<const H1_HexahedronElement *>(GetFE(i));
-            dof_map = const_cast<Array<int> *>(&fe->GetDofMap());
-            dof_map_ = dof_map->GetData();
-         }
-      }
-
-      if (mesh->Dimension() == 2)
-      {
-         for (int j = 0; j < p; j++)
-         {
-            for (int k = 0; k < p; k++)
-            {
-               int v[4];
-               v[0] = vdofs[dof_map_[  j      * (p + 1) + k]];
-               v[1] = vdofs[dof_map_[  j      * (p + 1) + k + 1]];
-               v[2] = vdofs[dof_map_[ (j + 1) * (p + 1) + k + 1]];
-               v[3] = vdofs[dof_map_[ (j + 1) * (p + 1) + k]];
-               mesh_lor->AddQuad(v, mesh->GetAttribute(i));
-            }
-         }
-      }
-      else
-      {
-         for (int j = 0; j < p; j++)
-         {
-            for (int k = 0; k < p; k++)
-            {
-               for (int l = 0; l < p; l++)
-               {
-                  int v[8];
-                  v[0] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + k * (p + 1) + l]];
-                  v[1] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + k * (p + 1) + l + 1]];
-                  v[2] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + (k + 1) * (p + 1) + l + 1]];
-                  v[3] = vdofs[dof_map_[ j * (p + 1) * (p + 1) + (k + 1) * (p + 1) + l]];
-                  v[4] = vdofs[dof_map_[ (j + 1) * (p + 1) * (p + 1) + k * (p + 1) + l]];
-                  v[5] = vdofs[dof_map_[ (j + 1) * (p + 1) * (p + 1) + k * (p + 1) + l + 1]];
-                  v[6] = vdofs[dof_map_[ (j + 1) * (p + 1) * (p + 1) + (k + 1) *
-                                         (p + 1) + l + 1]];
-                  v[7] = vdofs[dof_map_[ (j + 1) * (p + 1) * (p + 1) + (k + 1) * (p + 1) + l]];
-                  mesh_lor->AddHex(v, mesh->GetAttribute(i));
-               }
-            }
-         }
-      }
-   }
-   if (mesh->Dimension() == 2)
-   {
-      mesh_lor->FinalizeQuadMesh(1, 1, true);
-   }
-   else
-   {
-      mesh_lor->FinalizeHexMesh(1, 1, true);
-   }
+   Mesh *mesh_lor = NULL;
+   BuildLORMesh(order, mesh_lor);
 
    Table group_svert(pmesh->GetGroupSharedVertexTable());
    Table group_sedge(pmesh->GetGroupSharedEdgeTable());
@@ -2283,6 +2151,7 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order,
    // update the shared objects for the LOR mesh
    {
       int i, attr, ind, *v;
+      int p = GetOrder(1);
 
       int group;
       Array<int> sverts_lor, sedges, sedges_lor, sfaces, sfaces_lor;
@@ -2299,7 +2168,7 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order,
       I_group_sedge[0] = I_group_sedge[1] = 0;
       I_group_sface[0] = I_group_sface[1] = 0;
 
-      if (mesh->Dimension() == 2)
+      if (o == 2)
       {
          // compute the size of the J arrays:
          //    p+1 as many vertices; p as many edges
@@ -2461,7 +2330,8 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order,
                                     group_svert, group_sedge, group_sface,
                                     svert_lvert_lor, sedge_ledge_lor,
                                     sface_lface_lor);
-
+   FiniteElementCollection *fec_lor =
+      new H1_FECollection(1, o, BasisType::GaussLobatto);
    fes_lor = new ParFiniteElementSpace(pmesh_lor, fec_lor, GetVDim(),
                                        GetOrdering());
    fes_lor->GetMesh()->SetCurvature(order, false, -1, GetOrdering());

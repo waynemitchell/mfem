@@ -225,7 +225,7 @@ int main(int argc, char *argv[])
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
 
    FiniteElementSpace *fespace_lor = NULL;
-   SparseMatrix P, R;
+   Operator *P = NULL, *R = NULL;
    if (pc_choice == LOR)
    {
       fespace->BuildDofToArrays();
