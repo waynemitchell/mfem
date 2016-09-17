@@ -2308,14 +2308,11 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order,
       }
       else
       {
-         // compute the size of the J arrays:
-         // p^2 as many faces
+         // compute the size of the J arrays: p^2 as many faces
          J_group_svert = new int[(p + 1)*(p + 1)*
             group_sface.Size_of_connections()];
          J_group_sedge = new int[2*(p + 1)*p*group_sface.Size_of_connections()];
-         // FIXME : this *10 is to showcase the feature but there's clearly a memory issue
-         // at play
-         J_group_sface = new int[p*p*group_sface.Size_of_connections()*10];
+         J_group_sface = new int[p*p*group_sface.Size_of_connections()];
       }
 
 
@@ -2324,6 +2321,7 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order,
          // Get the group shared objects from coarse ParMesh
          group_svert.GetRow(group, sverts_lor);
          group_sedge.GetRow(group, sedges);
+         group_sface.GetRow(group, sfaces);
 
          // Process all the edges
          for (i = 0; i < group_sedge.RowSize(group); i++)
@@ -2358,9 +2356,6 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order,
             }
          }
 
-         // Get the group shared objects from coarse ParMesh
-         group_sface.GetRow(group, sfaces_lor);
-         group_sface.GetRow(group, sfaces);
 
          const Array<int> *dof_map;
          const int *dof_map_;
@@ -2407,7 +2402,7 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order,
                   }
                   shared_faces_lor.Append(new Quadrilateral(v));
                   sfaces_lor.Append(sface_lface_lor.Append(-1)-1);
-                  delete v;
+                  delete[] v;
                }
             }
          }
