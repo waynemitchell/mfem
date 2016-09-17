@@ -129,15 +129,16 @@ protected:
 
    // Build a refined (serial) mesh based on the nodes of a high-order FES.
    // Helper function for LowOrderRefinement.
-   void BuildLORMesh(int order, Mesh *& mesh_lor);
+   void BuildLORMesh(int order, Mesh *& mesh_lor) const;
 
 public:
    FiniteElementSpace(Mesh *mesh, const FiniteElementCollection *fec,
                       int vdim = 1, int ordering = Ordering::byNODES);
 
-   // Create a low order refinement of the mesh
-   virtual void LowOrderRefinement(int order, FiniteElementSpace *& fes_lor,
-                                   Operator *&P, Operator *&R);
+   /** Create a low order refinement of the mesh and build new FE Space.
+       Sets P, R to the inter-space restriction, interpolation Operators. */
+   virtual FiniteElementSpace *LowOrderRefinement(int order, Operator *&P,
+                                                  Operator *&R) const;
 
    /// Returns the mesh
    inline Mesh *GetMesh() const { return mesh; }
@@ -295,8 +296,8 @@ public:
    const Table &GetElementToDofTable() const { return *elem_dof; }
    const Table &GetBdrElementToDofTable() const { return *bdrElem_dof; }
 
-   int GetElementForDof(int i) { return dof_elem_array[i]; }
-   int GetLocalDofForDof(int i) { return dof_ldof_array[i]; }
+   int GetElementForDof(int i) const { return dof_elem_array[i]; }
+   int GetLocalDofForDof(int i) const { return dof_ldof_array[i]; }
 
    /// Returns pointer to the FiniteElement associated with i'th element.
    const FiniteElement *GetFE(int i) const;

@@ -68,10 +68,10 @@ private:
    /// The (block-diagonal) matrix R (restriction of dof to true dof)
    SparseMatrix *R;
 
-   ParNURBSExtension *pNURBSext()
+   ParNURBSExtension *pNURBSext() const
    { return dynamic_cast<ParNURBSExtension *>(NURBSext); }
 
-   GroupTopology &GetGroupTopo()
+   GroupTopology &GetGroupTopo() const
    { return (NURBSext) ? pNURBSext()->gtopo : pmesh->gtopo; }
 
    void Construct();
@@ -158,8 +158,8 @@ public:
    ParFiniteElementSpace(ParMesh *pm, const FiniteElementCollection *f,
                          int dim = 1, int ordering = Ordering::byNODES);
 
-   virtual void ParLowOrderRefinement(int order, ParFiniteElementSpace *&fes_lor,
-                                      Operator *&P, Operator *&R);
+   virtual ParFiniteElementSpace *LowOrderRefinement(int order, Operator *&P,
+                                                     Operator *&R) const;
 
    MPI_Comm GetComm() { return MyComm; }
    int GetNRanks() { return NRanks; }

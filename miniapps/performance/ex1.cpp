@@ -229,7 +229,7 @@ int main(int argc, char *argv[])
    if (pc_choice == LOR)
    {
       fespace->BuildDofToArrays();
-      fespace->LowOrderRefinement(sol_lor_p, fespace_lor, P, R);
+      fespace_lor = fespace->LowOrderRefinement(sol_lor_p, P, R);
    }
    cout << "Number of finite element unknowns: "
         << fespace->GetTrueVSize() << endl;

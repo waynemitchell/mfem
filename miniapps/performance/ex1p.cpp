@@ -273,7 +273,7 @@ int main(int argc, char *argv[])
    if (pc_choice == LOR)
    {
       fespace->BuildDofToArrays();
-      fespace->ParLowOrderRefinement(sol_lor_p, fespace_lor, P_lor, R_lor);
+      fespace_lor = fespace->LowOrderRefinement(sol_lor_p, P_lor, R_lor);
    }
 
    HYPRE_Int size = fespace->GlobalTrueVSize();

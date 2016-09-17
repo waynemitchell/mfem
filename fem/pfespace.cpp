@@ -2124,9 +2124,9 @@ ParFiniteElementSpace::ParallelDerefinementMatrix(int old_ndofs,
    return R;
 }
 
-void ParFiniteElementSpace::ParLowOrderRefinement(int order,
-                                                  ParFiniteElementSpace *&fes_lor,
-                                                  Operator *&P, Operator *&R)
+ParFiniteElementSpace*
+ParFiniteElementSpace::LowOrderRefinement(int order, Operator *&P, Operator *&R)
+   const
 {
    int o = mesh->Dimension();
 
@@ -2332,9 +2332,10 @@ void ParFiniteElementSpace::ParLowOrderRefinement(int order,
                                     sface_lface_lor);
    FiniteElementCollection *fec_lor =
       new H1_FECollection(1, o, BasisType::GaussLobatto);
-   fes_lor = new ParFiniteElementSpace(pmesh_lor, fec_lor, GetVDim(),
-                                       GetOrdering());
+   ParFiniteElementSpace *fes_lor =
+      new ParFiniteElementSpace(pmesh_lor, fec_lor, GetVDim(), GetOrdering());
    fes_lor->GetMesh()->SetCurvature(order, false, -1, GetOrdering());
+   return fes_lor;
 }
 
 void ParFiniteElementSpace::Destroy()

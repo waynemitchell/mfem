@@ -940,7 +940,7 @@ FiniteElementSpace::FiniteElementSpace(Mesh *mesh,
    BuildElementToDofTable();
 }
 
-void FiniteElementSpace::BuildLORMesh(int order, Mesh *& mesh_lor)
+void FiniteElementSpace::BuildLORMesh(int order, Mesh *& mesh_lor) const
 {
    if (order != 1)
    {
@@ -1074,24 +1074,25 @@ void FiniteElementSpace::BuildLORMesh(int order, Mesh *& mesh_lor)
    }
    else
    {
-      mesh_lor->FinalizeHexMesh(1, 1, true);
+      mesh_lor->FinalizeHexMesh (1, 1, true);
    }
 }
 
-void FiniteElementSpace::LowOrderRefinement(int order,
-                                            FiniteElementSpace *& fes_lor,
-                                            Operator *& P, Operator *& R)
+FiniteElementSpace*
+FiniteElementSpace::LowOrderRefinement(int order, Operator *& P, Operator *& R)
+   const
 {
    Mesh *mesh_lor = NULL;
    BuildLORMesh(order, mesh_lor);
 
    FiniteElementCollection *fec_lor =
       new H1_FECollection(1, mesh->Dimension(), BasisType::GaussLobatto);
-   fes_lor = new FiniteElementSpace(mesh_lor, fec_lor, GetVDim(),
-                                    GetOrdering());
-   P = new IdentityOperator(GetTrueVSize());
-   R = new IdentityOperator(GetTrueVSize());
+   FiniteElementSpace *fes_lor =
+      new FiniteElementSpace(mesh_lor, fec_lor, GetVDim(), GetOrdering());
+   P = new IdentityOperator(GetVSize());
+   R = new IdentityOperator(GetVSize());
    fes_lor->GetMesh()->SetCurvature(order, false, -1, GetOrdering());
+   return fes_lor;
 }
 
 NURBSExtension *FiniteElementSpace::StealNURBSext()
