@@ -48,10 +48,9 @@ COMMON_O=../common/fem_extras.o ../common/mesh_extras.o
 
 all: $(MINIAPPS)
 
-# Generate rules for *.cpp + *.hpp files in $(SRC)/../common/
-$(foreach obj,$(COMMON_O),$(eval $(call \
-mfem_make_rule,$(obj),$(SRC),,$(obj:.o=.cpp) $(obj:.o=.hpp),$(CONFIG_MK),\
-$(MFEM_CXX) $(MFEM_FLAGS) -c $$< -o $$@)))
+# Rules for compiling dependencies
+$(COMMON_O): %.o: $(SRC)%.cpp $(SRC)%.hpp $(CONFIG_MK)
+	$(MFEM_CXX) $(MFEM_FLAGS) -c $< -o $@
 
 MFEM_TESTS = MINIAPPS
 include $(TEST_MK)

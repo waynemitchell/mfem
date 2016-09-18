@@ -42,16 +42,17 @@ COMMON_O=../common/pfem_extras.o
 %: %.cpp
 %.o: %.cpp
 
-# Replace the default implicit rule for *.cpp files
+all: $(MINIAPPS)
+
+# Rules for building the miniapps
+$(MINIAPPS): \
 %: $(SRC)%.cpp %_solver.o $(COMMON_O) $(MFEM_LIB_FILE) $(CONFIG_MK)
 	$(MFEM_CXX) $(MFEM_FLAGS) $< -o $@ $@_solver.o $(COMMON_O) $(MFEM_LIBS)
 
-all: $(MINIAPPS)
-
-# Generate rules for *.cpp + *.hpp files in $(SRC)
-$(foreach obj,$(COMMON_O) volta_solver.o tesla_solver.o,$(eval $(call \
-mfem_make_rule,$(obj),$(SRC),,$(obj:.o=.cpp) $(obj:.o=.hpp),$(CONFIG_MK),\
-$(MFEM_CXX) $(MFEM_FLAGS) -c $$< -o $$@)))
+# Rules for compiling miniapp dependencies
+$(COMMON_O) $(addsuffix _solver.o,$(MINIAPPS)): \
+%.o: $(SRC)%.cpp $(SRC)%.hpp $(CONFIG_MK)
+	$(MFEM_CXX) $(MFEM_FLAGS) -c $(<) -o $(@)
 
 MFEM_TESTS = MINIAPPS
 include $(TEST_MK)

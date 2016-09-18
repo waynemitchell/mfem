@@ -40,23 +40,3 @@ MFEM_BUILD_TAG = @MFEM_BUILD_TAG@
 MFEM_PREFIX    = @MFEM_PREFIX@
 MFEM_INC_DIR   = @MFEM_INC_DIR@
 MFEM_LIB_DIR   = @MFEM_LIB_DIR@
-
-#
-# $(1) - target file suffix
-# $(2) - source prefix path ending with '/' if not empty
-# $(3) - target prefix path ending with '/' if not empty
-# $(4) - prerequisites in $(2)
-# $(5) - other prerequisites
-# $(6) - the rule
-#
-# Sample use:
-#
-# $(foreach src,$(SOURCES),$(eval $(call \
-# mfem_make_rule,$(src:.cpp=.o),$(SRC_PREFIX),$(DEST_PREFIX),$(src) \
-# $(src:.cpp=.hpp),$(MORE_PREREQUISITES),\
-# $(MFEM_CXX) $(MFEM_FLAGS) $$< -o $$@ $(MFEM_LIBS))))
-#
-define mfem_make_rule
-$(3)$(1): $(foreach prq,$(4),$(2)$(prq)) $(5)
-	$(6)
-endef
