@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
       pmesh_name << par_mesh_prefix << '.' << setfill('0') << setw(6) << myid;
 
       ifstream imesh(pmesh_name.str().c_str());
-      MFEM_VERIFY(imesh.good(), "error openning file: " << pmesh_name.str());
+      MFEM_VERIFY(imesh.good(), "error opening file: " << pmesh_name.str());
       pmesh = new ParMesh(MPI_COMM_WORLD, imesh);
       dim = pmesh->Dimension();
       par_ref_levels = 1;

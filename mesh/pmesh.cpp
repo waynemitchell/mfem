@@ -4516,11 +4516,10 @@ void ParMesh::ParPrint(ostream &out) const
    // write with the local mesh
    Mesh::Print(out);
 
-   // write the group topology
-   out << "\ngroup_topology\n";
    gtopo.Save(out);
+#define MFEM_PAR_MESH_FORMAT_D
 
-#ifdef MFEM_PAR_MESH_FORMAT_A
+   #if defined(MFEM_PAR_MESH_FORMAT_A)
    // Version A of the format
 
    // write the shared vertices (group, lvert)
@@ -4574,7 +4573,8 @@ void ParMesh::ParPrint(ostream &out) const
          PrintElementWithoutAttr(shared_faces[i], out);
       }
    }
-#else
+#elif defined(MFEM_PAR_MESH_FORMAT_B)
+
    // Version B of the format
 
    out << "\ntotal_shared_vertices " << svert_lvert.Size() << '\n';
@@ -4619,6 +4619,56 @@ void ParMesh::ParPrint(ostream &out) const
          }
       }
    }
+#elif defined(MFEM_PAR_MESH_FORMAT_D)
+
+   // Version D of the format
+   // Write out group size and neighbor ids in each group.
+   // Exclude group 0 ( local group ).
+   for (int group = 1; group < GetNGroups(); group++)
+   {
+      const int group_size = gtopo.GetGroupSize(group);
+
+      out << "\n# Group " << group << "\n";
+      out << group_size;
+
+      const int * neighbors = gtopo.GetGroup(group);
+      for (int neighbor_index = 0; neighbor_index < group_size; ++neighbor_index )
+      {
+         out << " " << neighbors[neighbor_index];
+      }
+      out << "\n";
+
+      const int  group_num_shared_vertices = group_svert.RowSize(group-1);
+      const int *group_shared_vertices = group_svert.GetRow(group-1);
+
+      out << "shared_vertices " << group_num_shared_vertices << '\n';
+      for (int i = 0; i < group_num_shared_vertices; i++)
+      {
+         out << svert_lvert[group_shared_vertices[i]] << '\n';
+      }
+      if (Dim >= 2)
+      {
+         const int  group_num_shared_edges = group_sedge.RowSize(group-1);
+         const int *group_shared_edges = group_sedge.GetRow(group-1);
+         out << "\nshared_edges " << group_num_shared_edges << '\n';
+         for (int i = 0; i < group_num_shared_edges; i++)
+         {
+            const int *v = shared_edges[group_shared_edges[i]]->GetVertices();
+            out << v[0] << ' ' << v[1] << '\n';
+         }
+      }
+      if (Dim >= 3)
+      {
+         const int  group_num_shared_faces = group_sface.RowSize(group-1);
+         const int *group_shared_faces = group_sface.GetRow(group-1);
+         out << "\nshared_faces " << group_num_shared_faces << '\n';
+         for (int i = 0; i < group_num_shared_faces; i++)
+         {
+            PrintElementWithoutAttr(shared_faces[group_shared_faces[i]], out);
+         }
+      }
+   }
+#else
 
 #endif
 

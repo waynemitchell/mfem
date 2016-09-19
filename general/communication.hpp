@@ -60,10 +60,15 @@ private:
       - group 0 is the 'local' group
       - groupmaster_lproc[0] = 0
       - lproc_proc[0] = MyRank */
+
+   // Neighbor ids (lproc) in each group.
    Table      group_lproc;
+   // Master neighbor id for each group.
    Array<int> groupmaster_lproc;
+   // MPI rank of each neighbor.
    Array<int> lproc_proc;
-   Array<int> group_mgroup; // group --> group number in the master
+   // Group --> Group number in the master.
+   Array<int> group_mgroup;
 
    void ProcToLProc();
 
