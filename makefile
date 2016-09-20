@@ -179,6 +179,7 @@ endif
 ifeq ($(MFEM_USE_GSL),YES)
    INCFLAGS += $(GSL_OPT)
    ALL_LIBS += $(GSL_LIB)
+endif
 
 # MPFR library configuration
 ifeq ($(MFEM_USE_MPFR),YES)
