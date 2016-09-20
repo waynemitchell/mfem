@@ -2125,10 +2125,11 @@ ParFiniteElementSpace::ParallelDerefinementMatrix(int old_ndofs,
 }
 
 ParFiniteElementSpace*
-ParFiniteElementSpace::LowOrderRefinement(int order, Operator *&P, Operator *&R)
-   const
+ParFiniteElementSpace::LowOrderRefinement(
+   int order, Operator *&P, Operator *&R, ParMesh *& pmesh_lor,
+   FiniteElementCollection *& fec_lor) const
 {
-   int o = mesh->Dimension();
+   int dim = mesh->Dimension();
 
    Mesh *mesh_lor = NULL;
    BuildLORMesh(order, mesh_lor);
@@ -2150,7 +2151,7 @@ ParFiniteElementSpace::LowOrderRefinement(int order, Operator *&P, Operator *&R)
 
    // update the shared objects for the LOR mesh
    {
-      int i, attr, ind, *v;
+      int i, *v;
       int p = GetOrder(1);
 
       int group;
@@ -2168,12 +2169,13 @@ ParFiniteElementSpace::LowOrderRefinement(int order, Operator *&P, Operator *&R)
       I_group_sedge[0] = I_group_sedge[1] = 0;
       I_group_sface[0] = I_group_sface[1] = 0;
 
-      if (o == 2)
+      if (dim == 2)
       {
          // compute the size of the J arrays:
          //    p+1 as many vertices; p as many edges
          J_group_svert = new int[(p+1)*group_sedge.Size_of_connections()];
          J_group_sedge = new int[p*group_sedge.Size_of_connections()];
+         J_group_sface = new int[0];
       }
       else
       {
@@ -2183,7 +2185,6 @@ ParFiniteElementSpace::LowOrderRefinement(int order, Operator *&P, Operator *&R)
          J_group_sedge = new int[2*(p + 1)*p*group_sface.Size_of_connections()];
          J_group_sface = new int[p*p*group_sface.Size_of_connections()];
       }
-
 
       for (group = 0; group < pmesh->GetNGroups()-1; group++)
       {
@@ -2224,7 +2225,6 @@ ParFiniteElementSpace::LowOrderRefinement(int order, Operator *&P, Operator *&R)
                sedges_lor.Append(sedge_ledge_lor.Append(-1)-1);
             }
          }
-
 
          const Array<int> *dof_map;
          const int *dof_map_;
@@ -2326,12 +2326,12 @@ ParFiniteElementSpace::LowOrderRefinement(int order, Operator *&P, Operator *&R)
       group_sface.SetIJ(I_group_sface, J_group_sface);
    }
 
-   ParMesh *pmesh_lor = new ParMesh(*mesh_lor, GetGroupTopo(),
-                                    group_svert, group_sedge, group_sface,
-                                    svert_lvert_lor, sedge_ledge_lor,
-                                    sface_lface_lor);
-   FiniteElementCollection *fec_lor =
-      new H1_FECollection(1, o, BasisType::GaussLobatto);
+   pmesh_lor = new ParMesh(*mesh_lor, GetGroupTopo(),
+                           group_svert, group_sedge, group_sface,
+                           svert_lvert_lor, sedge_ledge_lor,
+                           sface_lface_lor);
+   delete mesh_lor;
+   fec_lor = new H1_FECollection(1, dim, BasisType::GaussLobatto);
    ParFiniteElementSpace *fes_lor =
       new ParFiniteElementSpace(pmesh_lor, fec_lor, GetVDim(), GetOrdering());
    fes_lor->GetMesh()->SetCurvature(order, false, -1, GetOrdering());
