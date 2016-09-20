@@ -66,13 +66,14 @@ make style
 
 endef
 
-# Path to the mfem source directory set from this makefile's directory:
+# Path to the mfem source directory, defaults to this makefile's directory:
 THIS_MK := $(lastword $(MAKEFILE_LIST))
-THIS_MK_DIR_SLASH := $(dir $(THIS_MK))
-MFEM_DIR ?= $(THIS_MK_DIR_SLASH:/=)
+$(if $(wildcard $(THIS_MK)),,$(error Makefile not found "$(1)"))
+MFEM_DIR ?= $(patsubst %/,%,$(dir $(THIS_MK)))
 MFEM_REAL_DIR := $(realpath $(MFEM_DIR))
-$(if $(MFEM_REAL_DIR),,$(error $(MFEM_DIR) is not valid))
+$(if $(MFEM_REAL_DIR),,$(error Source directory "$(MFEM_DIR)" is not valid))
 SRC := $(if $(MFEM_REAL_DIR:$(CURDIR)=),$(MFEM_DIR)/,)
+$(if $(word 2,$(SRC)),$(error Spaces in SRC = "$(SRC)" are not supported))
 
 MINIAPP_SUBDIRS = common electromagnetics meshing performance tools
 MINIAPP_DIRS := $(addprefix miniapps/,$(MINIAPP_SUBDIRS))
@@ -86,8 +87,9 @@ BUILD_DIR := $(MFEM_BUILD_DIR)
 BUILD_REAL_DIR := $(abspath $(BUILD_DIR))
 ifneq ($(BUILD_REAL_DIR),$(MFEM_REAL_DIR))
    BUILD_SUBDIRS = $(DIRS) config examples $(MINIAPP_DIRS)
-   BUILD_DIR_DEF = -DMFEM_BUILD_DIR=$(BUILD_REAL_DIR)
+   BUILD_DIR_DEF = -DMFEM_BUILD_DIR="$(BUILD_REAL_DIR)"
    BLD := $(if $(BUILD_REAL_DIR:$(CURDIR)=),$(BUILD_DIR)/,)
+   $(if $(word 2,$(BLD)),$(error Spaces in BLD = "$(BLD)" are not supported))
 else
    BUILD_DIR = $(MFEM_DIR)
    BLD := $(SRC)
