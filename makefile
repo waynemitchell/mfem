@@ -68,7 +68,7 @@ endef
 
 # Path to the mfem source directory, defaults to this makefile's directory:
 THIS_MK := $(lastword $(MAKEFILE_LIST))
-$(if $(wildcard $(THIS_MK)),,$(error Makefile not found "$(1)"))
+$(if $(wildcard $(THIS_MK)),,$(error Makefile not found "$(THIS_MK)"))
 MFEM_DIR ?= $(patsubst %/,%,$(dir $(THIS_MK)))
 MFEM_REAL_DIR := $(realpath $(MFEM_DIR))
 $(if $(MFEM_REAL_DIR),,$(error Source directory "$(MFEM_DIR)" is not valid))
