@@ -225,10 +225,13 @@ int main(int argc, char *argv[])
 
    FiniteElementSpace *fespace_lor = NULL;
    Operator *P = NULL, *R = NULL;
+   Mesh *mesh_lor = NULL;
+   FiniteElementCollection *fec_lor = NULL;
    if (pc_choice == LOR)
    {
       fespace->BuildDofToArrays();
-      fespace_lor = fespace->LowOrderRefinement(sol_lor_p, P, R);
+      fespace_lor = fespace->LowOrderRefinement(sol_lor_p, P, R, mesh_lor,
+                                                fec_lor);
    }
    cout << "Number of finite element unknowns: "
         << fespace->GetTrueVSize() << endl;
@@ -439,10 +442,26 @@ int main(int argc, char *argv[])
    // 16. Free the used memory.
    delete a;
    delete a_hpc;
+   if (pc_choice == LOR)
+   {
+      delete a_hpc_lor;
+   }
+   if (pc_choice != NONE)
+   {
+      delete a_pc;
+   }
    delete a_oper;
    delete b;
    delete fespace;
    if (order > 0) { delete fec; }
+   if (pc_choice == LOR)
+   {
+      delete mesh_lor;
+      delete fespace_lor;
+      delete fec_lor;
+      delete P;
+      delete R;
+   }
    delete mesh;
 
    return 0;
