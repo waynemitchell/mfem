@@ -688,19 +688,20 @@ public:
 };
 
 /** Integrator for the DG form, for the formulations see:
-    - PhD Thesis of Jonas De Basabe High-Order Finite %Element Methods for
-      Seismic Wave Propagation, UT Austin, 2009, p. 23) and references therein
-    - Peter Hansbo and Mats G. Larson Discontinuous Galerkin and the
-      Crouzeix-Raviart Element: Application to Elasticity, PREPRINT 2000-09, p.3
+    - PhD Thesis of Jonas De Basabe, High-Order Finite %Element Methods for
+      Seismic Wave Propagation, UT Austin, 2009, p. 23, and references therein
+    - Peter Hansbo and Mats G. Larson, Discontinuous Galerkin and the
+      Crouzeix-Raviart %Element: Application to Elasticity, PREPRINT 2000-09,
+      p.3
 
     \f[
-    - < \{ \tau(u) \}, [v] > + sigma < \{ \tau(v) \}, [u] >
-    + kappa < h^{-1} \{ \lambda + 2 \mu \} [u], [v] >
+    - \left< \{ \tau(u) \}, [v] \right> + \alpha \left< \{ \tau(v) \}, [u]
+        \right> + \kappa \left< h^{-1} \{ \lambda + 2 \mu \} [u], [v] \right>
     \f]
 
-    where \f$ <u, v> = \int_{F} u \cdot v \f$, and \f$ F \f$ is a face which is
-    either a boundary face \f$ F_b \f$ of an element \f$ K \f$ or an interior
-    face \f$ F_i \f$ separating elements \f$ K_1 \f$ and \f$ K_2 \f$.
+    where \f$ \left<u, v\right> = \int_{F} u \cdot v \f$, and \f$ F \f$ is a
+    face which is either a boundary face \f$ F_b \f$ of an element \f$ K \f$ or
+    an interior face \f$ F_i \f$ separating elements \f$ K_1 \f$ and \f$ K_2 \f$.
 
     In the bilinear form above \f$ \tau(u) \f$ is traction, and it's also
     \f$ \tau(u) = \sigma(u) \cdot \vec{n} \f$, where \f$ \sigma(u) \f$
@@ -708,35 +709,37 @@ public:
 
     In other words, we have
     \f[
-    - < \{ \sigma(u) \cdot \vec{n} \}, [v] > + sigma < \{ \sigma(v) \cdot \vec{n} \}, [u] >
-    + kappa < h^{-1} \{ \lambda + 2 \mu \} [u], [v] >
+    - \left< \{ \sigma(u) \cdot \vec{n} \}, [v] \right> + \alpha \left< \{
+        \sigma(v) \cdot \vec{n} \}, [u] \right> + \kappa \left< h^{-1} \{
+        \lambda + 2 \mu \} [u], [v] \right>
     \f]
 
     For isotropic media
     \f[
     \begin{split}
     \sigma(u) &= \lambda \nabla \cdot u I + 2 \mu \varepsilon(u) \\
-              &= \lambda \nabla \cdot u I + 2 \mu \frac{1}{2} (\nabla u + \nabla u^T) \\
+              &= \lambda \nabla \cdot u I + 2 \mu \frac{1}{2} (\nabla u + \nabla
+                 u^T) \\
               &= \lambda \nabla \cdot u I + \mu (\nabla u + \nabla u^T)
     \end{split}
     \f]
 
     where \f$ I \f$ is identity matrix, \f$ \lambda \f$ and \f$ \mu \f$ are Lame
     coefficients (see ElasticityIntegrator), \f$ u, v \f$ are the trial and test
-    functions, respectively. The parameters \f$ sigma \f$ and \f$ kappa \f$
+    functions, respectively. The parameters \f$ \alpha \f$ and \f$ \kappa \f$
     determine the DG method to be used (when this integrator is added to the
     "broken" ElasticityIntegrator):
 
-    - sigma = 0, IIPG (Dawson, C., Sun, S., & Wheeler, M., 2004. Compatible
-    algorithms for coupled flow and transport, Computer Methods in Applied
-    Mechanics and Engineering, 193(23-26), 2565-2580.)
+    - \f$\alpha = 0\f$, IIPG (Dawson, C., Sun, S., & Wheeler, M., 2004.
+    Compatible algorithms for coupled flow and transport, Computer Methods in
+    Applied Mechanics and Engineering, 193(23-26), 2565-2580.)
 
-    - sigma = -1, SIPG (Grote, M., Schneebeli, A., & Schotzau, D., 2006.
+    - \f$\alpha = -1\f$, SIPG (Grote, M., Schneebeli, A., & Schotzau, D., 2006.
     Discontinuous Galerkin Finite %Element Method for the Wave Equation, SIAM
     Journal on Numerical Analysis, 44(6), 2408-2431.)
 
-    - sigma = 1, NIPG (Riviere, B., Wheeler, M., & Girault, V., 2001. A Priori
-    Error Estimates for Finite %Element Methods Based on Discontinuous
+    - \f$\alpha = 1\f$, NIPG (Riviere, B., Wheeler, M., & Girault, V., 2001.
+    A Priori Error Estimates for Finite %Element Methods Based on Discontinuous
     Approximation Spaces for Elliptic Problems, SIAM Journal on Numerical
     Analysis, 39(3), 902-931.)
 
@@ -746,12 +749,12 @@ public:
 class DGElasticityIntegrator : public BilinearFormIntegrator
 {
 public:
-   DGElasticityIntegrator(double sigma_, double kappa_)
-      : lambda(NULL), mu(NULL), sigma(sigma_), kappa(kappa_) {}
+   DGElasticityIntegrator(double alpha_, double kappa_)
+      : lambda(NULL), mu(NULL), alpha(alpha_), kappa(kappa_) {}
 
    DGElasticityIntegrator(Coefficient &lambda_, Coefficient &mu_,
-                          double sigma_, double kappa_)
-      : lambda(&lambda_), mu(&mu_), sigma(sigma_), kappa(kappa_) {}
+                          double alpha_, double kappa_)
+      : lambda(&lambda_), mu(&mu_), alpha(alpha_), kappa(kappa_) {}
 
    using BilinearFormIntegrator::AssembleFaceMatrix;
    virtual void AssembleFaceMatrix(const FiniteElement &el1,
@@ -761,7 +764,7 @@ public:
 
 protected:
    Coefficient *lambda, *mu;
-   double sigma, kappa;
+   double alpha, kappa;
 
    DenseMatrix jmat;
 

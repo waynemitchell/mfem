@@ -2306,7 +2306,7 @@ void DGElasticityIntegrator::AssembleFaceMatrix(
       AssembleInteriorFaceMatrix(el1, el2, Trans, elmat);
    }
 
-   // elmat := -elmat + sigma*elmat^t + jmat
+   // elmat := -elmat + alpha*elmat^t + jmat
    if (kappa != 0.0)
    {
       for (int i = 0; i < elmat.Height(); ++i)
@@ -2314,10 +2314,10 @@ void DGElasticityIntegrator::AssembleFaceMatrix(
          for (int j = 0; j < i; ++j)
          {
             double aij = elmat(i,j), aji = elmat(j,i), mij = jmat(i,j);
-            elmat(i,j) = sigma*aji - aij + mij;
-            elmat(j,i) = sigma*aij - aji + mij;
+            elmat(i,j) = alpha*aji - aij + mij;
+            elmat(j,i) = alpha*aij - aji + mij;
          }
-         elmat(i,i) = (sigma - 1.)*elmat(i,i) + jmat(i,i);
+         elmat(i,i) = (alpha - 1.)*elmat(i,i) + jmat(i,i);
       }
    }
    else
@@ -2327,10 +2327,10 @@ void DGElasticityIntegrator::AssembleFaceMatrix(
          for (int j = 0; j < i; ++j)
          {
             double aij = elmat(i,j), aji = elmat(j,i);
-            elmat(i,j) = sigma*aji - aij;
-            elmat(j,i) = sigma*aij - aji;
+            elmat(i,j) = alpha*aji - aij;
+            elmat(j,i) = alpha*aij - aji;
          }
-         elmat(i,i) *= (sigma - 1.);
+         elmat(i,i) *= (alpha - 1.);
       }
    }
 }
@@ -2345,10 +2345,11 @@ void DGElasticityIntegrator::AssembleBoundaryFaceMatrix(
    /**
      Initially elmat corresponds to the term:
      \f[
-       elmat = < \{ (\lambda \nabla \cdot u I + \mu (\nabla u + \nabla u^T)) \cdot \vec{n} \}, [v] >
+       \mathrm{elmat} = \left< \{ (\lambda \nabla \cdot u I +
+          \mu (\nabla u + \nabla u^T)) \cdot \vec{n} \}, [v] \right>
      \f]
      But eventually, it's going to be:
-     elmat := -elmat + sigma*elmat^t + jmat
+     elmat := -elmat + alpha*elmat^t + jmat
 
      For the boundary faces, the averages and jumps over the face F of the
      element are defined this way:
@@ -2357,25 +2358,29 @@ void DGElasticityIntegrator::AssembleBoundaryFaceMatrix(
 
      Therefore, the computation of the elmat matrix follows this:
      \f[
-       elmat = \int_F (\lambda \nabla \cdot u I + \mu (\nabla u + \nabla u^T)) \cdot \vec{n} \cdot v
+       \mathrm{elmat} = \int_F (\lambda \nabla \cdot u I +
+          \mu (\nabla u + \nabla u^T)) \cdot \vec{n} \cdot v
      \f]
 
      Taking into account that \f$ \nabla u = J^{-1} \hat{\nabla}\hat{u} \f$ and
      \f$ \int_F \vec{f} \cdot \vec{n} = \int_{\hat{F}} \vec{f} \cdot {n} |detJ|
-     = \int_{\hat{F}} \vec{f} \cdot {nor} \f$, where \f$ \hat{*} \f$ denotes the
-     reference coordinate, function, gradient, etc, and \f$ \vec{nor} \f$ is a
-     (not necessarily unit) normal to the face \f$ F \f$ (in contrast to \f$ \vec{n} \f$
-     which is a unit normal vector), we get
+     = \int_{\hat{F}} \vec{f} \cdot \vec{nor} \f$, where \f$ \hat{*} \f$ denotes
+     the reference coordinate, function, gradient, etc, and \f$ \vec{nor} \f$ is
+     a (not necessarily unit) normal to the face \f$ F \f$ (in contrast to \f$
+     \vec{n} \f$ which is a unit normal vector), we get
      \f[
-       elmat = \int_{\hat{F}} J^{-1} (\lambda \hat{\nabla} \cdot \hat{u} I + \mu (\hat{\nabla}\hat{u} + \hat{\nabla}\hat{u}^T)) \cdot \vec{nor} \cdot v
+       \mathrm{elmat} = \int_{\hat{F}} J^{-1} (\lambda \hat{\nabla} \cdot
+          \hat{u} I + \mu (\hat{\nabla}\hat{u} + \hat{\nabla}\hat{u}^T)) \cdot
+          \vec{nor} \cdot v
      \f]
    */
    elmat.SetSize(dim*ndofs);
    elmat = 0.;
 
    /**
-     jmat corresponds to the term: \f$ kappa < h^{-1} \{ \lambda + 2 \mu \} [u], [v] > \f$,
-     which in case of the boundary face becomes: \f$ kappa \int_F h_F^{-1} (\lambda + 2 \mu) u \cdot v \f$
+     jmat corresponds to the term: \f$ \kappa \left< h^{-1} \{ \lambda + 2 \mu
+     \} [u], [v] \right> \f$, which in case of the boundary face becomes: \f$
+     \kappa \int_F h_F^{-1} (\lambda + 2 \mu) u \cdot v \f$
    */
    const bool kappa_is_nonzero = (kappa != 0.0);
    if (kappa_is_nonzero)
@@ -2393,16 +2398,19 @@ void DGElasticityIntegrator::AssembleBoundaryFaceMatrix(
    }
 
    /**
-     u and v are a linear combination of the vector basis functions \f$ \vec{\phi} \f$
-     that are copies of scalar basis functions \f$ \psi \f$. For example, in 2D:
+     u and v are a linear combination of the vector basis functions \f$
+     \vec{\phi} \f$ that are copies of scalar basis functions \f$ \psi \f$. For
+     example, in 2D:
      \f[
-       \vec{\phi_0}     = ( \psi_0, 0 ) \\
-       \vec{\phi_1}     = ( \psi_1, 0 ) \\
-       \vec{\phi_{N-1}} = ( \psi_{N-1}, 0 ) \\
-       \vec{\phi_N}     = ( 0, \psi_0 ) \\
-       \vec{\phi_{N+1}} = ( 0, \psi_1 ) \\
-       \vec{\phi_{2N-1}}= ( 0, \psi_{N-1} ) \\
-       \mbox{and so on}
+       \begin{aligned}
+       \vec{\phi_0}      &= ( \psi_0, 0 ) &
+       \vec{\phi_1}      &= ( \psi_1, 0 ) & \cdots &&
+       \vec{\phi_{N-1}}  &= ( \psi_{N-1}, 0 ) \\
+       \vec{\phi_N}      &= ( 0, \psi_0 ) &
+       \vec{\phi_{N+1}}  &= ( 0, \psi_1 ) & \cdots &&
+       \vec{\phi_{2N-1}} &= ( 0, \psi_{N-1} ) \\
+       \cdots
+       \end{aligned}
      \f]
 
      Let's consider terms of the integrals over the boundary face separately.
@@ -2415,10 +2423,21 @@ void DGElasticityIntegrator::AssembleBoundaryFaceMatrix(
      where \f$ I_p \f$ are integration points, \f$ w_p \f$ are weights of
      numerical integration rules.
      \f[
-       E_{ij}^1 = \vec{\phi_i} \cdot \nabla \cdot \vec{\phi_j} I \cdot \vec{n} = |\mbox{in 2D}|
-                = (\phi_i^x, \phi_i^y) \left( \begin{matrix} \frac{\partial \phi_j^x}{\partial x} + \frac{\partial \phi_j^y}{\partial y} & 0 \\ 0 & \frac{\partial \phi_j^x}{\partial x} + \frac{\partial \phi_j^y}{\partial y} \end{matrix} \right) \left( \begin{matrix} n_x \\ n_y \end{matrix} \right)
-                = (\phi_i^x, \phi_i^y) \left( \begin{matrix} \sum_r^D \frac{\partial \phi_j^r}{\partial r} n_x \\ \sum_r^D \frac{\partial \phi_j^r}{\partial r} n_y \end{matrix} \right)
-                = |\mbox{in arbitrary Dimension}| = \sum_d^D \phi_i^d \sum_r^D \frac{\partial \phi_j^r}{\partial r} n_d
+       \begin{aligned}
+       E_{ij}^1
+       &= \vec{\phi_i} \cdot \nabla \cdot \vec{\phi_j} I \cdot \vec{n}
+       = |\mbox{in 2D}|
+       = (\phi_i^x, \phi_i^y) \left( \begin{matrix} \frac{\partial \phi_j^x}
+         {\partial x} + \frac{\partial \phi_j^y}{\partial y} & 0 \\ 0 &
+         \frac{\partial \phi_j^x}{\partial x} + \frac{\partial \phi_j^y}
+         {\partial y} \end{matrix} \right) \left(\begin{matrix} n_x \\ n_y
+         \end{matrix} \right)
+       = (\phi_i^x, \phi_i^y) \left( \begin{matrix} \sum_r^D \frac{\partial
+         \phi_j^r}{\partial r} n_x \\ \sum_r^D \frac{\partial \phi_j^r}{\partial
+         r} n_y \end{matrix} \right) \\
+       &= |\mbox{in arbitrary Dimension}|
+       = \sum_d^D \phi_i^d \sum_r^D \frac{\partial \phi_j^r}{\partial r} n_d
+       \end{aligned}
      \f]
 
      Second term
@@ -2427,10 +2446,21 @@ void DGElasticityIntegrator::AssembleBoundaryFaceMatrix(
        \sum_{p}^{I_p} \mu_p w_p E^2
      \f]
      \f[
-       E_{ij}^2 = \vec{\phi_i} \cdot \nabla \vec{\phi_j} \cdot \vec{n} = |\mbox{in 2D}|
-                = (\phi_i^x, \phi_i^y) \left( \begin{matrix} \frac{\partial \phi_j^x}{\partial x} & \frac{\partial \phi_j^x}{\partial y} \\ \frac{\partial \phi_j^y}{\partial x} & \frac{\partial \phi_j^y}{\partial y} \end{matrix} \right) \left( \begin{matrix} n_x \\ n_y \end{matrix} \right)
-                = (\phi_i^x, \phi_i^y) \left( \begin{matrix} \sum_r^D \frac{\partial \phi_j^x}{\partial r} n_r \\ \sum_r^D \frac{\partial \phi_j^y}{\partial r} n_r \end{matrix} \right)
-                = |\mbox{in arbitrary Dimension}| = \sum_d^D \phi_i^d \sum_r^D \frac{\partial \phi_j^d}{\partial r} n_r
+       \begin{aligned}
+       E_{ij}^2
+       &= \vec{\phi_i} \cdot \nabla \vec{\phi_j} \cdot \vec{n}
+       = |\mbox{in 2D}|
+       = (\phi_i^x, \phi_i^y) \left( \begin{matrix} \frac{\partial \phi_j^x}
+         {\partial x} & \frac{\partial \phi_j^x}{\partial y} \\ \frac{\partial
+         \phi_j^y}{\partial x} & \frac{\partial \phi_j^y}{\partial y}
+         \end{matrix} \right) \left( \begin{matrix} n_x \\ n_y \end{matrix}
+         \right)
+       = (\phi_i^x, \phi_i^y) \left( \begin{matrix} \sum_r^D \frac{\partial
+         \phi_j^x}{\partial r} n_r \\ \sum_r^D \frac{\partial \phi_j^y}{\partial
+         r} n_r \end{matrix} \right) \\
+       &= |\mbox{in arbitrary Dimension}|
+       = \sum_d^D \phi_i^d \sum_r^D \frac{\partial \phi_j^d}{\partial r} n_r
+       \end{aligned}
      \f]
 
      Third term
@@ -2439,21 +2469,37 @@ void DGElasticityIntegrator::AssembleBoundaryFaceMatrix(
        \sum_{p}^{I_p} \mu_p w_p E^3
      \f]
      \f[
-       E_{ij}^3 = \vec{\phi_i} \cdot \nabla \vec{\phi_j}^T \cdot \vec{n} = |\mbox{in 2D}|
-                = (\phi_i^x, \phi_i^y) \left( \begin{matrix} \frac{\partial \phi_j^x}{\partial x} & \frac{\partial \phi_j^y}{\partial x} \\ \frac{\partial \phi_j^x}{\partial y} & \frac{\partial \phi_j^y}{\partial y} \end{matrix} \right) \left( \begin{matrix} n_x \\ n_y \end{matrix} \right)
-                = (\phi_i^x, \phi_i^y) \left( \begin{matrix} \sum_r^D \frac{\partial \phi_j^r}{\partial x} n_r \\ \sum_r^D \frac{\partial \phi_j^r}{\partial y} n_r \end{matrix} \right)
-                = |\mbox{in arbitrary Dimension}| = \sum_d^D \phi_i^d \sum_r^D \frac{\partial \phi_j^r}{\partial d} n_r
+       \begin{aligned}
+       E_{ij}^3
+       &= \vec{\phi_i} \cdot \nabla \vec{\phi_j}^T \cdot \vec{n}
+       = |\mbox{in 2D}|
+       = (\phi_i^x, \phi_i^y) \left( \begin{matrix} \frac{\partial \phi_j^x}
+         {\partial x} & \frac{\partial \phi_j^y}{\partial x} \\ \frac{\partial
+         \phi_j^x}{\partial y} & \frac{\partial \phi_j^y}{\partial y}
+         \end{matrix} \right) \left( \begin{matrix} n_x \\ n_y \end{matrix}
+         \right)
+       = (\phi_i^x, \phi_i^y) \left( \begin{matrix} \sum_r^D \frac{\partial
+         \phi_j^r}{\partial x} n_r \\ \sum_r^D \frac{\partial \phi_j^r}{\partial
+         y} n_r \end{matrix} \right) \\
+       &= |\mbox{in arbitrary Dimension}| = \sum_d^D \phi_i^d \sum_r^D
+          \frac{\partial \phi_j^r}{\partial d} n_r
+       \end{aligned}
      \f]
 
      The penalty term is computed this way:
      \f[
-       kappa \int_F h_F^{-1} (\lambda + 2 \mu) u \cdot v =
-       kappa h_F^{-1} \sum_p^{I_p} (\lambda_p + 2 \mu_p) w_p E^4
+       \kappa \int_F h_F^{-1} (\lambda + 2 \mu) u \cdot v =
+       \kappa h_F^{-1} \sum_p^{I_p} (\lambda_p + 2 \mu_p) w_p E^4
      \f]
      \f[
-       E_{ij}^4 = \vec{\phi_i} \cdot \vec{\phi_j} = |\mbox{in 2D}|
-                = (\phi_i^x, \phi_i^y) \left( \begin{matrix} \phi_j^x \\ \phi_j^y \end{matrix} \right)
-                = |\mbox{in any Dimension}| = \sum_d^D \phi_i^d \phi_j^d
+       \begin{aligned}
+       E_{ij}^4
+       &= \vec{\phi_i} \cdot \vec{\phi_j}
+       = |\mbox{in 2D}|
+       = (\phi_i^x, \phi_i^y) \left( \begin{matrix} \phi_j^x \\ \phi_j^y
+         \end{matrix} \right)
+       = |\mbox{in any Dimension}| = \sum_d^D \phi_i^d \phi_j^d
+       \end{aligned}
      \f]
    */
 
@@ -2518,17 +2564,20 @@ void DGElasticityIntegrator::AssembleBoundaryFaceMatrix(
                {
                   const int i = i2*ndofs + i1;
                   // first term
-                  elmat(i, j) += shape(i1) * L * w * dshape_phys(j1, j2) * nor(i2);
+                  elmat(i, j) +=
+                     shape(i1) * L * w * dshape_phys(j1, j2) * nor(i2);
                   // second term
                   if (i2 == j2)
                   {
                      for (int r = 0; r < dim; ++r)
                      {
-                        elmat(i, j) += shape(i1) * M * w * dshape_phys(j1, r) * nor(r);
+                        elmat(i, j) +=
+                           shape(i1) * M * w * dshape_phys(j1, r) * nor(r);
                      }
                   }
                   // third term
-                  elmat(i, j) += shape(i1) * M * w * dshape_phys(j1, i2) * nor(j2);
+                  elmat(i, j) +=
+                     shape(i1) * M * w * dshape_phys(j1, i2) * nor(j2);
                   // jmat (only lower triangle)
                   if (kappa_is_nonzero && i2 == j2 && i >= j)
                   {
@@ -2554,10 +2603,11 @@ void DGElasticityIntegrator::AssembleInteriorFaceMatrix(
    /**
      Initially elmat corresponds to the term:
      \f[
-       elmat = < \{ (\lambda \nabla \cdot u I + \mu (\nabla u + \nabla u^T)) \cdot \vec{n} \}, [v] >
+       \mathrm{elmat} = \left< \{ (\lambda \nabla \cdot u I + \mu (\nabla u +
+          \nabla u^T)) \cdot \vec{n} \}, [v] \right>
      \f]
      But eventually, it's going to be:
-     elmat := -elmat + sigma*elmat^t + jmat
+     elmat := -elmat + alpha*elmat^t + jmat
 
      For the interior faces, the averages and jumps over the face F separating
      elements el1 and el2 are defined this way:
@@ -2569,10 +2619,15 @@ void DGElasticityIntegrator::AssembleInteriorFaceMatrix(
      Therefore, the computation of the elmat matrix follows this:
      \f[
      \begin{split}
-       elmat = \int_F & 0.5 *(\lambda_1 \nabla \cdot u_1 I + \mu_1 (\nabla u_1 + \nabla u_1^T) \cdot \vec{n} \cdot v_1 \\
-                    - & 0.5 *(\lambda_1 \nabla \cdot u_1 I + \mu_1 (\nabla u_1 + \nabla u_1^T) \cdot \vec{n} \cdot v_2 \\
-                    + & 0.5 *(\lambda_2 \nabla \cdot u_2 I + \mu_2 (\nabla u_2 + \nabla u_2^T) \cdot \vec{n} \cdot v_1 \\
-                    - & 0.5 *(\lambda_2 \nabla \cdot u_2 I + \mu_2 (\nabla u_2 + \nabla u_2^T) \cdot \vec{n} \cdot v_2 \\
+       \mathrm{elmat}
+       = \int_F & 0.5 *(\lambda_1 \nabla \cdot u_1 I + \mu_1 (\nabla u_1 +
+            \nabla u_1^T) \cdot \vec{n} \cdot v_1 \\
+         - & 0.5 *(\lambda_1 \nabla \cdot u_1 I + \mu_1 (\nabla u_1 + \nabla
+            u_1^T) \cdot \vec{n} \cdot v_2 \\
+         + & 0.5 *(\lambda_2 \nabla \cdot u_2 I + \mu_2 (\nabla u_2 + \nabla
+            u_2^T) \cdot \vec{n} \cdot v_1 \\
+         - & 0.5 *(\lambda_2 \nabla \cdot u_2 I + \mu_2 (\nabla u_2 + \nabla
+            u_2^T) \cdot \vec{n} \cdot v_2 \\
      \end{split}
      \f]
      where \f$ \vec{n} \f$ is a normal of face F from el1 to el2.
@@ -2585,11 +2640,15 @@ void DGElasticityIntegrator::AssembleInteriorFaceMatrix(
    elmat = 0.;
 
    /**
-     jmat corresponds to the term: \f$ kappa < h^{-1} \{ \lambda + 2 \mu \} [u], [v] > \f$,
-     which in case of the interior face becomes:
-     \f$ kappa \int_F 0.5 * h_F^{-1} (\lambda_1 + 2 \mu_1 + \lambda_2 + 2 \mu_2) (u_1 \cdot v_1 - u_1 \cdot v_2 - u_2 \cdot v_1 + u_2 \cdot v_2) \f$
+     jmat corresponds to the term: \f$ \kappa \left< h^{-1} \{ \lambda + 2 \mu
+     \} [u], [v] \right> \f$, which in case of the interior face becomes:
+     \f[
+        \kappa \int_F 0.5 * h_F^{-1} (\lambda_1 + 2 \mu_1 + \lambda_2 + 2 \mu_2)
+           (u_1 \cdot v_1 - u_1 \cdot v_2 - u_2 \cdot v_1 + u_2 \cdot v_2)
+     \f]
 
-     The computation of these terms is similar to the one used in AssembleBoundaryFaceMatrix.
+     The computation of these terms is similar to the one used in
+     AssembleBoundaryFaceMatrix.
    */
    const bool kappa_is_nonzero = (kappa != 0.0);
    if (kappa_is_nonzero)
@@ -2676,8 +2735,8 @@ void DGElasticityIntegrator::AssembleInteriorFaceMatrix(
       const double M1 = mu->Eval(*Trans.Elem1, eip1);
       const double M2 = mu->Eval(*Trans.Elem2, eip2);
 
-      const double jmatcoef = kappa * w * (nor*nor) * ((L1+2.0*M1)/detJ1 +
-                                                       (L2+2.0*M2)/detJ2);
+      const double jmatcoef =
+         kappa * w * (nor*nor) * ((L1+2.0*M1)/detJ1 + (L2+2.0*M2)/detJ2);
 
       for (int j2 = 0; j2 < dim; ++j2)
       {
@@ -2690,17 +2749,20 @@ void DGElasticityIntegrator::AssembleInteriorFaceMatrix(
                {
                   const int i = i2*ndof1 + i1;
                   // first term
-                  elmat(i, j) += shape1(i1) * L1 * w * dshape_phys1(j1, j2) * nor(i2);
+                  elmat(i, j) +=
+                     shape1(i1) * L1 * w * dshape_phys1(j1, j2) * nor(i2);
                   // second term
                   if (i2 == j2)
                   {
                      for (int r = 0; r < dim; ++r)
                      {
-                        elmat(i, j) += shape1(i1) * M1 * w * dshape_phys1(j1, r) * nor(r);
+                        elmat(i, j) +=
+                           shape1(i1) * M1 * w * dshape_phys1(j1, r) * nor(r);
                      }
                   }
                   // third term
-                  elmat(i, j) += shape1(i1) * M1 * w * dshape_phys1(j1, i2) * nor(j2);
+                  elmat(i, j) +=
+                     shape1(i1) * M1 * w * dshape_phys1(j1, i2) * nor(j2);
                   // jmat (only lower triangle)
                   if (kappa_is_nonzero && i2 == j2 && i >= j)
                   {
@@ -2722,17 +2784,20 @@ void DGElasticityIntegrator::AssembleInteriorFaceMatrix(
                {
                   const int i = dim*ndof1 + i2*ndof2 + i1;
                   // first term
-                  elmat(i, j) -= shape2(i1) * L1 * w * dshape_phys1(j1, j2) * nor(i2);
+                  elmat(i, j) -=
+                     shape2(i1) * L1 * w * dshape_phys1(j1, j2) * nor(i2);
                   // second term
                   if (i2 == j2)
                   {
                      for (int r = 0; r < dim; ++r)
                      {
-                        elmat(i, j) -= shape2(i1) * M1 * w * dshape_phys1(j1, r) * nor(r);
+                        elmat(i, j) -=
+                           shape2(i1) * M1 * w * dshape_phys1(j1, r) * nor(r);
                      }
                   }
                   // third term
-                  elmat(i, j) -= shape2(i1) * M1 * w * dshape_phys1(j1, i2) * nor(j2);
+                  elmat(i, j) -=
+                     shape2(i1) * M1 * w * dshape_phys1(j1, i2) * nor(j2);
                   // jmat (only lower triangle)
                   if (kappa_is_nonzero && i2 == j2)
                   {
@@ -2754,17 +2819,20 @@ void DGElasticityIntegrator::AssembleInteriorFaceMatrix(
                {
                   const int i = i2*ndof1 + i1;
                   // first term
-                  elmat(i, j) += shape1(i1) * L2 * w * dshape_phys2(j1, j2) * nor(i2);
+                  elmat(i, j) +=
+                     shape1(i1) * L2 * w * dshape_phys2(j1, j2) * nor(i2);
                   // second term
                   if (i2 == j2)
                   {
                      for (int r = 0; r < dim; ++r)
                      {
-                        elmat(i, j) += shape1(i1) * M2 * w * dshape_phys2(j1, r) * nor(r);
+                        elmat(i, j) +=
+                           shape1(i1) * M2 * w * dshape_phys2(j1, r) * nor(r);
                      }
                   }
                   // third term
-                  elmat(i, j) += shape1(i1) * M2 * w * dshape_phys2(j1, i2) * nor(j2);
+                  elmat(i, j) +=
+                     shape1(i1) * M2 * w * dshape_phys2(j1, i2) * nor(j2);
                   // jmat (only lower triangle) : no contribution as j > i
                }
             }
@@ -2782,17 +2850,20 @@ void DGElasticityIntegrator::AssembleInteriorFaceMatrix(
                {
                   const int i = dim*ndof1 + i2*ndof2 + i1;
                   // first term
-                  elmat(i, j) -= shape2(i1) * L2 * w * dshape_phys2(j1, j2) * nor(i2);
+                  elmat(i, j) -=
+                     shape2(i1) * L2 * w * dshape_phys2(j1, j2) * nor(i2);
                   // second term
                   if (i2 == j2)
                   {
                      for (int r = 0; r < dim; ++r)
                      {
-                        elmat(i, j) -= shape2(i1) * M2 * w * dshape_phys2(j1, r) * nor(r);
+                        elmat(i, j) -=
+                           shape2(i1) * M2 * w * dshape_phys2(j1, r) * nor(r);
                      }
                   }
                   // third term
-                  elmat(i, j) -= shape2(i1) * M2 * w * dshape_phys2(j1, i2) * nor(j2);
+                  elmat(i, j) -=
+                     shape2(i1) * M2 * w * dshape_phys2(j1, i2) * nor(j2);
                   // jmat (only lower triangle)
                   if (kappa_is_nonzero && i2 == j2 && i >= j)
                   {
