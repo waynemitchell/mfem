@@ -1501,7 +1501,7 @@ private:
    DenseMatrixInverse Ti;
 
 public:
-   H1_TriangleElement(const int p);
+   H1_TriangleElement(const int p, const int type = Quadrature1D::GaussLobatto);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
@@ -1519,7 +1519,8 @@ private:
    DenseMatrixInverse Ti;
 
 public:
-   H1_TetrahedronElement(const int p);
+   H1_TetrahedronElement(const int p,
+                         const int type = Quadrature1D::GaussLobatto);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
