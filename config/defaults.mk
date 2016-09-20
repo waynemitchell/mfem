@@ -68,6 +68,7 @@ MFEM_USE_GECKO       = NO
 MFEM_USE_GNUTLS      = NO
 MFEM_USE_NETCDF      = NO
 MFEM_USE_GSL         = NO
+MFEM_USE_MPFR        = NO
 
 # HYPRE library configuration (needed to build the parallel version)
 HYPRE_DIR = @MFEM_DIR@/../hypre-2.10.0b/src/hypre
@@ -76,16 +77,22 @@ HYPRE_LIB = -L$(HYPRE_DIR)/lib -lHYPRE
 
 # METIS library configuration
 ifeq ($(MFEM_USE_SUPERLU),NO)
-   METIS_DIR ?= @MFEM_DIR@/../metis-4.0
-   METIS_OPT ?=
-   METIS_LIB ?= -L$(METIS_DIR) -lmetis
-   MFEM_USE_METIS_5 ?= NO
+   ifeq ($(MFEM_USE_METIS_5),NO)
+     METIS_DIR = @MFEM_DIR@/../metis-4.0
+     METIS_OPT =
+     METIS_LIB = -L$(METIS_DIR) -lmetis
+   else
+     METIS_DIR = @MFEM_DIR@/../metis-5.0
+     METIS_OPT = -I$(METIS_DIR)/include
+     METIS_LIB = -L$(METIS_DIR)/lib -lmetis
+   endif
 else
-   # ParMETIS currently needed only with SuperLU
-   METIS_DIR ?= @MFEM_DIR@/../parmetis-4.0.3
-   METIS_OPT ?=
-   METIS_LIB ?= -L$(METIS_DIR) -lparmetis -lmetis
-   MFEM_USE_METIS_5 ?= YES
+   # ParMETIS currently needed only with SuperLU. We assume that METIS 5
+   # (included with ParMETIS) is installed in the same location.
+   METIS_DIR = @MFEM_DIR@/../parmetis-4.0.3
+   METIS_OPT = -I$(METIS_DIR)/include
+   METIS_LIB = -L$(METIS_DIR)/lib -lparmetis -lmetis
+   MFEM_USE_METIS_5 = YES
 endif
 
 # LAPACK library configuration
@@ -145,6 +152,9 @@ NETCDF_LIB  = -L$(NETCDF_DIR)/lib -lnetcdf -L$(HDF5_DIR)/lib -lhdf5_hl -lhdf5\
 #GSL_OPT  = -I$(GSL_DIR)/include
 GSL_LIB  =  -lgsl -L/usr/lib64/libgsl.so -lgslcblas -L/usr/lib64/libgslcblas.so
 
+# MPFR library configuration
+MPFR_OPT =
+MPFR_LIB = -lmpfr
 
 # If YES, enable some informational messages
 VERBOSE = NO
