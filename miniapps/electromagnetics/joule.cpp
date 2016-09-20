@@ -1,14 +1,15 @@
 //                       J O U L E
 //
 // Usage:
-//    srun -n 8 -p pdebug joule -m rod2eb3sshex8.gen -o 2 -dt 0.5 -s 22 -tf 200.0
+//    srun -n 8 -p pdebug joule -m ../../data/CylinderHex.mesh -p test
+//    srun -n 8 -p pdebug joule -m rod2eb3sshex27.gen -s 22 -dt 0.1 -tf 240.0 -p test
 //
 // Options:
 // -m [string]   the mesh file name
 // -o [int]      the order of the basis
 // -rs [int]     number of times to serially refine the mesh
 // -rp [int]     number of times to refine the mesh in parallel
-// -s [int]      time integrator 1=backward Euler, 2=SDIRK2, 3=SDIRK3, 22=Midpoint, 23=SDIRK23, 24=SDIRK34
+// -s [int]      time integrator 1=backward Euler, 2=SDIRK2, 3=SDIRK3, 22=Midpoint, 23=SDIRK23, 34=SDIRK34
 // -tf [double]  the final time
 // -dt [double]  time step
 // -mu [double]  the magnetic permeability
@@ -20,7 +21,7 @@
 // -print [int]  print solution (gridfunctions) to disk  0 = no, 1 = yes
 // -amr [int]    0 = no amr, 1 = amr
 // -sc [int]     0 = no static condensation, 1 = use static condensation
-// -p [string]   specify the problem to run, "rod", "coil", etc.
+// -p [string]   specify the problem to run, "rod", "coil", or "test"
 //
 // Description:  This examples solves a time dependent eddy current
 //               problem, resulting in Joule heating.
@@ -64,13 +65,21 @@
 //               See section 8.0 for how the boundary conditions are assigned to mesh attributes, this
 //               needs to be changed for different applications.
 //
+//               This code supports a simple version of AMR, all elements containing material attribute 1 are
+//               (optionally) refined.
+//
+// NOTE:         If the option "-p test" is provided, the code will compute the analytical solution
+//               of the electric and magnetic fields and compute the L2 error. This solution is only valid
+//               for the particular problem of a right circular cylindrical rod of length 1 and radius 1, and
+//               with particular boundary conditions. Example meshes for this test are cylindericalHex.mesh, cylindricalTet.mesh,
+//               rod2eb3sshex27.gen, rod2eb3sstet10.gen. Note that the meshes
+//               with te "gen" extension require MFEM to be build with NetCDF.
+//
 // NOTE:         This code is set up to solve two example problems, 1) a straight metal rod surrounded by air,
-//               2) a metal rod surrounded by a metal coil all surrounded by air. To specify prioblem (1) use the command
-//               line options "-p rod -m rod2eb3sshex8.gen", to specify problem (2) use the command line options
-//               "-p coil -m coil_centered_tet10.gen". problem (1) has two materials and problem (2) has three materials,
+//               2) a metal rod surrounded by a metal coil all surrounded by air. To specify problem (1) use the command
+//               line options "-p rod -m rod2eb3sshex27.gen", to specify problem (2) use the command line options
+//               "-p coil -m coil_centered_tet10.gen". Problem (1) has two materials and problem (2) has three materials,
 //               and the BC's are different.
-//
-//
 //
 // NOTE:         We write out, optionally, grid functions for P, E, B, W, F, and T. These can be visualized using
 //               glvis -np 4 -m mesh.mesh -g E, assuming we used 4 processors
@@ -84,6 +93,12 @@
 #include "joule_solver.hpp"
 #include "joule_globals.hpp"
 #include "../common/pfem_extras.hpp"
+
+#ifdef MFEM_USE_GSL
+#include <gsl/gsl_sf_bessel.h>
+#include <gsl/gsl_cblas.h>
+#include <complex>
+#endif
 
 using namespace std;
 using namespace mfem;
@@ -99,6 +114,7 @@ static double wj_ = 0.0;
 static double kj_ = 0.0;
 static double hj_ = 0.0;
 static double dtj_ = 0.0;
+static double rj_ = 0.0;
 
 int main(int argc, char *argv[])
 {
@@ -111,19 +127,18 @@ int main(int argc, char *argv[])
    // if (mpi.Root()) { print_banner(); }
 
    // 2. Parse command-line options.
-   const char *mesh_file = "CylinderHex.mesh";
+   const char *mesh_file = "../../data/CylinderHex.mesh";
    int ser_ref_levels = 0;
    int par_ref_levels = 0;
    int order = 2;
    int ode_solver_type = 1;
-   double t_final = 300.0;
-   double dt = 3;
-   double amp = 1.0;
+   double t_final = 100.0;
+   double dt = 0.5;
+   double amp = 2.0;
    double mu = 1.0;
    double sigma = 2.0*M_PI*10;
    double Tcapacity = 1.0;
    double Tconductivity = 0.01;
-   // Mark's alpha (for analytical solution) is the inverse of my alpha
    double alpha = Tconductivity/Tcapacity;
    double freq = 1.0/60.0;
    bool visualization = true;
@@ -133,7 +148,6 @@ int main(int argc, char *argv[])
    const char *basename = "Joule";
    int amr = 0;
    int debug = 0;
-   // bool cubit = false;
    const char *problem = "rod";
 
    OptionsParser args(argc, argv);
@@ -147,7 +161,7 @@ int main(int argc, char *argv[])
                   "Order (degree) of the finite elements.");
    args.AddOption(&ode_solver_type, "-s", "--ode-solver",
                   "ODE solver: 1 - Backward Euler, 2 - SDIRK2, 3 - SDIRK3\n\t."
-                  "\t   22 - Mid-Point, 23 - SDIRK23, 24 - SDIRK34.");
+                  "\t   22 - Mid-Point, 23 - SDIRK23, 34 - SDIRK34.");
    args.AddOption(&t_final, "-tf", "--t-final",
                   "Final time; start time is 0.");
    args.AddOption(&dt, "-dt", "--time-step",
@@ -204,6 +218,7 @@ int main(int argc, char *argv[])
    kj_  = sqrt(0.5*wj_*mj_*sj_);
    hj_  = alpha;
    dtj_ = dt;
+   rj_  = 1.0;
 
    if (mpi.Root())
    {
@@ -221,15 +236,36 @@ int main(int argc, char *argv[])
    // the coil problem has three regions 1) coil, 2) air, 3) the rod
    //
    // the rod problem has two regions 1) rod, 2) air
-
-   // turns out for the rod and coil problem we can us ethe same material maps
+   //
+   // turns out for the rod and coil problem we can use the same material maps
 
    std::map<int, double> sigmaMap, InvTcondMap, TcapMap, InvTcapMap;
-   double sigmaAir     = 1.0e-6 * sigma;
-   double TcondAir     = 1.0e6 * Tconductivity;
-   double TcapAir      = 1.0  * Tcapacity;
-
+   double sigmaAir;
+   double TcondAir;
+   double TcapAir;
    if (strcmp(problem,"rod")==0 || strcmp(problem,"coil")==0)
+   {
+      sigmaAir     = 1.0e-6 * sigma;
+      TcondAir     = 1.0e6  * Tconductivity;
+      TcapAir      = 1.0    * Tcapacity;
+   }
+   else if (strcmp(problem,"test")==0)
+   {
+
+     if (mpi.Root()) cout << "Running test problem" << endl;
+
+      sigmaAir     = 1.0 * sigma;
+      TcondAir     = 1.0 * Tconductivity;
+      TcapAir      = 1.0 * Tcapacity;
+   }
+   else
+   {
+      cerr << "Problem " << problem << " not recognized\n";
+      mfem_error();
+   }
+
+   if (strcmp(problem,"rod")==0 || strcmp(problem,"coil")==0 ||
+       strcmp(problem,"test")==0)
    {
 
       sigmaMap.insert(pair<int, double>(1, sigma));
@@ -296,12 +332,11 @@ int main(int argc, char *argv[])
       poisson_ess_bdr[1] = 1; // boundary attribute 2 (index 1) is fixed
       // END CODE FOR THE COIL PROBLEM
    }
-   else if (strcmp(problem,"rod")==0)
+   else if (strcmp(problem,"rod")==0 || strcmp(problem,"test")==0)
    {
 
       // BEGIN CODE FOR THE STRAIGHT ROD PROBLEM
       // the boundary conditions below are for the straight rod problem
-      // using mesh rod-tet.gen or rod-hex.gen
 
       ess_bdr = 0;
       ess_bdr[0] = 1; // boundary attribute 1 (index 0) is fixed (front)
@@ -347,7 +382,7 @@ int main(int argc, char *argv[])
       // Implicit A-stable methods (not L-stable)
       case 22: ode_solver = new ImplicitMidpointSolver; break;
       case 23: ode_solver = new SDIRK23Solver; break;
-      case 24: ode_solver = new SDIRK34Solver; break;
+      case 34: ode_solver = new SDIRK34Solver; break;
       default:
          if (mpi.Root())
          {
@@ -500,6 +535,7 @@ int main(int argc, char *argv[])
 
    // This is for visit visualization of exact solution
    ParGridFunction Eexact_gf(&HCurlFESpace);
+   ParGridFunction Bexact_gf(&HDivFESpace);
    ParGridFunction Texact_gf(&L2FESpace);
 
    // 8. Get the boundary conditions, set up the exact solution grid functions
@@ -510,7 +546,12 @@ int main(int argc, char *argv[])
    VectorFunctionCoefficient E_exact(3, e_exact);
    VectorFunctionCoefficient B_exact(3, b_exact);
    FunctionCoefficient T_exact(t_exact);
+
+   E_exact.SetTime(0.0);
+   B_exact.SetTime(0.0);
+
    Eexact_gf.ProjectCoefficient(E_exact);
+   Eexact_gf.ProjectCoefficient(B_exact);
    Texact_gf.ProjectCoefficient(T_exact);
 
 
@@ -546,27 +587,27 @@ int main(int argc, char *argv[])
       int Wx = 0, Wy = 0; // window position
       int Ww = 350, Wh = 350; // window size
       int offx = Ww+10, offy = Wh+45; // window offsets
-      
+
       miniapps::VisualizeField(vis_P, vishost, visport,
-		     P_gf, "Electric Potential (Phi)", Wx, Wy, Ww, Wh);
+                               P_gf, "Electric Potential (Phi)", Wx, Wy, Ww, Wh);
       Wx += offx;
-      
+
       miniapps::VisualizeField(vis_E, vishost, visport,
-		     E_gf, "Electric Field (E)", Wx, Wy, Ww, Wh);
+                               E_gf, "Electric Field (E)", Wx, Wy, Ww, Wh);
       Wx += offx;
-      
+
       miniapps::VisualizeField(vis_B, vishost, visport,
-		     B_gf, "Magnetic Field (B)", Wx, Wy, Ww, Wh);
+                               B_gf, "Magnetic Field (B)", Wx, Wy, Ww, Wh);
       Wx = 0;
       Wy += offy;
-      
+
       miniapps::VisualizeField(vis_w, vishost, visport,
-		     w_gf, "Joule Heating", Wx, Wy, Ww, Wh);
+                               w_gf, "Joule Heating", Wx, Wy, Ww, Wh);
 
       Wx += offx;
-      
+
       miniapps::VisualizeField(vis_T, vishost, visport,
-		     T_gf, "Temperature", Wx, Wy, Ww, Wh);
+                               T_gf, "Temperature", Wx, Wy, Ww, Wh);
 
    }
 
@@ -580,8 +621,9 @@ int main(int argc, char *argv[])
       visit_dc.RegisterField("w", &w_gf);
       visit_dc.RegisterField("Phi", &P_gf);
       visit_dc.RegisterField("F", &F_gf);
-      visit_dc.RegisterField("Eexact", &Eexact_gf);
-      visit_dc.RegisterField("Texact", &Texact_gf);
+      if (strcmp(problem,"test")==0) { visit_dc.RegisterField("Eexact", &Eexact_gf); }
+      if (strcmp(problem,"test")==0) { visit_dc.RegisterField("Bexact", &Bexact_gf); }
+      // visit_dc.RegisterField("Texact", &Texact_gf);
 
       visit_dc.SetCycle(0);
       visit_dc.SetTime(0.0);
@@ -593,16 +635,17 @@ int main(int argc, char *argv[])
    ConstantCoefficient Zero(0.0);
    double eng_E0 = E_gf.ComputeL2Error(Zero_vec);
    double eng_B0 = B_gf.ComputeL2Error(Zero_vec);
-   // double eng_T0 = T_gf.ComputeL2Error(Zero);
+
+   E_exact.SetTime(0.0);
+   B_exact.SetTime(0.0);
 
    double err_E0 = E_gf.ComputeL2Error(E_exact);
    double err_B0 = B_gf.ComputeL2Error(B_exact);
-   // double err_T0 = T_gf.ComputeL2Error(T_exact);
 
    //double me0 = oper.MagneticEnergy(B_gf);
    double el0 = oper.ElectricLosses(E_gf);
 
-   if (mpi.Root())
+   if (mpi.Root() && (strcmp(problem,"test")==0))
    {
       cout << scientific  << setprecision(3) << "initial electric L2 error    = " <<
            err_E0/(eng_E0+1.0e-20) << endl;
@@ -634,8 +677,14 @@ int main(int argc, char *argv[])
       ode_solver->Step(F, t, dt);
 
       // update the exact solution GF
-      Eexact_gf.ProjectCoefficient(E_exact);
-      Texact_gf.ProjectCoefficient(T_exact);
+      if (strcmp(problem,"test")==0)
+      {
+         E_exact.SetTime(t);
+         Eexact_gf.ProjectCoefficient(E_exact);
+         B_exact.SetTime(t);
+         Bexact_gf.ProjectCoefficient(B_exact);
+         Texact_gf.ProjectCoefficient(T_exact);
+      }
 
       if (debug == 1)
       {
@@ -688,7 +737,7 @@ int main(int argc, char *argv[])
 
          ofstream P_ofs(P_name.str().c_str());
          P_ofs.precision(8);
-         P_gf.Save(B_ofs);
+         P_gf.Save(P_ofs);
          P_ofs.close();
 
          ofstream w_ofs(w_name.str().c_str());
@@ -699,31 +748,37 @@ int main(int argc, char *argv[])
 
       if (last_step || (ti % vis_steps) == 0)
       {
+	if (mpi.Root())
+	  {
+	    cout << fixed;
+	    cout << "step " << setw(6) << ti << " t = " << setw(6) << setprecision(3) << t;
+	  }
 
-         double eng_E = E_gf.ComputeL2Error(Zero_vec);
-         double eng_B = B_gf.ComputeL2Error(Zero_vec);
-         double eng_T = T_gf.ComputeL2Error(Zero);
-
-         double err_E = E_gf.ComputeL2Error(E_exact);
-         double err_B = B_gf.ComputeL2Error(B_exact);
-         double err_T = T_gf.ComputeL2Error(T_exact);
-
-         //double me = oper.MagneticEnergy(B_gf);
-         double el = oper.ElectricLosses(E_gf);
-
-         if (mpi.Root())
+         if (strcmp(problem,"test")==0)
          {
-            cout << fixed;
-            cout << "step " << setw(6) << ti << " t = " << setw(6) << setprecision(3) << t
-                 << " relative errors "  << scientific << setprecision(3) << err_E/
-                 (eng_E+1.0e-20) << " "
-                 << setprecision(3) << err_B/(eng_B+1.0e-20) << " "
-                 << setprecision(3) << err_T/(eng_T+1.0e-20) << endl;
-            //cout << scientific  << setprecision(3) << "magnetic energy (ME) = " << me << endl;
-            cout << scientific  << setprecision(3) << "electric losses (EL) = " << el <<
-                 endl;
+            double eng_E = E_gf.ComputeL2Error(Zero_vec);
+            double eng_B = B_gf.ComputeL2Error(Zero_vec);
+            double eng_T = T_gf.ComputeL2Error(Zero);
 
+            double err_E = E_gf.ComputeL2Error(E_exact);
+            double err_B = B_gf.ComputeL2Error(B_exact);
+            double err_T = T_gf.ComputeL2Error(T_exact);
+
+
+            //double me = oper.MagneticEnergy(B_gf);
+            //double el = oper.ElectricLosses(E_gf);
+
+            if (mpi.Root())
+            {
+               cout << " relative errors "  << scientific
+                    << setprecision(3) << err_E/(eng_E+1.0e-20) << " "
+                    << setprecision(3) << err_B/(eng_B+1.0e-20) << " "
+                    << setprecision(3) << err_T/(eng_T+1.0e-20);
+            }
          }
+
+	 if (mpi.Root()) cout << endl;
+	   
 
          // Make sure all ranks have sent their 'v' solution before initiating
          // another set of GLVis connections (one from each rank):
@@ -732,31 +787,31 @@ int main(int argc, char *argv[])
          if (visualization)
          {
 
-	   int Wx = 0, Wy = 0; // window position
-	   int Ww = 350, Wh = 350; // window size
-	   int offx = Ww+10, offy = Wh+45; // window offsets
-	   
-	   miniapps::VisualizeField(vis_P, vishost, visport,
-			  P_gf, "Electric Potential (Phi)", Wx, Wy, Ww, Wh);
-	   Wx += offx;
-	   
-	   miniapps::VisualizeField(vis_E, vishost, visport,
-			  E_gf, "Electric Field (E)", Wx, Wy, Ww, Wh);
-	   Wx += offx;
-	   
-	   miniapps::VisualizeField(vis_B, vishost, visport,
-			  B_gf, "Magnetic Field (B)", Wx, Wy, Ww, Wh);
-	   
-	   Wx = 0;
-	   Wy += offy;
+            int Wx = 0, Wy = 0; // window position
+            int Ww = 350, Wh = 350; // window size
+            int offx = Ww+10, offy = Wh+45; // window offsets
 
-	   miniapps::VisualizeField(vis_w, vishost, visport,
-			  w_gf, "Joule Heating", Wx, Wy, Ww, Wh);
-	   
-	   Wx += offx;
-	   
-	   miniapps::VisualizeField(vis_T, vishost, visport,
-			  T_gf, "Temperature", Wx, Wy, Ww, Wh);
+            miniapps::VisualizeField(vis_P, vishost, visport,
+                                     P_gf, "Electric Potential (Phi)", Wx, Wy, Ww, Wh);
+            Wx += offx;
+
+            miniapps::VisualizeField(vis_E, vishost, visport,
+                                     E_gf, "Electric Field (E)", Wx, Wy, Ww, Wh);
+            Wx += offx;
+
+            miniapps::VisualizeField(vis_B, vishost, visport,
+                                     B_gf, "Magnetic Field (B)", Wx, Wy, Ww, Wh);
+
+            Wx = 0;
+            Wy += offy;
+
+            miniapps::VisualizeField(vis_w, vishost, visport,
+                                     w_gf, "Joule Heating", Wx, Wy, Ww, Wh);
+
+            Wx += offx;
+
+            miniapps::VisualizeField(vis_T, vishost, visport,
+                                     T_gf, "Temperature", Wx, Wy, Ww, Wh);
          }
 
          if (visit)
@@ -789,20 +844,116 @@ void edot_bc(const Vector &x, Vector &E)
    E = 0.0;
 }
 
-void e_exact(const Vector &x, Vector &E)
+void e_exact(const Vector &x, double t, Vector &E)
 {
-   E = 0.0;
+
+   E[0] = 0.0;
+   E[1] = 0.0;
+   E[2] = 0.0;
+
+#ifdef MFEM_USE_GSL
+
+   // formula for current in the z-direction is function of (r,t)
+   // requires bessels functions with complex arugments
+   // and these are approximated by a finite series of bessel
+   // functions with real arguments
+
+   double r      = sqrt(x[0]*x[0] + x[1]*x[1]);
+   double k_real = 1.0/sqrt(2.0) * sqrt(wj_*mj_*sj_);
+   double k_imag = -k_real;
+   int sign      = -1;
+
+   double besselJ0kr_real = 0.0;
+   double besselJ0kr_imag = 0.0;
+   double besselJ0kR_real = 0.0;
+   double besselJ0kR_imag = 0.0;
+
+   for (int m = -10; m <= 10; m++ )
+   {
+      double a = gsl_sf_bessel_Jn(sign*m,k_real*r);
+      double b = gsl_sf_bessel_In(m,k_imag*r);
+      besselJ0kr_real += a*b*cos(m*1.57079632);
+      besselJ0kr_imag += a*b*sin(m*1.57079632);
+      a = gsl_sf_bessel_Jn(sign*m,k_real*rj_);
+      b = gsl_sf_bessel_In(m,k_imag*rj_);
+      besselJ0kR_real += a*b*cos(m*1.57079632);
+      besselJ0kR_imag += a*b*sin(m*1.57079632);
+
+   }
+
+   complex<double>  besselJ0kr(besselJ0kr_real,besselJ0kr_imag);
+   complex<double>  besselJ0kR(besselJ0kR_real,besselJ0kR_imag);
+   complex<double>  sinc(cos(wj_*t),sin(wj_*t));
+   complex<double>  Jcmplx = sinc * besselJ0kr / besselJ0kR;
+   double Ereal = real(Jcmplx);
+
+   E[0] = 0.0;
+   E[1] = 0.0;
+   E[2] = aj_*Ereal;
+#endif
+
 }
 
-void b_exact(const Vector &x, Vector &B)
+void b_exact(const Vector &x, double t, Vector &B)
 {
-   B = 0.0;
+
+   B[0] = 0.0;
+   B[1] = 0.0;
+   B[2] = 0.0;
+
+#ifdef MFEM_USE_GSL
+
+   // formula for B-field in the theta-direction is function of (r,t)
+   // requires bessels functions with complex arugments
+   // and these are approximated by a finite series of bessel
+   // functions with real arguments
+
+   double r      = sqrt(x[0]*x[0] + x[1]*x[1]);
+   double k_real = 1.0/sqrt(2.0) * sqrt(wj_*mj_*sj_);
+   double k_imag = -k_real;
+   int sign      = -1;
+
+   //  d/dr J0[k r] = -k J1[k r]
+
+   double besselJ1kr_real = 0.0;
+   double besselJ1kr_imag = 0.0;
+   double besselJ0kR_real = 0.0;
+   double besselJ0kR_imag = 0.0;
+
+   // J0[a + b] = sum Jk[a]*Jk[b],     k = -inf, inf
+   // J1[a + b] = sum J(1+k)[a]*Jk[b], k = -inf, inf
+
+   // Jm[i x] = i^m Im[x]
+
+   for (int m = -10; m <= 10; m++ )
+   {
+      double a = gsl_sf_bessel_Jn(1+sign*m,k_real*r);
+      double b = gsl_sf_bessel_In(m,k_imag*r);
+      besselJ1kr_real += a*b*cos(m*1.57079632);
+      besselJ1kr_imag += a*b*sin(m*1.57079632);
+      a = gsl_sf_bessel_Jn(sign*m,k_real*rj_);
+      b = gsl_sf_bessel_In(m,k_imag*rj_);
+      besselJ0kR_real += a*b*cos(m*1.57079632);
+      besselJ0kR_imag += a*b*sin(m*1.57079632);
+
+   }
+
+   complex<double> besselJ1kr(besselJ1kr_real,besselJ1kr_imag);
+   complex<double> besselJ0kR(besselJ0kR_real,besselJ0kR_imag);
+   complex<double> sinc(cos(wj_*t),sin(wj_*t));
+   complex<double> kcmplx(k_real,k_imag);
+   complex<double> Bcmplx = kcmplx / (complex<double>(0,
+                                                      1)*wj_) * sinc * besselJ1kr / besselJ0kR;
+   double Breal = -1.0*real(Bcmplx);
+
+   B[0] = -x[1]/r*aj_*Breal;
+   B[1] =  x[0]/r*aj_*Breal;
+   B[2] =  0.0;
+
+#endif
+
 }
 
-void Jz(const Vector &x, Vector &J)
-{
-   J = 0.0;
-}
 
 double t_exact(Vector &x)
 {

@@ -205,7 +205,23 @@ void MagneticDiffusionEOperator::Mult(const Vector &X, Vector &dX_dt) const
    FunctionCoefficient voltage(p_bc);
    voltage.SetTime(this->GetTime());
    Phi_gf = 0.0;
-   Phi_gf.ProjectBdrCoefficient(voltage,poisson_ess_bdr);
+
+   // the line below should work but doesn't there is a bug
+   // Phi_gf.ProjectBdrCoefficient(voltage,poisson_ess_bdr);
+
+   // this is a hack for the above bug 
+   {
+     Array<int> my_ess_dof_list;
+     HGradFESpace.GetEssentialVDofs(poisson_ess_bdr, my_ess_dof_list);
+     ParGridFunction homer(&HGradFESpace);
+     homer.ProjectCoefficient(voltage);
+     for (int i = 0;i < my_ess_dof_list.Size();i++) {
+       int dof = my_ess_dof_list[i];
+       if (dof < 0) dof = -1 - dof;
+       Phi_gf[i] = homer[i];
+     }
+   }
+   // end of hack
 
    // apply essential BC's and apply static condensation
    // the new system to solve is A0 X0 = B0
@@ -453,8 +469,36 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
 
    // p_bc is given function defining electrostatic potential on surface
    FunctionCoefficient voltage(p_bc);
+   voltage.SetTime(this->GetTime());
    Phi_gf = 0.0;
-   Phi_gf.ProjectBdrCoefficient(voltage,poisson_ess_bdr);
+
+   // the function below doesn't work !!!
+   // Phi_gf.ProjectBdrCoefficient(voltage,poisson_ess_bdr);
+
+   // this is a hack for the above bug 
+   {
+     Array<int> my_ess_dof_list;
+     HGradFESpace.GetEssentialVDofs(poisson_ess_bdr, my_ess_dof_list);
+     ParGridFunction homer(&HGradFESpace);
+     homer.ProjectCoefficient(voltage);
+     for (int i = 0;i < my_ess_dof_list.Size();i++) {
+       int dof = my_ess_dof_list[i];
+       if (dof < 0) dof = -1 - dof;
+       Phi_gf[i] = homer[i];
+     }
+   }
+   // end of hack
+
+   // FOR DEBUGGING ONLY
+//    {
+//      ostringstream oss;
+//      oss << "Phi_gf." << setfill('0') << setw(6) << HGradFESpace.GetMyRank();
+//      ofstream Phi_ofs(oss.str().c_str());
+//      Phi_ofs.precision(8);
+//      Phi_gf.Save(Phi_ofs);
+//      Phi_ofs.close();
+//    }
+   // FOR DEBUGGING ONLY
 
    // apply essential BC's and apply static condensation
    // the new system to solve is A0 X0 = B0
@@ -463,6 +507,14 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
 
    *v0 = 0.0;
    a0->FormLinearSystem(poisson_ess_tdof_list,Phi_gf,*v0,*A0,*X0,*B0);
+
+   // FOR DEBUGGING ONLY
+//    {
+//       hypre_ParCSRMatrixPrint(*A0,"A0_");
+//       HypreParVector tempB0(A0->GetComm(),A0->N(),B0->GetData(),A0->ColPart());
+//       tempB0.Print("B0_");
+//    }
+   // FOR DEBUGGING ONLY
 
    if (amg_a0 == NULL) { amg_a0 = new HypreBoomerAMG(*A0); }
    if (pcg_a0 == NULL)

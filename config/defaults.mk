@@ -67,6 +67,7 @@ MFEM_USE_SUPERLU     = NO
 MFEM_USE_GECKO       = NO
 MFEM_USE_GNUTLS      = NO
 MFEM_USE_NETCDF      = NO
+MFEM_USE_GSL         = NO
 
 # HYPRE library configuration (needed to build the parallel version)
 HYPRE_DIR = @MFEM_DIR@/../hypre-2.10.0b/src/hypre
@@ -138,6 +139,12 @@ ZLIB_DIR    = $(HOME)/local
 NETCDF_OPT  = -I$(NETCDF_DIR)/include
 NETCDF_LIB  = -L$(NETCDF_DIR)/lib -lnetcdf -L$(HDF5_DIR)/lib -lhdf5_hl -lhdf5\
  -L$(ZLIB_DIR)/lib -lz
+
+# GNU Scientific Library
+#GSL_DIR     = /usr
+#GSL_OPT  = -I$(GSL_DIR)/include
+GSL_LIB  =  -lgsl -L/usr/lib64/libgsl.so -lgslcblas -L/usr/lib64/libgslcblas.so
+
 
 # If YES, enable some informational messages
 VERBOSE = NO

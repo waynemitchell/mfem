@@ -22,7 +22,7 @@ MFEM_LIB_FILE = mfem_is_not_built
 -include $(CONFIG_MK)
 
 SEQ_MINIAPPS =
-PAR_MINIAPPS = volta tesla joule
+PAR_MINIAPPS = volta tesla joule 
 ifeq ($(MFEM_USE_MPI),NO)
    MINIAPPS = $(SEQ_MINIAPPS)
 else
@@ -42,7 +42,7 @@ COMMON_O=$(COMMON_HPP:.hpp=.o)
 
 # Replace the default implicit rule for *.cpp files
 %: %.cpp %_solver.o $(COMMON_O) $(MFEM_LIB_FILE) $(CONFIG_MK)
-	$(MFEM_CXX) $(MFEM_FLAGS) $< -o $@ $@_solver.o $(COMMON_O) $(MFEM_LIBS)
+	$(MFEM_CXX) $(MFEM_FLAGS) $< -o $@ $@_solver.o $(COMMON_O) $(MFEM_LIBS) -lgsl -L/usr/lib64/libgsl.so -lgslcblas -L/usr/lib64/libgslcblas.so
 
 # Remove built-in rule
 %.o: %.cpp
