@@ -2293,23 +2293,203 @@ void DGDiffusionIntegrator::AssembleFaceMatrix(
    }
 }
 
+
+// static method
+void DGElasticityIntegrator::AssembleBlock(
+   const int dim, const int row_ndofs, const int col_ndofs,
+   const int row_offset, const int col_offset,
+   const double jmatcoef, const Vector &col_nL, const Vector &col_nM,
+   const Vector &row_shape, const Vector &col_shape,
+   const Vector &col_dshape_dnM, const DenseMatrix &col_dshape,
+   DenseMatrix &elmat, DenseMatrix &jmat)
+{
+   for (int jm = 0, j = col_offset; jm < dim; ++jm)
+   {
+      for (int jdof = 0; jdof < col_ndofs; ++jdof, ++j)
+      {
+         const double t2 = col_dshape_dnM(jdof);
+         for (int im = 0, i = row_offset; im < dim; ++im)
+         {
+            const double t1 = col_dshape(jdof, jm) * col_nL(im);
+            const double t3 = col_dshape(jdof, im) * col_nM(jm);
+            const double tt = t1 + ((im == jm) ? t2 : 0.0) + t3;
+            for (int idof = 0; idof < row_ndofs; ++idof, ++i)
+            {
+               elmat(i, j) += row_shape(idof) * tt;
+            }
+         }
+      }
+   }
+
+   if (jmatcoef == 0.0) { return; }
+
+   for (int d = 0; d < dim; ++d)
+   {
+      const int jo = col_offset + d*col_ndofs;
+      const int io = row_offset + d*row_ndofs;
+      for (int jdof = 0, j = jo; jdof < col_ndofs; ++jdof, ++j)
+      {
+         const double sj = jmatcoef * col_shape(jdof);
+         for (int i = max(io,j), idof = i - io; idof < row_ndofs; ++idof, ++i)
+         {
+            jmat(i, j) += row_shape(idof) * sj;
+         }
+      }
+   }
+}
+
 void DGElasticityIntegrator::AssembleFaceMatrix(
    const FiniteElement &el1, const FiniteElement &el2,
    FaceElementTransformations &Trans, DenseMatrix &elmat)
 {
-   if (Trans.Elem2No < 0)
+#ifdef MFEM_THREAD_SAFE
+   // For descriptions of these variables, see the class declaration.
+   Vector shape1, shape2;
+   DenseMatrix dshape1, dshape2;
+   DenseMatrix adjJ;
+   DenseMatrix dshape1_ps, dshape2_ps;
+   Vector nor;
+   Vector nL1, nL2;
+   Vector nM1, nM2;
+   Vector dshape1_dnM, dshape2_dnM;
+   DenseMatrix jmat;
+#endif
+
+   const int dim = el1.GetDim();
+   const int ndofs1 = el1.GetDof();
+   const int ndofs2 = (Trans.Elem2No >= 0) ? el2.GetDof() : 0;
+   const int nvdofs = dim*(ndofs1 + ndofs2);
+
+   // Initially 'elmat' corresponds to the term:
+   //    < { sigma(u) . n }, [v] > =
+   //    < { (lambda div(u) I + mu (grad(u) + grad(u)^T)) . n }, [v] >
+   // But eventually, it's going to be replaced by:
+   //    elmat := -elmat + alpha*elmat^T + jmat
+   elmat.SetSize(nvdofs);
+   elmat = 0.;
+
+   const bool kappa_is_nonzero = (kappa != 0.0);
+   if (kappa_is_nonzero)
    {
-      AssembleBoundaryFaceMatrix(el1, Trans, elmat);
+      jmat.SetSize(nvdofs);
+      jmat = 0.;
    }
-   else
+
+   adjJ.SetSize(dim);
+   shape1.SetSize(ndofs1);
+   dshape1.SetSize(ndofs1, dim);
+   dshape1_ps.SetSize(ndofs1, dim);
+   nor.SetSize(dim);
+   nL1.SetSize(dim);
+   nM1.SetSize(dim);
+   dshape1_dnM.SetSize(ndofs1);
+
+   if (ndofs2)
    {
-      AssembleInteriorFaceMatrix(el1, el2, Trans, elmat);
+      shape2.SetSize(ndofs2);
+      dshape2.SetSize(ndofs2, dim);
+      dshape2_ps.SetSize(ndofs2, dim);
+      nL2.SetSize(dim);
+      nM2.SetSize(dim);
+      dshape2_dnM.SetSize(ndofs2);
+   }
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      // a simple choice for the integration order; is this OK?
+      const int order = 2 * max(el1.GetOrder(), ndofs2 ? el2.GetOrder() : 0);
+      ir = &IntRules.Get(Trans.FaceGeom, order);
+   }
+
+   for (int pind = 0; pind < ir->GetNPoints(); ++pind)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(pind);
+      IntegrationPoint eip1, eip2; // integration point in the reference space
+      Trans.Loc1.Transform(ip, eip1);
+      Trans.Face->SetIntPoint(&ip);
+      Trans.Elem1->SetIntPoint(&eip1);
+
+      el1.CalcShape(eip1, shape1);
+      el1.CalcDShape(eip1, dshape1);
+
+      CalcAdjugate(Trans.Elem1->Jacobian(), adjJ);
+      Mult(dshape1, adjJ, dshape1_ps);
+
+      if (dim == 1)
+      {
+         nor(0) = 2*eip1.x - 1.0;
+      }
+      else
+      {
+         CalcOrtho(Trans.Face->Jacobian(), nor);
+      }
+
+      double w, wLM;
+      if (ndofs2)
+      {
+         Trans.Loc2.Transform(ip, eip2);
+         Trans.Elem2->SetIntPoint(&eip2);
+         el2.CalcShape(eip2, shape2);
+         el2.CalcDShape(eip2, dshape2);
+         CalcAdjugate(Trans.Elem2->Jacobian(), adjJ);
+         Mult(dshape2, adjJ, dshape2_ps);
+
+         w = ip.weight/2;
+         const double w2 = w / Trans.Elem2->Weight();
+         const double wL2 = w2 * lambda->Eval(*Trans.Elem2, eip2);
+         const double wM2 = w2 * mu->Eval(*Trans.Elem2, eip2);
+         nL2.Set(wL2, nor);
+         nM2.Set(wM2, nor);
+         wLM = (wL2 + 2.0*wM2);
+         dshape2_ps.Mult(nM2, dshape2_dnM);
+      }
+      else
+      {
+         w = ip.weight;
+         wLM = 0.0;
+      }
+
+      {
+         const double w1 = w / Trans.Elem1->Weight();
+         const double wL1 = w1 * lambda->Eval(*Trans.Elem1, eip1);
+         const double wM1 = w1 * mu->Eval(*Trans.Elem1, eip1);
+         nL1.Set(wL1, nor);
+         nM1.Set(wM1, nor);
+         wLM += (wL1 + 2.0*wM1);
+         dshape1_ps.Mult(nM1, dshape1_dnM);
+      }
+
+      const double jmatcoef = kappa * (nor*nor) * wLM;
+
+      // (1,1) block
+      AssembleBlock(
+         dim, ndofs1, ndofs1, 0, 0, jmatcoef, nL1, nM1,
+         shape1, shape1, dshape1_dnM, dshape1_ps, elmat, jmat);
+
+      if (ndofs2 == 0) { continue; }
+
+      // In both elamt and jmat, shape2 appears only with a minus sign.
+      shape2.Neg();
+
+      // (1,2) block
+      AssembleBlock(
+         dim, ndofs1, ndofs2, 0, dim*ndofs1, jmatcoef, nL2, nM2,
+         shape1, shape2, dshape2_dnM, dshape2_ps, elmat, jmat);
+      // (2,1) block
+      AssembleBlock(
+         dim, ndofs2, ndofs1, dim*ndofs1, 0, jmatcoef, nL1, nM1,
+         shape2, shape1, dshape1_dnM, dshape1_ps, elmat, jmat);
+      // (2,2) block
+      AssembleBlock(
+         dim, ndofs2, ndofs2, dim*ndofs1, dim*ndofs1, jmatcoef, nL2, nM2,
+         shape2, shape2, dshape2_dnM, dshape2_ps, elmat, jmat);
    }
 
    // elmat := -elmat + alpha*elmat^t + jmat
-   if (kappa != 0.0)
+   if (kappa_is_nonzero)
    {
-      for (int i = 0; i < elmat.Height(); ++i)
+      for (int i = 0; i < nvdofs; ++i)
       {
          for (int j = 0; j < i; ++j)
          {
@@ -2322,7 +2502,7 @@ void DGElasticityIntegrator::AssembleFaceMatrix(
    }
    else
    {
-      for (int i = 0; i < elmat.Height(); ++i)
+      for (int i = 0; i < nvdofs; ++i)
       {
          for (int j = 0; j < i; ++j)
          {
@@ -2335,546 +2515,6 @@ void DGElasticityIntegrator::AssembleFaceMatrix(
    }
 }
 
-void DGElasticityIntegrator::AssembleBoundaryFaceMatrix(
-   const FiniteElement &el, FaceElementTransformations &Trans,
-   DenseMatrix &elmat)
-{
-   const int dim = el.GetDim();
-   const int ndofs = el.GetDof();
-
-   /**
-     Initially elmat corresponds to the term:
-     \f[
-       \mathrm{elmat} = \left< \{ (\lambda \nabla \cdot u I +
-          \mu (\nabla u + \nabla u^T)) \cdot \vec{n} \}, [v] \right>
-     \f]
-     But eventually, it's going to be:
-     elmat := -elmat + alpha*elmat^t + jmat
-
-     For the boundary faces, the averages and jumps over the face F of the
-     element are defined this way:
-     - jump: [u] = u_F
-     - average {u} = u_F
-
-     Therefore, the computation of the elmat matrix follows this:
-     \f[
-       \mathrm{elmat} = \int_F (\lambda \nabla \cdot u I +
-          \mu (\nabla u + \nabla u^T)) \cdot \vec{n} \cdot v
-     \f]
-
-     Taking into account that \f$ \nabla u = J^{-1} \hat{\nabla}\hat{u} \f$ and
-     \f$ \int_F \vec{f} \cdot \vec{n} = \int_{\hat{F}} \vec{f} \cdot {n} |detJ|
-     = \int_{\hat{F}} \vec{f} \cdot \vec{nor} \f$, where \f$ \hat{*} \f$ denotes
-     the reference coordinate, function, gradient, etc, and \f$ \vec{nor} \f$ is
-     a (not necessarily unit) normal to the face \f$ F \f$ (in contrast to \f$
-     \vec{n} \f$ which is a unit normal vector), we get
-     \f[
-       \mathrm{elmat} = \int_{\hat{F}} J^{-1} (\lambda \hat{\nabla} \cdot
-          \hat{u} I + \mu (\hat{\nabla}\hat{u} + \hat{\nabla}\hat{u}^T)) \cdot
-          \vec{nor} \cdot v
-     \f]
-   */
-   elmat.SetSize(dim*ndofs);
-   elmat = 0.;
-
-   /**
-     jmat corresponds to the term: \f$ \kappa \left< h^{-1} \{ \lambda + 2 \mu
-     \} [u], [v] \right> \f$, which in case of the boundary face becomes: \f$
-     \kappa \int_F h_F^{-1} (\lambda + 2 \mu) u \cdot v \f$
-   */
-   const bool kappa_is_nonzero = (kappa != 0.0);
-   if (kappa_is_nonzero)
-   {
-      jmat.SetSize(dim*ndofs);
-      jmat = 0.;
-   }
-
-   const IntegrationRule *ir = IntRule;
-   if (ir == NULL)
-   {
-      // a simple choice for the integration order; is this OK?
-      const int order = 2 * el.GetOrder();
-      ir = &IntRules.Get(Trans.FaceGeom, order);
-   }
-
-   /**
-     u and v are a linear combination of the vector basis functions \f$
-     \vec{\phi} \f$ that are copies of scalar basis functions \f$ \psi \f$. For
-     example, in 2D:
-     \f[
-       \begin{aligned}
-       \vec{\phi_0}      &= ( \psi_0, 0 ) &
-       \vec{\phi_1}      &= ( \psi_1, 0 ) & \cdots &&
-       \vec{\phi_{N-1}}  &= ( \psi_{N-1}, 0 ) \\
-       \vec{\phi_N}      &= ( 0, \psi_0 ) &
-       \vec{\phi_{N+1}}  &= ( 0, \psi_1 ) & \cdots &&
-       \vec{\phi_{2N-1}} &= ( 0, \psi_{N-1} ) \\
-       \cdots
-       \end{aligned}
-     \f]
-
-     Let's consider terms of the integrals over the boundary face separately.
-
-     First term
-     \f[
-       \int_F \lambda \nabla \cdot u I \cdot \vec{n} \cdot v =
-       \sum_{p}^{I_p} \lambda_p w_p E^1
-     \f]
-     where \f$ I_p \f$ are integration points, \f$ w_p \f$ are weights of
-     numerical integration rules.
-     \f[
-       \begin{aligned}
-       E_{ij}^1
-       &= \vec{\phi_i} \cdot \nabla \cdot \vec{\phi_j} I \cdot \vec{n}
-       = |\mbox{in 2D}|
-       = (\phi_i^x, \phi_i^y) \left( \begin{matrix} \frac{\partial \phi_j^x}
-         {\partial x} + \frac{\partial \phi_j^y}{\partial y} & 0 \\ 0 &
-         \frac{\partial \phi_j^x}{\partial x} + \frac{\partial \phi_j^y}
-         {\partial y} \end{matrix} \right) \left(\begin{matrix} n_x \\ n_y
-         \end{matrix} \right)
-       = (\phi_i^x, \phi_i^y) \left( \begin{matrix} \sum_r^D \frac{\partial
-         \phi_j^r}{\partial r} n_x \\ \sum_r^D \frac{\partial \phi_j^r}{\partial
-         r} n_y \end{matrix} \right) \\
-       &= |\mbox{in arbitrary Dimension}|
-       = \sum_d^D \phi_i^d \sum_r^D \frac{\partial \phi_j^r}{\partial r} n_d
-       \end{aligned}
-     \f]
-
-     Second term
-     \f[
-       \int_F \mu \nabla u \cdot \vec{n} \cdot v =
-       \sum_{p}^{I_p} \mu_p w_p E^2
-     \f]
-     \f[
-       \begin{aligned}
-       E_{ij}^2
-       &= \vec{\phi_i} \cdot \nabla \vec{\phi_j} \cdot \vec{n}
-       = |\mbox{in 2D}|
-       = (\phi_i^x, \phi_i^y) \left( \begin{matrix} \frac{\partial \phi_j^x}
-         {\partial x} & \frac{\partial \phi_j^x}{\partial y} \\ \frac{\partial
-         \phi_j^y}{\partial x} & \frac{\partial \phi_j^y}{\partial y}
-         \end{matrix} \right) \left( \begin{matrix} n_x \\ n_y \end{matrix}
-         \right)
-       = (\phi_i^x, \phi_i^y) \left( \begin{matrix} \sum_r^D \frac{\partial
-         \phi_j^x}{\partial r} n_r \\ \sum_r^D \frac{\partial \phi_j^y}{\partial
-         r} n_r \end{matrix} \right) \\
-       &= |\mbox{in arbitrary Dimension}|
-       = \sum_d^D \phi_i^d \sum_r^D \frac{\partial \phi_j^d}{\partial r} n_r
-       \end{aligned}
-     \f]
-
-     Third term
-     \f[
-       \int_F \mu \nabla u^T \cdot \vec{n} \cdot v =
-       \sum_{p}^{I_p} \mu_p w_p E^3
-     \f]
-     \f[
-       \begin{aligned}
-       E_{ij}^3
-       &= \vec{\phi_i} \cdot \nabla \vec{\phi_j}^T \cdot \vec{n}
-       = |\mbox{in 2D}|
-       = (\phi_i^x, \phi_i^y) \left( \begin{matrix} \frac{\partial \phi_j^x}
-         {\partial x} & \frac{\partial \phi_j^y}{\partial x} \\ \frac{\partial
-         \phi_j^x}{\partial y} & \frac{\partial \phi_j^y}{\partial y}
-         \end{matrix} \right) \left( \begin{matrix} n_x \\ n_y \end{matrix}
-         \right)
-       = (\phi_i^x, \phi_i^y) \left( \begin{matrix} \sum_r^D \frac{\partial
-         \phi_j^r}{\partial x} n_r \\ \sum_r^D \frac{\partial \phi_j^r}{\partial
-         y} n_r \end{matrix} \right) \\
-       &= |\mbox{in arbitrary Dimension}| = \sum_d^D \phi_i^d \sum_r^D
-          \frac{\partial \phi_j^r}{\partial d} n_r
-       \end{aligned}
-     \f]
-
-     The penalty term is computed this way:
-     \f[
-       \kappa \int_F h_F^{-1} (\lambda + 2 \mu) u \cdot v =
-       \kappa h_F^{-1} \sum_p^{I_p} (\lambda_p + 2 \mu_p) w_p E^4
-     \f]
-     \f[
-       \begin{aligned}
-       E_{ij}^4
-       &= \vec{\phi_i} \cdot \vec{\phi_j}
-       = |\mbox{in 2D}|
-       = (\phi_i^x, \phi_i^y) \left( \begin{matrix} \phi_j^x \\ \phi_j^y
-         \end{matrix} \right)
-       = |\mbox{in any Dimension}| = \sum_d^D \phi_i^d \phi_j^d
-       \end{aligned}
-     \f]
-   */
-
-   // values of all scalar basis functions for one component of u (which is a
-   // vector) at the integration point in the reference space
-   Vector shape(ndofs);
-
-   // values of derivatives of all scalar basis functions for one component
-   // of u (which is a vector) at the integration point in the reference space
-   DenseMatrix dshape(ndofs, dim);
-
-   // Jacobian of transformation of coordinates: J^{-1} = (1/detJ)*adjJ
-   DenseMatrix adjJ(dim);
-
-   // gradient of shape functions in the real (physical, not reference)
-   // coordinates : dshape_phys(j1,j2) = sum_{t} (1/detJ)*adjJ(t,j2)*dshape(j1,t)
-   DenseMatrix dshape_phys(ndofs, dim);
-
-   Vector nor(dim); // normal vector (not unit)
-
-   for (int pind = 0; pind < ir->GetNPoints(); ++pind)
-   {
-      const IntegrationPoint &ip = ir->IntPoint(pind);
-      IntegrationPoint eip; // integration point in the reference space
-      Trans.Loc1.Transform(ip, eip);
-      Trans.Face->SetIntPoint(&ip);
-      Trans.Elem1->SetIntPoint(&eip);
-
-      el.CalcShape(eip, shape);
-      el.CalcDShape(eip, dshape);
-
-      const double detJ = Trans.Elem1->Weight();
-      CalcAdjugate(Trans.Elem1->Jacobian(), adjJ);
-
-      Mult(dshape, adjJ, dshape_phys);
-      dshape_phys *= 1.0 / detJ;
-
-      // weight of the quadrature rule for numerical integration
-      const double w = ip.weight;
-
-      if (dim == 1)
-      {
-         nor(0) = 2*eip.x - 1.0;
-      }
-      else
-      {
-         CalcOrtho(Trans.Face->Jacobian(), nor);
-      }
-
-      const double L = lambda->Eval(*Trans.Elem1, eip);
-      const double M = mu->Eval(*Trans.Elem1, eip);
-      const double jmatcoef = kappa * (L + 2.0*M) * w * (nor*nor)/detJ;
-
-      for (int j2 = 0; j2 < dim; ++j2)
-      {
-         for (int j1 = 0; j1 < ndofs; ++j1)
-         {
-            const int j = j2*ndofs + j1;
-            for (int i2 = 0; i2 < dim; ++i2)
-            {
-               for (int i1 = 0; i1 < ndofs; ++i1)
-               {
-                  const int i = i2*ndofs + i1;
-                  // first term
-                  elmat(i, j) +=
-                     shape(i1) * L * w * dshape_phys(j1, j2) * nor(i2);
-                  // second term
-                  if (i2 == j2)
-                  {
-                     for (int r = 0; r < dim; ++r)
-                     {
-                        elmat(i, j) +=
-                           shape(i1) * M * w * dshape_phys(j1, r) * nor(r);
-                     }
-                  }
-                  // third term
-                  elmat(i, j) +=
-                     shape(i1) * M * w * dshape_phys(j1, i2) * nor(j2);
-                  // jmat (only lower triangle)
-                  if (kappa_is_nonzero && i2 == j2 && i >= j)
-                  {
-                     jmat(i, j) += jmatcoef * shape(i1) * shape(j1);
-                  }
-               }
-            }
-         }
-      }
-   }
-}
-
-void DGElasticityIntegrator::AssembleInteriorFaceMatrix(
-   const FiniteElement &el1, const FiniteElement &el2,
-   FaceElementTransformations &Trans, DenseMatrix &elmat)
-{
-   const int dim = el1.GetDim();
-   MFEM_ASSERT(dim == el2.GetDim(), "Dimensions mismatch");
-
-   const int ndof1 = el1.GetDof();
-   const int ndof2 = el2.GetDof();
-
-   /**
-     Initially elmat corresponds to the term:
-     \f[
-       \mathrm{elmat} = \left< \{ (\lambda \nabla \cdot u I + \mu (\nabla u +
-          \nabla u^T)) \cdot \vec{n} \}, [v] \right>
-     \f]
-     But eventually, it's going to be:
-     elmat := -elmat + alpha*elmat^t + jmat
-
-     For the interior faces, the averages and jumps over the face F separating
-     elements el1 and el2 are defined this way:
-     - jump: [u] = u1 - u2
-     - average: {u} = 0.5 (u1 + u2)
-
-     where indices 1 and 2 correspond to elements el1 and el2.
-
-     Therefore, the computation of the elmat matrix follows this:
-     \f[
-     \begin{split}
-       \mathrm{elmat}
-       = \int_F & 0.5 *(\lambda_1 \nabla \cdot u_1 I + \mu_1 (\nabla u_1 +
-            \nabla u_1^T) \cdot \vec{n} \cdot v_1 \\
-         - & 0.5 *(\lambda_1 \nabla \cdot u_1 I + \mu_1 (\nabla u_1 + \nabla
-            u_1^T) \cdot \vec{n} \cdot v_2 \\
-         + & 0.5 *(\lambda_2 \nabla \cdot u_2 I + \mu_2 (\nabla u_2 + \nabla
-            u_2^T) \cdot \vec{n} \cdot v_1 \\
-         - & 0.5 *(\lambda_2 \nabla \cdot u_2 I + \mu_2 (\nabla u_2 + \nabla
-            u_2^T) \cdot \vec{n} \cdot v_2 \\
-     \end{split}
-     \f]
-     where \f$ \vec{n} \f$ is a normal of face F from el1 to el2.
-
-     Each term of the integral above can be computed in the same way as in
-     AssembleBoundaryFaceMatrix - one only needs to take into account from which
-     element the basis functions come from - el1 or el2.
-   */
-   elmat.SetSize(dim * (ndof1 + ndof2));
-   elmat = 0.;
-
-   /**
-     jmat corresponds to the term: \f$ \kappa \left< h^{-1} \{ \lambda + 2 \mu
-     \} [u], [v] \right> \f$, which in case of the interior face becomes:
-     \f[
-        \kappa \int_F 0.5 * h_F^{-1} (\lambda_1 + 2 \mu_1 + \lambda_2 + 2 \mu_2)
-           (u_1 \cdot v_1 - u_1 \cdot v_2 - u_2 \cdot v_1 + u_2 \cdot v_2)
-     \f]
-
-     The computation of these terms is similar to the one used in
-     AssembleBoundaryFaceMatrix.
-   */
-   const bool kappa_is_nonzero = (kappa != 0.0);
-   if (kappa_is_nonzero)
-   {
-      jmat.SetSize(dim * (ndof1 + ndof2));
-      jmat = 0.;
-   }
-
-   const IntegrationRule *ir = IntRule;
-   if (ir == NULL)
-   {
-      // a simple choice for the integration order; is this OK?
-      const int order = 2 * max(el1.GetOrder(), el2.GetOrder());
-      ir = &IntRules.Get(Trans.FaceGeom, order);
-   }
-
-   // values of all scalar basis functions for one component of u (which is a
-   // vector) at an integration point in the reference space of finite elements
-   // el1 and el2
-   Vector shape1(ndof1), shape2(ndof2);
-
-   // values of derivatives of all scalar basis functions for one component
-   // of u (which is a vector) at an integration point in the reference space
-   // of finite elements el1 and el2
-   DenseMatrix dshape1(ndof1, dim), dshape2(ndof2, dim);
-
-   // Jacobians of transformation of coordinates for finite elements el1 and el2
-   DenseMatrix adjJ1(dim), adjJ2(dim);
-
-   // gradient of shape functions in the real (physical, not reference)
-   // coordinates : dshape_phys(j1,j2) = sum_{t} (1/detJ)*adjJ(t,j2)*dshape(j1,t)
-   DenseMatrix dshape_phys1(ndof1, dim), dshape_phys2(ndof2, dim);
-
-   Vector nor(dim); // normal vector (not unit)
-
-   for (int pind = 0; pind < ir->GetNPoints(); ++pind)
-   {
-      const IntegrationPoint &ip = ir->IntPoint(pind);
-      Trans.Face->SetIntPoint(&ip);
-
-      IntegrationPoint
-      eip1; // integration point in the reference space on the face of el1
-      Trans.Loc1.Transform(ip, eip1);
-      Trans.Elem1->SetIntPoint(&eip1);
-
-      el1.CalcShape(eip1, shape1);
-      el1.CalcDShape(eip1, dshape1);
-
-      const double detJ1 = Trans.Elem1->Weight();
-      CalcAdjugate(Trans.Elem1->Jacobian(), adjJ1);
-
-      Mult(dshape1, adjJ1, dshape_phys1);
-      dshape_phys1 *= 1.0 / detJ1;
-
-      IntegrationPoint
-      eip2; // integration point in the reference space on the face of el2
-      Trans.Loc2.Transform(ip, eip2);
-      Trans.Elem2->SetIntPoint(&eip2);
-
-      el2.CalcShape(eip2, shape2);
-      el2.CalcDShape(eip2, dshape2);
-
-      const double detJ2 = Trans.Elem2->Weight();
-      CalcAdjugate(Trans.Elem2->Jacobian(), adjJ2);
-
-      Mult(dshape2, adjJ2, dshape_phys2);
-      dshape_phys2 *= 1.0 / detJ2;
-
-      // weight of the quadrature rule for numerical integration multiplied by
-      // 0.5 (see the bilinear form)
-      const double w = 0.5 * ip.weight;
-
-      if (dim == 1)
-      {
-         nor(0) = 2*eip1.x - 1.0;
-      }
-      else
-      {
-         CalcOrtho(Trans.Face->Jacobian(), nor);
-      }
-
-      const double L1 = lambda->Eval(*Trans.Elem1, eip1);
-      const double L2 = lambda->Eval(*Trans.Elem2, eip2);
-      const double M1 = mu->Eval(*Trans.Elem1, eip1);
-      const double M2 = mu->Eval(*Trans.Elem2, eip2);
-
-      const double jmatcoef =
-         kappa * w * (nor*nor) * ((L1+2.0*M1)/detJ1 + (L2+2.0*M2)/detJ2);
-
-      for (int j2 = 0; j2 < dim; ++j2)
-      {
-         for (int j1 = 0; j1 < ndof1; ++j1)
-         {
-            const int j = j2*ndof1 + j1;
-            for (int i2 = 0; i2 < dim; ++i2)
-            {
-               for (int i1 = 0; i1 < ndof1; ++i1)
-               {
-                  const int i = i2*ndof1 + i1;
-                  // first term
-                  elmat(i, j) +=
-                     shape1(i1) * L1 * w * dshape_phys1(j1, j2) * nor(i2);
-                  // second term
-                  if (i2 == j2)
-                  {
-                     for (int r = 0; r < dim; ++r)
-                     {
-                        elmat(i, j) +=
-                           shape1(i1) * M1 * w * dshape_phys1(j1, r) * nor(r);
-                     }
-                  }
-                  // third term
-                  elmat(i, j) +=
-                     shape1(i1) * M1 * w * dshape_phys1(j1, i2) * nor(j2);
-                  // jmat (only lower triangle)
-                  if (kappa_is_nonzero && i2 == j2 && i >= j)
-                  {
-                     jmat(i, j) += jmatcoef * shape1(i1) * shape1(j1);
-                  }
-               }
-            }
-         }
-      }
-
-      for (int j2 = 0; j2 < dim; ++j2)
-      {
-         for (int j1 = 0; j1 < ndof1; ++j1)
-         {
-            const int j = j2*ndof1 + j1;
-            for (int i2 = 0; i2 < dim; ++i2)
-            {
-               for (int i1 = 0; i1 < ndof2; ++i1)
-               {
-                  const int i = dim*ndof1 + i2*ndof2 + i1;
-                  // first term
-                  elmat(i, j) -=
-                     shape2(i1) * L1 * w * dshape_phys1(j1, j2) * nor(i2);
-                  // second term
-                  if (i2 == j2)
-                  {
-                     for (int r = 0; r < dim; ++r)
-                     {
-                        elmat(i, j) -=
-                           shape2(i1) * M1 * w * dshape_phys1(j1, r) * nor(r);
-                     }
-                  }
-                  // third term
-                  elmat(i, j) -=
-                     shape2(i1) * M1 * w * dshape_phys1(j1, i2) * nor(j2);
-                  // jmat (only lower triangle)
-                  if (kappa_is_nonzero && i2 == j2)
-                  {
-                     jmat(i, j) -= jmatcoef * shape2(i1) * shape1(j1);
-                  }
-               }
-            }
-         }
-      }
-
-      for (int j2 = 0; j2 < dim; ++j2)
-      {
-         for (int j1 = 0; j1 < ndof2; ++j1)
-         {
-            const int j = dim*ndof1 + j2*ndof2 + j1;
-            for (int i2 = 0; i2 < dim; ++i2)
-            {
-               for (int i1 = 0; i1 < ndof1; ++i1)
-               {
-                  const int i = i2*ndof1 + i1;
-                  // first term
-                  elmat(i, j) +=
-                     shape1(i1) * L2 * w * dshape_phys2(j1, j2) * nor(i2);
-                  // second term
-                  if (i2 == j2)
-                  {
-                     for (int r = 0; r < dim; ++r)
-                     {
-                        elmat(i, j) +=
-                           shape1(i1) * M2 * w * dshape_phys2(j1, r) * nor(r);
-                     }
-                  }
-                  // third term
-                  elmat(i, j) +=
-                     shape1(i1) * M2 * w * dshape_phys2(j1, i2) * nor(j2);
-                  // jmat (only lower triangle) : no contribution as j > i
-               }
-            }
-         }
-      }
-
-      for (int j2 = 0; j2 < dim; ++j2)
-      {
-         for (int j1 = 0; j1 < ndof2; ++j1)
-         {
-            const int j = dim*ndof1 + j2*ndof2 + j1;
-            for (int i2 = 0; i2 < dim; ++i2)
-            {
-               for (int i1 = 0; i1 < ndof2; ++i1)
-               {
-                  const int i = dim*ndof1 + i2*ndof2 + i1;
-                  // first term
-                  elmat(i, j) -=
-                     shape2(i1) * L2 * w * dshape_phys2(j1, j2) * nor(i2);
-                  // second term
-                  if (i2 == j2)
-                  {
-                     for (int r = 0; r < dim; ++r)
-                     {
-                        elmat(i, j) -=
-                           shape2(i1) * M2 * w * dshape_phys2(j1, r) * nor(r);
-                     }
-                  }
-                  // third term
-                  elmat(i, j) -=
-                     shape2(i1) * M2 * w * dshape_phys2(j1, i2) * nor(j2);
-                  // jmat (only lower triangle)
-                  if (kappa_is_nonzero && i2 == j2 && i >= j)
-                  {
-                     jmat(i, j) += jmatcoef * shape2(i1) * shape2(j1);
-                  }
-               }
-            }
-         }
-      }
-   }
-}
 
 void TraceJumpIntegrator::AssembleFaceMatrix(
    const FiniteElement &trial_face_fe, const FiniteElement &test_fe1,
