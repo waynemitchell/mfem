@@ -232,6 +232,46 @@ void VectorBoundaryLFIntegrator::AssembleRHSElementVect(
    }
 }
 
+void VectorBoundaryLFIntegrator::AssembleRHSElementVect(
+   const FiniteElement &el, FaceElementTransformations &Tr, Vector &elvect)
+{
+   int vdim = Q.GetVDim();
+   int dof  = el.GetDof();
+
+   shape.SetSize(dof);
+   vec.SetSize(vdim);
+
+   elvect.SetSize(dof * vdim);
+   elvect = 0.0;
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int intorder = el.GetOrder() + 1;
+      ir = &IntRules.Get(Tr.FaceGeom, intorder);
+   }
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      IntegrationPoint eip;
+      Tr.Loc1.Transform(ip, eip);
+
+      Tr.Face->SetIntPoint(&ip);
+      Q.Eval(vec, *Tr.Face, ip);
+      vec *= Tr.Face->Weight() * ip.weight;
+      el.CalcShape(eip, shape);
+      for (int k = 0; k < vdim; k++)
+      {
+         for (int s = 0; s < dof; s++)
+         {
+            elvect(dof*k+s) += vec(k) * shape(s);
+         }
+      }
+   }
+}
+
+
 void VectorFEDomainLFIntegrator::AssembleRHSElementVect(
    const FiniteElement &el, ElementTransformation &Tr, Vector &elvect)
 {

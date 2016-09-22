@@ -48,6 +48,7 @@ int main(int argc, char *argv[])
    // 1. Parse command-line options.
    const char *mesh_file = "../data/beam-tri.mesh";
    int order = 1;
+   bool dg = false;
    bool static_cond = false;
    bool visualization = 1;
 
@@ -56,6 +57,9 @@ int main(int argc, char *argv[])
                   "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
+   args.AddOption(&dg, "-dg", "--dg-formulation", "-cg", "--cg-formulation",
+                  "Use discontinuous (DG) or continuous (CG) Galerkin"
+                  " formulation.");
    args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
                   "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
@@ -68,6 +72,12 @@ int main(int argc, char *argv[])
       return 1;
    }
    args.PrintOptions(cout);
+   if (dg && static_cond)
+   {
+      cout << "Disabling static condensation - it can not be used with DG"
+           " formulation." << endl;
+      static_cond = false;
+   }
 
    // 2. Read the mesh from the given mesh file. We can handle triangular,
    //    quadrilateral, tetrahedral or hexahedral elements with the same code.
@@ -95,7 +105,7 @@ int main(int argc, char *argv[])
    //    elements.
    {
       int ref_levels =
-         (int)floor(log(5000./mesh->GetNE())/log(2.)/dim);
+         (int)floor(log(50./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
@@ -109,7 +119,13 @@ int main(int argc, char *argv[])
    //    associated with the mesh nodes.
    FiniteElementCollection *fec;
    FiniteElementSpace *fespace;
-   if (mesh->NURBSext)
+   if (dg)
+   {
+      if (mesh->NURBSext) { mesh->SetCurvature(order); }
+      fec = new DG_FECollection(order, dim);
+      fespace = new FiniteElementSpace(mesh, fec, dim);
+   }
+   else if (mesh->NURBSext)
    {
       fec = NULL;
       fespace = mesh->GetNodes()->FESpace();
@@ -129,7 +145,10 @@ int main(int argc, char *argv[])
    Array<int> ess_tdof_list, ess_bdr(mesh->bdr_attributes.Max());
    ess_bdr = 0;
    ess_bdr[0] = 1;
-   fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   if (!dg)
+   {
+      fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   }
 
    // 7. Set up the linear form b(.) which corresponds to the right-hand side of
    //    the FEM linear system. In this case, b_i equals the boundary integral
@@ -147,12 +166,19 @@ int main(int argc, char *argv[])
    {
       Vector pull_force(mesh->bdr_attributes.Max());
       pull_force = 0.0;
-      pull_force(1) = -1.0e-2;
+      pull_force(1) = -3.0e-2; // default = -1.0e-2
       f.Set(dim-1, new PWConstCoefficient(pull_force));
    }
 
    LinearForm *b = new LinearForm(fespace);
-   b->AddBoundaryIntegrator(new VectorBoundaryLFIntegrator(f));
+   if (!dg)
+   {
+      b->AddBoundaryIntegrator(new VectorBoundaryLFIntegrator(f));
+   }
+   else
+   {
+      b->AddBdrFaceIntegrator(new VectorBoundaryLFIntegrator(f));
+   }
    cout << "r.h.s. ... " << flush;
    b->Assemble();
 
@@ -176,6 +202,22 @@ int main(int argc, char *argv[])
 
    BilinearForm *a = new BilinearForm(fespace);
    a->AddDomainIntegrator(new ElasticityIntegrator(lambda_func,mu_func));
+   if (dg)
+   {
+#if 1
+      const double alpha = -1.0; // Use symmetric DG formulation.
+      const double kappa = (order+1)*(order+1);
+#else
+      // Solve this case with UMFPACK or GMRES.
+      const double alpha = 1.0; // Use non-symmetric DG formulation.
+      const double kappa = 0.0;
+#endif
+      a->AddInteriorFaceIntegrator(
+         new DGElasticityIntegrator(lambda_func, mu_func, alpha, kappa));
+      a->AddBdrFaceIntegrator(
+         new DGElasticityIntegrator(lambda_func, mu_func, alpha, kappa),
+         ess_bdr);
+   }
 
    // 10. Assemble the bilinear form and the corresponding linear system,
    //     applying any necessary transformations such as: eliminating boundary

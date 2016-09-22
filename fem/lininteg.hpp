@@ -78,7 +78,7 @@ class BoundaryLFIntegrator : public LinearFormIntegrator
 public:
    /// Constructs a boundary integrator with a given Coefficient QG
    BoundaryLFIntegrator(Coefficient &QG, int a = 1, int b = 1)
-      : Q(QG), oa(a), ob(b) {};
+      : Q(QG), oa(a), ob(b) { }
 
    /** Given a particular boundary Finite Element and a transformation (Tr)
        computes the element boundary vector, elvect. */
@@ -98,7 +98,7 @@ class BoundaryNormalLFIntegrator : public LinearFormIntegrator
 public:
    /// Constructs a boundary integrator with a given Coefficient QG
    BoundaryNormalLFIntegrator(VectorCoefficient &QG, int a = 1, int b = 1)
-      : Q(QG), oa(a), ob(b) {};
+      : Q(QG), oa(a), ob(b) { }
 
    virtual void AssembleRHSElementVect(const FiniteElement &el,
                                        ElementTransformation &Tr,
@@ -116,7 +116,7 @@ class BoundaryTangentialLFIntegrator : public LinearFormIntegrator
 public:
    /// Constructs a boundary integrator with a given Coefficient QG
    BoundaryTangentialLFIntegrator(VectorCoefficient &QG, int a = 1, int b = 1)
-      : Q(QG), oa(a), ob(b) {};
+      : Q(QG), oa(a), ob(b) { }
 
    virtual void AssembleRHSElementVect(const FiniteElement &el,
                                        ElementTransformation &Tr,
@@ -135,7 +135,7 @@ private:
 
 public:
    /// Constructs a domain integrator with a given VectorCoefficient
-   VectorDomainLFIntegrator(VectorCoefficient &QF) : Q(QF) {};
+   VectorDomainLFIntegrator(VectorCoefficient &QF) : Q(QF) { }
 
    /** Given a particular Finite Element and a transformation (Tr)
        computes the element right hand side element vector, elvect. */
@@ -156,12 +156,17 @@ private:
 
 public:
    /// Constructs a boundary integrator with a given VectorCoefficient QG
-   VectorBoundaryLFIntegrator(VectorCoefficient &QG) : Q(QG) {};
+   VectorBoundaryLFIntegrator(VectorCoefficient &QG) : Q(QG) { }
 
    /** Given a particular boundary Finite Element and a transformation (Tr)
        computes the element boundary vector, elvect. */
    virtual void AssembleRHSElementVect(const FiniteElement &el,
                                        ElementTransformation &Tr,
+                                       Vector &elvect);
+
+   // For DG spaces
+   virtual void AssembleRHSElementVect(const FiniteElement &el,
+                                       FaceElementTransformations &Tr,
                                        Vector &elvect);
 
    using LinearFormIntegrator::AssembleRHSElementVect;
