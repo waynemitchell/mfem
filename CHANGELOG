@@ -11,6 +11,14 @@
 Version 3.2.1, not yet released
 ===============================
 
+New integrators and BilinearForm extensions
+-------------------------------------------
+- Added new class DGElasticityIntegrator that supports a few types of DG
+  formulations for linear elasticity.
+- Added support for DG spaces in class VectorBoundaryLFIntegrator.
+- In class BilinearForm, added support for boundary face integrators applied to
+  a subset of the boundary, see the method AddBdrFaceIntegrator.
+
 Coordinated general quadrature and nodal finite element basis types
 -------------------------------------------------------------------
 - Added support for different numerical quadrature schemes and finite element
@@ -58,6 +66,9 @@ New and updated examples and miniapps
   objects when possible. This greatly simplifies the code, reduces memory
   requirements, and eliminates unnecessary computation. It also fixed a bug
   with divergence cleaning in the Tesla miniapp.
+
+- In example 2/2p, added an option to switch between the standard continuous
+  (CG) and a discontinuous (DG) formulations.
 
 Miscellaneous
 -------------
