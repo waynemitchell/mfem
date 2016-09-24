@@ -252,7 +252,7 @@ int main(int argc, char *argv[])
    else if (strcmp(problem,"test")==0)
    {
 
-     if (mpi.Root()) cout << "Running test problem" << endl;
+      if (mpi.Root()) { cout << "Running test problem" << endl; }
 
       sigmaAir     = 1.0 * sigma;
       TcondAir     = 1.0 * Tconductivity;
@@ -748,11 +748,11 @@ int main(int argc, char *argv[])
 
       if (last_step || (ti % vis_steps) == 0)
       {
-	if (mpi.Root())
-	  {
-	    cout << fixed;
-	    cout << "step " << setw(6) << ti << " t = " << setw(6) << setprecision(3) << t;
-	  }
+         if (mpi.Root())
+         {
+            cout << fixed;
+            cout << "step " << setw(6) << ti << " t = " << setw(6) << setprecision(3) << t;
+         }
 
          if (strcmp(problem,"test")==0)
          {
@@ -777,8 +777,8 @@ int main(int argc, char *argv[])
             }
          }
 
-	 if (mpi.Root()) cout << endl;
-	   
+         if (mpi.Root()) { cout << endl; }
+
 
          // Make sure all ranks have sent their 'v' solution before initiating
          // another set of GLVis connections (one from each rank):
