@@ -209,7 +209,10 @@ public:
 
    /** Creates block-diagonal square parallel matrix. Diagonal is given by diag
        which must be in CSR format (finalized). The new HypreParMatrix does not
-       take ownership of any of the input arrays. */
+       take ownership of any of the input arrays.
+       @warning The ordering of the columns in each row in @a *diag may be
+       changed by this contructor to ensure that the first entry in each row is
+       the diagonal one. This is expected by most hypre functions. */
    HypreParMatrix(MPI_Comm comm, HYPRE_Int glob_size, HYPRE_Int *row_starts,
                   SparseMatrix *diag);
 
