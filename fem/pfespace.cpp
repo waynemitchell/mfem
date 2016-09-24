@@ -2182,7 +2182,7 @@ ParFiniteElementSpace::LowOrderRefinement(
       {
          // compute the size of the J arrays: p^2 as many faces
          J_group_svert = new int[(p + 1)*(p + 1)*
-            group_sface.Size_of_connections()];
+                                 group_sface.Size_of_connections()];
          J_group_sedge = new int[2*(p + 1)*p*group_sface.Size_of_connections()];
          J_group_sface = new int[p*p*group_sface.Size_of_connections()];
       }

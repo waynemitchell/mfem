@@ -46,11 +46,16 @@ using namespace std;
 using namespace mfem;
 
 // Define template parameters for optimized build.
-const Geometry::Type geom         = Geometry::CUBE;   // mesh elements  (default: hex)
-const int            mesh_p       = 3;                // mesh curvature (default: 3)
-const int            sol_p        = 3;                // solution order (default: 3)
-const int            mesh_lor_p   = 1;                // mesh curvature (default: 3)
-const int            sol_lor_p    = 1;                // solution order (default: 3)
+const Geometry::Type geom         =
+   Geometry::CUBE;   // mesh elements  (default: hex)
+const int            mesh_p       =
+   3;                // mesh curvature (default: 3)
+const int            sol_p        =
+   3;                // solution order (default: 3)
+const int            mesh_lor_p   =
+   1;                // mesh curvature (default: 3)
+const int            sol_lor_p    =
+   1;                // solution order (default: 3)
 const int            rdim     = Geometry::Constants<geom>::Dimension;
 const int            ir_order = 2*sol_p+rdim-1;
 const int            ir_order_lor = 2*sol_lor_p+rdim-1;
@@ -87,7 +92,8 @@ typedef H1_FiniteElementSpace<sol_fe_lor_t>       sol_fes_lor_t;
 typedef TIntegrationRule<geom,ir_order_lor>       int_rule_lor_t;
 
 // Static bilinear form type, combining the above types
-typedef TBilinearForm<mesh_lor_t,sol_fes_lor_t,int_rule_lor_t,integ_t> HPCBilinearForm_lor;
+typedef TBilinearForm<mesh_lor_t,sol_fes_lor_t,int_rule_lor_t,integ_t>
+HPCBilinearForm_lor;
 
 int main(int argc, char *argv[])
 {
