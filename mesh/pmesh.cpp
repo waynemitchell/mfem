@@ -4519,7 +4519,7 @@ void ParMesh::ParPrint(ostream &out) const
    gtopo.Save(out);
 #define MFEM_PAR_MESH_FORMAT_D
 
-   #if defined(MFEM_PAR_MESH_FORMAT_A)
+#if defined(MFEM_PAR_MESH_FORMAT_A)
    // Version A of the format
 
    // write the shared vertices (group, lvert)
