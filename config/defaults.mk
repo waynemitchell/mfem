@@ -18,7 +18,7 @@
 SYSNAME = $(shell uname -s)
 
 CXX = g++
-MPICXX = mpig++
+MPICXX = mpicxx
 
 OPTIM_FLAGS = -O3
 DEBUG_FLAGS = -g -Wall
