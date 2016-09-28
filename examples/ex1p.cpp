@@ -129,6 +129,8 @@ int main(int argc, char *argv[])
       par_ref_levels = 1;
    }
 
+   DataCollection dc("Example1-Parallel", pmesh);
+
    // Refine in parallel.
    for (int l = 0; l < par_ref_levels; l++)
    {
@@ -186,6 +188,7 @@ int main(int argc, char *argv[])
    //    corresponding to fespace. Initialize x with initial guess of zero,
    //    which satisfies the boundary conditions.
    ParGridFunction x(fespace);
+   dc.RegisterField("sol", &x);
    x = 0.0;
 
    // 10. Set up the parallel bilinear form a(.,.) on the finite element space
@@ -227,23 +230,13 @@ int main(int argc, char *argv[])
    // 14. Save the refined mesh and the solution in parallel. This output can
    //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
    {
-      ostringstream mesh_name, sol_name;
-      mesh_name << "mesh." << setfill('0') << setw(6) << myid;
-      sol_name << "sol." << setfill('0') << setw(6) << myid;
-
-      ofstream mesh_ofs(mesh_name.str().c_str());
-      mesh_ofs.precision(8);
-      pmesh->Print(mesh_ofs);
-
-      ofstream sol_ofs(sol_name.str().c_str());
-      sol_ofs.precision(8);
-      x.Save(sol_ofs);
+      dc.Save();
    }
    // Save the mesh in parallel format, if we read serial mesh.
    if (par_mesh_prefix == string_none)
    {
       ostringstream pmesh_name;
-      pmesh_name << "pmesh." << setfill('0') << setw(6) << myid;
+      pmesh_name << "Example1-Parallel/pmesh." << setfill('0') << setw(6) << myid;
       ofstream pmesh_ofs(pmesh_name.str().c_str());
       pmesh_ofs.precision(8);
       pmesh->ParPrint(pmesh_ofs);

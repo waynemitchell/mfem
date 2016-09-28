@@ -197,7 +197,7 @@ void GroupTopology::Create(ListOfIntegerSets &groups, int mpitag)
 
 void GroupTopology::Save(ostream &out) const
 {
-#define MFEM_PAR_MESH_FORMAT_D
+#define MFEM_PAR_MESH_FORMAT_B
 #if defined(MFEM_PAR_MESH_FORMAT_A) || defined(MFEM_PAR_MESH_FORMAT_B)
    out << "\ngroup_topology\n";
 
@@ -218,12 +218,12 @@ void GroupTopology::Save(ostream &out) const
    // write the group_mgroup array (size = number of groups)
    group_mgroup.Save(out, 1);
 #elif defined(MFEM_PAR_MESH_FORMAT_C) || defined(MFEM_PAR_MESH_FORMAT_D)
-   out << "\ncommunication_groups\n";
+   //out << "\ncommunication_groups\n";
 
    //out << "optional ownership strategy\n";
 
    // out << "num_groups " << NGroups() << "\n";
-   out << NGroups() << "\n";
+   //out << NGroups() << "\n";
 
 
 #else
