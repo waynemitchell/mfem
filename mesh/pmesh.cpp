@@ -4652,7 +4652,7 @@ void ParMesh::ParPrint(ostream &out) const
    gtopo.Save(out);
 #define MFEM_PAR_MESH_FORMAT_D
 
-   #if defined(MFEM_PAR_MESH_FORMAT_A)
+#if defined(MFEM_PAR_MESH_FORMAT_A)
    // Version A of the format
 
    // write the shared vertices (group, lvert)
@@ -4774,7 +4774,7 @@ void ParMesh::ParPrint(ostream &out) const
       const int  group_num_shared_vertices = group_svert.RowSize(group-1);
       const int *group_shared_vertices = group_svert.GetRow(group-1);
 
-      out << "shared_vertices " << group_num_shared_vertices << '\n';
+      out << "shared_vertices\n" << group_num_shared_vertices << '\n';
       for (int i = 0; i < group_num_shared_vertices; i++)
       {
          out << svert_lvert[group_shared_vertices[i]] << '\n';
@@ -4783,7 +4783,7 @@ void ParMesh::ParPrint(ostream &out) const
       {
          const int  group_num_shared_edges = group_sedge.RowSize(group-1);
          const int *group_shared_edges = group_sedge.GetRow(group-1);
-         out << "\nshared_edges " << group_num_shared_edges << '\n';
+         out << "\nshared_edges\n" << group_num_shared_edges << '\n';
          for (int i = 0; i < group_num_shared_edges; i++)
          {
             const int *v = shared_edges[group_shared_edges[i]]->GetVertices();
@@ -4794,7 +4794,7 @@ void ParMesh::ParPrint(ostream &out) const
       {
          const int  group_num_shared_faces = group_sface.RowSize(group-1);
          const int *group_shared_faces = group_sface.GetRow(group-1);
-         out << "\nshared_faces " << group_num_shared_faces << '\n';
+         out << "\nshared_faces\n" << group_num_shared_faces << '\n';
          for (int i = 0; i < group_num_shared_faces; i++)
          {
             PrintElementWithoutAttr(shared_faces[group_shared_faces[i]], out);

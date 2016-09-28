@@ -222,7 +222,8 @@ void GroupTopology::Save(ostream &out) const
 
    //out << "optional ownership strategy\n";
 
-   out << "[num_groups " << NGroups() << "]\n";
+   // out << "num_groups " << NGroups() << "\n";
+   out << NGroups() << "\n";
 
 
 #else
