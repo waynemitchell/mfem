@@ -231,6 +231,10 @@ install(TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME}
 install(FILES ${PROJECT_SOURCE_DIR}/mfem.hpp DESTINATION include)
 
 # Install the headers; currently, the miniapps headers are excluded
-install(DIRECTORY config fem general linalg mesh
+install(DIRECTORY fem general linalg mesh
   DESTINATION include
   FILES_MATCHING PATTERN "*.hpp")
+
+# Install the configure file
+install(FILES ${PROJECT_BINARY_DIR}/config/_config.hpp DESTINATION include
+  RENAME config.hpp)
