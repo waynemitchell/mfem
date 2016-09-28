@@ -228,11 +228,21 @@ void DataCollection::SaveMesh()
    }
    else
    {
-      mesh_name = dir_name + "/mesh." + to_padded_string(myid, pad_digits);
+      mesh_name = dir_name + "/pmesh." + to_padded_string(myid, pad_digits);
    }
    ofstream mesh_file(mesh_name.c_str());
    mesh_file.precision(precision);
-   mesh->Print(mesh_file);
+
+
+   if (serial)
+   {
+      mesh->Print(mesh_file);
+   }
+   else
+   {
+      const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
+      pmesh->ParPrint(mesh_file);
+   }
    if (!mesh_file)
    {
       error = WRITE_ERROR;

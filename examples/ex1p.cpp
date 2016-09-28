@@ -232,6 +232,7 @@ int main(int argc, char *argv[])
    {
       dc.Save();
    }
+#if 0
    // Save the mesh in parallel format, if we read serial mesh.
    if (par_mesh_prefix == string_none)
    {
@@ -241,6 +242,7 @@ int main(int argc, char *argv[])
       pmesh_ofs.precision(8);
       pmesh->ParPrint(pmesh_ofs);
    }
+#endif
 
 #if 0
    if (par_mesh_prefix == string_none)
