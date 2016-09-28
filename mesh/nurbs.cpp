@@ -10,6 +10,8 @@
 // Software Foundation) version 2.1 dated February 1999.
 
 #include "../fem/fem.hpp"
+#include "../general/text_parsing.hpp"
+
 #include <algorithm>
 #if defined(_MSC_VER) && (_MSC_VER < 1800)
 #include <float.h>
@@ -1159,6 +1161,8 @@ NURBSPatch *Revolve3D(NURBSPatch &patch, double n[], double ang, int times)
 
 NURBSExtension::NURBSExtension(std::istream &input)
 {
+   using text_parsing::skip_comment_lines;
+
    // Read topology
    patchTopo = new Mesh;
    patchTopo->LoadPatchTopo(input, edge_to_knot);
@@ -1167,7 +1171,7 @@ NURBSExtension::NURBSExtension(std::istream &input)
    CheckPatches();
    // CheckBdrPatches();
 
-   Mesh::skip_comment_lines(input, '#');
+   skip_comment_lines(input, '#');
 
    // Read knotvectors or patches
    string ident;
@@ -1190,7 +1194,7 @@ NURBSExtension::NURBSExtension(std::istream &input)
       patches.SetSize(GetNP());
       for (int p = 0; p < patches.Size(); p++)
       {
-         Mesh::skip_comment_lines(input, '#');
+         skip_comment_lines(input, '#');
          patches[p] = new NURBSPatch(input);
       }
 
@@ -1238,7 +1242,7 @@ NURBSExtension::NURBSExtension(std::istream &input)
    CountBdrElements();
    // NumOfVertices, NumOfElements, NumOfBdrElements, NumOfDofs
 
-   Mesh::skip_comment_lines(input, '#');
+   skip_comment_lines(input, '#');
 
    // Check for a list of mesh elements
    if (patches.Size() == 0)
@@ -1257,7 +1261,7 @@ NURBSExtension::NURBSExtension(std::istream &input)
          activeElem[glob_elem] = true;
       }
 
-      Mesh::skip_comment_lines(input, '#');
+      skip_comment_lines(input, '#');
       input >> ws >> ident;
    }
    else

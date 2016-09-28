@@ -17,6 +17,8 @@
 #include "../fem/fem.hpp"
 #include "../general/sets.hpp"
 #include "../general/sort_pairs.hpp"
+#include "../general/text_parsing.hpp"
+
 #include <iostream>
 using namespace std;
 
@@ -746,6 +748,8 @@ ParMesh::ParMesh(Mesh &mesh,
 ParMesh::ParMesh(MPI_Comm comm, istream &input)
    : gtopo(comm)
 {
+   using text_parsing::skip_comment_lines;
+
    MyComm = comm;
    MPI_Comm_size(MyComm, &NRanks);
    MPI_Comm_rank(MyComm, &MyRank);

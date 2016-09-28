@@ -22,6 +22,8 @@
 #include "table.hpp"
 #include "sets.hpp"
 #include "communication.hpp"
+#include "text_parsing.hpp"
+
 #include <iostream>
 #include <map>
 
@@ -197,52 +199,45 @@ void GroupTopology::Create(ListOfIntegerSets &groups, int mpitag)
 
 void GroupTopology::Save(ostream &out) const
 {
-#define MFEM_PAR_MESH_FORMAT_B
-#if defined(MFEM_PAR_MESH_FORMAT_A) || defined(MFEM_PAR_MESH_FORMAT_B)
    out << "\ngroup_topology\n";
-
-   // write the group_lproc table; the number of rows is the number of groups
+   out << "# The groups in term of local processor numbering.\n";
    group_lproc.Save(out);
    out << '\n';
 
    // write the groupmaster_lproc array (size = number of groups)
+   out << "# The master of each group\n";
    groupmaster_lproc.Save(out, 1);
    out << '\n';
 
    // write the lproc_proc array, i.e. the mapping local-proc-index ->
    // global-proc-index (mpi rank in MyComm); the size of the array is the
    // number of neighbor processors
+   out << "# Global numbers of the local processor numbering.\n";
    lproc_proc.Save(out);
    out << '\n';
 
    // write the group_mgroup array (size = number of groups)
+   out << "# The number of each group in its master.\n";
    group_mgroup.Save(out, 1);
-#elif defined(MFEM_PAR_MESH_FORMAT_C) || defined(MFEM_PAR_MESH_FORMAT_D)
-   //out << "\ncommunication_groups\n";
-
-   //out << "optional ownership strategy\n";
-
-   // out << "num_groups " << NGroups() << "\n";
-   //out << NGroups() << "\n";
-
-
-#else
-#endif
-
-
 }
 
 void GroupTopology::Load(istream &in)
 {
+   using text_parsing::skip_comment_lines;
+
+   skip_comment_lines(in, '#');
    group_lproc.Load(in);
 
+   skip_comment_lines(in, '#');
    groupmaster_lproc.Load(NGroups(), in);
 
+   skip_comment_lines(in, '#');
    lproc_proc.Load(in);
 
    MFEM_VERIFY(lproc_proc[0] == MyRank(), "mismatch in MPI ranks: from file: "
                << lproc_proc[0] << ", actual: " << MyRank());
 
+   skip_comment_lines(in, '#');
    group_mgroup.Load(NGroups(), in);
 }
 

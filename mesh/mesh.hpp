@@ -22,7 +22,7 @@
 #include "../fem/coefficient.hpp"
 #include <iostream>
 #include <fstream>
-#include <limits>
+//#include <limits>
 
 namespace mfem
 {
@@ -173,22 +173,6 @@ protected:
 #ifdef MFEM_USE_NETCDF
    void ReadCubit(named_ifstream &input, int &curved, int &read_gf);
 #endif
-
-   static void skip_comment_lines(std::istream &is, const char comment_char)
-   {
-      while (1)
-      {
-         is >> std::ws;
-         if (is.peek() != comment_char) { break; }
-         is.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-      }
-   }
-   // Check for, and remove, a trailing '\r'.
-   static void filter_dos(std::string &line)
-   {
-      if (!line.empty() && *line.rbegin() == '\r')
-      { line.resize(line.size()-1); }
-   }
 
    /// Determine the mesh generator bitmask #meshgen, see MeshGenerator().
    void SetMeshGen();
