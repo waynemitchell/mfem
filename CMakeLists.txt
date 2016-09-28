@@ -229,12 +229,16 @@ install(TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME}
 
 # Install the master header
 install(FILES ${PROJECT_SOURCE_DIR}/mfem.hpp DESTINATION include)
+install(FILES ${PROJECT_SOURCE_DIR}/mfem-performance.hpp DESTINATION include)
 
 # Install the headers; currently, the miniapps headers are excluded
 install(DIRECTORY fem general linalg mesh
   DESTINATION include
   FILES_MATCHING PATTERN "*.hpp")
 
-# Install the configure file
-install(FILES ${PROJECT_BINARY_DIR}/config/_config.hpp DESTINATION include
+# Install the configure files
+install(FILES ${PROJECT_BINARY_DIR}/config/_config.hpp DESTINATION include/config
   RENAME config.hpp)
+
+install(FILES ${PROJECT_SOURCE_DIR}/config/tconfig.hpp
+  DESTINATION include/config)
