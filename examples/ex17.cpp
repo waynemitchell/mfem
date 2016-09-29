@@ -1,14 +1,14 @@
-//                                MFEM Example 2
+//                                MFEM Example 17
 //
-// Compile with: make ex2
+// Compile with: make ex17
 //
-// Sample runs:  ex2 -m ../data/beam-tri.mesh
-//               ex2 -m ../data/beam-quad.mesh
-//               ex2 -m ../data/beam-tet.mesh
-//               ex2 -m ../data/beam-hex.mesh
-//               ex2 -m ../data/beam-quad.mesh -o 3 -sc
-//               ex2 -m ../data/beam-quad-nurbs.mesh
-//               ex2 -m ../data/beam-hex-nurbs.mesh
+// Sample runs:  ex17 -m ../data/beam-tri.mesh
+//               ex17 -m ../data/beam-quad.mesh
+//               ex17 -m ../data/beam-tet.mesh
+//               ex17 -m ../data/beam-hex.mesh
+//               ex17 -m ../data/beam-quad.mesh -o 3 -sc
+//               ex17 -m ../data/beam-quad-nurbs.mesh
+//               ex17 -m ../data/beam-hex-nurbs.mesh
 //
 // Description:  This example code solves a simple linear elasticity problem
 //               describing a multi-material cantilever beam.
@@ -34,7 +34,7 @@
 //               constant and vector coefficient objects. Static condensation is
 //               also illustrated.
 //
-//               We recommend viewing Example 1 before viewing this example.
+//               We recommend viewing Example 2 before viewing this example.
 
 #include "mfem.hpp"
 #include <fstream>
@@ -48,7 +48,15 @@ int main(int argc, char *argv[])
    // 1. Parse command-line options.
    const char *mesh_file = "../data/beam-tri.mesh";
    int order = 1;
-   bool static_cond = false;
+   // TODO: make alpha and kappa command-line options
+#if 1
+   const double alpha = -1.0; // Use symmetric DG formulation.
+   const double kappa = (order+1)*(order+1);
+#else
+   // Solve this case with UMFPACK or GMRES.
+   const double alpha = 1.0; // Use non-symmetric DG formulation.
+   const double kappa = 0.0;
+#endif
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
@@ -56,8 +64,6 @@ int main(int argc, char *argv[])
                   "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
-   args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
-                  "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -77,16 +83,9 @@ int main(int argc, char *argv[])
    if (mesh->attributes.Max() < 2 || mesh->bdr_attributes.Max() < 2)
    {
       cerr << "\nInput mesh should have at least two materials and "
-           << "two boundary attributes! (See schematic in ex2.cpp)\n"
+           << "two boundary attributes! (See schematic in ex17.cpp)\n"
            << endl;
       return 3;
-   }
-
-   // 3. Select the order of the finite element discretization space. For NURBS
-   //    meshes, we increase the order by degree elevation.
-   if (mesh->NURBSext && order > mesh->NURBSext->GetOrder())
-   {
-      mesh->DegreeElevate(order - mesh->NURBSext->GetOrder());
    }
 
    // 4. Refine the mesh to increase the resolution. In this example we do
@@ -95,7 +94,7 @@ int main(int argc, char *argv[])
    //    elements.
    {
       int ref_levels =
-         (int)floor(log(5000./mesh->GetNE())/log(2.)/dim);
+         (int)floor(log(50./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
@@ -109,16 +108,11 @@ int main(int argc, char *argv[])
    //    associated with the mesh nodes.
    FiniteElementCollection *fec;
    FiniteElementSpace *fespace;
-   if (mesh->NURBSext)
-   {
-      fec = NULL;
-      fespace = mesh->GetNodes()->FESpace();
-   }
-   else
-   {
-      fec = new H1_FECollection(order, dim);
-      fespace = new FiniteElementSpace(mesh, fec, dim);
-   }
+
+   if (mesh->NURBSext) { mesh->SetCurvature(order); }
+
+   fec = new DG_FECollection(order, dim);
+   fespace = new FiniteElementSpace(mesh, fec, dim);
    cout << "Number of finite element unknowns: " << fespace->GetTrueVSize()
         << endl << "Assembling: " << flush;
 
@@ -129,7 +123,6 @@ int main(int argc, char *argv[])
    Array<int> ess_tdof_list, ess_bdr(mesh->bdr_attributes.Max());
    ess_bdr = 0;
    ess_bdr[0] = 1;
-   fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 
    // 7. Set up the linear form b(.) which corresponds to the right-hand side of
    //    the FEM linear system. In this case, b_i equals the boundary integral
@@ -147,12 +140,12 @@ int main(int argc, char *argv[])
    {
       Vector pull_force(mesh->bdr_attributes.Max());
       pull_force = 0.0;
-      pull_force(1) = -1.0e-2;
+      pull_force(1) = -3.0e-2; // default = -1.0e-2
       f.Set(dim-1, new PWConstCoefficient(pull_force));
    }
 
    LinearForm *b = new LinearForm(fespace);
-   b->AddBoundaryIntegrator(new VectorBoundaryLFIntegrator(f));
+   b->AddBdrFaceIntegrator(new VectorBoundaryLFIntegrator(f));
    cout << "r.h.s. ... " << flush;
    b->Assemble();
 
@@ -176,13 +169,16 @@ int main(int argc, char *argv[])
 
    BilinearForm *a = new BilinearForm(fespace);
    a->AddDomainIntegrator(new ElasticityIntegrator(lambda_func,mu_func));
+   a->AddInteriorFaceIntegrator(
+      new DGElasticityIntegrator(lambda_func, mu_func, alpha, kappa));
+   a->AddBdrFaceIntegrator(
+      new DGElasticityIntegrator(lambda_func, mu_func, alpha, kappa), ess_bdr);
 
    // 10. Assemble the bilinear form and the corresponding linear system,
    //     applying any necessary transformations such as: eliminating boundary
    //     conditions, applying conforming constraints for non-conforming AMR,
    //     static condensation, etc.
    cout << "matrix ... " << flush;
-   if (static_cond) { a->EnableStaticCondensation(); }
    a->Assemble();
 
    SparseMatrix A;
@@ -215,10 +211,7 @@ int main(int argc, char *argv[])
    //     element displacement field. We assume that the initial mesh (read from
    //     the file) is not higher order curved mesh compared to the chosen FE
    //     space.
-   if (!mesh->NURBSext)
-   {
-      mesh->SetNodalFESpace(fespace);
-   }
+   mesh->SetNodalFESpace(fespace);
 
    // 14. Save the displaced mesh and the inverted solution (which gives the
    //     backward displacements to the original grid). This output can be
@@ -249,11 +242,8 @@ int main(int argc, char *argv[])
    // 16. Free the used memory.
    delete a;
    delete b;
-   if (fec)
-   {
-      delete fespace;
-      delete fec;
-   }
+   delete fespace;
+   delete fec;
    delete mesh;
 
    return 0;
