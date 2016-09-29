@@ -880,9 +880,14 @@ const IntegrationRule &IntegrationRules::Get(int GeomType, int Order)
       Order = 0;
    }
 
-   if (!HaveIntRule(*ir_array, Order))
+#ifdef MFEM_USE_OPENMP
+   #pragma omp critical
+#endif
    {
-      GenerateIntegrationRule(GeomType, Order);
+      if (!HaveIntRule(*ir_array, Order))
+      {
+         GenerateIntegrationRule(GeomType, Order);
+      }
    }
 
    return *(*ir_array)[Order];
