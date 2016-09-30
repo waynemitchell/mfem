@@ -209,17 +209,18 @@ void MagneticDiffusionEOperator::Mult(const Vector &X, Vector &dX_dt) const
    // the line below should work but doesn't there is a bug
    // Phi_gf.ProjectBdrCoefficient(voltage,poisson_ess_bdr);
 
-   // this is a hack for the above bug 
+   // this is a hack for the above bug
    {
-     Array<int> my_ess_dof_list;
-     HGradFESpace.GetEssentialVDofs(poisson_ess_bdr, my_ess_dof_list);
-     ParGridFunction homer(&HGradFESpace);
-     homer.ProjectCoefficient(voltage);
-     for (int i = 0;i < my_ess_dof_list.Size();i++) {
-       int dof = my_ess_dof_list[i];
-       if (dof < 0) dof = -1 - dof;
-       Phi_gf[i] = homer[i];
-     }
+      Array<int> my_ess_dof_list;
+      HGradFESpace.GetEssentialVDofs(poisson_ess_bdr, my_ess_dof_list);
+      ParGridFunction homer(&HGradFESpace);
+      homer.ProjectCoefficient(voltage);
+      for (int i = 0; i < my_ess_dof_list.Size(); i++)
+      {
+         int dof = my_ess_dof_list[i];
+         if (dof < 0) { dof = -1 - dof; }
+         Phi_gf[i] = homer[i];
+      }
    }
    // end of hack
 
@@ -474,17 +475,18 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
    // the function below doesn't work !!!
    // Phi_gf.ProjectBdrCoefficient(voltage,poisson_ess_bdr);
 
-   // this is a hack for the above bug 
+   // this is a hack for the above bug
    {
-     Array<int> my_ess_dof_list;
-     HGradFESpace.GetEssentialVDofs(poisson_ess_bdr, my_ess_dof_list);
-     ParGridFunction homer(&HGradFESpace);
-     homer.ProjectCoefficient(voltage);
-     for (int i = 0;i < my_ess_dof_list.Size();i++) {
-       int dof = my_ess_dof_list[i];
-       if (dof < 0) dof = -1 - dof;
-       Phi_gf[i] = homer[i];
-     }
+      Array<int> my_ess_dof_list;
+      HGradFESpace.GetEssentialVDofs(poisson_ess_bdr, my_ess_dof_list);
+      ParGridFunction homer(&HGradFESpace);
+      homer.ProjectCoefficient(voltage);
+      for (int i = 0; i < my_ess_dof_list.Size(); i++)
+      {
+         int dof = my_ess_dof_list[i];
+         if (dof < 0) { dof = -1 - dof; }
+         Phi_gf[i] = homer[i];
+      }
    }
    // end of hack
 
