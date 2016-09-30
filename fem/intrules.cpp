@@ -880,13 +880,16 @@ const IntegrationRule &IntegrationRules::Get(int GeomType, int Order)
       Order = 0;
    }
 
-#ifdef MFEM_USE_OPENMP
-   #pragma omp critical
-#endif
+   if (!HaveIntRule(*ir_array, Order))
    {
-      if (!HaveIntRule(*ir_array, Order))
+#ifdef MFEM_USE_OPENMP
+      #pragma omp critical
+#endif
       {
-         GenerateIntegrationRule(GeomType, Order);
+         if (!HaveIntRule(*ir_array, Order))
+         {
+            GenerateIntegrationRule(GeomType, Order);
+         }
       }
    }
 
@@ -983,13 +986,13 @@ IntegrationRule *IntegrationRules::PointIntegrationRule(int Order)
       return NULL;
    }
 
-   PointIntRules[0] = new IntegrationRule(1);
-   PointIntRules[0] -> IntPoint(0).x = .0;
-   PointIntRules[0] -> IntPoint(0).weight = 1.;
+   IntegrationRule *ir = new IntegrationRule(1);
+   ir->IntPoint(0).x = .0;
+   ir->IntPoint(0).weight = 1.;
 
-   PointIntRules[1] = PointIntRules[0];
+   PointIntRules[1] = PointIntRules[0] = ir;
 
-   return PointIntRules[0];
+   return ir;
 }
 
 // Integration rules for line segment [0,1]
@@ -1071,52 +1074,59 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
 IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
 {
    IntegrationRule *ir = NULL;
+   // Note: Set TriangleIntRules[*] to ir only *after* ir is fully constructed.
+   // This is needed in multithreaded environment.
 
    // assuming that orders <= 25 are pre-allocated
    switch (Order)
    {
       case 0:  // 1 point - 0 degree
       case 1:
-         TriangleIntRules[0] =
-            TriangleIntRules[1] = ir = new IntegrationRule(1);
-         TriangleIntRules[0]->AddTriMidPoint(0, 0.5);
+         ir = new IntegrationRule(1);
+         ir->AddTriMidPoint(0, 0.5);
+         TriangleIntRules[0] = TriangleIntRules[1] = ir;
          return ir;
 
       case 2:  // 3 point - 2 degree
-         TriangleIntRules[2] = ir = new IntegrationRule(3);
+         ir = new IntegrationRule(3);
+         ir->AddTriPoints3(0, 1./6., 1./6.);
+         TriangleIntRules[2] = ir;
          // interior points
-         TriangleIntRules[2]->AddTriPoints3(0, 1./6., 1./6.);
          return ir;
 
       case 3:  // 4 point - 3 degree (has one negative weight)
-         TriangleIntRules[3] = ir = new IntegrationRule(4);
+         ir = new IntegrationRule(4);
          ir->AddTriMidPoint(0, -0.28125); // -9./32.
          ir->AddTriPoints3(1, 0.2, 25./96.);
+         TriangleIntRules[3] = ir;
          return ir;
 
       case 4:  // 6 point - 4 degree
-         TriangleIntRules[4] = ir = new IntegrationRule(6);
+         ir = new IntegrationRule(6);
          ir->AddTriPoints3(0, 0.091576213509770743460, 0.054975871827660933819);
          ir->AddTriPoints3(3, 0.44594849091596488632, 0.11169079483900573285);
+         TriangleIntRules[4] = ir;
          return ir;
 
       case 5:  // 7 point - 5 degree
-         TriangleIntRules[5] = ir = new IntegrationRule(7);
+         ir = new IntegrationRule(7);
          ir->AddTriMidPoint(0, 0.1125);
          ir->AddTriPoints3(1, 0.10128650732345633880, 0.062969590272413576298);
          ir->AddTriPoints3(4, 0.47014206410511508977, 0.066197076394253090369);
+         TriangleIntRules[5] = ir;
          return ir;
 
       case 6:  // 12 point - 6 degree
-         TriangleIntRules[6] = ir = new IntegrationRule(12);
+         ir = new IntegrationRule(12);
          ir->AddTriPoints3(0, 0.063089014491502228340, 0.025422453185103408460);
          ir->AddTriPoints3(3, 0.24928674517091042129, 0.058393137863189683013);
          ir->AddTriPoints6(6, 0.053145049844816947353, 0.31035245103378440542,
                            0.041425537809186787597);
+         TriangleIntRules[6] = ir;
          return ir;
 
       case 7:  // 12 point - degree 7
-         TriangleIntRules[7] = ir = new IntegrationRule(12);
+         ir = new IntegrationRule(12);
          ir->AddTriPoints3R(0, 0.062382265094402118174, 0.067517867073916085443,
                             0.026517028157436251429);
          ir->AddTriPoints3R(3, 0.055225456656926611737, 0.32150249385198182267,
@@ -1126,10 +1136,11 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
                             0.30472650086816719592, 0.028775042784981585738);
          ir->AddTriPoints3R(9, 0.51584233435359177926, 0.27771616697639178257,
                             0.20644149867001643817, 0.067493187009802774463);
+         TriangleIntRules[7] = ir;
          return ir;
 
       case 8:  // 16 point - 8 degree
-         TriangleIntRules[8] = ir = new IntegrationRule(16);
+         ir = new IntegrationRule(16);
          ir->AddTriMidPoint(0, 0.0721578038388935841255455552445323);
          ir->AddTriPoints3(1, 0.170569307751760206622293501491464,
                            0.0516086852673591251408957751460645);
@@ -1140,10 +1151,11 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
          ir->AddTriPoints6(10, 0.008394777409957605337213834539296,
                            0.263112829634638113421785786284643,
                            0.0136151570872174971324223450369544);
+         TriangleIntRules[8] = ir;
          return ir;
 
       case 9:  // 19 point - 9 degree
-         TriangleIntRules[9] = ir = new IntegrationRule(19);
+         ir = new IntegrationRule(19);
          ir->AddTriMidPoint(0, 0.0485678981413994169096209912536443);
          ir->AddTriPoints3b(1, 0.020634961602524744433,
                             0.0156673501135695352684274156436046);
@@ -1156,10 +1168,11 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
          ir->AddTriPoints6(13, 0.0368384120547362836348175987833851,
                            0.2219629891607656956751025276931919,
                            0.0216417696886446886446886446886446);
+         TriangleIntRules[9] = ir;
          return ir;
 
       case 10:  // 25 point - 10 degree
-         TriangleIntRules[10] = ir = new IntegrationRule(25);
+         ir = new IntegrationRule(25);
          ir->AddTriMidPoint(0, 0.0454089951913767900476432975500142);
          ir->AddTriPoints3b(1, 0.028844733232685245264984935583748,
                             0.0183629788782333523585030359456832);
@@ -1174,10 +1187,11 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
          ir->AddTriPoints6(19, 0.0095408154002994575801528096228873,
                            0.0668032510122002657735402127620247,
                            4.71083348186641172996373548344341E-03);
+         TriangleIntRules[10] = ir;
          return ir;
 
       case 11: // 28 point -- 11 degree
-         TriangleIntRules[11] = ir = new IntegrationRule(28);
+         ir = new IntegrationRule(28);
          ir->AddTriPoints6(0, 0.0,
                            0.141129718717363295960826061941652,
                            3.68119189165027713212944752369032E-03);
@@ -1195,10 +1209,11 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
          ir->AddTriPoints6(22, 0.0448416775891304433090523914688007,
                            0.2772206675282791551488214673424523,
                            0.0205281577146442833208261574536469);
+         TriangleIntRules[11] = ir;
          return ir;
 
       case 12: // 33 point - 12 degree
-         TriangleIntRules[12] = ir = new IntegrationRule(33);
+         ir = new IntegrationRule(33);
          ir->AddTriPoints3b(0, 2.35652204523900E-02, 1.28655332202275E-02);
          ir->AddTriPoints3b(3, 1.20551215411079E-01, 2.18462722690190E-02);
          ir->AddTriPoints3(6, 2.71210385012116E-01, 3.14291121089425E-02);
@@ -1210,10 +1225,11 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
                            1.11783866011515E-02);
          ir->AddTriPoints6(27, 2.57340505483300E-02, 1.16251915907597E-01,
                            8.65811555432950E-03);
+         TriangleIntRules[12] = ir;
          return ir;
 
       case 13: // 37 point - 13 degree
-         TriangleIntRules[13] = ir = new IntegrationRule(37);
+         ir = new IntegrationRule(37);
          ir->AddTriPoints3b(0, 0.0,
                             2.67845189554543044455908674650066E-03);
          ir->AddTriMidPoint(3, 0.0293480398063595158995969648597808);
@@ -1236,10 +1252,11 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
          ir->AddTriPoints6(31, 0.0897330604516053590796290561145196,
                            0.2723110556841851025078181617634414,
                            0.0182757511120486476280967518782978);
+         TriangleIntRules[13] = ir;
          return ir;
 
       case 14: // 42 point - 14 degree
-         TriangleIntRules[14] = ir = new IntegrationRule(42);
+         ir = new IntegrationRule(42);
          ir->AddTriPoints3b(0, 2.20721792756430E-02, 1.09417906847145E-02);
          ir->AddTriPoints3b(3, 1.64710561319092E-01, 1.63941767720625E-02);
          ir->AddTriPoints3(6, 2.73477528308839E-01, 2.58870522536460E-02);
@@ -1254,10 +1271,11 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
                            7.21815405676700E-03);
          ir->AddTriPoints6(36, 1.26833093287200E-03, 1.18974497696957E-01,
                            2.50511441925050E-03);
+         TriangleIntRules[14] = ir;
          return ir;
 
       case 15: // 54 point - 15 degree
-         TriangleIntRules[15] = ir = new IntegrationRule(54);
+         ir = new IntegrationRule(54);
          ir->AddTriPoints3b(0, 0.0834384072617499333, 0.016330909424402645);
          ir->AddTriPoints3b(3, 0.192779070841738867, 0.01370640901568218);
          ir->AddTriPoints3(6, 0.293197167913025367, 0.01325501829935165);
@@ -1276,12 +1294,12 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
                            0.012803670460631195);
          ir->AddTriPoints6(48, 0.1684044181246992, 0.281835668099084562,
                            0.016544097765822835);
+         TriangleIntRules[15] = ir;
          return ir;
 
       case 16:  // 61 point - 17 degree (used for 16 as well)
       case 17:
-         TriangleIntRules[16] =
-            TriangleIntRules[17] = ir = new IntegrationRule(61);
+         ir = new IntegrationRule(61);
          ir->AddTriMidPoint(0,  1.67185996454015E-02);
          ir->AddTriPoints3b(1,  5.65891888645200E-03, 2.54670772025350E-03);
          ir->AddTriPoints3b(4,  3.56473547507510E-02, 7.33543226381900E-03);
@@ -1303,12 +1321,12 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
                             9.14639838501250E-03);
          ir->AddTriPoints6 (55, 1.46631822248280E-02, 8.07113136795640E-02,
                             3.33281600208250E-03);
+         TriangleIntRules[16] = TriangleIntRules[17] = ir;
          return ir;
 
       case 18: // 73 point - 19 degree (used for 18 as well)
       case 19:
-         TriangleIntRules[18] =
-            TriangleIntRules[19] = ir = new IntegrationRule(73);
+         ir = new IntegrationRule(73);
          ir->AddTriMidPoint(0,  0.0164531656944595);
          ir->AddTriPoints3b(1,  0.020780025853987, 0.005165365945636);
          ir->AddTriPoints3b(4,  0.090926214604215, 0.011193623631508);
@@ -1334,10 +1352,11 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
                             0.0051292818680995);
          ir->AddTriPoints6 (67, 0.065494628082938, 0.010161119296278,
                             0.001899964427651);
+         TriangleIntRules[18] = TriangleIntRules[19] = ir;
          return ir;
 
       case 20: // 85 point - 20 degree
-         TriangleIntRules[20] = ir = new IntegrationRule(85);
+         ir = new IntegrationRule(85);
          ir->AddTriMidPoint(0, 0.01380521349884976);
          ir->AddTriPoints3b(1, 0.001500649324429,     0.00088951477366337);
          ir->AddTriPoints3b(4, 0.0941397519389508667, 0.010056199056980585);
@@ -1367,6 +1386,7 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
                            0.009336472951467735);
          ir->AddTriPoints6(79, 0.140710844943938733,   0.323170566536257485,
                            0.01140911202919763);
+         TriangleIntRules[20] = ir;
          return ir;
 
       case 21: // 126 point - 25 degree (used also for degrees from 21 to 24)
@@ -1374,11 +1394,7 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
       case 23:
       case 24:
       case 25:
-         TriangleIntRules[21] =
-            TriangleIntRules[22] =
-               TriangleIntRules[23] =
-                  TriangleIntRules[24] =
-                     TriangleIntRules[25] = ir = new IntegrationRule(126);
+         ir = new IntegrationRule(126);
          ir->AddTriPoints3b(0, 0.0279464830731742,   0.0040027909400102085);
          ir->AddTriPoints3b(3, 0.131178601327651467, 0.00797353841619525);
          ir->AddTriPoints3b(6, 0.220221729512072267, 0.006554570615397765);
@@ -1421,14 +1437,20 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
                            0.00707722325261307);
          ir->AddTriPoints6(120, 0.191771865867325067,   0.325618122595983752,
                            0.007440689780584005);
+         TriangleIntRules[21] =
+            TriangleIntRules[22] =
+               TriangleIntRules[23] =
+                  TriangleIntRules[24] =
+                     TriangleIntRules[25] = ir;
          return ir;
 
       default:
          // Grundmann-Moller rules
          int i = (Order / 2) * 2 + 1;   // Get closest odd # >= Order
          AllocIntRule(TriangleIntRules, i);
-         TriangleIntRules[i-1] = TriangleIntRules[i] = ir = new IntegrationRule;
+         ir = new IntegrationRule;
          ir->GrundmannMollerSimplexRule(i/2,2);
+         TriangleIntRules[i-1] = TriangleIntRules[i] = ir;
          return ir;
    }
 }
@@ -1442,8 +1464,9 @@ IntegrationRule *IntegrationRules::SquareIntegrationRule(int Order)
       SegmentIntegrationRule(Order);
    }
    AllocIntRule(SquareIntRules, RealOrder); // RealOrder >= Order
-   SquareIntRules[Order] = SquareIntRules[RealOrder] =
-                              new IntegrationRule(*SegmentIntRules[Order], *SegmentIntRules[Order]);
+   SquareIntRules[Order] =
+      SquareIntRules[RealOrder] =
+         new IntegrationRule(*SegmentIntRules[Order], *SegmentIntRules[Order]);
    return SquareIntRules[Order];
 }
 
@@ -1452,47 +1475,53 @@ IntegrationRule *IntegrationRules::SquareIntegrationRule(int Order)
 IntegrationRule *IntegrationRules::TetrahedronIntegrationRule(int Order)
 {
    IntegrationRule *ir;
+   // Note: Set TetrahedronIntRules[*] to ir only *after* ir is fully
+   // constructed. This is needed in multithreaded environment.
 
    // assuming that orders <= 9 are pre-allocated
    switch (Order)
    {
       case 0:  // 1 point - degree 1
       case 1:
-         TetrahedronIntRules[0] =
-            TetrahedronIntRules[1] = ir = new IntegrationRule(1);
+         ir = new IntegrationRule(1);
          ir->AddTetMidPoint(0, 1./6.);
+         TetrahedronIntRules[0] = TetrahedronIntRules[1] = ir;
          return ir;
 
       case 2:  // 4 points - degree 2
-         TetrahedronIntRules[2] = ir = new IntegrationRule(4);
+         ir = new IntegrationRule(4);
          // ir->AddTetPoints4(0, 0.13819660112501051518, 1./24.);
          ir->AddTetPoints4b(0, 0.58541019662496845446, 1./24.);
+         TetrahedronIntRules[2] = ir;
          return ir;
 
       case 3:  // 5 points - degree 3 (negative weight)
-         TetrahedronIntRules[3] = ir = new IntegrationRule(5);
+         ir = new IntegrationRule(5);
          ir->AddTetMidPoint(0, -2./15.);
          ir->AddTetPoints4b(1, 0.5, 0.075);
+         TetrahedronIntRules[3] = ir;
          return ir;
 
       case 4:  // 11 points - degree 4 (negative weight)
-         TetrahedronIntRules[4] = ir = new IntegrationRule(11);
+         ir = new IntegrationRule(11);
          ir->AddTetPoints4(0, 1./14., 343./45000.);
          ir->AddTetMidPoint(4, -74./5625.);
          ir->AddTetPoints6(5, 0.10059642383320079500, 28./1125.);
+         TetrahedronIntRules[4] = ir;
          return ir;
 
       case 5:  // 14 points - degree 5
-         TetrahedronIntRules[5] = ir = new IntegrationRule(14);
+         ir = new IntegrationRule(14);
          ir->AddTetPoints6(0, 0.045503704125649649492,
                            7.0910034628469110730E-03);
          ir->AddTetPoints4(6, 0.092735250310891226402, 0.012248840519393658257);
          ir->AddTetPoints4b(10, 0.067342242210098170608,
                             0.018781320953002641800);
+         TetrahedronIntRules[5] = ir;
          return ir;
 
       case 6:  // 24 points - degree 6
-         TetrahedronIntRules[6] = ir = new IntegrationRule(24);
+         ir = new IntegrationRule(24);
          ir->AddTetPoints4(0, 0.21460287125915202929,
                            6.6537917096945820166E-03);
          ir->AddTetPoints4(4, 0.040673958534611353116,
@@ -1501,10 +1530,11 @@ IntegrationRule *IntegrationRules::TetrahedronIntegrationRule(int Order)
                             9.2261969239424536825E-03);
          ir->AddTetPoints12(12, 0.063661001875017525299, 0.26967233145831580803,
                             8.0357142857142857143E-03);
+         TetrahedronIntRules[6] = ir;
          return ir;
 
       case 7:  // 31 points - degree 7 (negative weight)
-         TetrahedronIntRules[7] = ir = new IntegrationRule(31);
+         ir = new IntegrationRule(31);
          ir->AddTetPoints6(0, 0.0, 9.7001763668430335097E-04);
          ir->AddTetMidPoint(6, 0.018264223466108820291);
          ir->AddTetPoints4(7, 0.078213192330318064374, 0.010599941524413686916);
@@ -1513,10 +1543,11 @@ IntegrationRule *IntegrationRules::TetrahedronIntegrationRule(int Order)
          ir->AddTetPoints4b(15, 2.3825066607381275412E-03,
                             4.8914252630734993858E-03);
          ir->AddTetPoints12(19, 0.1, 0.2, 0.027557319223985890653);
+         TetrahedronIntRules[7] = ir;
          return ir;
 
       case 8:  // 43 points - degree 8 (negative weight)
-         TetrahedronIntRules[8] = ir = new IntegrationRule(43);
+         ir = new IntegrationRule(43);
          ir->AddTetPoints4(0, 5.7819505051979972532E-03,
                            1.6983410909288737984E-04);
          ir->AddTetPoints4(4, 0.082103588310546723091,
@@ -1529,19 +1560,21 @@ IntegrationRule *IntegrationRules::TetrahedronIntegrationRule(int Order)
                             5.7044858086819185068E-03);
          ir->AddTetPoints4(38, 0.20682993161067320408, 0.014250305822866901248);
          ir->AddTetMidPoint(42, -0.020500188658639915841);
+         TetrahedronIntRules[8] = ir;
          return ir;
 
       case 9: // orders 9 and higher -- Grundmann-Moller rules
-         TetrahedronIntRules[9] = ir = new IntegrationRule;
+         ir = new IntegrationRule;
          ir->GrundmannMollerSimplexRule(4,3);
+         TetrahedronIntRules[9] = ir;
          return ir;
 
       default: // Grundmann-Moller rules
          int i = (Order / 2) * 2 + 1;   // Get closest odd # >= Order
          AllocIntRule(TetrahedronIntRules, i);
-         TetrahedronIntRules[i-1] =
-            TetrahedronIntRules[i] = ir = new IntegrationRule;
+         ir = new IntegrationRule;
          ir->GrundmannMollerSimplexRule(i/2,3);
+         TetrahedronIntRules[i-1] = TetrahedronIntRules[i] = ir;
          return ir;
    }
 }
@@ -1555,9 +1588,10 @@ IntegrationRule *IntegrationRules::CubeIntegrationRule(int Order)
       SegmentIntegrationRule(Order);
    }
    AllocIntRule(CubeIntRules, RealOrder);
-   CubeIntRules[Order] = CubeIntRules[RealOrder] =
-                            new IntegrationRule(*SegmentIntRules[Order], *SegmentIntRules[Order],
-                                                *SegmentIntRules[Order]);
+   CubeIntRules[Order] =
+      CubeIntRules[RealOrder] =
+         new IntegrationRule(*SegmentIntRules[Order], *SegmentIntRules[Order],
+                             *SegmentIntRules[Order]);
    return CubeIntRules[Order];
 }
 
