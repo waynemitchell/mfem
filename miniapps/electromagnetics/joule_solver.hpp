@@ -6,7 +6,7 @@
 #include <iostream>
 #include <fstream>
 
-using namespace std;
+
 using namespace mfem;
 
 // some global variable for convienence
@@ -163,7 +163,7 @@ public:
                               std::map<int, double> InvTcondAttMap
                              );
 
-   // Inititiakize the fields. Thius is where restart would go to.
+   // Inititialize the fields. This is where restart would go to.
    void Init(Vector &vx);
 
    // class TimeDependentOperator is derived from Operator, and class Operator

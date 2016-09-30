@@ -27,7 +27,7 @@
 //               problem, resulting in Joule heating.
 //
 //               This version has electrostatic potential, Phi, which is a source
-//               term in the EM diffusion equation. The potenation itself is
+//               term in the EM diffusion equation. The potenatial itself is
 //               driven by essential BC's
 //
 //               Div sigma Grad Phi = 0
@@ -191,9 +191,6 @@ int main(int argc, char *argv[])
                   "Print matrices and vectors to disk");
    args.AddOption(&SOLVERPRINTLEVEL, "-hl", "--hypre-print-level",
                   "Hypre print level");
-   // args.AddOption(&cubit, "-cubit", "--cubit", "-no-cubit",
-   //               "--no-cubit",
-   //               "Is the mesh a cubit (Netcdf) file.");
    args.AddOption(&problem, "-p", "--problem",
                   "Name of problem to run");
 
@@ -227,7 +224,7 @@ int main(int argc, char *argv[])
       printf("Skin depth sqrt(2.0*dt/(mj*sj)) = %g\n",sqrt(2.0*dt/(mj_*sj_)));
    }
 
-   // 2.5
+   // 3.0
    //
    // Here I assign material properties to mesh attributes.
    // This code is not general, I assume the mesh has 3 regions
@@ -257,6 +254,12 @@ int main(int argc, char *argv[])
       sigmaAir     = 1.0 * sigma;
       TcondAir     = 1.0 * Tconductivity;
       TcapAir      = 1.0 * Tcapacity;
+
+#ifdef MFEM_USE_GSL
+      cout << "You selected to run the test prpoblem, but did not build with GSL. " << endl;
+      cout << "The analytical solution requires GSL. " << endl;
+#endif
+
    }
    else
    {
@@ -292,7 +295,7 @@ int main(int argc, char *argv[])
 
 
 
-   // 3. Read the serial mesh from the given mesh file on all processors. We can
+   // 4. Read the serial mesh from the given mesh file on all processors. We can
    //    handle triangular, quadrilateral, tetrahedral and hexahedral meshes
    //    with the same code.
    Mesh *mesh;
@@ -300,7 +303,7 @@ int main(int argc, char *argv[])
    int dim = mesh->Dimension();
 
    //
-   // 3.5 Assign the boundary conditions
+   // 5. Assign the boundary conditions
    //
    Array<int> ess_bdr(mesh->bdr_attributes.Max());
    Array<int> thermal_ess_bdr(mesh->bdr_attributes.Max());
@@ -369,7 +372,7 @@ int main(int argc, char *argv[])
    // The following is required for mesh refinement
    mesh->EnsureNCMesh();
 
-   // 4. Define the ODE solver used for time integration. Several implicit
+   // 6. Define the ODE solver used for time integration. Several implicit
    //    methods are available, including singly diagonal implicit
    //    Runge-Kutta (SDIRK).
    ODESolver *ode_solver;
@@ -392,7 +395,7 @@ int main(int argc, char *argv[])
          return 3;
    }
 
-   // 5. Refine the mesh in serial to increase the resolution. In this example
+   // 7. Refine the mesh in serial to increase the resolution. In this example
    //    we do 'ser_ref_levels' of uniform refinement, where 'ser_ref_levels' is
    //    a command-line parameter.
    for (int lev = 0; lev < ser_ref_levels; lev++)
@@ -400,7 +403,7 @@ int main(int argc, char *argv[])
       mesh->UniformRefinement();
    }
 
-   // 6. Define a parallel mesh by a partitioning of the serial mesh. Refine
+   // 8. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
    //    parallel mesh is defined, the serial mesh can be deleted.
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
@@ -411,7 +414,7 @@ int main(int argc, char *argv[])
    }
 
 
-   // 6.5
+   // 9.
    //    Apply non-uniform non-conforming mesh refinement to the mesh.
    //    The whole metal region is refined, i.e. this is not based on any error estimator
 
@@ -435,16 +438,16 @@ int main(int argc, char *argv[])
    }
 
    //
-   // 6.625 Reorient the mesh.
+   // 10. Reorient the mesh.
    //
    // Must be done after refinement but before definition
    // of higher order Nedelec spaces
 
    pmesh->ReorientTetMesh();
 
-   // 6.75 Rebalance the mesh
+   // 11. Rebalance the mesh
    //
-   // Since the mesh was adaptivley refined in a non-uniform way it will be
+   // Since the mesh was adaptively refined in a non-uniform way it will be
    // computationally unbalanced.
    //
 
@@ -453,16 +456,15 @@ int main(int argc, char *argv[])
       pmesh->Rebalance();
    }
 
-   // 7. Define the parallel finite element spaces representing.
-   //    We'll use H(curl) for electric field
-   //    and H(div) for magbetic flux
-   //    and H(div) for thermal flux
-   //    and H(grad) for electrostatic potential
-   //    and L2 for temperature
+   // 12. Define the parallel finite element spaces representing.
+   //     We'll use H(curl) for electric field
+   //     and H(div) for magnetic flux
+   //     and H(div) for thermal flux
+   //     and H(grad) for electrostatic potential
+   //     and L2 for temperature
 
    // L2 is discontinous "cell-center" bases
    // type 2 is "positive"
-   //L2_FECollection L2FEC(order-1, dim, 2);
    L2_FECollection L2FEC(order-1, dim);
 
    // ND stands for Nedelec
@@ -500,7 +502,7 @@ int main(int argc, char *argv[])
    int Vsize_h1 = HGradFESpace.GetVSize();
 
    /* the big BlockVector stores the fields as
-   0 Temperture
+   0 Temperature
    1 Temperature Flux
    2 P field
    3 E field
@@ -538,7 +540,7 @@ int main(int argc, char *argv[])
    ParGridFunction Bexact_gf(&HDivFESpace);
    ParGridFunction Texact_gf(&L2FESpace);
 
-   // 8. Get the boundary conditions, set up the exact solution grid functions
+   // 13. Get the boundary conditions, set up the exact solution grid functions
    //
    // These VectorCoefficients have an Eval function.
    // Note that e_exact anf b_exact in this case are exact analytical
@@ -557,8 +559,8 @@ int main(int argc, char *argv[])
 
 
 
-   // 9. Initialize the Diffusion operator, the GLVis visualization and print
-   //    the initial energies.
+   // 14. Initialize the Diffusion operator, the GLVis visualization and print
+   //     the initial energies.
 
    MagneticDiffusionEOperator oper(true_offset[6], L2FESpace, HCurlFESpace,
                                    HDivFESpace, HGradFESpace,
@@ -623,7 +625,6 @@ int main(int argc, char *argv[])
       visit_dc.RegisterField("F", &F_gf);
       if (strcmp(problem,"test")==0) { visit_dc.RegisterField("Eexact", &Eexact_gf); }
       if (strcmp(problem,"test")==0) { visit_dc.RegisterField("Bexact", &Bexact_gf); }
-      // visit_dc.RegisterField("Texact", &Texact_gf);
 
       visit_dc.SetCycle(0);
       visit_dc.SetTime(0.0);
@@ -764,10 +765,6 @@ int main(int argc, char *argv[])
             double err_B = B_gf.ComputeL2Error(B_exact);
             double err_T = T_gf.ComputeL2Error(T_exact);
 
-
-            //double me = oper.MagneticEnergy(B_gf);
-            //double el = oper.ElectricLosses(E_gf);
-
             if (mpi.Root())
             {
                cout << " relative errors "  << scientific
@@ -832,7 +829,7 @@ int main(int argc, char *argv[])
    }
 
 
-   // 10. Free the used memory.
+   // 15. Free the used memory.
    delete ode_solver;
    delete pmesh;
 

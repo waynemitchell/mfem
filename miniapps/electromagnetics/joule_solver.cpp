@@ -86,7 +86,7 @@ void MagneticDiffusionEOperator::Init(Vector &X)
    ConstantCoefficient Zero(0.0);
 
    /* the big BlockVector stores the fields as
-      Temperture
+      Temperature
       Temperature Flux
       P field
       E field
@@ -155,7 +155,7 @@ void MagneticDiffusionEOperator::Mult(const Vector &X, Vector &dX_dt) const
    dX_dt = 0.0;
 
    /* the big BlockVector stores the fields as
-      Temperture
+      Temperature
       Temperature Flux
       P field
       E field
@@ -324,7 +324,6 @@ void MagneticDiffusionEOperator::Mult(const Vector &X, Vector &dX_dt) const
    Array<int> thermal_ess_tdof_list;
    HDivFESpace.GetEssentialTrueDofs(thermal_ess_bdr, thermal_ess_tdof_list);
 
-   // WHOA!!! is m2 a magnetic mass matrix or a thermal mass matrix!!!!!
    m2->FormLinearSystem(thermal_ess_tdof_list,F_gf,*v2,*A2,*X2,*B2);
 
    if (dsp_m2 == NULL) { dsp_m2 = new HypreDiagScale(*A2); }
@@ -361,7 +360,7 @@ void MagneticDiffusionEOperator::Mult(const Vector &X, Vector &dX_dt) const
    // lf = lf - div F
    weakDiv->AddMult(F, temp_lf, -1.0);
 
-   // if div is a BilinearForm, need to perfom mass matrix solve to convert energy cT to temperature T
+   // if div is a BilinearForm, need to perform mass matrix solve to convert energy cT to temperature T
 
    if (dsp_m3 == NULL) { dsp_m3 = new HypreDiagScale(*M3); }
    if (pcg_m3 == NULL)
@@ -421,7 +420,7 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
    dX_dt = 0.0;
 
    /* the big BlockVector stores the fields as
-      Temperture
+      Temperature
       Temperature Flux
       P field
       E field
@@ -489,17 +488,6 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
    }
    // end of hack
 
-   // FOR DEBUGGING ONLY
-//    {
-//      ostringstream oss;
-//      oss << "Phi_gf." << setfill('0') << setw(6) << HGradFESpace.GetMyRank();
-//      ofstream Phi_ofs(oss.str().c_str());
-//      Phi_ofs.precision(8);
-//      Phi_gf.Save(Phi_ofs);
-//      Phi_ofs.close();
-//    }
-   // FOR DEBUGGING ONLY
-
    // apply essential BC's and apply static condensation
    // the new system to solve is A0 X0 = B0
    Array<int> poisson_ess_tdof_list;
@@ -507,14 +495,6 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
 
    *v0 = 0.0;
    a0->FormLinearSystem(poisson_ess_tdof_list,Phi_gf,*v0,*A0,*X0,*B0);
-
-   // FOR DEBUGGING ONLY
-//    {
-//       hypre_ParCSRMatrixPrint(*A0,"A0_");
-//       HypreParVector tempB0(A0->GetComm(),A0->N(),B0->GetData(),A0->ColPart());
-//       tempB0.Print("B0_");
-//    }
-   // FOR DEBUGGING ONLY
 
    if (amg_a0 == NULL) { amg_a0 = new HypreBoomerAMG(*A0); }
    if (pcg_a0 == NULL)
@@ -540,8 +520,6 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
    // now add Grad dPhi/dt term
    // use E as a temporary, E = Grad P
    // v1 = curl 1/mu B + M1 * Grad P
-   // note: these two steps could be replaced by one step if we have the
-   // bilinear form <sigma gradP, E>
    grad->Mult(P,E);
    m1->AddMult(E,*v1,1.0);
 
@@ -665,7 +643,7 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
    // lf = lf - div F
    weakDiv->AddMult(F, temp_lf, -1.0);
 
-   // need to perfom mass matrix solve to get temperature T
+   // need to perform mass matrix solve to get temperature T
    // <c u, u> Tdot = -<div v, u> F +  <1/c W, u>
    // NOTE: supposedly we can just invert any L2 matrix, could do that here instead of a solve
 
@@ -713,7 +691,6 @@ void MagneticDiffusionEOperator::buildA1(double muInv,
    // For now we assume the mesh isn't moving, the materials are time independent,
    // and dt is constant. So we only need to do this once.
 
-   //ConstantCoefficient Sigma(sigma);
    ConstantCoefficient dtMuInv(dt*muInv);
    a1 = new ParBilinearForm(&HCurlFESpace);
    a1->AddDomainIntegrator(new VectorFEMassIntegrator(Sigma));
@@ -731,8 +708,6 @@ void MagneticDiffusionEOperator::buildA2(MeshDependentCoefficient &InvTcond,
 {
    if ( a2 != NULL ) { delete a2; }
 
-   //ConstantCoefficient Alpha(alpha);
-   //ConstantCoefficient timeStep(dt);
    InvTcap.SetScaleFactor(dt);
    a2 = new ParBilinearForm(&HDivFESpace);
    a2->AddDomainIntegrator(new VectorFEMassIntegrator(InvTcond));
@@ -749,7 +724,6 @@ void MagneticDiffusionEOperator::buildM1(MeshDependentCoefficient &Sigma)
 {
    if ( m1 != NULL ) { delete m1; }
 
-   //ConstantCoefficient Sigma(sigma);
    m1 = new ParBilinearForm(&HCurlFESpace);
    m1->AddDomainIntegrator(new VectorFEMassIntegrator(Sigma));
    m1->Assemble();
@@ -850,18 +824,6 @@ void MagneticDiffusionEOperator::buildGrad()
    // no ParallelAssemble since this will be applied to GridFunctions
 }
 
-
-// double MagneticDiffusionEOperator::MagneticEnergy(ParGridFunction &B_gf) const
-// {
-
-//   // this does me = B dot M2 dot B
-//   double me = m2->InnerProduct(B_gf,B_gf);
-
-//   double global_me;
-//   MPI_Allreduce(&me, &global_me, 1, MPI_DOUBLE, MPI_SUM, m2->ParFESpace()->GetComm());
-
-//   return me;
-// }
 
 double MagneticDiffusionEOperator::ElectricLosses(ParGridFunction &E_gf) const
 {
@@ -1010,7 +972,7 @@ double MeshDependentCoefficient::Eval(ElementTransformation &T,
    }
    else
    {
-      cerr << "MeshDependentCoefficient atribute " << thisAtt << " not found" << endl;
+      std::cerr << "MeshDependentCoefficient atribute " << thisAtt << " not found" << std::endl;
       mfem_error();
    }
 

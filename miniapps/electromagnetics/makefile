@@ -42,7 +42,7 @@ COMMON_O=$(COMMON_HPP:.hpp=.o)
 
 # Replace the default implicit rule for *.cpp files
 %: %.cpp %_solver.o $(COMMON_O) $(MFEM_LIB_FILE) $(CONFIG_MK)
-	$(MFEM_CXX) $(MFEM_FLAGS) $< -o $@ $@_solver.o $(COMMON_O) $(MFEM_LIBS) -lgsl -L/usr/lib64/libgsl.so -lgslcblas -L/usr/lib64/libgslcblas.so
+	$(MFEM_CXX) $(MFEM_FLAGS) $< -o $@ $@_solver.o $(COMMON_O) $(MFEM_LIBS) 
 
 # Remove built-in rule
 %.o: %.cpp
