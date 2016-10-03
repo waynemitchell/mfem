@@ -2254,11 +2254,13 @@ void Mesh::ChangeVertexDataOwnership(double *vertex_data,
    }
    if (!zerocopy) memcpy(vertex_data, vertices.GetData(), NumOfVertices * 3 * sizeof(double));
    if (changeDataOwnership) {
+      // make sure we don't leak the mfem owned vertex data
       if (vertices.OwnsData()) {
          char *data = reinterpret_cast<char*>(vertices.GetData());
          delete[] data;
          vertices.LoseData();
       }
+      // Vertex is POD double[3]
       vertices.SetData(reinterpret_cast<Vertex*>(vertex_data), NumOfVertices);
    }
 }
