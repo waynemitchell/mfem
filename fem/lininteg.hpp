@@ -314,6 +314,49 @@ public:
                                        Vector &elvect);
 };
 
+
+/** Boundary linear form integrator for imposing non-zero Dirichlet boundary
+    conditions, in a DG elasticity formulation. Specifically, the linear form is
+    given by
+
+    alpha < uD, (lambda div(v) I + mu (grad(v) + grad(v)^T)) . n > +
+      + kappa < h^{-1} (lambda + 2 mu) uD, v >,
+
+    where uD is the given Dirichlet data. The parameters alpha, kappa, lambda
+    and mu, should match the parameters with the same names used in the bilinear
+    form integrator, DGElasticityIntegrator. */
+class DGElasticityDirichletLFIntegrator : public LinearFormIntegrator
+{
+protected:
+   VectorCoefficient &uD;
+   Coefficient *lambda, *mu;
+   double alpha, kappa;
+
+#ifndef MFEM_THRAED_SAFE
+   Vector shape;
+   DenseMatrix dshape;
+   DenseMatrix adjJ;
+   DenseMatrix dshape_ps;
+   Vector nor;
+   Vector dshape_dn;
+   Vector dshape_du;
+   Vector u_dir;
+#endif
+
+public:
+   DGElasticityDirichletLFIntegrator(VectorCoefficient &uD_,
+                                     Coefficient &lambda_, Coefficient &mu_,
+                                     double alpha_, double kappa_)
+      : uD(uD_), lambda(&lambda_), mu(&mu_), alpha(alpha_), kappa(kappa_) { }
+
+   virtual void AssembleRHSElementVect(const FiniteElement &el,
+                                       ElementTransformation &Tr,
+                                       Vector &elvect);
+   virtual void AssembleRHSElementVect(const FiniteElement &el,
+                                       FaceElementTransformations &Tr,
+                                       Vector &elvect);
+};
+
 }
 
 #endif

@@ -6319,7 +6319,7 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
       tet2->SetVertices(v[1]);
       tet2->SetAttribute(attr);
 #else
-      Tetrahedron *tet2 = new Tetrahedron(v[1], attr)
+      Tetrahedron *tet2 = new Tetrahedron(v[1], attr);
 #endif
       tet2->ResetTransform(tet->GetTransform());
       elements.Append(tet2);
