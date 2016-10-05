@@ -63,8 +63,6 @@ public:
 
    /// Returns the indices pointer
    inline int *GetIndices() { return indices; };
-   // TODO: REMOVE -- Tom
-   inline const int *_GetIndices() const { return indices; };
 
    /// Returns the indices pointer
    inline int *&GetIndicesRef() { return indices; };

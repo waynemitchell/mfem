@@ -2195,11 +2195,11 @@ Mesh::Mesh(std::istream &input, int generate_edges, int refine,
 
 void Mesh::ChangeElementObjectDataOwnership(
       Array<Element*> &elem_objs, size_t elem_objs_size,
-      int *indices, size_t max_indices, 
-      int *attributes, size_t max_attributes, bool zerocopy, bool changeDataOwnership)
+      int *indices, size_t len_indices, 
+      int *attributes, size_t len_attributes, bool zerocopy, bool changeDataOwnership)
 {
    size_t offset = 0;
-   if (max_attributes < elem_objs_size) {
+   if (len_attributes < elem_objs_size) {
       throw std::runtime_error("new `attributes` memory not large enough");
    }
    for (size_t i = 0; i < elem_objs_size; i++) {
@@ -2207,7 +2207,7 @@ void Mesh::ChangeElementObjectDataOwnership(
       // set to the new data
       size_t length = elem_objs[i]->GetNVertices();
       int *element_indices = elem_objs[i]->GetIndices();
-      if (offset + length > max_indices) {
+      if (offset + length > len_indices) {
          throw std::runtime_error("new `indices` memory not large enough");
       }
       if (!zerocopy) {
@@ -2229,33 +2229,41 @@ void Mesh::ChangeElementObjectDataOwnership(
 }
 
 void Mesh::ChangeElementDataOwnership(int *indices,
-      size_t max_indices, int *attributes,
-      size_t max_attributes, bool zerocopy, bool changeDataOwnership)
+      size_t len_indices, int *attributes,
+      size_t len_attributes, bool zerocopy, bool changeDataOwnership)
       
 {
    ChangeElementObjectDataOwnership(elements, NumOfElements,
-         indices, max_indices, attributes, max_attributes, zerocopy, changeDataOwnership);
+         indices, len_indices, attributes, len_attributes, zerocopy, changeDataOwnership);
 }
 
 
 void Mesh::ChangeBoundaryElementDataOwnership(int *indices,
-      size_t max_indices, int *attributes,
-      size_t max_attributes, bool zerocopy, bool changeDataOwnership) {
+      size_t len_indices, int *attributes,
+      size_t len_attributes, bool zerocopy, bool changeDataOwnership) {
    ChangeElementObjectDataOwnership(boundary, NumOfBdrElements,
-         indices, max_indices, attributes, max_attributes, zerocopy, changeDataOwnership);
+         indices, len_indices, attributes, len_attributes, zerocopy, changeDataOwnership);
 }
 
+
+// A dimension of 3 is now required since we use mfem::Vertex objects as PODs
+// and these object have a hardcoded double[3] entry
 void Mesh::ChangeVertexDataOwnership(double *vertex_data,
-      int dim, size_t len_vertex_data, bool zerocopy, bool changeDataOwnership) {
-   // TODO: remove
-   if (dim != 3) printf("we require dim to be 3\n");
+      size_t len_vertex_data, bool zerocopy, bool changeDataOwnership) {
    if (static_cast<int>(len_vertex_data) < NumOfVertices * 3) {
       throw std::runtime_error("Not enough vertices in external array");
+   }
+   else if (static_cast<int>(len_vertex_data) != NumOfVertices * 3) {
+      printf("Warning (ChangeVertexDataOwnership): externally supplied vertex data"
+             " has a different length than mesh::Vertices (%zu != %d)", len_vertex_data,
+             NumOfVertices * 3);
    }
    if (!zerocopy) memcpy(vertex_data, vertices.GetData(), NumOfVertices * 3 * sizeof(double));
    if (changeDataOwnership) {
       // make sure we don't leak the mfem owned vertex data
       if (vertices.OwnsData()) {
+         // mfem::Array uses an array of char (bytes) on the backend so 
+         // reinterpret to that before we delete
          char *data = reinterpret_cast<char*>(vertices.GetData());
          delete[] data;
          vertices.LoseData();

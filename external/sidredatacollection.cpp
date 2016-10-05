@@ -96,7 +96,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
    // aka double[3] -> dim always needs to be three
    // Note: The coordinates in mfem always have three components (regardless of dim)
    //       but the mesh constructor can handle packed data <- not anymore
-   const int NUM_COORDS = 3; //dim;
+   const int NUM_COORDS = 3;
 
    // Retrieve some mesh attributes from mesh object
    int num_vertices = new_mesh->GetNV();
@@ -303,7 +303,6 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
 
    new_mesh->ChangeVertexDataOwnership(
              coord_values,
-             dim,
              coordset_len,
              hasBP,
              changeDataOwnership);

@@ -555,25 +555,26 @@ public:
    /// being updated and should not be used!
    double *GetVertex(int i) { return vertices[i](); }
 
-   void ChangeElementObjectDataOwnership(Array<Element*>&, size_t,
-         int*, size_t, int*, size_t, bool zerocopy, bool changeDataOwnership);
+   void ChangeElementObjectDataOwnership(Array<Element*>& array_of_elements, size_t,
+         int* indices, size_t len_indices, int* attributes, size_t len_attributes, 
+         bool zerocopy, bool changeDataOwnership);
 
-   void ChangeElementDataOwnership(int *indices, size_t max_indices,
-         int *attributes, size_t max_attributes, bool zerocopy = false, bool changeDataOwnership=true);
+   void ChangeElementDataOwnership(int *indices, size_t len_indices, int *attributes, 
+         size_t len_attributes, bool zerocopy = false, bool changeDataOwnership=true);
 
-   void ChangeBoundaryElementDataOwnership(int *indices, size_t max_indices,
-         int *attributes, size_t max_attributes, bool zerocopy = false, bool changeDataOwnership=true);
+   void ChangeBoundaryElementDataOwnership(int *indices, size_t len_indices, int *attributes,
+         size_t len_attributes, bool zerocopy = false, bool changeDataOwnership=true);
 
-   void ChangeVertexDataOwnership(double *vertices, int dim, 
-         size_t num_vertices, bool zerocopy = false, bool changeDataOwnership=true);
+   void ChangeVertexDataOwnership(double *vertices, size_t len_vertices, 
+         bool zerocopy = false, bool changeDataOwnership=true);
 
    const Element* const *GetElementsArray() const
    { return elements.GetData(); }
 
    const Element *GetElement(int i) const { return elements[i]; }
 
-   int SetElementData(int *indices, size_t max_indices,
-                      int *attributes, size_t max_attributes);
+   int SetElementData(int *indices, size_t len_indices,
+                      int *attributes, size_t len_attributes);
 
    Element *GetElement(int i) { return elements[i]; }
 
