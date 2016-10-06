@@ -108,6 +108,13 @@ public:
    ParFiniteElementSpace *SCParFESpace() const
    { return static_cond ? static_cond->GetParTraceFESpace() : NULL; }
 
+   /// Get the parallel finite element space prolongation matrix
+   virtual const Operator *GetProlongation() const
+   { return pfes->Dof_TrueDof_Matrix(); }
+   /// Get the parallel finite element space restriction matrix
+   virtual const Operator *GetRestriction() const
+   { return pfes->GetRestrictionMatrix(); }
+
    /** Form the linear system A X = B, corresponding to the current bilinear
        form and b(.), by applying any necessary transformations such as:
        eliminating boundary conditions; applying conforming constraints for
@@ -129,14 +136,17 @@ public:
        After solving the linear system, the finite element solution x can be
        recovered by calling RecoverFEMSolution (with the same vectors X, b, and
        x). */
-   void FormLinearSystem(Array<int> &ess_tdof_list, Vector &x, Vector &b,
+   void FormLinearSystem(const Array<int> &ess_tdof_list, Vector &x, Vector &b,
                          HypreParMatrix &A, Vector &X, Vector &B,
                          int copy_interior = 0);
+
+   /// Form the linear sytem matrix A, see FormLinearSystem for details.
+   void FormSystemMatrix(const Array<int> &ess_tdof_list, HypreParMatrix &A);
 
    /** Call this method after solving a linear system constructed using the
        FormLinearSystem method to recover the solution as a ParGridFunction-size
        vector in x. Use the same arguments as in the FormLinearSystem call. */
-   void RecoverFEMSolution(const Vector &X, const Vector &b, Vector &x);
+   virtual void RecoverFEMSolution(const Vector &X, const Vector &b, Vector &x);
 
    virtual void Update(FiniteElementSpace *nfes = NULL);
 

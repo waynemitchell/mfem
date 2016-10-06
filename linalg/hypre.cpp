@@ -1213,9 +1213,9 @@ void HypreParMatrix::Threshold(double threshold)
    hypre_CSRMatrix * csr_A;
    hypre_CSRMatrix * csr_A_wo_z;
    hypre_ParCSRMatrix * parcsr_A_ptr;
-   int * row_starts = NULL; int * col_starts = NULL;
-   int row_start = -1;   int row_end = -1;
-   int col_start = -1;   int col_end = -1;
+   HYPRE_Int * row_starts = NULL; HYPRE_Int * col_starts = NULL;
+   HYPRE_Int row_start = -1;   HYPRE_Int row_end = -1;
+   HYPRE_Int col_start = -1;   HYPRE_Int col_end = -1;
 
    comm = hypre_ParCSRMatrixComm(A);
 
@@ -1350,6 +1350,23 @@ void HypreParMatrix::Destroy()
    {
       hypre_ParCSRMatrixDestroy(A);
    }
+}
+
+HypreParMatrix *Add(double alpha, const HypreParMatrix &A,
+                    double beta,  const HypreParMatrix &B)
+{
+   hypre_ParCSRMatrix *C_hypre =
+      internal::hypre_ParCSRMatrixAdd(const_cast<HypreParMatrix &>(A),
+                                      const_cast<HypreParMatrix &>(B));
+   MFEM_VERIFY(C_hypre, "error in hypre_ParCSRMatrixAdd");
+
+   hypre_MatvecCommPkgCreate(C_hypre);
+   HypreParMatrix *C = new HypreParMatrix(C_hypre);
+   *C = 0.0;
+   C->Add(alpha, A);
+   C->Add(beta, B);
+
+   return C;
 }
 
 HypreParMatrix * ParMult(HypreParMatrix *A, HypreParMatrix *B)

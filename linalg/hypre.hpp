@@ -209,7 +209,10 @@ public:
 
    /** Creates block-diagonal square parallel matrix. Diagonal is given by diag
        which must be in CSR format (finalized). The new HypreParMatrix does not
-       take ownership of any of the input arrays. */
+       take ownership of any of the input arrays.
+       @warning The ordering of the columns in each row in @a *diag may be
+       changed by this contructor to ensure that the first entry in each row is
+       the diagonal one. This is expected by most hypre functions. */
    HypreParMatrix(MPI_Comm comm, HYPRE_Int glob_size, HYPRE_Int *row_starts,
                   SparseMatrix *diag);
 
@@ -372,6 +375,25 @@ public:
       internal::hypre_ParCSRMatrixBooleanMatvec(A, alpha, x, beta, y);
    }
 
+   /// Initialize all entries with value.
+   HypreParMatrix &operator=(double value)
+   { internal::hypre_ParCSRMatrixSetConstantValues(A, value); return *this; }
+
+   /** Perform the operation `*this += B`, assuming that both matrices use the
+       same row and column partitions and the same col_map_offd arrays. We also
+       assume that the sparsity pattern of `*this` contains that of `B`. */
+   HypreParMatrix &operator+=(const HypreParMatrix &B) { return Add(1.0, B); }
+
+   /** Perform the operation `*this += beta*B`, assuming that both matrices use
+       the same row and column partitions and the same col_map_offd arrays. We
+       also assume that the sparsity pattern of `*this` contains that of `B`. */
+   HypreParMatrix &Add(const double beta, const HypreParMatrix &B)
+   {
+      MFEM_VERIFY(internal::hypre_ParCSRMatrixSum(A, beta, B.A) == 0,
+                  "error in hypre_ParCSRMatrixSum");
+      return *this;
+   }
+
    /** Multiply A on the left by a block-diagonal parallel matrix D. Return
        a new parallel matrix, D*A. If D has a different number of rows than A,
        D's row starts array needs to be given (as returned by the methods
@@ -413,6 +435,12 @@ public:
    /// Calls hypre's destroy function
    virtual ~HypreParMatrix() { Destroy(); }
 };
+
+/** @brief Return a new matrix `C = alpha*A + beta*B`, assuming that both `A`
+    and `B` use the same row and column partitions and the same `col_map_offd`
+    arrays. */
+HypreParMatrix *Add(double alpha, const HypreParMatrix &A,
+                    double beta,  const HypreParMatrix &B);
 
 /// Returns the matrix A * B
 HypreParMatrix * ParMult(HypreParMatrix *A, HypreParMatrix *B);
