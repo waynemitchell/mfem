@@ -4007,6 +4007,12 @@ const Table & Mesh::ElementToElementTable()
          conn.Append(Connection(fi.Elem1No, fi.Elem2No));
          conn.Append(Connection(fi.Elem2No, fi.Elem1No));
       }
+      else if (fi.Elem2Inf >= 0)
+      {
+         int nbr_elem_idx = NumOfElements - 1 - fi.Elem2No;
+         conn.Append(Connection(fi.Elem1No, nbr_elem_idx));
+         conn.Append(Connection(nbr_elem_idx, fi.Elem1No));
+      }
    }
 
    conn.Sort();
@@ -4437,22 +4443,7 @@ extern "C" {
                              int*, int*, int*, int*, int*, idxtype*);
 }
 #else
-// METIS 5 prototypes
-typedef int idx_t;
-typedef float real_t;
-extern "C" {
-   int METIS_PartGraphRecursive(
-      idx_t *nvtxs, idx_t *ncon, idx_t *xadj,
-      idx_t *adjncy, idx_t *vwgt, idx_t *vsize, idx_t *adjwgt,
-      idx_t *nparts, real_t *tpwgts, real_t *ubvec, idx_t *options,
-      idx_t *edgecut, idx_t *part);
-   int METIS_PartGraphKway(
-      idx_t *nvtxs, idx_t *ncon, idx_t *xadj,
-      idx_t *adjncy, idx_t *vwgt, idx_t *vsize, idx_t *adjwgt,
-      idx_t *nparts, real_t *tpwgts, real_t *ubvec, idx_t *options,
-      idx_t *edgecut, idx_t *part);
-   int METIS_SetDefaultOptions(idx_t *options);
-}
+#include "metis.h"
 #endif
 #endif
 
@@ -4538,7 +4529,7 @@ int *Mesh::GeneratePartitioning(int nparts, int part_method)
       options[0] = 0;
 #else
       METIS_SetDefaultOptions(options);
-      options[10] = 1; // set METIS_OPTION_CONTIG
+      options[METIS_OPTION_CONTIG] = 1; // set METIS_OPTION_CONTIG
 #endif
 
       // Sort the neighbor lists
@@ -4637,7 +4628,7 @@ int *Mesh::GeneratePartitioning(int nparts, int part_method)
                               &edgecut,
                               (idxtype *) partitioning);
 #else
-         options[1] = 1; // set METIS_OPTION_OBJTYPE to METIS_OBJTYPE_VOL
+         options[METIS_OPTION_OBJTYPE] = METIS_OBJTYPE_VOL;
          err = METIS_PartGraphKway(&n,
                                    &ncon,
                                    I,

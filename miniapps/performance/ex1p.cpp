@@ -67,7 +67,7 @@ typedef TConstantCoefficient<>                coeff_t;
 typedef TIntegrator<coeff_t,TDiffusionKernel> integ_t;
 
 // Static bilinear form type, combining the above types
-typedef TBilinearForm<mesh_t,sol_fes_t,int_rule_t,integ_t> oper_t;
+typedef TBilinearForm<mesh_t,sol_fes_t,int_rule_t,integ_t> HPCBilinearForm;
 
 int main(int argc, char *argv[])
 {
@@ -80,9 +80,11 @@ int main(int argc, char *argv[])
    // 2. Parse command-line options.
    const char *mesh_file = "../../data/fichera.mesh";
    int order = sol_p;
+   const char *basis_type = "G"; // Gauss-Lobatto
    bool static_cond = false;
    bool visualization = 1;
    bool perf = true;
+   bool matrix_free = true;
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -90,8 +92,13 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
+   args.AddOption(&basis_type, "-b", "--basis-type",
+                  "Basis: G - Gauss-Lobatto, P - Positive, U - Uniform");
    args.AddOption(&perf, "-perf", "--hpc-version", "-std", "--standard-version",
-                  "Enable high-performance, tensor-based, assembly.");
+                  "Enable high-performance, tensor-based, assembly/evaluation.");
+   args.AddOption(&matrix_free, "-mf", "--matrix-free", "-asm", "--assembly",
+                  "Use matrix-free evaluation or efficient matrix assembly in "
+                  "the high-performance version.");
    args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
                   "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
@@ -107,9 +114,27 @@ int main(int argc, char *argv[])
       MPI_Finalize();
       return 1;
    }
+   if (static_cond && perf && matrix_free)
+   {
+      if (myid == 0)
+      {
+         cout << "\nStatic condensation can not be used with matrix-free"
+              " evaluation!\n" << endl;
+      }
+      MPI_Finalize();
+      return 2;
+   }
+   if (!perf) { matrix_free = false; }
    if (myid == 0)
    {
       args.PrintOptions(cout);
+   }
+
+   // See class BasisType in fem/fe_coll.hpp for available basis types
+   int basis = BasisType::GetType(basis_type[0]);
+   if (myid == 0)
+   {
+      cout << "Using " << BasisType::Name(basis) << " basis ..." << endl;
    }
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
@@ -180,7 +205,7 @@ int main(int argc, char *argv[])
    FiniteElementCollection *fec;
    if (order > 0)
    {
-      fec = new H1_FECollection(order, dim);
+      fec = new H1_FECollection(order, dim, basis);
    }
    else if (pmesh->GetNodes())
    {
@@ -192,7 +217,7 @@ int main(int argc, char *argv[])
    }
    else
    {
-      fec = new H1_FECollection(order = 1, dim);
+      fec = new H1_FECollection(order = 1, dim, basis);
    }
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
    HYPRE_Int size = fespace->GlobalTrueVSize();
@@ -260,6 +285,10 @@ int main(int argc, char *argv[])
    tic_toc.Start();
    // Pre-allocate sparsity assuming dense element matrices
    a->UsePrecomputedSparsity();
+
+   HPCBilinearForm *a_hpc = NULL;
+   Operator *a_oper = NULL;
+
    if (!perf)
    {
       // Standard assembly using a diffusion domain integrator
@@ -269,8 +298,15 @@ int main(int argc, char *argv[])
    else
    {
       // High-performance assembly using the templated operator type
-      oper_t a_oper(integ_t(coeff_t(1.0)), *fespace);
-      a_oper.AssembleBilinearForm(*a);
+      a_hpc = new HPCBilinearForm(integ_t(coeff_t(1.0)), *fespace);
+      if (matrix_free)
+      {
+         a_hpc->Assemble(); // partial assembly
+      }
+      else
+      {
+         a_hpc->AssembleBilinearForm(*a); // full local matrix assembly
+      }
    }
    tic_toc.Stop();
    if (myid == 0)
@@ -278,28 +314,57 @@ int main(int argc, char *argv[])
       cout << " done, " << tic_toc.RealTime() << "s." << endl;
    }
 
-   HypreParMatrix A;
-   Vector B, X;
-   a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
-
-   if (myid == 0)
-   {
-      cout << "Size of linear system: " << A.GetGlobalNumRows() << endl;
-   }
-
    // 14. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
    //     preconditioner from hypre.
-   HypreSolver *amg = new HypreBoomerAMG(A);
-   HyprePCG *pcg = new HyprePCG(A);
-   pcg->SetTol(1e-12);
-   pcg->SetMaxIter(200);
-   pcg->SetPrintLevel(2);
-   pcg->SetPreconditioner(*amg);
-   pcg->Mult(B, X);
+   HypreParMatrix A;
+   Vector B, X;
+   if (perf && matrix_free)
+   {
+      a_hpc->FormLinearSystem(ess_tdof_list, x, *b, a_oper, X, B);
+      HYPRE_Int glob_size = fespace->GlobalTrueVSize();
+      if (myid == 0)
+      {
+         cout << "Size of linear system: " << glob_size << endl;
+      }
+   }
+   else
+   {
+      a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
+      if (myid == 0)
+      {
+         cout << "Size of linear system: " << A.GetGlobalNumRows() << endl;
+      }
+   }
+
+   CGSolver *pcg;
+   pcg = new CGSolver(MPI_COMM_WORLD);
+   pcg->SetRelTol(1e-6);
+   pcg->SetMaxIter(500);
+   pcg->SetPrintLevel(1);
+
+   if (perf && matrix_free)
+   {
+      pcg->SetOperator(*a_oper);
+      pcg->Mult(B, X);
+   }
+   else
+   {
+      HypreBoomerAMG amg(A);
+      pcg->SetOperator(A);
+      pcg->SetPreconditioner(amg);
+      pcg->Mult(B, X);
+   }
 
    // 15. Recover the parallel grid function corresponding to X. This is the
    //     local finite element solution on each processor.
-   a->RecoverFEMSolution(X, *b, x);
+   if (perf && matrix_free)
+   {
+      a_hpc->RecoverFEMSolution(X, *b, x);
+   }
+   else
+   {
+      a->RecoverFEMSolution(X, *b, x);
+   }
 
    // 16. Save the refined mesh and the solution in parallel. This output can
    //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
@@ -329,13 +394,14 @@ int main(int argc, char *argv[])
    }
 
    // 18. Free the used memory.
-   delete pcg;
-   delete amg;
    delete a;
+   delete a_hpc;
+   delete a_oper;
    delete b;
    delete fespace;
    if (order > 0) { delete fec; }
    delete pmesh;
+   delete pcg;
 
    MPI_Finalize();
 

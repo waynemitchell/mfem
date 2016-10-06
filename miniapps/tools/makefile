@@ -21,8 +21,8 @@ TEST_MK = $(MFEM_DIR)/config/test.mk
 MFEM_LIB_FILE = mfem_is_not_built
 -include $(CONFIG_MK)
 
-SEQ_MINIAPPS =
-PAR_MINIAPPS = volta tesla
+SEQ_MINIAPPS = display-basis
+PAR_MINIAPPS =
 ifeq ($(MFEM_USE_MPI),NO)
    MINIAPPS = $(SEQ_MINIAPPS)
 else
@@ -32,20 +32,15 @@ endif
 .PHONY: all clean clean-build clean-exec
 .PRECIOUS: %.o
 
-COMMON_HPP=../common/pfem_extras.hpp
+COMMON_HPP=../common/fem_extras.hpp ../common/mesh_extras.hpp
 COMMON_O=$(COMMON_HPP:.hpp=.o)
-
-.PRECIOUS: %.o
 
 # Remove built-in rule
 %: %.cpp
 
 # Replace the default implicit rule for *.cpp files
-%: %.cpp %_solver.o $(COMMON_O) $(MFEM_LIB_FILE) $(CONFIG_MK)
-	$(MFEM_CXX) $(MFEM_FLAGS) $< -o $@ $@_solver.o $(COMMON_O) $(MFEM_LIBS)
-
-# Remove built-in rule
-%.o: %.cpp
+%: %.cpp $(COMMON_O) $(MFEM_LIB_FILE) $(CONFIG_MK)
+	$(MFEM_CXX) $(MFEM_FLAGS) $< -o $@ $(COMMON_O) $(MFEM_LIBS)
 
 # Replace the default implicit rule for *.cpp files
 %.o: %.cpp %.hpp $(COMMON_HPP) $(CONFIG_MK)
@@ -56,13 +51,16 @@ all: $(MINIAPPS)
 MFEM_TESTS = MINIAPPS
 include $(TEST_MK)
 
+# Testing: Parallel vs. serial runs
+%-test-par: %
+	@$(call mfem-test,$<, mpirun -np 4, Tools miniapp)
+%-test-seq: %
+	@$(call mfem-test,$<,, Tools miniapp)
+
 # Testing: Specific execution options
-volta-test-par: volta
-	@$(call mfem-test,$<, mpirun -np 4, Electromagnetic miniapp,\
-	-maxit 2 -dbcs 1 -dbcg -ds '0.0 0.0 0.0 0.2 8.0')
-tesla-test-par: tesla
-	@$(call mfem-test,$<, mpirun -np 4, Electromagnetic miniapp,\
-	-maxit 2 -cr '0 0 -0.2 0 0 0.2 0.2 0.4 1')
+# Do not test display-basis:
+display-basis-test-seq:
+	@true
 
 # Testing: "test" target and mfem-test* variables are defined in config/test.mk
 
@@ -73,8 +71,8 @@ $(MFEM_LIB_FILE):
 clean: clean-build clean-exec
 
 clean-build:
-	rm -f *.o *~ volta tesla
+	rm -f *.o *~ $(SEQ_MINIAPPS) $(PAR_MINIAPPS)
 	rm -rf *.dSYM *.TVD.*breakpoints
 
 clean-exec:
-	@rm -rf Volta-AMR* Tesla-AMR*
+	@true
