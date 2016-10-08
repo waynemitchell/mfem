@@ -50,6 +50,52 @@ using namespace mfem;
 // attributes 1 and 2. Also used as initial guess in PCG/GMRES.
 void InitDisplacement(const Vector &x, Vector &u);
 
+// A Coefficient for computing the components of the stress.
+class StressCoefficient : public Coefficient
+{
+protected:
+   Coefficient &lambda, &mu;
+   GridFunction *u; // displacement
+   int si, sj; // component of the stress to evaluate, 0 <= si,sj < dim
+
+   DenseMatrix grad; // auxiliary matrix, used in Eval
+
+public:
+   StressCoefficient(Coefficient &lambda_, Coefficient &mu_)
+      : lambda(lambda_), mu(mu_), u(NULL), si(0), sj(0) { }
+
+   void SetDisplacement(GridFunction &u_) { u = &u_; }
+   void SetComponent(int i, int j) { si = i; sj = j; }
+
+   virtual double Eval(ElementTransformation &T, const IntegrationPoint &ip);
+};
+
+// Simple GLVis visualization manager.
+class VisMan : public iostream
+{
+protected:
+   const char *host;
+   int port;
+   Array<socketstream *> sock;
+   int sid; // active socket, index inside 'sock'.
+
+   int win_x, win_y, win_w, win_h;
+   int win_stride_x, win_stride_y, win_nx;
+
+public:
+   VisMan(const char *vishost, const int visport);
+   void NewWindow();
+   void CloseConnection();
+   void PositionWindow();
+   virtual ~VisMan();
+};
+
+// Manipulators for the GLVis visualization manager.
+void new_window      (VisMan &v) { v.NewWindow(); }
+void position_window (VisMan &v) { v.PositionWindow(); }
+void close_connection(VisMan &v) { v.CloseConnection(); }
+ostream &operator<<(ostream &v, void (*f)(VisMan&));
+
 int main(int argc, char *argv[])
 {
    // 1. Define and parse command-line options.
@@ -222,13 +268,15 @@ int main(int argc, char *argv[])
    //     save the displaced mesh as a curved DG mesh.
    mesh.SetNodalFESpace(&fespace);
 
+   Vector reference_nodes;
+   if (visualization) { reference_nodes = *mesh.GetNodes(); }
+
    // 14. Save the displaced mesh and minus the solution (which gives the
-   //     backward displacements to the original grid). This output can be
+   //     backward displacements to the reference mesh). This output can be
    //     viewed later using GLVis: "glvis -m displaced.mesh -g sol.gf".
    {
-      GridFunction *nodes = mesh.GetNodes();
-      *nodes += x;
-      x *= -1;
+      *mesh.GetNodes() += x;
+      x.Neg(); // x = -x
       ofstream mesh_ofs("displaced.mesh");
       mesh_ofs.precision(8);
       mesh.Print(mesh_ofs);
@@ -237,22 +285,127 @@ int main(int argc, char *argv[])
       x.Save(sol_ofs);
    }
 
-   // 15. Send the above data by socket to a GLVis server. Use the "n" and "b"
-   //     keys in GLVis to visualize the displacements.
+   // 15. Visualization: send data by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
       int  visport   = 19916;
-      socketstream sol_sock(vishost, visport);
-      sol_sock.precision(8);
-      sol_sock << "solution\n" << mesh << x << flush;
+      VisMan vis(vishost, visport);
+      const char *glvis_keys = (dim < 3) ? "Rjlc" : "c";
+
+      // Visualize the deformed configuration.
+      vis << new_window << setprecision(8)
+          << "solution\n" << mesh << x << flush
+          << "keys " << glvis_keys << endl
+          << "window_title 'Deformed configuration'" << endl
+          << "plot_caption 'Backward displacement'" << endl
+          << position_window << close_connection;
+
+      // Visualize the stress components.
+      const char *c = "xyz";
+      FiniteElementSpace scalar_dg_space(&mesh, &fec);
+      GridFunction stress(&scalar_dg_space);
+      StressCoefficient stress_c(lambda_c, mu_c);
+      *mesh.GetNodes() = reference_nodes;
+      x.Neg(); // x = -x
+      stress_c.SetDisplacement(x);
+      for (int si = 0; si < dim; si++)
+      {
+         for (int sj = si; sj < dim; sj++)
+         {
+            stress_c.SetComponent(si, sj);
+            stress.ProjectCoefficient(stress_c);
+
+            vis << new_window << setprecision(8)
+                << "solution\n" << mesh << stress << flush
+                << "keys " << glvis_keys << endl
+                << "window_title |Stress " << c[si] << c[sj] << '|' << endl
+                << position_window << close_connection;
+         }
+      }
    }
 
    return 0;
 }
 
+
 void InitDisplacement(const Vector &x, Vector &u)
 {
    u = 0.0;
    u(u.Size()-1) = -0.2*x(0);
+}
+
+
+double StressCoefficient::Eval(ElementTransformation &T,
+                               const IntegrationPoint &ip)
+{
+   MFEM_ASSERT(u != NULL, "displacement field is not set");
+
+   double L = lambda.Eval(T, ip);
+   double M = mu.Eval(T, ip);
+   u->GetVectorGradient(T, grad);
+   if (si == sj)
+   {
+      double div_u = grad.Trace();
+      return L*div_u + 2*M*grad(si,si);
+   }
+   else
+   {
+      return M*(grad(si,sj) + grad(sj,si));
+   }
+}
+
+
+VisMan::VisMan(const char *vishost, const int visport)
+   : iostream(0),
+     host(vishost), port(visport), sid(0)
+{
+   win_x = 0;
+   win_y = 0;
+   win_w = 400; // window width
+   win_h = 350; // window height
+   win_stride_x = win_w;
+   win_stride_y = win_h + 20;
+   win_nx = 4; // number of windows in a row
+}
+
+void VisMan::NewWindow()
+{
+   sock.Append(new socketstream(host, port));
+   sid = sock.Size()-1;
+   iostream::rdbuf(sock[sid]->rdbuf());
+}
+
+void VisMan::CloseConnection()
+{
+   if (sid < sock.Size())
+   {
+      delete sock[sid];
+      sock[sid] = NULL;
+      iostream::rdbuf(0);
+   }
+}
+
+void VisMan::PositionWindow()
+{
+   *this << "window_geometry "
+         << win_x + win_stride_x*(sid%win_nx) << ' '
+         << win_y + win_stride_y*(sid/win_nx) << ' '
+         << win_w << ' ' << win_h << endl;
+}
+
+VisMan::~VisMan()
+{
+   for (int i = sock.Size()-1; i >= 0; i--)
+   {
+      delete sock[i];
+   }
+}
+
+
+ostream &operator<<(ostream &v, void (*f)(VisMan&))
+{
+   VisMan *vp = dynamic_cast<VisMan*>(&v);
+   if (vp) { (*f)(*vp); }
+   return v;
 }
