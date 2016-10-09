@@ -330,6 +330,7 @@ public:
 class PetscPCGSolver : public PetscLinearSolver
 {
 public:
+   PetscPCGSolver(MPI_Comm comm, std::string prefix = std::string());
    PetscPCGSolver(PetscParMatrix &_A, std::string prefix = std::string());
    PetscPCGSolver(HypreParMatrix &_A,bool wrap=true,
                   std::string prefix = std::string());
@@ -374,7 +375,6 @@ public:
       nat_tdof_list(NULL) {};
    void SetSpace(ParFiniteElementSpace *fe) { fespace = fe; };
    void SetEssBdrDofs(Array<int> *esstdofs) { ess_tdof_list = esstdofs; };
-   // TODO ASK how to compute them?
    void SetNatBdrDofs(Array<int> *nattdofs) { nat_tdof_list = nattdofs; };
    ~PetscBDDCSolverOpts() {};
 };

@@ -372,7 +372,6 @@ void PetscParMatrix::BlockDiagonalConstructor(MPI_Comm comm,
 {
    Mat      A;
    PetscInt lrsize,lcsize,rstart,cstart;
-   // TODO ASK
    PetscMPIInt myid = 0,commsize;
 
    ierr = MPI_Comm_size(comm,&commsize); CCHKERRQ(comm,ierr);
@@ -1217,6 +1216,15 @@ PetscLinearSolver::~PetscLinearSolver()
 
 // PetscPCGSolver methods
 
+PetscPCGSolver::PetscPCGSolver(MPI_Comm comm,
+                               std::string prefix) : PetscLinearSolver(comm,prefix)
+{
+   KSP ksp = (KSP)obj;
+   ierr = KSPSetType(ksp,KSPCG); PCHKERRQ(ksp,ierr);
+   // this is to obtain a textbook PCG
+   ierr = KSPSetNormType(ksp,KSP_NORM_NATURAL); PCHKERRQ(ksp,ierr);
+}
+
 PetscPCGSolver::PetscPCGSolver(PetscParMatrix& _A,
                                std::string prefix) : PetscLinearSolver(_A,prefix)
 {
@@ -1472,7 +1480,6 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts,
          {
             if (tracespace)
             {
-               // TODO ASK is it the correct choice? Integrator is missing
                b->AddTraceFaceIntegrator(new VectorFECurlIntegrator);
             }
             else
@@ -1484,7 +1491,6 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts,
          {
             if (tracespace)
             {
-               // TODO ASK is it the correct choice? Integrator is missing
                b->AddTraceFaceIntegrator(new VectorFEDivergenceIntegrator);
             }
             else
