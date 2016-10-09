@@ -629,6 +629,9 @@ public:
        'x' and 'y' use the same elem_dof table. */
    void AddMult(const Table &elem_dof, const Vector &x, Vector &y) const;
 
+   void Clear()
+   { UseExternalData(NULL, 0, 0, 0); }
+
    ~DenseTensor()
    {
       if (own_data) { delete [] tdata; }

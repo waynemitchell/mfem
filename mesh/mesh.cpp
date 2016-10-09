@@ -748,7 +748,19 @@ void Mesh::InitTables()
       el_to_face = el_to_el = bel_to_edge = face_edge = edge_vertex = NULL;
 }
 
-void Mesh::DeleteTables()
+void Mesh::SetEmpty()
+{
+   // Members not touched by Init() or InitTables()
+   Dim = spaceDim = 0;
+   BaseGeom = BaseBdrGeom = -1;
+   meshgen = 0;
+   NumOfFaces = 0;
+
+   Init();
+   InitTables();
+}
+
+void Mesh::DestroyTables()
 {
    delete el_to_edge;
    delete el_to_face;
@@ -761,8 +773,60 @@ void Mesh::DeleteTables()
 
    delete face_edge;
    delete edge_vertex;
+}
 
-   InitTables();
+void Mesh::DestroyPointers()
+{
+   if (own_nodes) { delete Nodes; }
+
+   delete ncmesh;
+
+   delete NURBSext;
+
+   for (int i = 0; i < NumOfElements; i++)
+   {
+      FreeElement(elements[i]);
+   }
+
+   for (int i = 0; i < NumOfBdrElements; i++)
+   {
+      FreeElement(boundary[i]);
+   }
+
+   for (int i = 0; i < faces.Size(); i++)
+   {
+      FreeElement(faces[i]);
+   }
+
+   DestroyTables();
+}
+
+void Mesh::Destroy()
+{
+   DestroyPointers();
+
+   elements.DeleteAll();
+   vertices.DeleteAll();
+   boundary.DeleteAll();
+   faces.DeleteAll();
+   faces_info.DeleteAll();
+   nc_faces_info.DeleteAll();
+   be_to_edge.DeleteAll();
+   be_to_face.DeleteAll();
+
+   // TODO:
+   // IsoparametricTransformations
+   // Transformation, Transformation2, FaceTransformation, EdgeTransformation;
+   // FaceElementTransformations FaceElemTr;
+
+   CoarseFineTr.Clear();
+
+#ifdef MFEM_USE_MEMALLOC
+   TetMemory.Clear();
+#endif
+
+   attributes.DeleteAll();
+   bdr_attributes.DeleteAll();
 }
 
 void Mesh::SetAttributes()
@@ -968,22 +1032,6 @@ void Mesh::GenerateBoundaryElements()
       }
    }
    // In 3D, 'bel_to_edge' is destroyed but it's not updated.
-}
-
-typedef struct
-{
-   int edge;
-   double length;
-}
-edge_length;
-
-// Used by qsort to sort edges in increasing (according their length) order.
-static int edge_compare(const void *ii, const void *jj)
-{
-   edge_length *i = (edge_length *)ii, *j = (edge_length *)jj;
-   if (i->length > j->length) { return (1); }
-   if (i->length < j->length) { return (-1); }
-   return (0);
 }
 
 void Mesh::FinalizeTriMesh(int generate_edges, int refine, bool fix_orientation)
@@ -1274,27 +1322,26 @@ void Mesh::MarkTriMeshForRefinement()
 void Mesh::GetEdgeOrdering(DSTable &v_to_v, Array<int> &order)
 {
    NumOfEdges = v_to_v.NumberOfEntries();
-   edge_length *length = new edge_length[NumOfEdges];
+   order.SetSize(NumOfEdges);
+   Array<Pair<double, int> > length_idx(NumOfEdges);
+
    for (int i = 0; i < NumOfVertices; i++)
    {
       for (DSTable::RowIterator it(v_to_v, i); !it; ++it)
       {
          int j = it.Index();
-         length[j].length = GetLength(i, it.Column());
-         length[j].edge = j;
+         length_idx[j].one = GetLength(i, it.Column());
+         length_idx[j].two = j;
       }
    }
 
-   // sort in increasing order
-   qsort(length, NumOfEdges, sizeof(edge_length), edge_compare);
+   // Sort by increasing edge-length.
+   length_idx.Sort();
 
-   order.SetSize(NumOfEdges);
    for (int i = 0; i < NumOfEdges; i++)
    {
-      order[length[i].edge] = i;
+      order[length_idx[i].two] = i;
    }
-
-   delete [] length;
 }
 
 void Mesh::MarkTetMeshForRefinement()
@@ -2121,9 +2168,6 @@ Mesh::Mesh(const Mesh &mesh, bool copy_nodes)
    // Copy the edge-to-vertex Table, edge_vertex
    edge_vertex = (mesh.edge_vertex) ? new Table(*mesh.edge_vertex) : NULL;
 
-   // Do not copy any of the coarse (c_*), fine (f_*) or fine/coarse (fc_*)
-   // data members.
-
    // Copy the attributes and bdr_attributes
    mesh.attributes.Copy(attributes);
    mesh.bdr_attributes.Copy(bdr_attributes);
@@ -2165,10 +2209,7 @@ Mesh::Mesh(const char *filename, int generate_edges, int refine,
            bool fix_orientation)
 {
    // Initialization as in the default constructor
-   Init();
-   InitTables();
-   meshgen = 0;
-   Dim = 0;
+   SetEmpty();
 
    named_ifstream imesh(filename);
    if (!imesh)
@@ -2286,55 +2327,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
       MFEM_ABORT("Input stream is not open");
    }
 
-   if (NumOfVertices != -1)
-   {
-      // Delete the elements.
-      for (i = 0; i < NumOfElements; i++)
-      {
-         FreeElement(elements[i]);
-      }
-      elements.DeleteAll();
-      NumOfElements = 0;
-
-      // Delete the vertices.
-      vertices.DeleteAll();
-      NumOfVertices = 0;
-
-      // Delete the boundary elements.
-      for (i = 0; i < NumOfBdrElements; i++)
-      {
-         FreeElement(boundary[i]);
-      }
-      boundary.DeleteAll();
-      NumOfBdrElements = 0;
-
-      // Delete interior faces (if generated)
-      for (i = 0; i < faces.Size(); i++)
-      {
-         FreeElement(faces[i]);
-      }
-      faces.DeleteAll();
-      NumOfFaces = 0;
-
-      faces_info.DeleteAll();
-
-      // Delete the edges (if generated).
-      DeleteTables();
-      be_to_edge.DeleteAll();
-      be_to_face.DeleteAll();
-      NumOfEdges = 0;
-
-      // TODO: make this a Destroy function
-   }
-
-   delete ncmesh;
-   ncmesh = NULL;
-
-   if (own_nodes) { delete Nodes; }
-   Nodes = NULL;
-
-   InitTables();
-   spaceDim = 0;
+   Clear();
 
    string mesh_type;
    input >> ws;
@@ -8188,34 +8181,6 @@ void Mesh::FreeElement(Element *E)
 #else
    delete E;
 #endif
-}
-
-Mesh::~Mesh()
-{
-   int i;
-
-   if (own_nodes) { delete Nodes; }
-
-   delete ncmesh;
-
-   delete NURBSext;
-
-   for (i = 0; i < NumOfElements; i++)
-   {
-      FreeElement(elements[i]);
-   }
-
-   for (i = 0; i < NumOfBdrElements; i++)
-   {
-      FreeElement(boundary[i]);
-   }
-
-   for (i = 0; i < faces.Size(); i++)
-   {
-      FreeElement(faces[i]);
-   }
-
-   DeleteTables();
 }
 
 std::ostream &operator<<(std::ostream &out, const Mesh &mesh)
