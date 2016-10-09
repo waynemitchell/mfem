@@ -980,6 +980,11 @@ void PetscSolver::Customize() const
 
 void PetscSolver::SetTol(double tol)
 {
+   SetRelTol(tol);
+}
+
+void PetscSolver::SetRelTol(double tol)
+{
    // PETSC_DEFAULT does not change any other
    // customization previously set.
    if (cid == KSP_CLASSID)
@@ -1091,6 +1096,57 @@ void PetscSolver::Mult(const Vector &b, Vector &x) const
    Mult(*B, *X);
    B->ResetData();
    X->ResetData();
+}
+
+int PetscSolver::GetConverged()
+{
+   if (cid == KSP_CLASSID)
+   {
+      KSP ksp = (KSP)obj;
+      KSPConvergedReason reason;
+      ierr = KSPGetConvergedReason(ksp,&reason);
+      PCHKERRQ(ksp,ierr);
+      return (int)reason;
+   }
+   else
+   {
+      MFEM_WARNING("GetConverged to be implemented!");
+      return -1;
+   }
+}
+
+int PetscSolver::GetNumIterations()
+{
+   if (cid == KSP_CLASSID)
+   {
+      KSP ksp = (KSP)obj;
+      PetscInt its;
+      ierr = KSPGetIterationNumber(ksp,&its);
+      PCHKERRQ(ksp,ierr);
+      return its;
+   }
+   else
+   {
+      MFEM_WARNING("GetNumIterations to be implemented!");
+      return -1;
+   }
+}
+
+double PetscSolver::GetFinalNorm()
+{
+   if (cid == KSP_CLASSID)
+   {
+      KSP ksp = (KSP)obj;
+      PetscReal norm;
+      ierr = KSPGetResidualNorm(ksp,&norm);
+      PCHKERRQ(ksp,ierr);
+      return norm;
+   }
+   else
+   {
+      MFEM_WARNING("GetConverged to be implemented!");
+      return PETSC_MAX_REAL;
+   }
 }
 
 // PetscLinearSolver methods

@@ -286,10 +286,14 @@ public:
    virtual void Mult(const Vector &b, Vector &x) const;
 
    void SetTol(double tol);
+   void SetRelTol(double tol);
    void SetAbsTol(double tol);
    void SetMaxIter(int max_iter);
    void SetPrintLevel(int plev);
    void Mult(const PetscParVector &b, PetscParVector &x) const;
+   int GetConverged();
+   int GetNumIterations();
+   double GetFinalNorm();
 
    /// Typecasting to PETScObject
    operator PetscObject() const { return obj; }
