@@ -251,6 +251,9 @@ protected:
    /// The actual PETSc object (KSP, SNES or TS)
    PetscObject obj;
 
+   /// The class is of the actual PETSc object (KSP, SNES or TS)
+   PetscClassId cid;
+
    /// The string prefix
    std::string _prefix;
 
@@ -282,19 +285,10 @@ public:
    };
    virtual void Mult(const Vector &b, Vector &x) const;
 
-   // virtual methods for derived classes
-   virtual void SetTol(double tol)
-   {
-      MFEM_ABORT("Set Operator not implemented!")
-   };
-   virtual void SetMaxIter(int max_iter)
-   {
-      MFEM_ABORT("SetMaxIter not implemented!")
-   };
-   virtual void SetPrintLevel(int plev)
-   {
-      MFEM_ABORT("SetPrintLevel not implemented!")
-   };
+   void SetTol(double tol);
+   void SetAbsTol(double tol);
+   void SetMaxIter(int max_iter);
+   void SetPrintLevel(int plev);
    void Mult(const PetscParVector &b, PetscParVector &x) const;
 
    /// Typecasting to PETScObject
@@ -324,9 +318,6 @@ public:
 
    /// virtual methods for base classes
    virtual void SetOperator(const Operator &op);
-   virtual void SetTol(double tol);
-   virtual void SetMaxIter(int max_iter);
-   virtual void SetPrintLevel(int plev);
    virtual ~PetscLinearSolver();
 
    /// Sets the solver to be used as a preconditioner
@@ -362,8 +353,6 @@ public:
 
    /// virtual methods for base classes
    virtual void SetOperator(const Operator &op);
-   //virtual void SetTol(double tol);
-   //virtual void SetMaxIter(int max_iter);
    //virtual void SetPrintLevel(int plev);
    //virtual void Mult(const PetscParVector &b, PetscParVector &x) const;
    virtual ~PetscPreconditioner();

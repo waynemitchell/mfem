@@ -918,6 +918,7 @@ void PetscSolver::Init()
    B = X = NULL;
    clcustom = false;
    _prset = true;
+   cid = -1;
 }
 
 void PetscSolver::SetPrefix(std::string prefix)
@@ -939,8 +940,6 @@ PetscSolver::~PetscSolver()
 
 void PetscSolver::Customize() const
 {
-   PetscClassId cid;
-   ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
    if (cid == KSP_CLASSID)
    {
       KSP ksp = (KSP)obj;
@@ -979,12 +978,63 @@ void PetscSolver::Customize() const
    }
 }
 
+void PetscSolver::SetTol(double tol)
+{
+   // PETSC_DEFAULT does not change any other
+   // customization previously set.
+   if (cid == KSP_CLASSID)
+   {
+      KSP ksp = (KSP)obj;
+      ierr = KSPSetTolerances(ksp,tol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);
+   }
+   else
+   {
+      MFEM_ABORT("To be implemented!");
+   }
+   PCHKERRQ(obj,ierr);
+}
+
+void PetscSolver::SetAbsTol(double tol)
+{
+   // PETSC_DEFAULT does not change any other
+   // customization previously set.
+   if (cid == KSP_CLASSID)
+   {
+      KSP ksp = (KSP)obj;
+      ierr = KSPSetTolerances(ksp,PETSC_DEFAULT,tol,PETSC_DEFAULT,PETSC_DEFAULT);
+   }
+   else
+   {
+      MFEM_ABORT("To be implemented!");
+   }
+   PCHKERRQ(obj,ierr);
+}
+
+void PetscSolver::SetMaxIter(int max_iter)
+{
+   // PETSC_DEFAULT does not change any other
+   // customization previously set.
+   if (cid == KSP_CLASSID)
+   {
+      KSP ksp = (KSP)obj;
+      ierr = KSPSetTolerances(ksp,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT,max_iter);
+   }
+   else
+   {
+      MFEM_ABORT("To be implemented!");
+   }
+   PCHKERRQ(obj,ierr);
+}
+
+void PetscSolver::SetPrintLevel(int plev)
+{
+   // TODO
+}
+
 void PetscSolver::Mult(const PetscParVector &b, PetscParVector &x) const
 {
    Customize();
 
-   PetscClassId cid;
-   ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
    if (cid == KSP_CLASSID)
    {
       KSP ksp = (KSP)obj;
@@ -1009,8 +1059,6 @@ void PetscSolver::Mult(const Vector &b, Vector &x) const
    if (!B || !X)
    {
       Mat pA;
-      PetscClassId cid;
-      ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
       if (cid == KSP_CLASSID)
       {
          KSP ksp = (KSP)obj;
@@ -1060,7 +1108,8 @@ PetscLinearSolver::PetscLinearSolver(MPI_Comm comm,
 
    KSP ksp;
    ierr = KSPCreate(comm,&ksp); CCHKERRQ(comm,ierr);
-   obj = (PetscObject)ksp;
+   obj  = (PetscObject)ksp;
+   ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
 }
 
 PetscLinearSolver::PetscLinearSolver(PetscParMatrix &_A,
@@ -1071,7 +1120,8 @@ PetscLinearSolver::PetscLinearSolver(PetscParMatrix &_A,
 
    KSP ksp;
    ierr = KSPCreate(_A.GetComm(),&ksp); CCHKERRQ(_A.GetComm(),ierr);
-   obj = (PetscObject)ksp;
+   obj  = (PetscObject)ksp;
+   ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
    SetOperator(_A);
 }
 
@@ -1084,7 +1134,8 @@ PetscLinearSolver::PetscLinearSolver(HypreParMatrix &_A,bool wrapin,
 
    KSP ksp;
    ierr = KSPCreate(_A.GetComm(),&ksp); CCHKERRQ(_A.GetComm(),ierr);
-   obj = (PetscObject)ksp;
+   obj  = (PetscObject)ksp;
+   ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
    SetOperator(_A);
 }
 
@@ -1175,29 +1226,6 @@ PetscLinearSolver::~PetscLinearSolver()
    ierr = KSPDestroy(&ksp); CCHKERRQ(comm,ierr);
 }
 
-void PetscLinearSolver::SetTol(double tol)
-{
-   KSP ksp = (KSP)obj;
-   // PETSC_DEFAULT does not change any other
-   // customization previously set.
-   ierr = KSPSetTolerances(ksp,tol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);
-   PCHKERRQ(ksp,ierr)
-}
-
-void PetscLinearSolver::SetMaxIter(int max_iter)
-{
-   KSP ksp = (KSP)obj;
-   // PETSC_DEFAULT does not change any other
-   // customization previously set.
-   ierr = KSPSetTolerances(ksp,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT,max_iter);
-   PCHKERRQ(ksp,ierr)
-}
-
-void PetscLinearSolver::SetPrintLevel(int plev)
-{
-   // TODO
-}
-
 // PetscPCGSolver methods
 
 PetscPCGSolver::PetscPCGSolver(PetscParMatrix& _A,
@@ -1233,7 +1261,8 @@ PetscPreconditioner::PetscPreconditioner(MPI_Comm comm,
 
    PC pc;
    ierr = PCCreate(comm,&pc); CCHKERRQ(comm,ierr);
-   obj = (PetscObject)pc;
+   obj  = (PetscObject)pc;
+   ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
 }
 
 PetscPreconditioner::PetscPreconditioner(PetscParMatrix &_A,
@@ -1244,7 +1273,8 @@ PetscPreconditioner::PetscPreconditioner(PetscParMatrix &_A,
 
    PC pc;
    ierr = PCCreate(_A.GetComm(),&pc); CCHKERRQ(_A.GetComm(),ierr);
-   obj = (PetscObject)pc;
+   obj  = (PetscObject)pc;
+   ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
    SetOperator(_A);
 }
 
@@ -1256,7 +1286,8 @@ PetscPreconditioner::PetscPreconditioner(MPI_Comm comm, Operator &op,
 
    PC pc;
    ierr = PCCreate(comm,&pc); CCHKERRQ(comm,ierr);
-   obj = (PetscObject)pc;
+   obj  = (PetscObject)pc;
+   ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
    SetOperator(op);
 }
 
