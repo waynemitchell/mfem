@@ -4245,19 +4245,6 @@ void Mesh::ReorientTetMesh()
 }
 
 #ifdef MFEM_USE_MPI
-// auxiliary function for qsort
-static int mfem_less(const void *x, const void *y)
-{
-   if (*(int*)x < *(int*)y)
-   {
-      return 1;
-   }
-   if (*(int*)x > *(int*)y)
-   {
-      return -1;
-   }
-   return 0;
-}
 #ifndef MFEM_USE_METIS_5
 // METIS 4 prototypes
 typedef int idxtype;
@@ -4361,10 +4348,16 @@ int *Mesh::GeneratePartitioning(int nparts, int part_method)
 
       // Sort the neighbor lists
       if (part_method >= 0 && part_method <= 2)
+      {
          for (i = 0; i < n; i++)
          {
-            qsort(&J[I[i]], I[i+1]-I[i], sizeof(int), &mfem_less);
+            // Sort in increasing order.
+            // std::sort(J+I[i], J+I[i+1]);
+
+            // Sort in decreasing order, as in previous versions of MFEM.
+            std::sort(J+I[i], J+I[i+1], std::greater<int>());
          }
+      }
 
       // This function should be used to partition a graph into a small
       // number of partitions (less than 8).
