@@ -24,10 +24,13 @@
 #include <cmath>
 #include <cstdlib>
 
+// TODO handle SetFromOptions with a private flag during Mult?
+
 // Error handling
 // Prints PETSc's stacktrace and then calls MFEM_ABORT
 // We cannot use PETSc's CHKERRQ since it returns a PetscErrorCode
 // TODO this can be improved
+// TODO debug/release
 #define PCHKERRQ(obj,err)                                                  \
   if ((err)) {                                                             \
     PetscError(PetscObjectComm((PetscObject)obj),__LINE__,_MFEM_FUNC_NAME, \
@@ -613,7 +616,7 @@ void PetscParMatrix::ConvertOperator(MPI_Comm comm, const Operator &op, Mat* A)
       {
          for (j=0; j<nc; j++)
          {
-            if (!pB->IsZeroBlock(i,j)) // TODO this need to be fixed in PETSc
+            if (!pB->IsZeroBlock(i,j))
             {
                ConvertOperator(comm,pB->GetBlock(i,j),&mats[i*nc+j]);
             }
@@ -922,6 +925,8 @@ void PetscSolver::SetPrefix(std::string prefix)
    MFEM_VERIFY(obj,"PetscSolver::SetPrefix PetscObject not present!")
    if (prefix.size())
    {
+      // TODO: null prefix? (support remove)
+      // CLASS ID
       ierr = PetscObjectSetOptionsPrefix(obj,prefix.c_str()); PCHKERRQ(obj,ierr)
    }
 }
@@ -1028,6 +1033,7 @@ PetscLinearSolver::PetscLinearSolver(PetscParMatrix &_A,
    obj = (PetscObject)ksp;
    SetPrefix(prefix);
    SetOperator(_A);
+   ierr = KSPSetFromOptions(ksp); PCHKERRQ(ksp,ierr);
 }
 
 PetscLinearSolver::PetscLinearSolver(HypreParMatrix &_A,bool wrapin,
@@ -1040,6 +1046,7 @@ PetscLinearSolver::PetscLinearSolver(HypreParMatrix &_A,bool wrapin,
    obj = (PetscObject)ksp;
    SetPrefix(prefix);
    SetOperator(_A);
+   ierr = KSPSetFromOptions(ksp); PCHKERRQ(ksp,ierr);
 }
 
 void PetscLinearSolver::SetOperator(const Operator &op)
@@ -1064,7 +1071,7 @@ void PetscLinearSolver::SetOperator(const Operator &op)
       }
       else if (oA) // fallback to general operator
       {
-         // Create MATSHELL object
+         // Create MATSHELL or MATNEST object
          pA = new PetscParMatrix(PetscObjectComm(obj),oA);
          delete_pA = true;
       }
@@ -1078,7 +1085,7 @@ void PetscLinearSolver::SetOperator(const Operator &op)
    Mat A = pA->A;
    PetscInt nheight,nwidth;
    ierr = MatGetSize(A,&nheight,&nwidth); PCHKERRQ(A,ierr);
-   if (ksp)
+   if (height || width)
    {
       if (nheight != height || nwidth != width)
       {
@@ -1161,7 +1168,7 @@ PetscPCGSolver::PetscPCGSolver(PetscParMatrix& _A,
    ierr = KSPSetType(ksp,KSPCG); PCHKERRQ(ksp,ierr);
    // this is to obtain a textbook PCG
    ierr = KSPSetNormType(ksp,KSP_NORM_NATURAL); PCHKERRQ(ksp,ierr);
-   ierr = KSPSetFromOptions(ksp); PCHKERRQ(ksp,ierr);
+   //ierr = KSPSetFromOptions(ksp); PCHKERRQ(ksp,ierr);
 }
 
 PetscPCGSolver::PetscPCGSolver(HypreParMatrix& _A,
@@ -1171,7 +1178,7 @@ PetscPCGSolver::PetscPCGSolver(HypreParMatrix& _A,
    ierr = KSPSetType(ksp,KSPCG); PCHKERRQ(ksp,ierr);
    // this is to obtain a textbook PCG
    ierr = KSPSetNormType(ksp,KSP_NORM_NATURAL); PCHKERRQ(ksp,ierr);
-   ierr = KSPSetFromOptions(ksp); PCHKERRQ(ksp,ierr);
+   //ierr = KSPSetFromOptions(ksp); PCHKERRQ(ksp,ierr);
 }
 
 // PetscPreconditioner methods
@@ -1200,8 +1207,8 @@ PetscPreconditioner::PetscPreconditioner(PetscParMatrix &_A,
    ierr = PCCreate(_A.GetComm(),&pc); CCHKERRQ(_A.GetComm(),ierr);
    obj = (PetscObject)pc;
    SetPrefix(prefix);
-   ierr = PCSetFromOptions(pc); PCHKERRQ(pc,ierr);
    SetOperator(_A);
+   ierr = PCSetFromOptions(pc); PCHKERRQ(pc,ierr);
 }
 
 PetscPreconditioner::PetscPreconditioner(MPI_Comm comm, Operator &op,
@@ -1213,6 +1220,7 @@ PetscPreconditioner::PetscPreconditioner(MPI_Comm comm, Operator &op,
    obj = (PetscObject)pc;
    SetPrefix(prefix);
    SetOperator(op);
+   ierr = PCSetFromOptions(pc); PCHKERRQ(pc,ierr);
 }
 
 void PetscPreconditioner::SetOperator(const Operator &op)
@@ -1297,8 +1305,8 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts,
    {
       const     FiniteElementCollection *fec = fespace->FEColl();
       bool      edgespace, rtspace;
-      bool      disableint = false, needint = false;
-      bool      tracespace, rt_tracespace;
+      bool      needint = false;
+      bool      tracespace, rt_tracespace, edge_tracespace;
       int       dim , p;
       PetscBool B_is_Trans = PETSC_FALSE;
 
@@ -1308,16 +1316,22 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts,
       bs = bs ? bs : 1;
       rtspace = dynamic_cast<const RT_FECollection*>(fec);
       edgespace = dynamic_cast<const ND_FECollection*>(fec);
-      tracespace = dynamic_cast<const ND_Trace_FECollection*>(fec);
+      edge_tracespace = dynamic_cast<const ND_Trace_FECollection*>(fec);
       rt_tracespace = dynamic_cast<const RT_Trace_FECollection*>(fec);
-      tracespace = tracespace || rt_tracespace;
-      if (!tracespace) { p = fespace->GetOrder(0); }
-      else { p = fespace->GetFaceOrder(0) + 1; }
-      if (tracespace)
+      tracespace = edge_tracespace || rt_tracespace;
+
+      p = 1;
+      if (fespace->GetNE() > 0)
       {
-         MFEM_WARNING("Tracespace case untested, not using auxialiary quadrature");
-         tracespace = false;
-         disableint = true;
+         if (!tracespace)
+         {
+            p = fespace->GetOrder(0);
+         }
+         else
+         {
+            p = fespace->GetFaceOrder(0);
+            if (dim == 2) { p++; }
+         }
       }
 
       if (edgespace) // H(curl)
@@ -1325,29 +1339,71 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts,
          if (dim == 2)
          {
             needint = true;
+            if (tracespace)
+            {
+               MFEM_WARNING("Tracespace case doesn't work for H(curl) and p=2, not using auxiliary quadrature");
+               needint = false;
+            }
          }
          else
          {
-            MFEM_ABORT("Unsupported");
+            FiniteElementCollection *vfec;
+            if (tracespace)
+            {
+               vfec = new H1_Trace_FECollection(p,dim);
+            }
+            else
+            {
+               vfec = new H1_FECollection(p,dim);
+            }
+            ParFiniteElementSpace *vfespace = new ParFiniteElementSpace(pmesh,vfec);
+            ParDiscreteLinearOperator *grad;
+            grad = new ParDiscreteLinearOperator(vfespace,fespace);
+            if (tracespace)
+            {
+               grad->AddTraceFaceInterpolator(new GradientInterpolator);
+            }
+            else
+            {
+               grad->AddDomainInterpolator(new GradientInterpolator);
+            }
+            grad->Assemble();
+            grad->Finalize();
+            HypreParMatrix *hG = grad->ParallelAssemble();
+            PetscParMatrix *G = new PetscParMatrix(hG,false,true);
+            delete hG;
+            delete grad;
+
+            PetscBool conforming = PETSC_TRUE;
+            if (pmesh->Nonconforming()) { conforming = PETSC_FALSE; }
+            ierr = PCBDDCSetDiscreteGradient(pc,*G,p,0,PETSC_TRUE,conforming);
+            PCHKERRQ(pc,ierr);
+            delete vfec;
+            delete vfespace;
+            delete G;
          }
       }
       else if (rtspace) // H(div)
       {
          needint = true;
+         if (tracespace)
+         {
+            MFEM_WARNING("Tracespace case doesn't work for H(div), not using auxiliary quadrature");
+            needint = false;
+         }
       }
       else if (bs == dim) // Elasticity?
       {
          needint = true;
       }
-      if (disableint) { needint = false; }
 
       PetscParMatrix *B = NULL;
       if (needint)
       {
          // Generate bilinear form in unassembled format which is used to
          // compute the net-flux across subdomain boundaries
-         // for H(div) and Elasticity, and the line integral of
-         // of 2D H(curl) fields
+         // for H(div) and Elasticity, and the line integral \int u x n of
+         // 2D H(curl) fields
          FiniteElementCollection *auxcoll;
          if (tracespace) { auxcoll = new RT_Trace_FECollection(p,dim); }
          else { auxcoll = new L2_FECollection(p,dim); };
@@ -1357,8 +1413,15 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts,
          b->SetUseUnassembledFormat();
          if (edgespace)
          {
-            // TODO ASK about (curl u , v) -> this gives an error
-            b->AddDomainIntegrator(new VectorFECurlIntegrator);
+            if (tracespace)
+            {
+               // TODO ASK is it the correct choice? Integrator is missing
+               b->AddTraceFaceIntegrator(new VectorFECurlIntegrator);
+            }
+            else
+            {
+               b->AddDomainIntegrator(new VectorFECurlIntegrator);
+            }
          }
          else
          {
@@ -1376,40 +1439,21 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts,
          b->Finalize();
          B = b->PetscParallelAssemble();
 
-         // TODO I'm not sure this is really needed.
-#if 0
-         // TODO this is a temporary hack to get the transpose
-         // that will be solved trough PETSc
-         if (dir)
+         // Support for this is in master.
+         if (dir) // if essential dofs are present, we need to zero the columns
          {
-            // if essential dofs are present, we need to zero the columns
-            Mat pBt,lBt,lB;
-            PetscInt lr,lc;
-            ISLocalToGlobalMapping rmap,cmap;
-            ierr = MatGetLocalToGlobalMapping(*B,&rmap,&cmap); PCHKERRQ(pA,ierr);
-            ierr = MatGetLocalSize(*B,&lr,&lc); PCHKERRQ(pA,ierr);
-            ierr = MatISGetLocalMat(*B,&lB); PCHKERRQ(pA,ierr);
-            ierr = MatCreateIS(comm,bs,lc,lr,PETSC_DECIDE,PETSC_DECIDE,cmap,rmap,&pBt);
-            PCHKERRQ(pA,ierr);
-            ierr = MatTranspose(lB,MAT_INITIAL_MATRIX,&lBt);
-            PCHKERRQ(pA,ierr);
-            ierr = MatISSetLocalMat(pBt,lBt); PCHKERRQ(lBt,ierr);
-            ierr = MatAssemblyBegin(pBt,MAT_FINAL_ASSEMBLY); PCHKERRQ(pBt,ierr);
-            ierr = MatAssemblyEnd(pBt,MAT_FINAL_ASSEMBLY); PCHKERRQ(pBt,ierr);
-            ierr = MatDestroy(&lBt); PCHKERRQ(pA,ierr);
-            ierr = MatZeroRowsIS(pBt,dir,0.,NULL,NULL); PCHKERRQ(pBt,ierr);
-            delete B;
-            B = new PetscParMatrix(pBt,false);
+            Mat pB = *B;
+            ierr = MatTranspose(pB,MAT_REUSE_MATRIX,&pB); PCHKERRQ(pA,ierr);
+            ierr = MatZeroRowsIS(pB,dir,0.,NULL,NULL); PCHKERRQ(pA,ierr);
             B_is_Trans = PETSC_TRUE;
          }
-#endif
          delete b;
          delete pspace;
          delete auxcoll;
       }
 
       // this API call is still not in master.
-      // You need to checkout stefano_zampini/feature-pcbddc-saddlepoint to use it
+      // You need to checkout next to use it
       if (B)
       {
          ierr = PCBDDCSetDivergenceMat(pc,*B,B_is_Trans,NULL); PCHKERRQ(pc,ierr);
