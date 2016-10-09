@@ -251,6 +251,13 @@ protected:
    /// The actual PETSc object (KSP, SNES or TS)
    PetscObject obj;
 
+   /// The string prefix
+   std::string _prefix;
+
+   /// booleans to handle SetFromOptions calls
+   mutable bool clcustom;
+   mutable bool _prset;
+
    /// Right-hand side and solution vector
    mutable PetscParVector *B, *X;
 
@@ -259,6 +266,7 @@ protected:
 
 private:
    void Init();
+   void Customize() const;
 
 public:
    /// Initialize protected objects to NULL

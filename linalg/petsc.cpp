@@ -24,8 +24,6 @@
 #include <cmath>
 #include <cstdlib>
 
-// TODO handle SetFromOptions with a private flag during Mult?
-
 // Error handling
 // Prints PETSc's stacktrace and then calls MFEM_ABORT
 // We cannot use PETSc's CHKERRQ since it returns a PetscErrorCode
@@ -918,17 +916,14 @@ void PetscSolver::Init()
 {
    obj = NULL;
    B = X = NULL;
+   clcustom = false;
+   _prset = true;
 }
 
 void PetscSolver::SetPrefix(std::string prefix)
 {
-   MFEM_VERIFY(obj,"PetscSolver::SetPrefix PetscObject not present!")
-   if (prefix.size())
-   {
-      // TODO: null prefix? (support remove)
-      // CLASS ID
-      ierr = PetscObjectSetOptionsPrefix(obj,prefix.c_str()); PCHKERRQ(obj,ierr)
-   }
+   _prefix = prefix;
+   _prset  = false;
 }
 
 PetscSolver::PetscSolver()
@@ -942,8 +937,52 @@ PetscSolver::~PetscSolver()
    if (X) { delete X; }
 }
 
+void PetscSolver::Customize() const
+{
+   PetscClassId cid;
+   ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
+   if (cid == KSP_CLASSID)
+   {
+      KSP ksp = (KSP)obj;
+      if (!_prset && _prefix.c_str())
+      {
+         ierr = KSPSetOptionsPrefix(ksp,_prefix.c_str());
+         PCHKERRQ(ksp,ierr);
+         _prset = true;
+      }
+      if (!clcustom)
+      {
+         ierr = KSPSetFromOptions(ksp);
+         PCHKERRQ(ksp,ierr);
+         clcustom = true;
+      }
+   }
+   else if (cid == PC_CLASSID)
+   {
+      PC pc = (PC)obj;
+      if (!_prset && _prefix.c_str())
+      {
+         ierr = PCSetOptionsPrefix(pc,_prefix.c_str());
+         PCHKERRQ(pc,ierr);
+         _prset = true;
+      }
+      if (!clcustom)
+      {
+         ierr = PCSetFromOptions(pc);
+         PCHKERRQ(pc,ierr);
+         clcustom = true;
+      }
+   }
+   else
+   {
+      MFEM_ABORT("To be implemented!");
+   }
+}
+
 void PetscSolver::Mult(const PetscParVector &b, PetscParVector &x) const
 {
+   Customize();
+
    PetscClassId cid;
    ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
    if (cid == KSP_CLASSID)
@@ -1017,36 +1056,36 @@ PetscLinearSolver::PetscLinearSolver(MPI_Comm comm,
                                      std::string prefix) : PetscSolver()
 {
    Init();
+   SetPrefix(prefix);
+
    KSP ksp;
    ierr = KSPCreate(comm,&ksp); CCHKERRQ(comm,ierr);
    obj = (PetscObject)ksp;
-   SetPrefix(prefix);
-   ierr = KSPSetFromOptions(ksp); PCHKERRQ(ksp,ierr);
 }
 
 PetscLinearSolver::PetscLinearSolver(PetscParMatrix &_A,
                                      std::string prefix) : PetscSolver()
 {
    Init();
+   SetPrefix(prefix);
+
    KSP ksp;
    ierr = KSPCreate(_A.GetComm(),&ksp); CCHKERRQ(_A.GetComm(),ierr);
    obj = (PetscObject)ksp;
-   SetPrefix(prefix);
    SetOperator(_A);
-   ierr = KSPSetFromOptions(ksp); PCHKERRQ(ksp,ierr);
 }
 
 PetscLinearSolver::PetscLinearSolver(HypreParMatrix &_A,bool wrapin,
                                      std::string prefix) : PetscSolver()
 {
    Init();
+   SetPrefix(prefix);
    wrap = wrapin;
+
    KSP ksp;
    ierr = KSPCreate(_A.GetComm(),&ksp); CCHKERRQ(_A.GetComm(),ierr);
    obj = (PetscObject)ksp;
-   SetPrefix(prefix);
    SetOperator(_A);
-   ierr = KSPSetFromOptions(ksp); PCHKERRQ(ksp,ierr);
 }
 
 void PetscLinearSolver::SetOperator(const Operator &op)
@@ -1168,7 +1207,6 @@ PetscPCGSolver::PetscPCGSolver(PetscParMatrix& _A,
    ierr = KSPSetType(ksp,KSPCG); PCHKERRQ(ksp,ierr);
    // this is to obtain a textbook PCG
    ierr = KSPSetNormType(ksp,KSP_NORM_NATURAL); PCHKERRQ(ksp,ierr);
-   //ierr = KSPSetFromOptions(ksp); PCHKERRQ(ksp,ierr);
 }
 
 PetscPCGSolver::PetscPCGSolver(HypreParMatrix& _A,
@@ -1178,7 +1216,6 @@ PetscPCGSolver::PetscPCGSolver(HypreParMatrix& _A,
    ierr = KSPSetType(ksp,KSPCG); PCHKERRQ(ksp,ierr);
    // this is to obtain a textbook PCG
    ierr = KSPSetNormType(ksp,KSP_NORM_NATURAL); PCHKERRQ(ksp,ierr);
-   //ierr = KSPSetFromOptions(ksp); PCHKERRQ(ksp,ierr);
 }
 
 // PetscPreconditioner methods
@@ -1192,35 +1229,35 @@ PetscPreconditioner::PetscPreconditioner(MPI_Comm comm,
                                          std::string prefix) : PetscSolver()
 {
    Init();
+   SetPrefix(prefix);
+
    PC pc;
    ierr = PCCreate(comm,&pc); CCHKERRQ(comm,ierr);
    obj = (PetscObject)pc;
-   SetPrefix(prefix);
-   ierr = PCSetFromOptions(pc); PCHKERRQ(pc,ierr);
 }
 
 PetscPreconditioner::PetscPreconditioner(PetscParMatrix &_A,
                                          std::string prefix) : PetscSolver()
 {
    Init();
+   SetPrefix(prefix);
+
    PC pc;
    ierr = PCCreate(_A.GetComm(),&pc); CCHKERRQ(_A.GetComm(),ierr);
    obj = (PetscObject)pc;
-   SetPrefix(prefix);
    SetOperator(_A);
-   ierr = PCSetFromOptions(pc); PCHKERRQ(pc,ierr);
 }
 
 PetscPreconditioner::PetscPreconditioner(MPI_Comm comm, Operator &op,
                                          std::string prefix)
 {
    Init();
+   SetPrefix(prefix);
+
    PC pc;
    ierr = PCCreate(comm,&pc); CCHKERRQ(comm,ierr);
    obj = (PetscObject)pc;
-   SetPrefix(prefix);
    SetOperator(op);
-   ierr = PCSetFromOptions(pc); PCHKERRQ(pc,ierr);
 }
 
 void PetscPreconditioner::SetOperator(const Operator &op)
@@ -1466,7 +1503,6 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts,
    }
    ierr = ISDestroy(&dir); PCHKERRQ(pc,ierr);
    ierr = ISDestroy(&neu); PCHKERRQ(pc,ierr);
-   ierr = PCSetFromOptions(pc); PCHKERRQ(pc,ierr);
 }
 
 PetscFieldSplitSolver::PetscFieldSplitSolver(MPI_Comm comm, BlockOperator &op,
@@ -1486,7 +1522,6 @@ PetscFieldSplitSolver::PetscFieldSplitSolver(MPI_Comm comm, BlockOperator &op,
       ierr = PCFieldSplitSetIS(pc,NULL,isrow[i]); PCHKERRQ(pc,ierr);
    }
    ierr = PetscFree(isrow); CCHKERRQ(PETSC_COMM_SELF,ierr);
-   ierr = PCSetFromOptions(pc); PCHKERRQ(pc,ierr);
 }
 
 }  // namespace mfem
