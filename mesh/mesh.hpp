@@ -147,10 +147,12 @@ protected:
    Operation last_operation;
 
    void Init();
-
    void InitTables();
-
-   void DeleteTables();
+   void SetEmpty();  // Init all data members with empty values
+   void DestroyTables();
+   void DeleteTables() { DestroyTables(); InitTables(); }
+   void DestroyPointers(); // Delete data specifically allocated by class Mesh.
+   void Destroy();         // Delete all owned data.
 
    Element *ReadElementWithoutAttr(std::istream &);
    static void PrintElementWithoutAttr(const Element *, std::ostream &);
@@ -377,7 +379,7 @@ protected:
 
 public:
 
-   Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
+   Mesh() { SetEmpty(); }
 
    /** Copy constructor. Performs a deep copy of (almost) all data, so that the
        source mesh can be modified (e.g. deleted, refined) without affecting the
@@ -476,12 +478,15 @@ public:
    /// Create a disjoint mesh from the given mesh array
    Mesh(Mesh *mesh_array[], int num_pieces);
 
-   /* This is similar to the above mesh constructor, but here the current
-      mesh is destroyed and another one created based on the data stream
-      again given in MFEM, netgen, or VTK format. If generate_edges = 0
-      (default) edges are not generated, if 1 edges are generated. */
+   /** This is similar to the mesh constructor with the same arguments, but here
+       the current mesh is destroyed and another one created based on the data
+       stream again given in MFEM, netgen, or VTK format. If generate_edges = 0
+       (default) edges are not generated, if 1 edges are generated. */
    void Load(std::istream &input, int generate_edges = 0, int refine = 1,
              bool fix_orientation = true);
+
+   /// Clear the contents of the Mesh.
+   void Clear() { Destroy(); SetEmpty(); }
 
    /** Return a bitmask:
        bit 0 - simplices are present in the mesh (triangles, tets),
@@ -739,7 +744,7 @@ public:
        2) rotate all boundary triangles so that the vertices {v0, v1, v2}
        satisfy: v0 < min(v1, v2).
 
-       Note: refinement does not work after a call to this method! */
+       @note Refinement does not work after a call to this method! */
    virtual void ReorientTetMesh();
 
    int *CartesianPartitioning(int nxyz[]);
@@ -939,8 +944,8 @@ public:
 
    void MesquiteSmooth(const int mesquite_option = 0);
 
-   /// Destroys mesh.
-   virtual ~Mesh();
+   /// Destroys Mesh.
+   virtual ~Mesh() { DestroyPointers(); }
 };
 
 /** Overload operator<< for std::ostream and Mesh; valid also for the derived
