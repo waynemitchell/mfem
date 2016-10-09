@@ -77,12 +77,6 @@ public:
    /// Typecasting to PETSc's Vec
    operator Vec() const { return x; }
 
-   /// Create HypreParVector referencing the data in Vec
-   HypreParVector* GetHypreParVector(Vec y);
-
-   /// Create HypreParVector compatible with B or B^T (data not allocated)
-   HypreParVector* GetHypreParVector(Mat B, bool transpose);
-
    /// Returns the global vector in each processor
    Vector* GlobalVector() const;
 
