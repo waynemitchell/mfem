@@ -272,7 +272,7 @@ int main(int argc, char *argv[])
       {
          ParFiniteElementSpace *prec_fespace =
             (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);
-         PetscBDDCSolverOpts opts;
+         PetscBDDCSolverParams opts;
          opts.SetSpace(prec_fespace);
          opts.SetEssBdrDofs(&ess_tdof_list);
 

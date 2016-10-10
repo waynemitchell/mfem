@@ -1323,7 +1323,7 @@ PetscPreconditioner::~PetscPreconditioner()
 
 // PetscBDDCSolver methods
 
-PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts,
+PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverParams opts,
                                  std::string prefix) : PetscPreconditioner(A,prefix)
 {
    PC pc = (PC)obj;

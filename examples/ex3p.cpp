@@ -247,7 +247,7 @@ int main(int argc, char *argv[])
       pcg->SetMaxIter(500);
       pcg->SetPrintLevel(2); //TODO
       if (use_nonoverlapping) {
-         PetscBDDCSolverOpts opts;
+         PetscBDDCSolverParams opts;
          opts.SetSpace(prec_fespace);
          opts.SetEssBdrDofs(&ess_tdof_list);
          prec = new PetscBDDCSolver(A,opts);

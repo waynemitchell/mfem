@@ -373,7 +373,7 @@ public:
 // preconditioners
 
 // auxiliary class for BDDC customization
-class PetscBDDCSolverOpts
+class PetscBDDCSolverParams
 {
 protected:
    ParFiniteElementSpace *fespace;
@@ -382,19 +382,19 @@ protected:
    friend class PetscBDDCSolver;
 
 public:
-   PetscBDDCSolverOpts() : fespace(NULL), ess_tdof_list(NULL),
+   PetscBDDCSolverParams() : fespace(NULL), ess_tdof_list(NULL),
       nat_tdof_list(NULL) {};
    void SetSpace(ParFiniteElementSpace *fe) { fespace = fe; };
    void SetEssBdrDofs(Array<int> *esstdofs) { ess_tdof_list = esstdofs; };
    void SetNatBdrDofs(Array<int> *nattdofs) { nat_tdof_list = nattdofs; };
-   ~PetscBDDCSolverOpts() {};
+   ~PetscBDDCSolverParams() {};
 };
 
 class PetscBDDCSolver : public PetscPreconditioner
 {
 public:
    PetscBDDCSolver(PetscParMatrix &A,
-                   PetscBDDCSolverOpts opts = PetscBDDCSolverOpts(),
+                   PetscBDDCSolverParams opts = PetscBDDCSolverParams(),
                    std::string prefix = std::string());
 };
 
