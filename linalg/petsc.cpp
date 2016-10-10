@@ -913,7 +913,7 @@ void PetscSolver::Customize() const
    }
    else
    {
-      MFEM_ABORT("To be implemented!");
+      MFEM_ABORT("Customize() to be implemented!");
    }
 }
 
@@ -924,8 +924,6 @@ void PetscSolver::SetTol(double tol)
 
 void PetscSolver::SetRelTol(double tol)
 {
-   // PETSC_DEFAULT does not change any other
-   // customization previously set.
    if (cid == KSP_CLASSID)
    {
       KSP ksp = (KSP)obj;
@@ -933,15 +931,13 @@ void PetscSolver::SetRelTol(double tol)
    }
    else
    {
-      MFEM_ABORT("To be implemented!");
+      MFEM_ABORT("SetRelTol() to be implemented!");
    }
    PCHKERRQ(obj,ierr);
 }
 
 void PetscSolver::SetAbsTol(double tol)
 {
-   // PETSC_DEFAULT does not change any other
-   // customization previously set.
    if (cid == KSP_CLASSID)
    {
       KSP ksp = (KSP)obj;
@@ -949,15 +945,13 @@ void PetscSolver::SetAbsTol(double tol)
    }
    else
    {
-      MFEM_ABORT("To be implemented!");
+      MFEM_ABORT("SetAbsTol() to be implemented!");
    }
    PCHKERRQ(obj,ierr);
 }
 
 void PetscSolver::SetMaxIter(int max_iter)
 {
-   // PETSC_DEFAULT does not change any other
-   // customization previously set.
    if (cid == KSP_CLASSID)
    {
       KSP ksp = (KSP)obj;
@@ -965,14 +959,39 @@ void PetscSolver::SetMaxIter(int max_iter)
    }
    else
    {
-      MFEM_ABORT("To be implemented!");
+      MFEM_ABORT("SetMaxIter() to be implemented!");
    }
    PCHKERRQ(obj,ierr);
 }
 
 void PetscSolver::SetPrintLevel(int plev)
 {
-   // TODO
+   PetscViewerAndFormat *vf;
+   PetscViewer viewer = PETSC_VIEWER_STDOUT_(PetscObjectComm(obj));
+
+   ierr = PetscViewerAndFormatCreate(viewer,PETSC_VIEWER_DEFAULT,&vf); PCHKERRQ(obj,ierr);
+   if (cid == KSP_CLASSID)
+   {
+      // there are many other options, see KSPSetFromOptions at src/ksp/ksp/interface/itcl.c
+      KSP ksp = (KSP)obj;
+      ierr = KSPMonitorCancel(ksp); PCHKERRQ(ksp,ierr);
+      if (plev == 1)
+      {
+         ierr = KSPMonitorSet(ksp,(PetscErrorCode (*)(KSP,PetscInt,PetscReal,void*))KSPMonitorDefault,vf,(PetscErrorCode (*)(void**))PetscViewerAndFormatDestroy); PCHKERRQ(ksp,ierr);
+      }
+      else if (plev > 1)
+      {
+         ierr = KSPSetComputeSingularValues(ksp,PETSC_TRUE); PCHKERRQ(ksp,ierr);
+         ierr = KSPMonitorSet(ksp,(PetscErrorCode (*)(KSP,PetscInt,PetscReal,void*))KSPMonitorSingularValue,vf,(PetscErrorCode (*)(void**))PetscViewerAndFormatDestroy); PCHKERRQ(ksp,ierr);
+         if (plev > 2)
+         {
+            ierr = PetscViewerAndFormatCreate(viewer,PETSC_VIEWER_DEFAULT,&vf); PCHKERRQ(viewer,ierr);
+            ierr = KSPMonitorSet(ksp,(PetscErrorCode (*)(KSP,PetscInt,PetscReal,void*))KSPMonitorTrueResidualNorm,vf,(PetscErrorCode (*)(void**))PetscViewerAndFormatDestroy); PCHKERRQ(ksp,ierr);
+         }
+      }
+   } else {
+      MFEM_ABORT("SetPrintLevel() to be implemented!");
+   }
 }
 
 void PetscSolver::Mult(const PetscParVector &b, PetscParVector &x) const

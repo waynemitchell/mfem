@@ -1,5 +1,4 @@
 # Options for the Krylov solver
--ksp_monitor
 -ksp_view
 -ksp_converged_reason
 # Options for the preconditioner
