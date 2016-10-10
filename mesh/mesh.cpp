@@ -862,13 +862,10 @@ void Mesh::SetAttributes()
 
 void Mesh::InitMesh(int _Dim, int _spaceDim, int NVert, int NElem, int NBdrElem)
 {
+   SetEmpty();
+
    Dim = _Dim;
    spaceDim = _spaceDim;
-
-   BaseGeom = BaseBdrGeom = -1;
-
-   Init();
-   InitTables();
 
    NumOfVertices = 0;
    vertices.SetSize(NVert);  // just allocate space for vertices
@@ -1896,10 +1893,9 @@ void Mesh::Make2D(int nx, int ny, Element::Type type, int generate_edges,
 {
    int i, j, k;
 
-   Dim = spaceDim = 2;
+   SetEmpty();
 
-   Init();
-   InitTables();
+   Dim = spaceDim = 2;
 
    // Creates quadrilateral mesh
    if (type == Element::QUADRILATERAL)
@@ -2056,14 +2052,13 @@ void Mesh::Make1D(int n, double sx)
 {
    int j, ind[1];
 
+   SetEmpty();
+
    Dim = 1;
    spaceDim = 1;
 
    BaseGeom = Geometry::SEGMENT;
    BaseBdrGeom = Geometry::POINT;
-
-   Init();
-   InitTables();
 
    meshgen = 1;
 
@@ -2226,8 +2221,7 @@ Mesh::Mesh(const char *filename, int generate_edges, int refine,
 Mesh::Mesh(std::istream &input, int generate_edges, int refine,
            bool fix_orientation)
 {
-   Init();
-   InitTables();
+   SetEmpty();
    Load(input, generate_edges, refine, fix_orientation);
 }
 
@@ -2564,8 +2558,7 @@ Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
    Element *el;
    Mesh    *m;
 
-   Init();
-   InitTables();
+   SetEmpty();
 
    Dim = mesh_array[0]->Dimension();
    spaceDim = mesh_array[0]->SpaceDimension();
@@ -2856,8 +2849,7 @@ void Mesh::UpdateNURBS()
 
 void Mesh::LoadPatchTopo(std::istream &input, Array<int> &edge_to_knot)
 {
-   Init();
-   InitTables();
+   SetEmpty();
 
    int j;
 
