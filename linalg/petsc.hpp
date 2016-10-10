@@ -205,6 +205,17 @@ public:
    /// Returns the global number of columns
    PetscInt N();
 
+   /// Returns the global number of rows
+   PetscInt GetGlobalNumRows() { return M(); };
+
+   /// Returns the global number of columns
+   PetscInt GetGlobalNumCols() { return N(); };
+
+   /// Returns the number of nonzeros
+   /// Differently from HYPRE, this call is collective on the communicator,
+   /// as this number is not stored inside PETSc, but needs to be computed
+   PetscInt NNZ();
+
    /// Returns the inner vector in the domain of A (it creates it if needed)
    PetscParVector* GetX() const;
 

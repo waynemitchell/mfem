@@ -293,6 +293,13 @@ PetscInt PetscParMatrix::N()
    return N;
 }
 
+PetscInt PetscParMatrix::NNZ()
+{
+   MatInfo info;
+   ierr = MatGetInfo(A,MAT_GLOBAL_SUM,&info); PCHKERRQ(A,ierr);
+   return (PetscInt)info.nz_used;
+}
+
 void PetscParMatrix::Init()
 {
    A = NULL;
