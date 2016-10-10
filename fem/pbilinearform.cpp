@@ -411,12 +411,12 @@ void ParBilinearForm::FormLinearSystem(
    // Make sure PETSc settings are enabled
    if (hybridization)
    {
-      hybridization->SetUseUnassembledFormat(unassembled);
+      hybridization->SetUseNonoverlappingFormat(unassembled);
       hybridization->SetUsePetsc();
    }
    if (static_cond)
    {
-      static_cond->SetUseUnassembledFormat(unassembled);
+      static_cond->SetUseNonoverlappingFormat(unassembled);
       static_cond->SetUsePetsc();
    }
 

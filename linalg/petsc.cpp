@@ -1482,7 +1482,7 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverOpts opts,
          ParFiniteElementSpace *pspace = new ParFiniteElementSpace(pmesh,auxcoll);
          ParMixedBilinearForm *b = new ParMixedBilinearForm(fespace,pspace);
 
-         b->SetUseUnassembledFormat();
+         b->SetUseNonoverlappingFormat();
          if (edgespace)
          {
             if (tracespace)

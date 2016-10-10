@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
    bool use_petsc = false;
 #ifdef MFEM_USE_PETSC
    const char *petscrc_file = "";
-   bool use_unassembled = false;
+   bool use_nonoverlapping = false;
 #endif
 
    OptionsParser args(argc, argv);
@@ -89,10 +89,11 @@ int main(int argc, char *argv[])
                   "Use or not PETSc to solve the linear system.");
    args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
                   "PetscOptions file to use.");
-   args.AddOption(&use_unassembled, "-unassembled", "--unassembled",
-                  "no-unassembled",
-                  "--no-unassembled",
-                  "Use or not PETSc unassembled matrix format.");
+   args.AddOption(&use_nonoverlapping, "-nonoverlapping", "--nonoverlapping",
+                  "no-nonoverlapping",
+                  "--no-nonoverlapping",
+                  "Use or not the block diagonal PETSc's matrix format "
+                  "for non-overlapping domain decomposition.");
 #endif
    args.Parse();
    if (!args.Good())
@@ -258,7 +259,7 @@ int main(int argc, char *argv[])
    {
       PetscParMatrix A;
       PetscSolver   *prec = NULL;
-      if (use_unassembled) { a->SetUseUnassembledFormat(); }
+      if (use_nonoverlapping) { a->SetUseNonoverlappingFormat(); }
       a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
 
       if (myid == 0)
@@ -267,7 +268,7 @@ int main(int argc, char *argv[])
       }
 
       pcg->SetOperator(A);
-      if (use_unassembled)
+      if (use_nonoverlapping)
       {
          ParFiniteElementSpace *prec_fespace =
             (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);

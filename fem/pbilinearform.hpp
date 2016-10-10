@@ -69,7 +69,7 @@ public:
 
    /// Assemble the matrix in "unassembled format" for non-overlapping DD
    /// Only significant with PETSc backend
-   void SetUseUnassembledFormat(bool use = true)
+   void SetUseNonoverlappingFormat(bool use = true)
    {
 #ifndef MFEM_USE_PETSC
       if (true) { MFEM_ABORT("You did not configured MFEM with PETSc support"); }
@@ -218,7 +218,7 @@ public:
 
    /// Assemble the matrix in "unassembled format" for non-overlapping DD
    /// Only significant with PETSc backend
-   void SetUseUnassembledFormat(bool use = true)
+   void SetUseNonoverlappingFormat(bool use = true)
    {
 #ifndef MFEM_USE_PETSC
       if (true) { MFEM_ABORT("You did not configured MFEM with PETSc support"); }
