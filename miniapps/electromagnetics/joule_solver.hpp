@@ -34,7 +34,7 @@ public:
    virtual ~MeshDependentCoefficient()
    {
       if (materialMap != NULL) { delete materialMap; }
-   };
+   }
 };
 
 // This Coefficient is a product of a GridFunction and a MeshDependentCoefficient
@@ -48,7 +48,7 @@ public:
    ScaledGFCoefficient(GridFunction *gf, MeshDependentCoefficient &input_mdc );
    virtual double Eval(ElementTransformation &T, const IntegrationPoint &ip);
    void SetMDC(const MeshDependentCoefficient &input_mdc) {mdc = input_mdc;}
-   virtual ~ScaledGFCoefficient() {};
+   virtual ~ScaledGFCoefficient() {}
 };
 
 
@@ -63,12 +63,18 @@ public:
     dF/dt       = (M2(c/k) + dt S2(1))^{-1} (-S2(1) F + Div J)
     dcT/dt      = -Div F + J
 
-    where P is the 0-form electrostaic potential,
-    E is the 1-form electric field, B is the 2-form magnetic flux, F is the 2-form thermal flux,
+    where
+
+    P is the 0-form electrostaic potential,
+    E is the 1-form electric field,
+    B is the 2-form magnetic flux,
+    F is the 2-form thermal flux,
     T is the 3-form temperature.
-    M is the mass matrix, S is the stiffness matrix, Curl is the curl matrix, Div
-    is the divergence matrix.
-    J is a  function of the Joule heating sigma (E dot E)
+    M is the mass matrix,
+    S is the stiffness matrix,
+    Curl is the curl matrix,
+    Div is the divergence matrix.
+    J is a function of the Joule heating sigma (E dot E)
 
     Class MagneticDiffusionEOperator represents the right-hand side of
     the above system of ODEs.
@@ -78,9 +84,10 @@ class MagneticDiffusionEOperator : public TimeDependentOperator
 protected:
 
    // These ParFiniteElementSpace objects provide degree-of-freedom mappings.
-   // To create these you must provide the mesh and the definition of the FE space.
-   // These objects are used to create hypervectors to store the DOF's, they are used
-   // to create gridfunctions to perform FEM interpolation, and they are used by bilinearforms.
+   // To create these you must provide the mesh and the definition of the FE
+   // space. These objects are used to create hypervectors to store the DOF's,
+   // they are used to create gridfunctions to perform FEM interpolation, and
+   // they are used by bilinearforms.
    ParFiniteElementSpace &L2FESpace;
    ParFiniteElementSpace &HCurlFESpace;
    ParFiniteElementSpace &HDivFESpace;
@@ -100,10 +107,10 @@ protected:
    // temporary work vectors
    ParGridFunction *v0, *v1, *v2;
 
-   // HypreSolver is derived from Solver, which is derived from Operator. So a HypreSolver
-   // object has a Mult() operator, which is actually the solver operation y = A^-1 x i.e.
-   // multiplcation by A^-1
-   // HyprePCG is a wrapper for the hypre preconditioned conjugate gradient
+   // HypreSolver is derived from Solver, which is derived from Operator. So a
+   // HypreSolver object has a Mult() operator, which is actually the solver
+   // operation y = A^-1 x i.e. multiplcation by A^-1.
+   // HyprePCG is a wrapper for the hypre preconditioned conjugate gradient.
    mutable HypreSolver * amg_a0;
    mutable HyprePCG    * pcg_a0;
    mutable HypreSolver * ads_a2;
@@ -167,8 +174,9 @@ public:
    void Init(Vector &vx);
 
    // class TimeDependentOperator is derived from Operator, and class Operator
-   // has the virtual function Mult(x,y) which computes y = A x for some matrix A.
-   // Actually, I take it back, I suppose it could be a nonlinear operator y = A(x).
+   // has the virtual function Mult(x,y) which computes y = A x for some matrix
+   // A. Actually, I take it back, I suppose it could be a nonlinear operator
+   // y = A(x).
    virtual void Mult(const Vector &vx, Vector &dvx_dt) const;
 
    // Solve the Backward-Euler equation: k = f(x + dt*k, t), for the unknown k.
@@ -176,10 +184,12 @@ public:
    // This is a virtual function of class TimeDependentOperator
    virtual void ImplicitSolve(const double dt, const Vector &x, Vector &k);
 
-   //  Compute B^T M2 B, where M2 is, I think, the HDiv mass matrix with permeability.
-   //double MagneticEnergy(ParGridFunction &B_gf) const;
+   // Compute B^T M2 B, where M2 is, I think, the HDiv mass matrix with
+   // permeability.
+   // double MagneticEnergy(ParGridFunction &B_gf) const;
 
-   //  Compute E^T M1 E, where M1 is, I think, the HCurl mass matrix with conductivity.
+   // Compute E^T M1 E, where M1 is, I think, the HCurl mass matrix with
+   // conductivity.
    double ElectricLosses(ParGridFunction &E_gf) const;
 
    // E is the input, w is the output which is L2 heating
@@ -195,7 +205,8 @@ public:
 
 // A Coefficient is an object with a function Eval that returns a double.
 // The JouleHeatingCoefficient object will contain a reference to the electric
-// field gridfunction, and the conductivity sigma, and returns sigma E dot E at a point
+// field gridfunction, and the conductivity sigma, and returns sigma E dot E at
+// a point.
 class JouleHeatingCoefficient: public Coefficient
 {
 private:

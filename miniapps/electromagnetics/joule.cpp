@@ -9,7 +9,8 @@
 // -o [int]      the order of the basis
 // -rs [int]     number of times to serially refine the mesh
 // -rp [int]     number of times to refine the mesh in parallel
-// -s [int]      time integrator 1=backward Euler, 2=SDIRK2, 3=SDIRK3, 22=Midpoint, 23=SDIRK23, 34=SDIRK34
+// -s [int]      time integrator 1=backward Euler, 2=SDIRK2, 3=SDIRK3,
+//               22=Midpoint, 23=SDIRK23, 34=SDIRK34
 // -tf [double]  the final time
 // -dt [double]  time step
 // -mu [double]  the magnetic permeability
@@ -49,40 +50,50 @@
 //                    attribute 1  |                     | atribute 2
 //                    (driven)     +---------------------+
 //
-//               The voltage BC condition is essential BC on atribute 1 (front) and 2 (rear)
-//               given by function p_bc() at bottom of this file.
+//               The voltage BC condition is essential BC on atribute 1 (front)
+//               and 2 (rear) given by function p_bc() at bottom of this file.
 //
-//               The E-field boundary condition specifies the essential BC (n cross E)
-//               on  atribute 1 (front) and 2 (rear) given by function edot_bc at bottom of this file.
-//               The E-field can be set on attribute 3 also.
+//               The E-field boundary condition specifies the essential BC (n
+//               cross E) on atribute 1 (front) and 2 (rear) given by function
+//               edot_bc at bottom of this file. The E-field can be set on
+//               attribute 3 also.
 //
-//               The thermal boundary condition for the flux F is the natural BC on  atribute 1 (front) and 2 (rear)
-//               This means that dT/dt = 0 on the boundaries, and the initial T = 0.
+//               The thermal boundary condition for the flux F is the natural BC
+//               on  atribute 1 (front) and 2 (rear). This means that dT/dt = 0
+//               on the boundaries, and the initial T = 0.
 //
-//               See section 2.5 for how the material propertied are assigned to mesh attribiutes, this
-//               needs to be changed for different applications.
+//               See section 2.5 for how the material propertied are assigned to
+//               mesh attribiutes, this needs to be changed for different
+//               applications.
 //
-//               See section 8.0 for how the boundary conditions are assigned to mesh attributes, this
-//               needs to be changed for different applications.
+//               See section 8.0 for how the boundary conditions are assigned to
+//               mesh attributes, this needs to be changed for different
+//               applications.
 //
-//               This code supports a simple version of AMR, all elements containing material attribute 1 are
-//               (optionally) refined.
+//               This code supports a simple version of AMR, all elements
+//               containing material attribute 1 are (optionally) refined.
 //
-// NOTE:         If the option "-p test" is provided, the code will compute the analytical solution
-//               of the electric and magnetic fields and compute the L2 error. This solution is only valid
-//               for the particular problem of a right circular cylindrical rod of length 1 and radius 1, and
-//               with particular boundary conditions. Example meshes for this test are cylindericalHex.mesh, cylindricalTet.mesh,
-//               rod2eb3sshex27.gen, rod2eb3sstet10.gen. Note that the meshes
-//               with te "gen" extension require MFEM to be build with NetCDF.
+// NOTE:         If the option "-p test" is provided, the code will compute the
+//               analytical solution of the electric and magnetic fields and
+//               compute the L2 error. This solution is only valid for the
+//               particular problem of a right circular cylindrical rod of
+//               length 1 and radius 1, and with particular boundary conditions.
+//               Example meshes for this test are cylindericalHex.mesh,
+//               cylindricalTet.mesh, rod2eb3sshex27.gen, rod2eb3sstet10.gen.
+//               Note that the meshes with the "gen" extension require MFEM to
+//               be built with NetCDF.
 //
-// NOTE:         This code is set up to solve two example problems, 1) a straight metal rod surrounded by air,
-//               2) a metal rod surrounded by a metal coil all surrounded by air. To specify problem (1) use the command
-//               line options "-p rod -m rod2eb3sshex27.gen", to specify problem (2) use the command line options
-//               "-p coil -m coil_centered_tet10.gen". Problem (1) has two materials and problem (2) has three materials,
-//               and the BC's are different.
+// NOTE:         This code is set up to solve two example problems, 1) a
+//               straight metal rod surrounded by air, 2) a metal rod surrounded
+//               by a metal coil all surrounded by air. To specify problem (1)
+//               use the command line options "-p rod -m rod2eb3sshex27.gen", to
+//               specify problem (2) use the command line options "-p coil -m
+//               coil_centered_tet10.gen". Problem (1) has two materials and
+//               problem (2) has three materials, and the BC's are different.
 //
-// NOTE:         We write out, optionally, grid functions for P, E, B, W, F, and T. These can be visualized using
-//               glvis -np 4 -m mesh.mesh -g E, assuming we used 4 processors
+// NOTE:         We write out, optionally, grid functions for P, E, B, W, F, and
+//               T. These can be visualized using glvis -np 4 -m mesh.mesh -g E,
+//               assuming we used 4 processors.
 //
 
 
@@ -255,9 +266,10 @@ int main(int argc, char *argv[])
       TcondAir     = 1.0 * Tconductivity;
       TcapAir      = 1.0 * Tcapacity;
 
-#ifdef MFEM_USE_GSL
-      cout << "You selected to run the test prpoblem, but did not build with GSL. " << endl;
-      cout << "The analytical solution requires GSL. " << endl;
+#ifndef MFEM_USE_GSL
+      cout << "You selected to run the test prpoblem, but did not"
+           " build with GSL.\n"
+           "The analytical solution requires GSL." << endl;
 #endif
 
    }
@@ -346,9 +358,9 @@ int main(int argc, char *argv[])
       ess_bdr[1] = 1; // boundary attribute 2 (index 1) is fixed (rear)
       ess_bdr[2] = 1; // boundary attribute 3 (index 3) is fixed (outer)
 
-      // Same as above, but this is for the thermal operator
-      // for HDiv formulation the essetial BC is the flux, which is zero on the front and sides
-      // Note the Natural BC is T = 0 on the outer surface
+      // Same as above, but this is for the thermal operator.
+      // For HDiv formulation the essetial BC is the flux, which is zero on the
+      // front and sides. Note the Natural BC is T = 0 on the outer surface.
 
       thermal_ess_bdr = 0;
       thermal_ess_bdr[0] = 1; // boundary attribute 1 (index 0) is fixed (front)
@@ -414,10 +426,9 @@ int main(int argc, char *argv[])
    }
 
 
-   // 9.
-   //    Apply non-uniform non-conforming mesh refinement to the mesh.
-   //    The whole metal region is refined, i.e. this is not based on any error estimator
-
+   // 9. Apply non-uniform non-conforming mesh refinement to the mesh.
+   //    The whole metal region is refined, i.e. this is not based on any error
+   //    estimator.
 
    if (amr == 1)
    {
@@ -648,19 +659,19 @@ int main(int argc, char *argv[])
 
    if (mpi.Root() && (strcmp(problem,"test")==0))
    {
-      cout << scientific  << setprecision(3) << "initial electric L2 error    = " <<
-           err_E0/(eng_E0+1.0e-20) << endl;
-      cout << scientific  << setprecision(3) << "initial magnetic L2 error    = " <<
-           err_B0/(eng_B0+1.0e-20) << endl;
-      cout << scientific  << setprecision(3) << "initial electric losses (EL) = " <<
-           el0 << endl;
+      cout << scientific << setprecision(3) << "initial electric L2 error    = "
+           << err_E0/(eng_E0+1.0e-20) << endl;
+      cout << scientific << setprecision(3) << "initial magnetic L2 error    = "
+           << err_B0/(eng_B0+1.0e-20) << endl;
+      cout << scientific << setprecision(3) << "initial electric losses (EL) = "
+           << el0 << endl;
    }
 
    // 10. Perform time-integration (looping over the time iterations, ti, with a
    //     time-step dt).
    //
-   // oper is the MagneticDiffusionOperator which has a Mult() method and an ImplicitSolve()
-   // method which are used by the time integrators.
+   // oper is the MagneticDiffusionOperator which has a Mult() method and an
+   // ImplicitSolve() method which are used by the time integrators.
    ode_solver->Init(oper);
    double t = 0.0;
 
@@ -696,20 +707,20 @@ int main(int argc, char *argv[])
       {
 
          ostringstream T_name, E_name, B_name, F_name, w_name, P_name, mesh_name;
-         T_name << basename << "_"  << setfill('0') << setw(6) << t << "_" << "T." <<
-                setfill('0') << setw(6) << myid;
-         E_name << basename << "_"  << setfill('0') << setw(6) << t << "_" << "E." <<
-                setfill('0') << setw(6) << myid;
-         B_name << basename << "_"  << setfill('0') << setw(6) << t << "_" << "B." <<
-                setfill('0') << setw(6) << myid;
-         F_name << basename << "_"  << setfill('0') << setw(6) << t << "_" << "F." <<
-                setfill('0') << setw(6) << myid;
-         w_name << basename << "_"  << setfill('0') << setw(6) << t << "_" << "w." <<
-                setfill('0') << setw(6) << myid;
-         P_name << basename << "_"  << setfill('0') << setw(6) << t << "_" << "P." <<
-                setfill('0') << setw(6) << myid;
-         mesh_name << basename << "_"  << setfill('0') << setw(6) << t << "_" << "mesh."
-                   << setfill('0') << setw(6) << myid;
+         T_name << basename << "_" << setfill('0') << setw(6) << t << "_"
+                << "T." << setfill('0') << setw(6) << myid;
+         E_name << basename << "_" << setfill('0') << setw(6) << t << "_"
+                << "E." << setfill('0') << setw(6) << myid;
+         B_name << basename << "_" << setfill('0') << setw(6) << t << "_"
+                << "B." << setfill('0') << setw(6) << myid;
+         F_name << basename << "_" << setfill('0') << setw(6) << t << "_"
+                << "F." << setfill('0') << setw(6) << myid;
+         w_name << basename << "_" << setfill('0') << setw(6) << t << "_"
+                << "w." << setfill('0') << setw(6) << myid;
+         P_name << basename << "_" << setfill('0') << setw(6) << t << "_"
+                << "P." << setfill('0') << setw(6) << myid;
+         mesh_name << basename << "_" << setfill('0') << setw(6) << t << "_"
+                   << "mesh." << setfill('0') << setw(6) << myid;
 
          ofstream mesh_ofs(mesh_name.str().c_str());
          mesh_ofs.precision(8);
@@ -752,7 +763,8 @@ int main(int argc, char *argv[])
          if (mpi.Root())
          {
             cout << fixed;
-            cout << "step " << setw(6) << ti << " t = " << setw(6) << setprecision(3) << t;
+            cout << "step " << setw(6) << ti << " t = " << setw(6)
+                 << setprecision(3) << t;
          }
 
          if (strcmp(problem,"test")==0)
@@ -939,8 +951,8 @@ void b_exact(const Vector &x, double t, Vector &B)
    complex<double> besselJ0kR(besselJ0kR_real,besselJ0kR_imag);
    complex<double> sinc(cos(wj_*t),sin(wj_*t));
    complex<double> kcmplx(k_real,k_imag);
-   complex<double> Bcmplx = kcmplx / (complex<double>(0,
-                                                      1)*wj_) * sinc * besselJ1kr / besselJ0kR;
+   complex<double> Bcmplx =
+      kcmplx / (complex<double>(0,1)*wj_) * sinc * besselJ1kr / besselJ0kR;
    double Breal = -1.0*real(Bcmplx);
 
    B[0] = -x[1]/r*aj_*Breal;
