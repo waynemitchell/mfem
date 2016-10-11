@@ -687,7 +687,7 @@ public:
                                    DenseMatrix &elmat);
 };
 
-/** Integrator for the DG form, for the formulations see:
+/** Integrator for the DG elasticity form, for the formulations see:
     - PhD Thesis of Jonas De Basabe, High-Order Finite %Element Methods for
       Seismic Wave Propagation, UT Austin, 2009, p. 23, and references therein
     - Peter Hansbo and Mats G. Larson, Discontinuous Galerkin and the
@@ -704,8 +704,8 @@ public:
     an interior face \f$ F_i \f$ separating elements \f$ K_1 \f$ and \f$ K_2 \f$.
 
     In the bilinear form above \f$ \tau(u) \f$ is traction, and it's also
-    \f$ \tau(u) = \sigma(u) \cdot \vec{n} \f$, where \f$ \sigma(u) \f$
-    is stress, and \f$ \vec{n} \f$ is the unit normal vector w.r.t. to \f$ F \f$
+    \f$ \tau(u) = \sigma(u) \cdot \vec{n} \f$, where \f$ \sigma(u) \f$ is
+    stress, and \f$ \vec{n} \f$ is the unit normal vector w.r.t. to \f$ F \f$.
 
     In other words, we have
     \f[
@@ -726,22 +726,23 @@ public:
 
     where \f$ I \f$ is identity matrix, \f$ \lambda \f$ and \f$ \mu \f$ are Lame
     coefficients (see ElasticityIntegrator), \f$ u, v \f$ are the trial and test
-    functions, respectively. The parameters \f$ \alpha \f$ and \f$ \kappa \f$
-    determine the DG method to be used (when this integrator is added to the
-    "broken" ElasticityIntegrator):
+    functions, respectively.
 
-    - \f$\alpha = 0\f$, IIPG (Dawson, C., Sun, S., & Wheeler, M., 2004.
-    Compatible algorithms for coupled flow and transport, Computer Methods in
-    Applied Mechanics and Engineering, 193(23-26), 2565-2580.)
+    The parameters \f$ \alpha \f$ and \f$ \kappa \f$ determine the DG method to
+    use (when this integrator is added to the "broken" ElasticityIntegrator):
 
-    - \f$\alpha = -1\f$, SIPG (Grote, M., Schneebeli, A., & Schotzau, D., 2006.
-    Discontinuous Galerkin Finite %Element Method for the Wave Equation, SIAM
-    Journal on Numerical Analysis, 44(6), 2408-2431.)
+    - IIPG, \f$\alpha = 0\f$,
+      C. Dawson, S. Sun, M. Wheeler, Compatible algorithms for coupled flow and
+      transport, Comp. Meth. Appl. Mech. Eng., 193(23-26), 2565-2580, 2004.
 
-    - \f$\alpha = 1\f$, NIPG (Riviere, B., Wheeler, M., & Girault, V., 2001.
-    A Priori Error Estimates for Finite %Element Methods Based on Discontinuous
-    Approximation Spaces for Elliptic Problems, SIAM Journal on Numerical
-    Analysis, 39(3), 902-931.)
+    - SIPG, \f$\alpha = -1\f$,
+      M. Grote, A. Schneebeli, D. Schotzau, Discontinuous Galerkin Finite
+      %Element Method for the Wave Equation, SINUM, 44(6), 2408-2431, 2006.
+
+    - NIPG, \f$\alpha = 1\f$,
+      B. Riviere, M. Wheeler, V. Girault, A Priori Error Estimates for Finite
+      %Element Methods Based on Discontinuous Approximation Spaces for Elliptic
+      Problems, SINUM, 39(3), 902-931, 2001.
 
     This is a '%Vector' integrator, i.e. defined for FE spaces using multiple
     copies of a scalar FE space.
@@ -783,8 +784,7 @@ protected:
    Vector nL1, nL2;  // nL1 = (lambda1 * ip.weight / detJ1) nor
    Vector nM1, nM2;  // nM1 = (mu1     * ip.weight / detJ1) nor
    Vector dshape1_dnM, dshape2_dnM; // dshape1_dnM = dshape1_ps . nM1
-   // 'jmat' corresponds to the term:
-   //    kappa < h^{-1} { lambda + 2 mu } [u], [v] >
+   // 'jmat' corresponds to the term: kappa <h^{-1} {lambda + 2 mu} [u], [v]>
    DenseMatrix jmat;
 #endif
 

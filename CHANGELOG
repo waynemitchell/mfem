@@ -9,17 +9,21 @@
 
 
 Version 3.3, not yet released
-===============================
+=============================
 
 New integrators and extensions to BilinearForm and LinearForm
 -------------------------------------------------------------
-- Added new class DGElasticityIntegrator that supports a few types of DG
+- Added a new class DGElasticityIntegrator that supports a few types of DG
   formulations for linear elasticity.
-- Added new linear form integrator class DGElasticityDirichletLFIntegrator that
-  implements non-homogeneous Dirichlet b.c. for DG elasticity formulations.
+
+- Added a new linear form integrator class DGElasticityDirichletLFIntegrator
+  that implements non-homogeneous Dirichlet b.c. for DG elasticity formulations.
+
 - Added support for DG spaces in class VectorBoundaryLFIntegrator.
+
 - In class BilinearForm, added support for boundary face integrators applied to
   a subset of the boundary, see the method AddBdrFaceIntegrator.
+
 - In class LinearForm, added support for boundary face integrators applied to
   a subset of the boundary, see method AddBdrFaceIntegrator.
 
@@ -50,7 +54,7 @@ FEM <-> linear system interface for action-only linear operators
   Operators that are available only through their action. This includes all
   necessary transformations, such as: parallel assembly, conforming constraints
   for non-conforming AMR and eliminating boundary conditions. (Hybridization and
-  static condensation are not supported.) See examples in miniapps/peformance.
+  static condensation are not supported.) See examples in miniapps/performance.
 
 New and updated examples and miniapps
 -------------------------------------
@@ -89,7 +93,9 @@ Miscellaneous
 
 - In class SparseMatrix, added methods CheckFinite and PrintInfo.
 
-- GMRESSolver and MINRESSolver now support the same print-levels as CGSolver.
+- GMRESSolver and MINRESSolver now support the same print levels as CGSolver.
+
+- Various other simplifications, extensions, and bugfixes in the code.
 
 
 Version 3.2, released on June 30, 2016

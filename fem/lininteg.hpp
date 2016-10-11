@@ -319,10 +319,10 @@ public:
     conditions, in a DG elasticity formulation. Specifically, the linear form is
     given by
 
-    alpha < uD, (lambda div(v) I + mu (grad(v) + grad(v)^T)) . n > +
-      + kappa < h^{-1} (lambda + 2 mu) uD, v >,
+    alpha < u_D, (lambda div(v) I + mu (grad(v) + grad(v)^T)) . n > +
+      + kappa < h^{-1} (lambda + 2 mu) u_D, v >,
 
-    where uD is the given Dirichlet data. The parameters alpha, kappa, lambda
+    where u_D is the given Dirichlet data. The parameters alpha, kappa, lambda
     and mu, should match the parameters with the same names used in the bilinear
     form integrator, DGElasticityIntegrator. */
 class DGElasticityDirichletLFIntegrator : public LinearFormIntegrator
