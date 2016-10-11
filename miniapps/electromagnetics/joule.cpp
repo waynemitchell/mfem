@@ -1,7 +1,7 @@
 //                       J O U L E
 //
 // Usage:
-//    srun -n 8 -p pdebug joule -m ../../data/CylinderHex.mesh -p test
+//    srun -n 8 -p pdebug joule -m ../../data/cylinderHex.mesh -p test
 //    srun -n 8 -p pdebug joule -m rod2eb3sshex27.gen -s 22 -dt 0.1 -tf 240.0 -p test
 //
 // Options:
@@ -78,8 +78,8 @@
 //               compute the L2 error. This solution is only valid for the
 //               particular problem of a right circular cylindrical rod of
 //               length 1 and radius 1, and with particular boundary conditions.
-//               Example meshes for this test are cylindericalHex.mesh,
-//               cylindricalTet.mesh, rod2eb3sshex27.gen, rod2eb3sstet10.gen.
+//               Example meshes for this test are cylinderHex.mesh,
+//               cylinderTet.mesh, rod2eb3sshex27.gen, rod2eb3sstet10.gen.
 //               Note that the meshes with the "gen" extension require MFEM to
 //               be built with NetCDF.
 //
@@ -138,7 +138,7 @@ int main(int argc, char *argv[])
    // if (mpi.Root()) { print_banner(); }
 
    // 2. Parse command-line options.
-   const char *mesh_file = "../../data/CylinderHex.mesh";
+   const char *mesh_file = "../../data/cylinderHex.mesh";
    int ser_ref_levels = 0;
    int par_ref_levels = 0;
    int order = 2;
