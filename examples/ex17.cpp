@@ -48,7 +48,7 @@ using namespace std;
 using namespace mfem;
 
 // Initial displacement, used for Dirichlet boundary conditions on boundary
-// attributes 1 and 2. Also used as initial guess in PCG/GMRES.
+// attributes 1 and 2.
 void InitDisplacement(const Vector &x, Vector &u);
 
 // A Coefficient for computing the components of the stress.
