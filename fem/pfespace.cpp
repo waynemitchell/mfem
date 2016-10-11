@@ -1627,7 +1627,7 @@ HypreParMatrix *ParFiniteElementSpace::GetPartialConformingInterpolation()
    // *** STEP 4: iteratively build the P matrix ***
 
    // DOFs that stayed independent or are ours are true DOFs
-   int ltdof_sz = 0;
+   HYPRE_Int ltdof_sz = 0;
    for (int i = 0; i < num_dofs; i++)
    {
       if (deps[i].IsTrueDof(MyRank)) { ltdof_sz++; }
@@ -1647,7 +1647,8 @@ HypreParMatrix *ParFiniteElementSpace::GetPartialConformingInterpolation()
    MFEM_VERIFY(glob_true_dofs >= 0,
                "overflow of non-conforming P matrix columns.");
 #endif
-   SparseMatrix localP(num_dofs, glob_true_dofs); // TODO bigint
+   // TODO bigint
+   SparseMatrix localP(num_dofs, internal::to_int(glob_true_dofs));
 
    Array<bool> finalized(num_dofs);
    finalized = false;
@@ -1771,6 +1772,7 @@ HypreParMatrix *ParFiniteElementSpace::GetPartialConformingInterpolation()
                            dof_offsets.GetData(), tdof_off.GetData());
 #else
    (void) glob_cdofs;
+   PP = NULL;
    MFEM_ABORT("HYPRE_BIGINT not supported yet.");
 #endif
 
@@ -1789,7 +1791,7 @@ HypreParMatrix *ParFiniteElementSpace::GetPartialConformingInterpolation()
 
 static HYPRE_Int* make_i_array(int nrows)
 {
-   int *I = new HYPRE_Int[nrows+1];
+   HYPRE_Int *I = new HYPRE_Int[nrows+1];
    for (int i = 0; i <= nrows; i++) { I[i] = -1; }
    return I;
 }
@@ -1801,7 +1803,7 @@ static HYPRE_Int* make_j_array(HYPRE_Int* I, int nrows)
    {
       if (I[i] >= 0) { nnz++; }
    }
-   int *J = new HYPRE_Int[nnz];
+   HYPRE_Int *J = new HYPRE_Int[nnz];
 
    I[nrows] = -1;
    for (int i = 0, k = 0; i <= nrows; i++)
