@@ -1,16 +1,16 @@
-//                                MFEM Example 17
+//                    MFEM Example 17 - Parallel Version
 //
-// Compile with: make ex17
+// Compile with: make ex17p
 //
 // Sample runs:
 //
-//       ex17 -m ../data/beam-tri.mesh
-//       ex17 -m ../data/beam-quad.mesh
-//       ex17 -m ../data/beam-tet.mesh
-//       ex17 -m ../data/beam-hex.mesh
-//       ex17 -m ../data/beam-quad.mesh -r 2 -o 3
-//       ex17 -m ../data/beam-quad.mesh -r 2 -o 2 -a 1 -k 1
-//       ex17 -m ../data/beam-hex.mesh -r 2 -o 2
+//       mpirun -np 4 ex17p -m ../data/beam-tri.mesh
+//       mpirun -np 4 ex17p -m ../data/beam-quad.mesh
+//       mpirun -np 4 ex17p -m ../data/beam-tet.mesh
+//       mpirun -np 4 ex17p -m ../data/beam-hex.mesh
+//       mpirun -np 4 ex17p -m ../data/beam-quad.mesh -rs 2 -rp 2 -o 3
+//       mpirun -np 4 ex17p -m ../data/beam-quad.mesh -rs 2 -rp 3 -o 2 -a 1 -k 1
+//       mpirun -np 4 ex17p -m ../data/beam-hex.mesh -rs 2 -rp 1 -o 2
 //
 // Description:  This example code solves a simple linear elasticity problem
 //               describing a multi-material cantilever beam using symmetric or
@@ -37,7 +37,7 @@
 //               non-homogeneous Dirichlet b.c. imposed weakly, is also
 //               illustrated.
 //
-//               We recommend viewing Example 2 before viewing this example.
+//               We recommend viewing Example 2p before viewing this example.
 
 #include "mfem.hpp"
 #include <fstream>
@@ -98,19 +98,27 @@ ostream &operator<<(ostream &v, void (*f)(VisMan&));
 
 int main(int argc, char *argv[])
 {
+   MPI_Session mpi(argc, argv);
+
    // 1. Define and parse command-line options.
    const char *mesh_file = "../data/beam-tri.mesh";
-   int ref_levels = -1;
+   int ser_ref_levels = -1;
+   int par_ref_levels = 1;
    int order = 1;
    double alpha = -1.0;
    double kappa = -1.0;
+   bool amg_elast = false;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
-   args.AddOption(&ref_levels, "-r", "--refine",
-                  "Number of times to refine the mesh uniformly, -1 for auto.");
+   args.AddOption(&ser_ref_levels, "-rs", "--refine-serial",
+                  "Number of times to refine the mesh uniformly before parallel"
+                  " partitioning, -1 for auto.");
+   args.AddOption(&par_ref_levels, "-rp", "--refine-parallel",
+                  "Number of times to refine the mesh uniformly after parallel"
+                  " partitioning.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
    args.AddOption(&alpha, "-a", "--alpha",
@@ -119,20 +127,24 @@ int main(int argc, char *argv[])
    args.AddOption(&kappa, "-k", "--kappa",
                   "One of the two DG penalty parameters, should be positive."
                   " Negative values are replaced with (order+1)^2.");
+   args.AddOption(&amg_elast, "-elast", "--amg-for-elasticity", "-sys",
+                  "--amg-for-systems",
+                  "Use the special AMG elasticity solver (GM/LN approaches), "
+                  "or standard AMG for systems (unknown approach).");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
    args.Parse();
    if (!args.Good())
    {
-      args.PrintUsage(cout);
+      if (mpi.Root()) { args.PrintUsage(cout); }
       return 1;
    }
    if (kappa < 0)
    {
       kappa = (order+1)*(order+1);
    }
-   args.PrintOptions(cout);
+   if (mpi.Root()) { args.PrintOptions(cout); }
 
    // 2. Read the mesh from the given mesh file.
    Mesh mesh(mesh_file, 1, 1);
@@ -140,18 +152,21 @@ int main(int argc, char *argv[])
 
    if (mesh.attributes.Max() < 2 || mesh.bdr_attributes.Max() < 2)
    {
-      cerr << "\nInput mesh should have at least two materials and "
-           << "two boundary attributes! (See schematic in ex17.cpp)\n"
-           << endl;
+      if (mpi.Root())
+      {
+         cerr << "\nInput mesh should have at least two materials and "
+              << "two boundary attributes! (See schematic in ex17p.cpp)\n"
+              << endl;
+      }
       return 3;
    }
 
    // 3. Refine the mesh to increase the resolution.
-   if (ref_levels < 0)
+   if (ser_ref_levels < 0)
    {
-      ref_levels = (int)floor(log(5000./mesh.GetNE())/log(2.)/dim);
+      ser_ref_levels = (int)floor(log(5000./mesh.GetNE())/log(2.)/dim);
    }
-   for (int l = 0; l < ref_levels; l++)
+   for (int l = 0; l < ser_ref_levels; l++)
    {
       mesh.UniformRefinement();
    }
@@ -159,14 +174,26 @@ int main(int argc, char *argv[])
    // regular poynomial mesh of the specified (solution) order.
    if (mesh.NURBSext) { mesh.SetCurvature(order); }
 
+   ParMesh pmesh(MPI_COMM_WORLD, mesh);
+   mesh.Clear();
+
+   for (int l = 0; l < par_ref_levels; l++)
+   {
+      pmesh.UniformRefinement();
+   }
+
    // 4. Define a DG vector finite element space on the mesh. Here, we use
    //    Gauss-Lobatto nodal basis because it gives rise to a sparser matrix
    //    compared to the default Gauss-Legendre nodal basis.
    DG_FECollection fec(order, dim, BasisType::GaussLobatto);
-   FiniteElementSpace fespace(&mesh, &fec, dim);
+   ParFiniteElementSpace fespace(&pmesh, &fec, dim, Ordering::byVDIM);
 
-   cout << "Number of finite element unknowns: " << fespace.GetTrueVSize()
-        << "\nAssembling: " << flush;
+   HYPRE_Int glob_size = fespace.GlobalTrueVSize();
+   if (mpi.Root())
+   {
+      cout << "Number of finite element unknowns: " << glob_size
+           << "\nAssembling: " << flush;
+   }
 
    // 5. In this example, the Dirichlet boundary conditions are defined by
    //    marking boundary attributes 1 and 2 in the marker Array 'dir_bdr'.
@@ -174,7 +201,7 @@ int main(int argc, char *argv[])
    //    integrators over the marked 'dir_bdr' to the bilinear and linear forms.
    //    With this DG formulation, there are no essential boundary condiitons.
    Array<int> ess_tdof_list; // no essential b.c. (empty list)
-   Array<int> dir_bdr(mesh.bdr_attributes.Max());
+   Array<int> dir_bdr(pmesh.bdr_attributes.Max());
    dir_bdr = 0;
    dir_bdr[0] = 1; // boundary attribute 1 is Dirichlet
    dir_bdr[1] = 1; // boundary attribute 2 is Dirichlet
@@ -182,18 +209,18 @@ int main(int argc, char *argv[])
    // 6. Define the DG solution vector 'x' as a finite element grid function
    //    corresponding to fespace. Initialize 'x' using the 'InitDisplacement'
    //    function.
-   GridFunction x(&fespace);
+   ParGridFunction x(&fespace);
    VectorFunctionCoefficient init_x(dim, InitDisplacement);
    x.ProjectCoefficient(init_x);
 
    // 7. Set up the Lame constants for the two materials. They are defined as
    //    piece-wise (with respect to the element attributes) constant
    //    coefficients, i.e. type PWConstCoefficient.
-   Vector lambda(mesh.attributes.Max());
+   Vector lambda(pmesh.attributes.Max());
    lambda = 1.0;      // Set lambda = 1 for all element attributes.
    lambda(0) = 50.0;  // Set lambda = 50 for element attribute 1.
    PWConstCoefficient lambda_c(lambda);
-   Vector mu(mesh.attributes.Max());
+   Vector mu(pmesh.attributes.Max());
    mu = 1.0;      // Set mu = 1 for all element attributes.
    mu(0) = 50.0;  // Set mu = 50 for element attribute 1.
    PWConstCoefficient mu_c(mu);
@@ -205,8 +232,8 @@ int main(int argc, char *argv[])
    //    values for the Dirichlet boundary condition are taken from the
    //    VectorFunctionCoefficient 'x_init' which in turn is based on the
    //    function 'InitDisplacement'.
-   LinearForm b(&fespace);
-   cout << "r.h.s. ... " << flush;
+   ParLinearForm b(&fespace);
+   if (mpi.Root()) { cout << "r.h.s. ... " << flush; }
    b.AddBdrFaceIntegrator(
       new DGElasticityDirichletLFIntegrator(
          init_x, lambda_c, mu_c, alpha, kappa), dir_bdr);
@@ -219,7 +246,7 @@ int main(int argc, char *argv[])
    //    boundary face integrator works together with the boundary integrator
    //    added to the linear form b(.) to impose weakly the Dirichlet boundary
    //    conditions.
-   BilinearForm a(&fespace);
+   ParBilinearForm a(&fespace);
    a.AddDomainIntegrator(new ElasticityIntegrator(lambda_c, mu_c));
    a.AddInteriorFaceIntegrator(
       new DGElasticityIntegrator(lambda_c, mu_c, alpha, kappa));
@@ -227,61 +254,67 @@ int main(int argc, char *argv[])
       new DGElasticityIntegrator(lambda_c, mu_c, alpha, kappa), dir_bdr);
 
    // 10. Assemble the bilinear form and the corresponding linear system.
-   cout << "matrix ... " << flush;
+   if (mpi.Root()) { cout << "matrix ... " << flush; }
    a.Assemble();
 
-   SparseMatrix A;
+   HypreParMatrix A;
    Vector B, X;
    a.FormLinearSystem(ess_tdof_list, x, b, A, X, B);
-   cout << "done." << endl;
+   if (mpi.Root()) { cout << "done." << endl; }
 
-   // Print some information about the matrix of the linear system.
-   A.PrintInfo(cout);
-
-#ifndef MFEM_USE_SUITESPARSE
    // 11. Define a simple symmetric Gauss-Seidel preconditioner and use it to
    //     solve the system Ax=b with PCG for the symmetric formulation, or GMRES
    //     for the non-symmetric.
-   GSSmoother M(A);
    const double rtol = 1e-6;
-   if (alpha == -1.0)
+   HypreBoomerAMG amg(A);
+   if (amg_elast)
    {
-      PCG(A, M, B, X, 3, 5000, rtol*rtol, 0.0);
+      amg.SetElasticityOptions(&fespace);
    }
    else
    {
-      GMRES(A, M, B, X, 3, 5000, 50, rtol*rtol, 0.0);
+      amg.SetSystemsOptions(dim);
    }
-#else
-   // 11. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
-   UMFPackSolver umf_solver;
-   umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
-   umf_solver.SetOperator(A);
-   umf_solver.Mult(B, X);
-#endif
+   CGSolver pcg(A.GetComm());
+   GMRESSolver gmres(A.GetComm());
+   gmres.SetKDim(50);
+   IterativeSolver &ipcg = pcg, &igmres = gmres;
+   IterativeSolver &solver = (alpha == -1.0) ? ipcg : igmres;
+   solver.SetRelTol(rtol);
+   solver.SetMaxIter(500);
+   solver.SetPrintLevel(1);
+   solver.SetOperator(A);
+   solver.SetPreconditioner(amg);
+   solver.Mult(B, X);
 
    // 12. Recover the solution as a finite element grid function 'x'.
    a.RecoverFEMSolution(X, b, x);
 
    // 13. Use the DG solution space as the mesh nodal space. This allows us to
    //     save the displaced mesh as a curved DG mesh.
-   mesh.SetNodalFESpace(&fespace);
+   pmesh.SetNodalFESpace(&fespace);
 
    Vector reference_nodes;
-   if (visualization) { reference_nodes = *mesh.GetNodes(); }
+   if (visualization) { reference_nodes = *pmesh.GetNodes(); }
 
    // 14. Save the displaced mesh and minus the solution (which gives the
    //     backward displacements to the reference mesh). This output can be
    //     viewed later using GLVis: "glvis -m displaced.mesh -g sol.gf".
    {
-      *mesh.GetNodes() += x;
+      *pmesh.GetNodes() += x;
       x.Neg(); // x = -x
-      ofstream mesh_ofs("displaced.mesh");
+
+      ostringstream mesh_name, sol_name;
+      mesh_name << "mesh." << setfill('0') << setw(6) << mpi.WorldRank();
+      sol_name << "sol." << setfill('0') << setw(6) << mpi.WorldRank();
+
+      ofstream mesh_ofs(mesh_name.str().c_str());
       mesh_ofs.precision(8);
-      mesh.Print(mesh_ofs);
-      ofstream sol_ofs("sol.gf");
+      mesh_ofs << pmesh;
+
+      ofstream sol_ofs(sol_name.str().c_str());
       sol_ofs.precision(8);
-      x.Save(sol_ofs);
+      sol_ofs << x;
    }
 
    // 15. Visualization: send data by socket to a GLVis server.
@@ -294,7 +327,9 @@ int main(int argc, char *argv[])
 
       // Visualize the deformed configuration.
       vis << new_window << setprecision(8)
-          << "solution\n" << mesh << x << flush
+          << "parallel " << pmesh.GetNRanks() << ' ' << pmesh.GetMyRank()
+          << '\n'
+          << "solution\n" << pmesh << x << flush
           << "keys " << glvis_keys << endl
           << "window_title 'Deformed configuration'" << endl
           << "plot_caption 'Backward displacement'" << endl
@@ -302,10 +337,10 @@ int main(int argc, char *argv[])
 
       // Visualize the stress components.
       const char *c = "xyz";
-      FiniteElementSpace scalar_dg_space(&mesh, &fec);
-      GridFunction stress(&scalar_dg_space);
+      ParFiniteElementSpace scalar_dg_space(&pmesh, &fec);
+      ParGridFunction stress(&scalar_dg_space);
       StressCoefficient stress_c(lambda_c, mu_c);
-      *mesh.GetNodes() = reference_nodes;
+      *pmesh.GetNodes() = reference_nodes;
       x.Neg(); // x = -x
       stress_c.SetDisplacement(x);
       for (int si = 0; si < dim; si++)
@@ -315,8 +350,11 @@ int main(int argc, char *argv[])
             stress_c.SetComponent(si, sj);
             stress.ProjectCoefficient(stress_c);
 
+            MPI_Barrier(MPI_COMM_WORLD);
             vis << new_window << setprecision(8)
-                << "solution\n" << mesh << stress << flush
+                << "parallel " << pmesh.GetNRanks() << ' ' << pmesh.GetMyRank()
+                << '\n'
+                << "solution\n" << pmesh << stress << flush
                 << "keys " << glvis_keys << endl
                 << "window_title |Stress " << c[si] << c[sj] << '|' << endl
                 << position_window << close_connection;
