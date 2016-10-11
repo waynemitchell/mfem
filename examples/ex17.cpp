@@ -37,7 +37,8 @@
 //               non-homogeneous Dirichlet b.c. imposed weakly, is also
 //               illustrated.
 //
-//               We recommend viewing Example 2 before viewing this example.
+//               We recommend viewing examples 2 and 14 before viewing this
+//               example.
 
 #include "mfem.hpp"
 #include <fstream>
@@ -156,7 +157,7 @@ int main(int argc, char *argv[])
       mesh.UniformRefinement();
    }
    // Since NURBS meshes do not support DG integrators, we convert them to
-   // regular poynomial mesh of the specified (solution) order.
+   // regular polynomial mesh of the specified (solution) order.
    if (mesh.NURBSext) { mesh.SetCurvature(order); }
 
    // 4. Define a DG vector finite element space on the mesh. Here, we use
@@ -172,7 +173,7 @@ int main(int argc, char *argv[])
    //    marking boundary attributes 1 and 2 in the marker Array 'dir_bdr'.
    //    These b.c. are imposed weakly, by adding the appropriate boundary
    //    integrators over the marked 'dir_bdr' to the bilinear and linear forms.
-   //    With this DG formulation, there are no essential boundary condiitons.
+   //    With this DG formulation, there are no essential boundary conditions.
    Array<int> ess_tdof_list; // no essential b.c. (empty list)
    Array<int> dir_bdr(mesh.bdr_attributes.Max());
    dir_bdr = 0;

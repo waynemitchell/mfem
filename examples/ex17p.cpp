@@ -8,7 +8,7 @@
 //       mpirun -np 4 ex17p -m ../data/beam-quad.mesh
 //       mpirun -np 4 ex17p -m ../data/beam-tet.mesh
 //       mpirun -np 4 ex17p -m ../data/beam-hex.mesh
-//       mpirun -np 4 ex17p -m ../data/beam-quad.mesh -rs 2 -rp 2 -o 3
+//       mpirun -np 4 ex17p -m ../data/beam-quad.mesh -rs 2 -rp 2 -o 3 -elast
 //       mpirun -np 4 ex17p -m ../data/beam-quad.mesh -rs 2 -rp 3 -o 2 -a 1 -k 1
 //       mpirun -np 4 ex17p -m ../data/beam-hex.mesh -rs 2 -rp 1 -o 2
 //
@@ -37,7 +37,8 @@
 //               non-homogeneous Dirichlet b.c. imposed weakly, is also
 //               illustrated.
 //
-//               We recommend viewing Example 2p before viewing this example.
+//               We recommend viewing examples 2p and 14p before viewing this
+//               example.
 
 #include "mfem.hpp"
 #include <fstream>
@@ -171,7 +172,7 @@ int main(int argc, char *argv[])
       mesh.UniformRefinement();
    }
    // Since NURBS meshes do not support DG integrators, we convert them to
-   // regular poynomial mesh of the specified (solution) order.
+   // regular polynomial mesh of the specified (solution) order.
    if (mesh.NURBSext) { mesh.SetCurvature(order); }
 
    ParMesh pmesh(MPI_COMM_WORLD, mesh);
@@ -199,7 +200,7 @@ int main(int argc, char *argv[])
    //    marking boundary attributes 1 and 2 in the marker Array 'dir_bdr'.
    //    These b.c. are imposed weakly, by adding the appropriate boundary
    //    integrators over the marked 'dir_bdr' to the bilinear and linear forms.
-   //    With this DG formulation, there are no essential boundary condiitons.
+   //    With this DG formulation, there are no essential boundary conditions.
    Array<int> ess_tdof_list; // no essential b.c. (empty list)
    Array<int> dir_bdr(pmesh.bdr_attributes.Max());
    dir_bdr = 0;
