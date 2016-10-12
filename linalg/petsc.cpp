@@ -903,7 +903,7 @@ void PetscSolver::Customize() const
    if (cid == KSP_CLASSID)
    {
       KSP ksp = (KSP)obj;
-      if (!_prset && _prefix.c_str())
+      if (!_prset && _prefix.size())
       {
          ierr = KSPSetOptionsPrefix(ksp,_prefix.c_str());
          PCHKERRQ(ksp,ierr);
@@ -919,7 +919,7 @@ void PetscSolver::Customize() const
    else if (cid == PC_CLASSID)
    {
       PC pc = (PC)obj;
-      if (!_prset && _prefix.c_str())
+      if (!_prset && _prefix.size())
       {
          ierr = PCSetOptionsPrefix(pc,_prefix.c_str());
          PCHKERRQ(pc,ierr);
