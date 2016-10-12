@@ -2,27 +2,29 @@
 #include "joule_solver.hpp"
 #include "joule_globals.hpp"
 
-MagneticDiffusionEOperator::MagneticDiffusionEOperator(int stateVectorLen,
-                                                       ParFiniteElementSpace &L2FES,
-                                                       ParFiniteElementSpace &HCurlFES,
-                                                       ParFiniteElementSpace &HDivFES,
-                                                       ParFiniteElementSpace &HGradFES,
-                                                       Array<int> &ess_bdr_arg,
-                                                       Array<int> &thermal_ess_bdr_arg,
-                                                       Array<int> &poisson_ess_bdr_arg,
-                                                       double mu_coef,
-                                                       std::map<int, double> sigmaAttMap,
-                                                       std::map<int, double> TcapacityAttMap,
-                                                       std::map<int, double> InvTcapAttMap,
-                                                       std::map<int, double> InvTcondAttMap)
+MagneticDiffusionEOperator::MagneticDiffusionEOperator(
+   int stateVectorLen,
+   ParFiniteElementSpace &L2FES,
+   ParFiniteElementSpace &HCurlFES,
+   ParFiniteElementSpace &HDivFES,
+   ParFiniteElementSpace &HGradFES,
+   Array<int> &ess_bdr_arg,
+   Array<int> &thermal_ess_bdr_arg,
+   Array<int> &poisson_ess_bdr_arg,
+   double mu_coef,
+   std::map<int, double> sigmaAttMap,
+   std::map<int, double> TcapacityAttMap,
+   std::map<int, double> InvTcapAttMap,
+   std::map<int, double> InvTcondAttMap)
+
    : TimeDependentOperator(stateVectorLen, 0.0),
      L2FESpace(L2FES), HCurlFESpace(HCurlFES), HDivFESpace(HDivFES),
      HGradFESpace(HGradFES),
      a0(NULL), a1(NULL), a2(NULL), m1(NULL), m2(NULL), m3(NULL),
      s1(NULL), s2(NULL), grad(NULL), curl(NULL), weakDiv(NULL), weakDivC(NULL),
      weakCurl(NULL),
-     A0(NULL), A1(NULL), A2(NULL), X0(NULL), X1(NULL), X2(NULL), B0(NULL), B1(NULL),
-     B2(NULL), B3(NULL),
+     A0(NULL), A1(NULL), A2(NULL), X0(NULL), X1(NULL), X2(NULL), B0(NULL),
+     B1(NULL), B2(NULL), B3(NULL),
      v1(NULL), v2(NULL),
      amg_a0(NULL), pcg_a0(NULL), ads_a2(NULL), pcg_a2(NULL), ams_a1(NULL),
      pcg_a1(NULL), dsp_m3(NULL),pcg_m3(NULL),
@@ -245,7 +247,8 @@ void MagneticDiffusionEOperator::Mult(const Vector &X, Vector &dX_dt) const
    // X0 = A0^-1 * B0
    pcg_a0->Mult(*B0, *X0);
 
-   // "undo" the static condensation using dP as a temporary variable, dP stores Pnew
+   // "undo" the static condensation using dP as a temporary variable, dP stores
+   // Pnew
    a0->RecoverFEMSolution(*X0,*v0,P);
    dP = 0.0;
 
@@ -361,7 +364,8 @@ void MagneticDiffusionEOperator::Mult(const Vector &X, Vector &dX_dt) const
    // lf = lf - div F
    weakDiv->AddMult(F, temp_lf, -1.0);
 
-   // if div is a BilinearForm, need to perform mass matrix solve to convert energy cT to temperature T
+   // if div is a BilinearForm, need to perform mass matrix solve to convert
+   // energy cT to temperature T
 
    if (dsp_m3 == NULL) { dsp_m3 = new HypreDiagScale(*M3); }
    if (pcg_m3 == NULL)
@@ -400,8 +404,9 @@ The W term in the left hand side is the Joule heating which is a nonlinear
 
 P is solution of Div sigma Grad dP = 0.
 
-The total E-field is given by E_tot = E_ind - Grad P, the big equation for E above
-is really for E_ind (the induced, or solenoidal, component) and this is corrected for.
+The total E-field is given by E_tot = E_ind - Grad P, the big equation for E
+above is really for E_ind (the induced, or solenoidal, component) and this is
+corrected for.
 
 
 */
@@ -647,7 +652,8 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
 
    // need to perform mass matrix solve to get temperature T
    // <c u, u> Tdot = -<div v, u> F +  <1/c W, u>
-   // NOTE: supposedly we can just invert any L2 matrix, could do that here instead of a solve
+   // NOTE: supposedly we can just invert any L2 matrix, could do that here
+   // instead of a solve
 
    if (dsp_m3 == NULL) { dsp_m3 = new HypreDiagScale(*M3); }
    if (pcg_m3 == NULL)
@@ -684,7 +690,8 @@ void MagneticDiffusionEOperator::buildA0(MeshDependentCoefficient &Sigma)
 }
 
 void MagneticDiffusionEOperator::buildA1(double muInv,
-                                         MeshDependentCoefficient &Sigma, double dt)
+                                         MeshDependentCoefficient &Sigma,
+                                         double dt)
 {
 
    if ( a1 != NULL ) { delete a1; }
@@ -706,7 +713,8 @@ void MagneticDiffusionEOperator::buildA1(double muInv,
 }
 
 void MagneticDiffusionEOperator::buildA2(MeshDependentCoefficient &InvTcond,
-                                         MeshDependentCoefficient &InvTcap, double dt)
+                                         MeshDependentCoefficient &InvTcap,
+                                         double dt)
 {
    if ( a2 != NULL ) { delete a2; }
 
@@ -936,8 +944,9 @@ double JouleHeatingCoefficient::Eval(ElementTransformation &T,
    return thisSigma*(E*E);
 }
 
-MeshDependentCoefficient::MeshDependentCoefficient(const std::map<int, double>
-                                                   &inputMap, double scale):Coefficient()
+MeshDependentCoefficient::MeshDependentCoefficient(
+   const std::map<int, double> &inputMap, double scale)
+   : Coefficient()
 {
 
    // make a copy of the magic attribute-value map
@@ -947,8 +956,9 @@ MeshDependentCoefficient::MeshDependentCoefficient(const std::map<int, double>
 
 }
 
-MeshDependentCoefficient::MeshDependentCoefficient(const
-                                                   MeshDependentCoefficient &cloneMe):Coefficient()
+MeshDependentCoefficient::MeshDependentCoefficient(
+   const MeshDependentCoefficient &cloneMe)
+   : Coefficient()
 {
 
    // make a copy of the magic attribute-value map
@@ -974,7 +984,8 @@ double MeshDependentCoefficient::Eval(ElementTransformation &T,
    }
    else
    {
-      std::cerr << "MeshDependentCoefficient atribute " << thisAtt << " not found" << std::endl;
+      std::cerr << "MeshDependentCoefficient atribute " << thisAtt
+                << " not found" << std::endl;
       mfem_error();
    }
 
@@ -985,8 +996,8 @@ double MeshDependentCoefficient::Eval(ElementTransformation &T,
 
 
 ScaledGFCoefficient:: ScaledGFCoefficient(GridFunction *gf,
-                                          MeshDependentCoefficient &input_mdc ):
-   GridFunctionCoefficient(gf), mdc(input_mdc) {}
+                                          MeshDependentCoefficient &input_mdc )
+   : GridFunctionCoefficient(gf), mdc(input_mdc) {}
 
 double ScaledGFCoefficient::Eval(ElementTransformation &T,
                                  const IntegrationPoint &ip)
