@@ -223,6 +223,14 @@ public:
    /// Returns the inner vector in the range of A (it creates it if needed)
    PetscParVector* GetY() const;
 
+   /// Returns the transpose of *this if action is false
+   /// If action is true, then the matrix is not actually transposed.
+   /// Instead, an object that behaves like the transpose is returned.
+   PetscParMatrix* Transpose(bool action = false);
+
+   /// Scale all entries by s: A_scaled = s*A.
+   void operator*=(double s);
+
    /** Eliminate rows and columns from the matrix, and rows from the vector B.
        Modify B with the BC values in X. */
    void EliminateRowsCols(const Array<int> &rows_cols, const HypreParVector &X,

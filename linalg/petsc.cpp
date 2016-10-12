@@ -684,6 +684,25 @@ PetscParVector * PetscParMatrix::GetY() const
    return Y;
 }
 
+PetscParMatrix * PetscParMatrix::Transpose(bool action)
+{
+   Mat B;
+   if (action)
+   {
+      ierr = MatCreateTranspose(A,&B); PCHKERRQ(A,ierr);
+   }
+   else
+   {
+      ierr = MatTranspose(A,MAT_INITIAL_MATRIX,&B); PCHKERRQ(A,ierr);
+   }
+   return new PetscParMatrix(B,false);
+}
+
+void PetscParMatrix::operator*=(double s)
+{
+   ierr = MatScale(A,s); PCHKERRQ(A,ierr);
+}
+
 void PetscParMatrix::Mult(double a, const Vector &x, double b, Vector &y) const
 {
    MFEM_ASSERT(x.Size() == Width(), "invalid x.Size() = " << x.Size()
@@ -1329,6 +1348,7 @@ void PetscPreconditioner::SetOperator(const Operator &op)
       delete_pA = true;
    }
    if (!pA) { MFEM_ABORT("PetscPreconditioner::SetOperator Operator should be a PetscParMatrix or a BlockOperator"); }
+
    PC pc = (PC)obj;
    ierr = PCSetOperators(pc,pA->A,pA->A); PCHKERRQ(obj,ierr);
    if (delete_pA) { delete pA; };
