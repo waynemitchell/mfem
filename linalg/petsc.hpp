@@ -403,8 +403,14 @@ public:
 
 class PetscBDDCSolver : public PetscPreconditioner
 {
+private:
+   void BDDCSolverConstructor(PetscBDDCSolverParams opts);
+
 public:
-   PetscBDDCSolver(PetscParMatrix &A,
+   PetscBDDCSolver(MPI_Comm comm, Operator &op,
+                   PetscBDDCSolverParams opts = PetscBDDCSolverParams(),
+                   std::string prefix = std::string());
+   PetscBDDCSolver(PetscParMatrix &op,
                    PetscBDDCSolverParams opts = PetscBDDCSolverParams(),
                    std::string prefix = std::string());
 };

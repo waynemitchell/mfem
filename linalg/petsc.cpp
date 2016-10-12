@@ -1364,11 +1364,11 @@ PetscPreconditioner::~PetscPreconditioner()
 
 // PetscBDDCSolver methods
 
-PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverParams opts,
-                                 std::string prefix) : PetscPreconditioner(A,prefix)
+void PetscBDDCSolver::BDDCSolverConstructor(PetscBDDCSolverParams opts)
 {
+   MPI_Comm comm = PetscObjectComm(obj);
    PC pc = (PC)obj;
-   MPI_Comm comm = A.GetComm();
+
    // index sets for boundary dofs specification (Essential = dir, Natural = neu)
    IS dir = NULL, neu = NULL;
    PetscInt rst;
@@ -1577,6 +1577,20 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverParams opts,
    }
    ierr = ISDestroy(&dir); PCHKERRQ(pc,ierr);
    ierr = ISDestroy(&neu); PCHKERRQ(pc,ierr);
+}
+
+PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverParams opts,
+                                 std::string prefix) : PetscPreconditioner(A,prefix)
+{
+   BDDCSolverConstructor(opts);
+   Customize();
+}
+
+PetscBDDCSolver::PetscBDDCSolver(MPI_Comm comm, Operator &op, PetscBDDCSolverParams opts,
+                                 std::string prefix) : PetscPreconditioner(comm,op,prefix)
+{
+   BDDCSolverConstructor(opts);
+   Customize();
 }
 
 PetscFieldSplitSolver::PetscFieldSplitSolver(MPI_Comm comm, BlockOperator &op,
