@@ -2152,7 +2152,7 @@ GridFunction & GridFunction::operator=(double value)
 
 GridFunction & GridFunction::operator=(const Vector &v)
 {
-   MFEM_ASSERT(v.Size() == fes->GetVSize(), "");
+   MFEM_ASSERT(fes && v.Size() == fes->GetVSize(), "");
    SetSize(v.Size());
    for (int i = 0; i < size; i++)
    {
