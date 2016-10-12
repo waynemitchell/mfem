@@ -158,9 +158,9 @@ static int WrapLinearCVSolve(CVodeMem cv_mem, N_Vector b,
    return 0;
 }
 
-static void WrapLinearCVSolveFree(CVodeMem cv_mem)
+static int WrapLinearCVSolveFree(CVodeMem cv_mem)
 {
-   return;
+   return 0;
 }
 
 // The purpose of ark_linit is to complete initializations for a
@@ -196,9 +196,9 @@ static int WrapLinearARKSolve(ARKodeMem ark_mem, N_Vector b,
 }
 
 // This should free up any memory allocated by the linear solver.
-static void WrapLinearARKSolveFree(ARKodeMem ark_mem)
+static int WrapLinearARKSolveFree(ARKodeMem ark_mem)
 {
-   return;
+   return 0;
 }
 
 namespace mfem

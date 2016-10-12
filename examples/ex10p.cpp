@@ -598,8 +598,8 @@ HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
                                            Array<int> &ess_bdr, double visc,
                                            double mu, double K, bool kinsol)
    : TimeDependentOperator(2*f.TrueVSize(), 0.0), fespace(f),
-     M(&fespace), S(&fespace), H(&fespace), M_solver(f.GetComm()),
-     newton_solver(f.GetComm()), use_kinsol(kinsol), z(height/2)
+     M(&fespace), S(&fespace), H(&fespace), use_kinsol(kinsol),
+     M_solver(f.GetComm()), newton_solver(f.GetComm()), z(height/2)
 {
    const double rel_tol = 1e-8;
    const int skip_zero_entries = 0;
