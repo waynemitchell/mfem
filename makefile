@@ -187,7 +187,7 @@ ifeq ($(MFEM_USE_MPFR),YES)
 endif
 
 # List of all defines that may be enabled in config.hpp and config.mk:
-MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_USE_LIBUNWIND\
+MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_GZSTREAM MFEM_USE_LIBUNWIND\
  MFEM_USE_LAPACK MFEM_THREAD_SAFE MFEM_USE_OPENMP MFEM_USE_MEMALLOC\
  MFEM_TIMER_TYPE MFEM_USE_MESQUITE MFEM_USE_SUITESPARSE MFEM_USE_GECKO\
  MFEM_USE_SUPERLU MFEM_USE_GNUTLS MFEM_USE_NETCDF MFEM_USE_MPFR
@@ -234,6 +234,9 @@ endif
 
 # Source dirs in logical order
 DIRS = general linalg mesh fem
+ifeq ($(MFEM_GZSTREAM),YES)
+   DIRS += gzstream
+endif
 SOURCE_FILES = $(foreach dir,$(DIRS),$(wildcard $(dir)/*.cpp))
 OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 
@@ -355,6 +358,7 @@ status info:
 	$(info MFEM_USE_MPI         = $(MFEM_USE_MPI))
 	$(info MFEM_USE_METIS_5     = $(MFEM_USE_METIS_5))
 	$(info MFEM_DEBUG           = $(MFEM_DEBUG))
+	$(info MFEM_GZSTREAM        = $(MFEM_GZSTREAM))
 	$(info MFEM_USE_LIBUNWIND   = $(MFEM_USE_LIBUNWIND))
 	$(info MFEM_USE_LAPACK      = $(MFEM_USE_LAPACK))
 	$(info MFEM_THREAD_SAFE     = $(MFEM_THREAD_SAFE))

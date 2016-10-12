@@ -19,6 +19,9 @@
 // Enable debug checks in MFEM.
 // #define MFEM_DEBUG
 
+// Enable gzstream in MFEM.
+// #define MFEM_GZSTREAM
+
 // Enable backtraces for mfem_error through libunwind.
 // #define MFEM_USE_LIBUNWIND
 

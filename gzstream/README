@@ -1,0 +1,8 @@
+
+                              gzstream
+      C++ iostream classes wrapping the zlib compression library.
+===========================================================================
+
+    See index.html for documentation and installation instructions.
+
+    10Oct16: Mark C. Miller: Modified to build within MFEM source tree

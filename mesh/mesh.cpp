@@ -6297,7 +6297,7 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
       tet2->SetVertices(v[1]);
       tet2->SetAttribute(attr);
 #else
-      Tetrahedron *tet2 = new Tetrahedron(v[1], attr);
+      Tetrahedron *tet2 = new Tetrahedron(v[1], attr)
 #endif
       tet2->ResetTransform(tet->GetTransform());
       elements.Append(tet2);
@@ -8173,7 +8173,6 @@ std::ostream &operator<<(std::ostream &out, const Mesh &mesh)
    mesh.Print(out);
    return out;
 }
-
 
 NodeExtrudeCoefficient::NodeExtrudeCoefficient(const int dim, const int _n,
                                                const double _s)

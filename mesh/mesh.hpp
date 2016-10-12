@@ -20,6 +20,7 @@
 #include "ncmesh.hpp"
 #include "../fem/eltrans.hpp"
 #include "../fem/coefficient.hpp"
+#include "../gzstream/gzstream.hpp"
 #include <iostream>
 #include <fstream>
 #include <limits>
@@ -482,6 +483,7 @@ public:
        the current mesh is destroyed and another one created based on the data
        stream again given in MFEM, netgen, or VTK format. If generate_edges = 0
        (default) edges are not generated, if 1 edges are generated. */
+   /// \see mfem::igzstream() for on-the-fly decompression of compressed ascii inputs.
    void Load(std::istream &input, int generate_edges = 0, int refine = 1,
              bool fix_orientation = true);
 
@@ -879,15 +881,18 @@ public:
    virtual void PrintXG(std::ostream &out = std::cout) const;
 
    /// Print the mesh to the given stream using the default MFEM mesh format.
+   /// \see mfem::ogzstream() for on-the-fly compression of ascii outputs
    virtual void Print(std::ostream &out = std::cout) const;
 
    /// Print the mesh in VTK format (linear and quadratic meshes only).
+   /// \see mfem::ogzstream() for on-the-fly compression of ascii outputs
    void PrintVTK(std::ostream &out);
 
    /** Print the mesh in VTK format. The parameter ref > 0 specifies an element
        subdivision number (useful for high order fields and curved meshes).
        If the optional field_data is set, we also add a FIELD section in the
        beginning of the file with additional dataset information. */
+   /// \see mfem::ogzstream() for on-the-fly compression of ascii outputs
    void PrintVTK(std::ostream &out, int ref, int field_data=0);
 
    void GetElementColoring(Array<int> &colors, int el0 = 0);
@@ -895,6 +900,7 @@ public:
    /** Prints the mesh with bdr elements given by the boundary of
        the subdomains, so that the boundary of subdomain i has bdr
        attribute i+1. */
+   /// \see mfem::ogzstream() for on-the-fly compression of ascii outputs
    void PrintWithPartitioning (int *partitioning,
                                std::ostream &out, int elem_attr = 0) const;
 
@@ -977,14 +983,21 @@ Mesh *Extrude1D(Mesh *mesh, const int ny, const double sy,
 
 /// Input file stream that remembers the input file name (used for reading
 /// NetCDF meshes).
+#ifdef MFEM_GZSTREAM
+class named_ifstream : public mfem::igzstream
+#else
 class named_ifstream : public std::ifstream
+#endif
 {
 public:
    const char *filename;
    named_ifstream(const char *mesh_name) :
+#ifdef MFEM_GZSTREAM
+      mfem::igzstream(mesh_name), filename(mesh_name) {}
+#else
       std::ifstream(mesh_name), filename(mesh_name) {}
+#endif
 };
-
 
 // inline functions
 inline void Mesh::ShiftL2R(int &a, int &b, int &c)
