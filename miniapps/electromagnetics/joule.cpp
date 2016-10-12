@@ -47,7 +47,7 @@
 //                                   boundary attribute 3
 //                                 +---------------------+
 //                    boundary --->|                     | boundary
-//                    attribute 1  |                     | atribute 2
+//                    attribute 1  |                     | attribute 2
 //                    (driven)     +---------------------+
 //
 //               The voltage BC condition is essential BC on atribute 1 (front)
@@ -101,6 +101,10 @@
 #include <memory>
 #include <iostream>
 #include <fstream>
+
+using namespace std;
+using namespace mfem;
+
 #include "joule_solver.hpp"
 #include "joule_globals.hpp"
 #include "../common/pfem_extras.hpp"
@@ -110,10 +114,6 @@
 #include <gsl/gsl_cblas.h>
 #include <complex>
 #endif
-
-using namespace std;
-using namespace mfem;
-
 
 void display_banner(ostream & os);
 void print_banner();
