@@ -69,6 +69,7 @@ MFEM_USE_GECKO       = NO
 MFEM_USE_GNUTLS      = NO
 MFEM_USE_NETCDF      = NO
 MFEM_USE_MPFR        = NO
+MFEM_USE_SIDRE       = NO
 
 LIBUNWIND_OPT = -g
 ifneq ($(SYSNAME),Darwin)
@@ -157,6 +158,11 @@ NETCDF_LIB  = -L$(NETCDF_DIR)/lib -lnetcdf -L$(HDF5_DIR)/lib -lhdf5_hl -lhdf5\
 # MPFR library configuration
 MPFR_OPT =
 MPFR_LIB = -lmpfr
+
+# Sidre and required libraries configuration
+SIDRE_DIR ?= @MFEM_DIR@/../asctoolkit/P.lc_linux/build
+CONDUIT_DIR ?= @MFEM_DIR@/../conduit/P.lc_linux/install
+HDF5_DIR ?= /usr/local/tools/hdf5-gnu-serial-1.8.16
 
 # If YES, enable some informational messages
 VERBOSE = NO

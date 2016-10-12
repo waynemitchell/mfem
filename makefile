@@ -38,8 +38,6 @@ make all
    Build the library, the examples and the miniapps using the current configuration.
 make status
    Display information about the current configuration.
-make sidre
-   A shortcut to configure and build the sidre integrated version of the library.
 make serial
    A shortcut to configure and build the serial optimized version of the library.
 make parallel
@@ -84,7 +82,7 @@ mfem-info = $(if $(filter YES,$(VERBOSE)),$(info *** [info]$(1)),)
 $(call mfem-info, MAKECMDGOALS = $(MAKECMDGOALS))
 
 # Include $(CONFIG_MK) unless some of the $(SKIP_INCLUDE_TARGETS) are given
-SKIP_INCLUDE_TARGETS = help config clean distclean serial parallel sidre debug pdebug\
+SKIP_INCLUDE_TARGETS = help config clean distclean serial parallel debug pdebug\
  style
 HAVE_SKIP_INCLUDE_TARGET = $(filter $(SKIP_INCLUDE_TARGETS),$(MAKECMDGOALS))
 ifeq (,$(HAVE_SKIP_INCLUDE_TARGET))
@@ -126,14 +124,9 @@ endif
 
 DEP_CXX ?= $(MFEM_CXX)
 
-# SIDRE library and required libraries configurations.
+# SIDRE library and required libraries.
 MFEM_USE_SIDRE ?= NO
 ifeq ($(MFEM_USE_SIDRE),YES)
-# Using default directories that match what marbl uses.
-   SIDRE_DIR ?= @MFEM_DIR@/../asctoolkit/P.lc_linux/build
-   CONDUIT_DIR ?= @MFEM_DIR@/../conduit/P.lc_linux/install
-   HDF5_DIR ?= /usr/local/tools/hdf5-gnu-serial-1.8.16
-
    INCFLAGS += -I$(SIDRE_DIR)/include -I$(CONDUIT_DIR)/include/conduit -I$(HDF5_DIR)/include
    ALL_LIBS += -L$(SIDRE_DIR)/lib -L$(CONDUIT_DIR)/lib -L$(HDF5_DIR)/lib -Wl,-rpath=$(HDF5_DIR)/lib -lsidre -lslic -lcommon -lconduit -lconduit_relay -lconduit_b64 -lhdf5 -lz -ldl
 
@@ -285,12 +278,6 @@ libmfem.a: $(OBJECT_FILES)
 
 serial:
 	$(MAKE) config MFEM_USE_MPI=NO MFEM_DEBUG=NO && $(MAKE)
-
-sidre:
-	$(MAKE) config MFEM_USE_SIDRE=YES MFEM_USE_MPI=NO MFEM_DEBUG=YES && $(MAKE)
-
-psidre:
-	$(MAKE) config MFEM_USE_SIDRE=YES MFEM_USE_MPI=YES MFEM_DEBUG=YES && $(MAKE)
 
 parallel:
 	$(MAKE) config MFEM_USE_MPI=YES MFEM_DEBUG=NO && $(MAKE)
