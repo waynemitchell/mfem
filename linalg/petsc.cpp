@@ -1591,6 +1591,10 @@ PetscFieldSplitSolver::PetscFieldSplitSolver(MPI_Comm comm, BlockOperator &op,
    ierr = MatNestGetSize(pA,&nr,NULL); PCHKERRQ(pc,ierr);
    ierr = PetscCalloc1(nr,&isrow); CCHKERRQ(PETSC_COMM_SELF,ierr);
    ierr = MatNestGetISs(pA,isrow,NULL); PCHKERRQ(pc,ierr);
+
+   // we need to customize here, before setting the index sets
+   Customize();
+
    for (i=0; i<nr; i++)
    {
       ierr = PCFieldSplitSetIS(pc,NULL,isrow[i]); PCHKERRQ(pc,ierr);
