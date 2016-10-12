@@ -15,4 +15,6 @@
 #include "general/osockstream.hpp"
 #include "general/socketstream.hpp"
 #include "general/optparser.hpp"
+#ifdef MFEM_GZSTREAM
 #include "gzstream/gzstream.hpp"
+#endif
