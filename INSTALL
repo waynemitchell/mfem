@@ -224,6 +224,12 @@ MFEM_USE_NETCDF = YES/NO
    Genesis mesh files. This option enables a reader for these files, which
    requires that NetCDF be installed, see the NETCDF_* build options below.
 
+MFEM_USE_GSL = YES/NO
+   The GNU Science Library is a numerical library for C and C++ programmers. 
+   This library can be obtaind from www.gnu.org/software.gsl. At present this
+   library is used by MFEM in the miniapps, e.g. bessel functions for exact
+   analytical solutions of PDES.
+
 MFEM_USE_MPFR = YES/NO
    MPFR is a library for multiple-precision floating-point computations. This
    option enables the use of MPFR in MFEM, e.g. for precise computation of 1D
