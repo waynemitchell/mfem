@@ -60,7 +60,7 @@ void Mesh::ReadMFEMMesh(std::istream &input, bool mfem_v11, int &curved)
    skip_comment_lines(input, '#');
    input >> ident;
 
-   if (ident == "vertex_parents" && mfem_v11)
+   if (mfem_v11 && ident == "vertex_parents")
    {
       ncmesh = new NCMesh(this, &input);
       // NOTE: the constructor above will call LoadVertexParents
