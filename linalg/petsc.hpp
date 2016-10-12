@@ -127,6 +127,7 @@ protected:
    friend class PetscLinearSolver;
    friend class PetscPreconditioner;
 
+private:
    /// Constructs a block-diagonal Mat object
    void BlockDiagonalConstructor(MPI_Comm comm, PetscInt global_num_rows,
                                  PetscInt global_num_cols, PetscInt *row_starts,
@@ -272,9 +273,11 @@ protected:
    /// Set prefix for PETSc's options database
    void SetPrefix(std::string prefix);
 
+   /// Call SetFromOptions
+   void Customize() const;
+
 private:
    void Init();
-   void Customize() const;
 
 public:
    /// Initialize protected objects to NULL
