@@ -343,9 +343,11 @@ PetscParMatrix::PetscParMatrix(const HypreParMatrix *hmat, bool wrap,
 PetscParMatrix::PetscParMatrix(MPI_Comm comm, const Operator *op, bool wrap)
 {
    Init();
+   PetscParMatrix *pA = const_cast<PetscParMatrix *>
+                        (dynamic_cast<const PetscParMatrix *>(op));
    height = op->Height();
    width  = op->Width();
-   if (wrap) { MakeWrapper(comm,op,&A); }
+   if (wrap && !pA) { MakeWrapper(comm,op,&A); }
    else { ConvertOperator(comm,*op,&A); }
 }
 
