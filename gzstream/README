@@ -5,4 +5,10 @@
 
     See index.html for documentation and installation instructions.
 
-    10Oct16: Mark C. Miller: Modified to build within MFEM source tree
+    10Oct16: Mark C. Miller:
+        * Modified to build in MFEM source tree and use 'mfem' namespace
+        * Modified to use char *mode for constructors/open instead of int
+        * Changed bufferSize from 47+256 to 8192 (8 kilobytes)
+        * Other notes:
+            * consider mode char options for zlib's internal buffer sizes
+      
