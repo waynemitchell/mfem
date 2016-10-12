@@ -25,9 +25,6 @@
   #include "spio/IOManager.hpp"
 #endif
 
-//TODO
-// Add code to make blueprint index for fields update on registerField call.
-// Fix serial save/load code.
 namespace mfem
 {
 
@@ -39,7 +36,6 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name,
     parent_datagroup( dg->getParent() ),
     m_loadCalled(false)
 {
-   asctoolkit::slic::debug::checksAreErrors = true;
 
    bp_grp = dg->createGroup("blueprint");
    //Currently only rank 0 adds anything to bp_index.
