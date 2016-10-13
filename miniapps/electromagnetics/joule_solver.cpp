@@ -1,12 +1,29 @@
+// Copyright (c) 2010, Lawrence Livermore National Security, LLC. Produced at
+// the Lawrence Livermore National Laboratory. LLNL-CODE-443211. All Rights
+// reserved. See file COPYRIGHT for details.
+//
+// This file is part of the MFEM library. For more information and source code
+// availability see http://mfem.org.
+//
+// MFEM is free software; you can redistribute it and/or modify it under the
+// terms of the GNU Lesser General Public License (as published by the Free
+// Software Foundation) version 2.1 dated February 1999.
+
+#include "../../config/config.hpp"
+
+#ifdef MFEM_USE_MPI
 
 #include "joule_solver.hpp"
 
-// defined in joule.cpp
-void edot_bc(const Vector &x, Vector &E);
-void e_exact(const Vector &x, double t, Vector &E);
-void b_exact(const Vector &x, double t, Vector &B);
-double p_bc(const Vector &x, double t);
-double t_exact(Vector &x);
+using namespace std;
+
+namespace mfem
+{
+
+using namespace miniapps;
+
+namespace electromagnetics
+{
 
 MagneticDiffusionEOperator::MagneticDiffusionEOperator(
    int stateVectorLen,
@@ -88,7 +105,6 @@ MagneticDiffusionEOperator::MagneticDiffusionEOperator(
 
 void MagneticDiffusionEOperator::Init(Vector &X)
 {
-
    Vector zero_vec(3); zero_vec = 0.0;
    VectorConstantCoefficient Zero_vec(zero_vec);
    ConstantCoefficient Zero(0.0);
@@ -135,12 +151,10 @@ void MagneticDiffusionEOperator::Init(Vector &X)
 
 }
 
-
-
 /*
 
 This is an experimental Mult() method for explicit integration.
-Not reccomended for actual use.
+Not recommended for actual use.
 
 S0 P  = 0
 M1 E  = WeakCurl^T B + Grad P
@@ -156,7 +170,6 @@ P is given by Div sigma Grad P = 0 with appropriate BC's
 
 
 */
-
 void MagneticDiffusionEOperator::Mult(const Vector &X, Vector &dX_dt) const
 {
 
@@ -274,8 +287,8 @@ void MagneticDiffusionEOperator::Mult(const Vector &X, Vector &dX_dt) const
 
    ParGridFunction J_gf(&HCurlFESpace);
 
-   // edot_bc is time-derivitive E-field on a boundary surface
-   // and then it is used as a dirirchlet BC.
+   // edot_bc is time-derivative E-field on a boundary surface
+   // and then it is used as a Dirichlet BC.
 
    VectorFunctionCoefficient Jdot(3, edot_bc);
    J_gf = 0.0;
@@ -390,7 +403,6 @@ void MagneticDiffusionEOperator::Mult(const Vector &X, Vector &dX_dt) const
 }
 
 /*
-
 This is the main computational code that computes dX/dt implicitly
 where X is the state vector containing P, E, B, F, T, and W
 
@@ -413,10 +425,7 @@ P is solution of Div sigma Grad dP = 0.
 The total E-field is given by E_tot = E_ind - Grad P, the big equation for E
 above is really for E_ind (the induced, or solenoidal, component) and this is
 corrected for.
-
-
 */
-
 void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
                                                const Vector &X, Vector &dX_dt)
 {
@@ -454,8 +463,6 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
    true_offset[5] = true_offset[4] + Vsize_rt;
    true_offset[6] = true_offset[5] + Vsize_l2;
 
-
-
    Vector* xptr  = (Vector*) &X;
    ParGridFunction E, B, T, F, W, P;
    T.MakeRef(&L2FESpace,   *xptr,true_offset[0]);
@@ -473,7 +480,6 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
    dE.MakeRef(&HCurlFESpace,dX_dt,true_offset[3]);
    dB.MakeRef(&HDivFESpace, dX_dt,true_offset[4]);
    dW.MakeRef(&L2FESpace,   dX_dt,true_offset[5]);
-
 
    // form the Laplacian and solve it
    ParGridFunction Phi_gf(&HGradFESpace);
@@ -538,8 +544,8 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
 
    ParGridFunction J_gf(&HCurlFESpace);
 
-   // edot_bc is time-derivitive E-field on a boundary surface
-   // and then it is used as a dirirchlet BC
+   // edot_bc is time-derivative E-field on a boundary surface
+   // and then it is used as a Dirichlet BC
    // the vector v1 will be modified by the values Jtmp and
    // the part of the matrix m1 that hs been eliminated (but stored).
    VectorFunctionCoefficient Jdot(3, edot_bc);
@@ -571,7 +577,6 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
    // solve the system
    // dE = (A1)^-1 [-S1 E]
    pcg_a1->Mult(*B1, *X1);
-
 
    // this is required because of static condensation, E is a grid function
    a1->RecoverFEMSolution(*X1,*v1,E);
@@ -674,19 +679,17 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
    // solve for dT from M3 dT = lf
    // no boundary conditions on this solve
    pcg_m3->Mult(temp_lf, dT);
-
 }
 
 void MagneticDiffusionEOperator::buildA0(MeshDependentCoefficient &Sigma)
 {
-
    if ( a0 != NULL ) { delete a0; }
 
    // First create and assemble the bilinear form.
    // For now we assume the mesh isn't moving, the materials are time independent,
    // and dt is constant. So we only need to do this once.
 
-   //ConstantCoefficient Sigma(sigma);
+   // ConstantCoefficient Sigma(sigma);
    a0 = new ParBilinearForm(&HGradFESpace);
    a0->AddDomainIntegrator(new DiffusionIntegrator(Sigma));
    if (STATIC_COND == 1) { a0->EnableStaticCondensation(); }
@@ -752,7 +755,7 @@ void MagneticDiffusionEOperator::buildM2(MeshDependentCoefficient &Alpha)
 {
    if ( m2 != NULL ) { delete m2; }
 
-   //ConstantCoefficient MuInv(muInv);
+   // ConstantCoefficient MuInv(muInv);
    m2 = new ParBilinearForm(&HDivFESpace);
    m2->AddDomainIntegrator(new VectorFEMassIntegrator(Alpha));
    m2->Assemble();
@@ -766,7 +769,7 @@ void MagneticDiffusionEOperator::buildM3(MeshDependentCoefficient &Tcapacity)
 
    if ( m3 != NULL ) { delete m3; }
 
-   //ConstantCoefficient Sigma(sigma);
+   // ConstantCoefficient Sigma(sigma);
    m3 = new ParBilinearForm(&L2FESpace);
    m3->AddDomainIntegrator(new MassIntegrator(Tcapacity));
    m3->Assemble();
@@ -789,7 +792,7 @@ void MagneticDiffusionEOperator::buildS2(MeshDependentCoefficient &InvTcap)
 {
    if ( s2 != NULL ) { delete s2; }
 
-   //ConstantCoefficient param(a);
+   // ConstantCoefficient param(a);
    s2 = new ParBilinearForm(&HDivFESpace);
    s2->AddDomainIntegrator(new DivDivIntegrator(InvTcap));
    s2->Assemble();
@@ -858,7 +861,7 @@ double MagneticDiffusionEOperator::ElectricLosses(ParGridFunction &E_gf) const
 void MagneticDiffusionEOperator::GetJouleHeating(ParGridFunction &E_gf,
                                                  ParGridFunction &w_gf) const
 {
-   // The w_coeff object staches a reference to sigma and E, and it has
+   // The w_coeff object stashes a reference to sigma and E, and it has
    // an Eval method that will be used by ProjectCoefficient.
    JouleHeatingCoefficient w_coeff(*sigma, E_gf);
 
@@ -918,10 +921,8 @@ MagneticDiffusionEOperator::~MagneticDiffusionEOperator()
    if (InvTcond  != NULL) { delete InvTcond; }
 }
 
-void MagneticDiffusionEOperator::Debug(const char *base, double )
+void MagneticDiffusionEOperator::Debug(const char *base, double)
 {
-
-
    {
       hypre_ParCSRMatrixPrint(*A1,"A1_");
       HypreParVector tempB1(A1->GetComm(),A1->N(),B1->GetData(),A1->ColPart());
@@ -937,7 +938,6 @@ void MagneticDiffusionEOperator::Debug(const char *base, double )
       HypreParVector tempX2(A2->GetComm(),A2->N(),X2->GetData(),A2->ColPart());
       tempX2.Print("X2_");
    }
-
 }
 
 double JouleHeatingCoefficient::Eval(ElementTransformation &T,
@@ -974,12 +974,10 @@ MeshDependentCoefficient::MeshDependentCoefficient(
 
 }
 
-
 double MeshDependentCoefficient::Eval(ElementTransformation &T,
                                       const IntegrationPoint &ip)
 {
-
-   //given the attribute, extract the coefficient value from the map
+   // given the attribute, extract the coefficient value from the map
    std::map<int, double>::iterator it;
    int thisAtt = T.Attribute;
    double value;
@@ -990,7 +988,7 @@ double MeshDependentCoefficient::Eval(ElementTransformation &T,
    }
    else
    {
-      std::cerr << "MeshDependentCoefficient atribute " << thisAtt
+      std::cerr << "MeshDependentCoefficient attribute " << thisAtt
                 << " not found" << std::endl;
       mfem_error();
    }
@@ -999,10 +997,8 @@ double MeshDependentCoefficient::Eval(ElementTransformation &T,
 }
 
 
-
-
-ScaledGFCoefficient:: ScaledGFCoefficient(GridFunction *gf,
-                                          MeshDependentCoefficient &input_mdc )
+ScaledGFCoefficient::ScaledGFCoefficient(GridFunction *gf,
+                                         MeshDependentCoefficient &input_mdc)
    : GridFunctionCoefficient(gf), mdc(input_mdc) {}
 
 double ScaledGFCoefficient::Eval(ElementTransformation &T,
@@ -1011,4 +1007,8 @@ double ScaledGFCoefficient::Eval(ElementTransformation &T,
    return mdc.Eval(T,ip) * GridFunctionCoefficient::Eval(T,ip);
 }
 
+} // namespace electromagnetics
 
+} // namespace mfem
+
+#endif // MFEM_USE_MPI

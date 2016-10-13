@@ -1,35 +1,23 @@
-//                       J O U L E
+// Copyright (c) 2010, Lawrence Livermore National Security, LLC. Produced at
+// the Lawrence Livermore National Laboratory. LLNL-CODE-443211. All Rights
+// reserved. See file COPYRIGHT for details.
 //
-// Usage:
-//    srun -n 8 -p pdebug joule -m cylinder-hex.mesh -p test
-//    srun -n 8 -p pdebug joule -m rod2eb3sshex27.gen -s 22 -dt 0.1 -tf 240.0 -p test
+// This file is part of the MFEM library. For more information and source code
+// availability see http://mfem.org.
 //
-// Options:
-// -m [string]   the mesh file name
-// -o [int]      the order of the basis
-// -rs [int]     number of times to serially refine the mesh
-// -rp [int]     number of times to refine the mesh in parallel
-// -s [int]      time integrator 1=backward Euler, 2=SDIRK2, 3=SDIRK3,
-//               22=Midpoint, 23=SDIRK23, 34=SDIRK34
-// -tf [double]  the final time
-// -dt [double]  time step
-// -mu [double]  the magnetic permeability
-// -cnd [double] the electrical conductivity
-// -f [double]   the frequency of the applied EM BC
-// -vis [int]    GLVis -vis = true -no-vis = false
-// -vs [int]     visualization step
-// -k [string]   base file name for output file
-// -print [int]  print solution (gridfunctions) to disk  0 = no, 1 = yes
-// -amr [int]    0 = no amr, 1 = amr
-// -sc [int]     0 = no static condensation, 1 = use static condensation
-// -p [string]   specify the problem to run, "rod", "coil", or "test"
+// MFEM is free software; you can redistribute it and/or modify it under the
+// terms of the GNU Lesser General Public License (as published by the Free
+// Software Foundation) version 2.1 dated February 1999.
 //
-// Description:  This examples solves a time dependent eddy current
-//               problem, resulting in Joule heating.
+//            -----------------------------------------------------
+//            Joule Miniapp:  Transient Magnetics and Joule Heating
+//            -----------------------------------------------------
 //
-//               This version has electrostatic potential, Phi, which is a source
-//               term in the EM diffusion equation. The potenatial itself is
-//               driven by essential BC's
+// This miniapp solves a time dependent eddy current problem, resulting in Joule
+// heating.
+//
+// This version has electrostatic potential, Phi, which is a source term in the
+// EM diffusion equation. The potential itself is driven by essential BC's
 //
 //               Div sigma Grad Phi = 0
 //               sigma E  =  Curl B/mu - sigma grad Phi
@@ -37,77 +25,94 @@
 //               F = -k Grad T
 //               c dT/dt = -Div(F) + sigma E.E,
 //
-//               where B is the magnetic flux, E is the electric field,
-//               T is the temperature, F is the thermal flux,
-//               sigma is electrical conductivity, mu is the magnetic
-//               permeability, and alpha is the thermal diffusivity.
-//               The geometry of the domain is assumed to be as follows:
+// where B is the magnetic flux, E is the electric field, T is the temperature,
+// F is the thermal flux, sigma is electrical conductivity, mu is the magnetic
+// permeability, and alpha is the thermal diffusivity.  The geometry of the
+// domain is assumed to be as follows:
 //
+//                              boundary attribute 3
+//                            +---------------------+
+//               boundary --->|                     | boundary
+//               attribute 1  |                     | attribute 2
+//               (driven)     +---------------------+
 //
-//                                   boundary attribute 3
-//                                 +---------------------+
-//                    boundary --->|                     | boundary
-//                    attribute 1  |                     | attribute 2
-//                    (driven)     +---------------------+
+// The voltage BC condition is essential BC on attribute 1 (front) and 2 (rear)
+// given by function p_bc() at bottom of this file.
 //
-//               The voltage BC condition is essential BC on atribute 1 (front)
-//               and 2 (rear) given by function p_bc() at bottom of this file.
+// The E-field boundary condition specifies the essential BC (n cross E) on
+// attribute 1 (front) and 2 (rear) given by function edot_bc at bottom of this
+// file. The E-field can be set on attribute 3 also.
 //
-//               The E-field boundary condition specifies the essential BC (n
-//               cross E) on atribute 1 (front) and 2 (rear) given by function
-//               edot_bc at bottom of this file. The E-field can be set on
-//               attribute 3 also.
+// The thermal boundary condition for the flux F is the natural BC on attribute 1
+// (front) and 2 (rear). This means that dT/dt = 0 on the boundaries, and the
+// initial T = 0.
 //
-//               The thermal boundary condition for the flux F is the natural BC
-//               on  atribute 1 (front) and 2 (rear). This means that dT/dt = 0
-//               on the boundaries, and the initial T = 0.
+// See section 2.5 for how the material propertied are assigned to mesh
+// attributes, this needs to be changed for different applications.
 //
-//               See section 2.5 for how the material propertied are assigned to
-//               mesh attribiutes, this needs to be changed for different
-//               applications.
+// See section 8.0 for how the boundary conditions are assigned to mesh
+// attributes, this needs to be changed for different applications.
 //
-//               See section 8.0 for how the boundary conditions are assigned to
-//               mesh attributes, this needs to be changed for different
-//               applications.
+// This code supports a simple version of AMR, all elements containing material
+// attribute 1 are (optionally) refined.
 //
-//               This code supports a simple version of AMR, all elements
-//               containing material attribute 1 are (optionally) refined.
+// Compile with: make joule
 //
-// NOTE:         If the option "-p test" is provided, the code will compute the
-//               analytical solution of the electric and magnetic fields and
-//               compute the L2 error. This solution is only valid for the
-//               particular problem of a right circular cylindrical rod of
-//               length 1 and radius 1, and with particular boundary conditions.
-//               Example meshes for this test are cylinder-hex.mesh,
-//               cylinder-tet.mesh, rod2eb3sshex27.gen, rod2eb3sstet10.gen.
-//               Note that the meshes with the "gen" extension require MFEM to
-//               be built with NetCDF.
+// Sample runs:
 //
-// NOTE:         This code is set up to solve two example problems, 1) a
-//               straight metal rod surrounded by air, 2) a metal rod surrounded
-//               by a metal coil all surrounded by air. To specify problem (1)
-//               use the command line options "-p rod -m rod2eb3sshex27.gen", to
-//               specify problem (2) use the command line options "-p coil -m
-//               coil_centered_tet10.gen". Problem (1) has two materials and
-//               problem (2) has three materials, and the BC's are different.
+//    mpirun -np 8 joule -m cylinder-hex.mesh -p test
+//    mpirun -np 8 joule -m rod2eb3sshex27.gen -s 22 -dt 0.1 -tf 240.0 -p test
 //
-// NOTE:         We write out, optionally, grid functions for P, E, B, W, F, and
-//               T. These can be visualized using glvis -np 4 -m mesh.mesh -g E,
-//               assuming we used 4 processors.
+// Options:
 //
+//    -m [string]   the mesh file name
+//    -o [int]      the order of the basis
+//    -rs [int]     number of times to serially refine the mesh
+//    -rp [int]     number of times to refine the mesh in parallel
+//    -s [int]      time integrator 1=backward Euler, 2=SDIRK2, 3=SDIRK3,
+//                  22=Midpoint, 23=SDIRK23, 34=SDIRK34
+//    -tf [double]  the final time
+//    -dt [double]  time step
+//    -mu [double]  the magnetic permeability
+//    -cnd [double] the electrical conductivity
+//    -f [double]   the frequency of the applied EM BC
+//    -vis [int]    GLVis -vis = true -no-vis = false
+//    -vs [int]     visualization step
+//    -k [string]   base file name for output file
+//    -print [int]  print solution (gridfunctions) to disk  0 = no, 1 = yes
+//    -amr [int]    0 = no amr, 1 = amr
+//    -sc [int]     0 = no static condensation, 1 = use static condensation
+//    -p [string]   specify the problem to run, "rod", "coil", or "test"
+//
+// NOTE:  If the option "-p test" is provided, the code will compute the
+//        analytical solution of the electric and magnetic fields and compute
+//        the L2 error. This solution is only valid for the particular problem
+//        of a right circular cylindrical rod of length 1 and radius 1, and with
+//        particular boundary conditions.  Example meshes for this test are
+//        cylinder-hex.mesh, cylinder-tet.mesh, rod2eb3sshex27.gen,
+//        rod2eb3sstet10.gen.  Note that the meshes with the "gen" extension
+//        require MFEM to be built with NetCDF.
+//
+// NOTE:  This code is set up to solve two example problems, 1) a straight metal
+//        rod surrounded by air, 2) a metal rod surrounded by a metal coil all
+//        surrounded by air. To specify problem (1) use the command line options
+//        "-p rod -m rod2eb3sshex27.gen", to specify problem (2) use the command
+//        line options "-p coil -m coil_centered_tet10.gen". Problem (1) has two
+//        materials and problem (2) has three materials, and the BC's are
+//        different.
+//
+// NOTE:  We write out, optionally, grid functions for P, E, B, W, F, and
+//        T. These can be visualized using "glvis -np 4 -m mesh.mesh -g E",
+//        assuming we used 4 processors.
 
-
-#include "mfem.hpp"
+#include "joule_solver.hpp"
 #include <memory>
 #include <iostream>
 #include <fstream>
 
 using namespace std;
 using namespace mfem;
-
-#include "joule_solver.hpp"
-#include "joule_globals.hpp"
-#include "../common/pfem_extras.hpp"
+using namespace mfem::electromagnetics;
 
 #ifdef MFEM_USE_GSL
 #include <gsl/gsl_sf_bessel.h>
@@ -848,6 +853,12 @@ int main(int argc, char *argv[])
    return 0;
 }
 
+namespace mfem
+{
+
+namespace electromagnetics
+{
+
 void edot_bc(const Vector &x, Vector &E)
 {
    E = 0.0;
@@ -963,7 +974,6 @@ void b_exact(const Vector &x, double t, Vector &B)
 
 }
 
-
 double t_exact(Vector &x)
 {
    double T = 0.0;
@@ -987,6 +997,10 @@ double p_bc(const Vector &x, double t)
    return T*cos(wj_ * t);
 }
 
+} // namespace electromagnetics
+
+} // namespace mfem
+
 void display_banner(ostream & os)
 {
    os << "     ____.            .__          " << endl
@@ -999,7 +1013,6 @@ void display_banner(ostream & os)
 
 void print_banner()
 {
-
    char banner[219] =
    {
       32,
@@ -1224,5 +1237,4 @@ void print_banner()
    };
 
    printf("%s",banner);
-
 }

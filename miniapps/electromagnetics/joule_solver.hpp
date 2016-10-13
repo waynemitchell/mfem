@@ -1,20 +1,44 @@
+// Copyright (c) 2010, Lawrence Livermore National Security, LLC. Produced at
+// the Lawrence Livermore National Laboratory. LLNL-CODE-443211. All Rights
+// reserved. See file COPYRIGHT for details.
+//
+// This file is part of the MFEM library. For more information and source code
+// availability see http://mfem.org.
+//
+// MFEM is free software; you can redistribute it and/or modify it under the
+// terms of the GNU Lesser General Public License (as published by the Free
+// Software Foundation) version 2.1 dated February 1999.
 
+#ifndef MFEM_JOULE_SOLVER
+#define MFEM_JOULE_SOLVER
 
+#include "../../config/config.hpp"
 
-#include "mfem.hpp"
+#ifdef MFEM_USE_MPI
+
+#include "../common/pfem_extras.hpp"
 #include <memory>
 #include <iostream>
 #include <fstream>
 
+namespace mfem
+{
 
-using namespace mfem;
+namespace electromagnetics
+{
 
-// some global variable for convienence
+// some global variable for convenience
 static const double     SOLVERTOL = 1.0e-9;
 static const int      SOLVERMAXIT = 1000;
 static       int SOLVERPRINTLEVEL = 0;
 static       int      STATIC_COND = 0;
 
+// defined in joule.cpp
+void edot_bc(const Vector &x, Vector &E);
+void e_exact(const Vector &x, double t, Vector &E);
+void b_exact(const Vector &x, double t, Vector &B);
+double p_bc(const Vector &x, double t);
+double t_exact(Vector &x);
 
 // A Coefficient is an object with a function Eval that returns a double.
 // A MeshDependentCoefficient returns a different value depending upon the
@@ -50,7 +74,6 @@ public:
    void SetMDC(const MeshDependentCoefficient &input_mdc) {mdc = input_mdc;}
    virtual ~ScaledGFCoefficient() {}
 };
-
 
 
 /**
@@ -123,7 +146,6 @@ protected:
    mutable HyprePCG    * pcg_m1;
    mutable HypreSolver * dsp_m2;
    mutable HyprePCG    * pcg_m2;
-
 
    mutable Array<int>
    ess_bdr;          // FIXME: these should not need to be mutable
@@ -220,3 +242,10 @@ public:
    virtual ~JouleHeatingCoefficient() {}
 };
 
+} // namespace electromagnetics
+
+} // namespace mfem
+
+#endif // MFEM_USE_MPI
+
+#endif // MFEM_JOULE_SOLVER
