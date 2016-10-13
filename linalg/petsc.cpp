@@ -1367,23 +1367,49 @@ PetscPreconditioner::~PetscPreconditioner()
 void PetscBDDCSolver::BDDCSolverConstructor(PetscBDDCSolverParams opts)
 {
    MPI_Comm comm = PetscObjectComm(obj);
+
+   // get PETSc object
    PC pc = (PC)obj;
+   Mat pA;
+   ierr = PCGetOperators(pc,NULL,&pA); PCHKERRQ(pc,ierr);
+
+   // index sets for fields splitting
+   IS *fields = NULL;
+   PetscInt nf = 0;
 
    // index sets for boundary dofs specification (Essential = dir, Natural = neu)
    IS dir = NULL, neu = NULL;
    PetscInt rst;
 
-   // Check
-   Mat pA;
+   // check matrix type
+   PetscBool isnest;
+   ierr = PetscObjectTypeCompare((PetscObject)pA,MATNEST,&isnest);
+   PCHKERRQ(pA,ierr);
+   if (isnest)
+   {
+      // get the fields out of the MatNest
+      ierr = MatNestGetSize(pA,&nf,NULL); PCHKERRQ(pA,ierr);
+      ierr = PetscCalloc1(nf,&fields); CCHKERRQ(PETSC_COMM_SELF,ierr);
+      ierr = MatNestGetISs(pA,fields,NULL); PCHKERRQ(pA,ierr);
+      for (int i = 0; i < nf; i++)
+      {
+         ierr = PetscObjectReference((PetscObject)fields[i]); PCHKERRQ(fields[i],ierr);
+      }
+      // convert to MATIS
+      // this will trigger an error if the nested matrices are not of type MATIS
+      ierr = MatConvert(pA,MATIS,MAT_INPLACE_MATRIX,&pA); PCHKERRQ(obj,ierr);
+   }
+
+   // matrix type should be of type MATIS
    PetscBool ismatis;
-   ierr = PCGetOperators(pc,NULL,&pA); PCHKERRQ(pc,ierr);
    ierr = PetscObjectTypeCompare((PetscObject)pA,MATIS,&ismatis);
    PCHKERRQ(pA,ierr);
    MFEM_VERIFY(ismatis,"PetscBDDCSolver needs the matrix in unassembled format");
 
+   // set PETSc PC type to PCBDDC
    ierr = PCSetType(pc,PCBDDC); PCHKERRQ(obj,ierr);
 
-   // pass information about index sets (essential dofs, fields, etc.)
+   // check information about index sets (essential dofs, fields, etc.)
 #ifdef MFEM_DEBUG
    {
       // make sure ess/nat_tdof_list have been collectively set
@@ -1397,23 +1423,44 @@ void PetscBDDCSolver::BDDCSolverConstructor(PetscBDDCSolverParams opts)
       ierr = MPI_Allreduce(&lpr,&pr,1,MPIU_BOOL,MPI_LOR,comm);
       PCHKERRQ(pA,ierr);
       MFEM_VERIFY(lpr == pr,"nat_tdof_list should be collectively set");
+      // make sure fields have been collectively set
+      PetscInt ms[2],Ms[2];
+      ms[0] = -nf; ms[1] = nf;
+      ierr = MPI_Allreduce(&ms,&Ms,2,MPIU_INT,MPI_MAX,comm);
+      PCHKERRQ(pA,ierr);
+      MFEM_VERIFY(-Ms[0] == Ms[1],"number of fields should be the same across processes");
    }
 #endif
-   // need the sets in global ordering
+
+   // boundary sets
    ierr = MatGetOwnershipRange(pA,&rst,NULL); PCHKERRQ(pA,ierr);
    if (opts.ess_tdof_list)
    {
+      // need to compute the boundary dofs in global ordering
       ierr = Convert_Array_IS(comm,opts.ess_tdof_list,rst,&dir); CCHKERRQ(comm,ierr);
       ierr = PCBDDCSetDirichletBoundaries(pc,dir); PCHKERRQ(pc,ierr);
    }
    if (opts.nat_tdof_list)
    {
+      // need to compute the boundary dofs in global ordering
       ierr = Convert_Array_IS(comm,opts.nat_tdof_list,rst,&neu); CCHKERRQ(comm,ierr);
       ierr = PCBDDCSetNeumannBoundaries(pc,neu); PCHKERRQ(pc,ierr);
    }
 
-   ParFiniteElementSpace *fespace = opts.fespace;
+   // field splitting
+   if (nf)
+   {
+      ierr = PCBDDCSetDofsSplitting(pc,nf,fields); PCHKERRQ(pc,ierr);
+      for (int i = 0; i < nf; i++)
+      {
+         ierr = ISDestroy(&fields[i]); CCHKERRQ(comm,ierr);
+      }
+      ierr = PetscFree(fields); PCHKERRQ(pc,ierr);
+   }
+
+   // Customize using the finite element space (if any)
    int bs = 1;
+   ParFiniteElementSpace *fespace = opts.fespace;
    if (fespace)
    {
       const     FiniteElementCollection *fec = fespace->FEColl();
