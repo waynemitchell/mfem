@@ -238,9 +238,6 @@ endif
 
 # Source dirs in logical order
 DIRS = general linalg mesh fem
-ifeq ($(MFEM_GZSTREAM),YES)
-   DIRS += gzstream
-endif
 SOURCE_FILES = $(foreach dir,$(DIRS),$(wildcard $(dir)/*.cpp))
 OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 

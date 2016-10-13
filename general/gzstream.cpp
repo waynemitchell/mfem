@@ -26,7 +26,10 @@
 // Standard C++ Library".
 // ============================================================================
 
-#include <gzstream/gzstream.hpp>
+#include "config/config.hpp"
+
+#ifdef MFEM_GZSTREAM
+#include "general/gzstream.hpp"
 #include <iostream>
 #include <string.h>  // for memcpy
 
@@ -145,6 +148,8 @@ void gzstreambase::close() {
 }
 
 } // namespace mfem
+
+#endif // MFEM_GZSTREAM
 
 // ============================================================================
 // EOF //

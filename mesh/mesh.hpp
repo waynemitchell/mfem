@@ -21,7 +21,7 @@
 #include "../fem/eltrans.hpp"
 #include "../fem/coefficient.hpp"
 #ifdef MFEM_GZSTREAM
-#include "../gzstream/gzstream.hpp"
+#include "../general/gzstream.hpp"
 #endif
 #include <iostream>
 #include <fstream>
