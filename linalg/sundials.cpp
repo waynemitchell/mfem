@@ -44,7 +44,7 @@
 
 using namespace std;
 
-// Creates N_Vector nv linked to the data in mv.
+// Creates a serial N_Vector nv linked to the data in mv.
 static void ConnectNVector(mfem::Vector &mv, N_Vector &nv)
 {
    nv = N_VMake_Serial(mv.Size(),
@@ -69,7 +69,8 @@ static inline void ConnectMFEMVector(N_Vector &nv, mfem::Vector &mv)
 {
    if (N_VGetVectorID(nv) == SUNDIALS_NVEC_SERIAL)
    {
-      mv.NewDataAndSize(NV_DATA_S(nv), NV_LENGTH_S(nv));
+      mv.NewDataAndSize(N_VGetArrayPointer_Serial(nv),
+                        N_VGetLength_Serial(nv));
    }
    else if (N_VGetVectorID(nv) == SUNDIALS_NVEC_PARHYP)
    {
@@ -244,19 +245,13 @@ void CVODESolver::ReInit(TimeDependentOperator &f_, Vector &y_, double &t_)
    f = &f_;
    (*connectNV)(y_, y);
 
-   // Re-init memory, time and solution. The RHS action is known from Init().
+   // Re-init memory, time and solution. The RHS function is known from Init().
    int flag = CVodeReInit(ode_mem, t_, y);
    MFEM_ASSERT(flag >= 0, "CVodeReInit() failed!");
 
    // Set the pointer to user-defined data.
    flag = CVodeSetUserData(ode_mem, f);
    MFEM_ASSERT(flag >= 0, "CVodeSetUserData() failed!");
-
-   // When implicit method is chosen, one should specify the linear solver.
-   if (lin_method_type == CV_BDF)
-   {
-      CVSpgmr(ode_mem, PREC_NONE, 0);
-   }
 }
 
 void CVODESolver::SetSStolerances(realtype reltol, realtype abstol)
@@ -264,6 +259,15 @@ void CVODESolver::SetSStolerances(realtype reltol, realtype abstol)
    // Specify the scalar relative tolerance and scalar absolute tolerance.
    int flag = CVodeSStolerances(ode_mem, reltol, abstol);
    MFEM_ASSERT(flag >= 0, "CVodeSStolerances() failed!");
+}
+
+void CVODESolver::SetMaxOrder(int max_order)
+{
+   int flag = CVodeSetMaxOrd(ode_mem, max_order);
+   if (flag == CV_ILL_INPUT)
+   {
+      MFEM_WARNING("CVodeSetMaxOrd() did not change the maximum order!");
+   }
 }
 
 void CVODESolver::Step(Vector &x, double &t, double &dt)
@@ -359,7 +363,7 @@ void ARKODESolver::ReInit(TimeDependentOperator &f_, Vector &y_, double &t_)
    f = &f_;
    (*connectNV)(y_, y);
 
-   // Re-init memory, time and solution. The RHS action is known from Init().
+   // Re-init memory, time and solution.
    int flag = use_explicit ?
               ARKodeReInit(ode_mem, SundialsMult, NULL, t_, y) :
               ARKodeReInit(ode_mem, NULL, SundialsMult, t_, y);
@@ -368,12 +372,6 @@ void ARKODESolver::ReInit(TimeDependentOperator &f_, Vector &y_, double &t_)
    // Set the pointer to user-defined data.
    flag = ARKodeSetUserData(ode_mem, this->f);
    MFEM_ASSERT(flag >= 0, "ARKodeSetUserData() failed!");
-
-   // When implicit method is chosen, one should specify the linear solver.
-   if (use_explicit == false)
-   {
-      ARKSpgmr(ode_mem, PREC_NONE, 0);
-   }
 }
 
 void ARKODESolver::SetSStolerances(realtype reltol, realtype abstol)
@@ -400,9 +398,23 @@ void ARKODESolver::Step(Vector &x, double &t, double &dt)
    flag = ARKodeGetLastStep(ode_mem, &dt);
 }
 
+void ARKODESolver::SetOrder(int order)
+{
+   int flag = ARKodeSetOrder(ode_mem, order);
+   if (flag == ARK_ILL_INPUT)
+   {
+      MFEM_WARNING("ARKodeSetOrder() did not change the order!");
+   }
+}
+
 void ARKODESolver::SetERKTableNum(int table_num)
 {
    ARKodeSetERKTableNum(ode_mem, table_num);
+}
+
+void ARKODESolver::SetIRKTableNum(int table_num)
+{
+   ARKodeSetIRKTableNum(ode_mem, table_num);
 }
 
 void ARKODESolver::SetFixedStep(double dt)
@@ -410,7 +422,7 @@ void ARKODESolver::SetFixedStep(double dt)
    ARKodeSetFixedStep(ode_mem, static_cast<realtype>(dt));
 }
 
-void ARKODESolver::SetLinearSolve(SundialsLinearSolveOperator* op)
+void ARKODESolver::SetLinearSolve(SundialsLinearSolveOperator *op)
 {
    MFEM_VERIFY(use_explicit == false,
                "The function is applicable only to implicit time integration.");

@@ -106,7 +106,6 @@ private:
    BilinearForm *M, *S;
    NonlinearForm *H;
    mutable SparseMatrix *Jacobian;
-   SparseMatrix *grad_H;
    double gamma;
    const Vector *v, *x;
    mutable Vector w, z;
@@ -117,8 +116,8 @@ public:
    // Set current dt, v, x values - needed to compute action and Jacobian.
    void SetParameters(double dt_, const Vector *v_, const Vector *x_);
 
-   // Linear solve applicable to the Sundials format.
-   // (Sundials doesn't work with increments).
+   // Linear solve applicable to the SUNDIALS format.
+   // (SUNDIALS doesn't work with increments).
    // Solves (Mass - dt J) y = Mass b, where in our case:
    // Mass = | M  0 |  J = | -S  -grad_H |  y = | v_hat |  b = | b_v |
    //        | 0  I |      |  I     0    |      | x_hat |      | b_x |
@@ -183,12 +182,15 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Order (degree) of the finite elements.");
    args.AddOption(&ode_solver_type, "-s", "--ode-solver",
-                  "ODE solver: 1 - Backward Euler, 2 - SDIRK2, 3 - SDIRK3,\n"
-                  "\t            4/5 - CVODE default implicit,"
-                  " 6/7 - ARKODE default implicit,\n\t"
-                  "\t    11 - Forward Euler, 12 - RK2, 13 - RK3 SSP, 14 - RK4,\n\t"
-                  "\t    15 - CVODE default explicit,"
-                  " 16 - ARKODE default explicit.");
+                  "ODE solver: 1 - Backward Euler, 2 - SDIRK2, 3 - SDIRK3,\n\t"
+                  "            4 - CVODE implicit, approximate Jacobian,\n\t"
+                  "            5 - CVODE implicit, specified Jacobian,\n\t"
+                  "            6 - ARKODE implicit, approximate Jacobian,\n\t"
+                  "            7 - ARKODE implicit, approximate Jacobian,\n\t"
+                  "            11 - Forward Euler, 12 - RK2,\n\t"
+                  "            13 - RK3 SSP, 14 - RK4,\n\t"
+                  "            15 - CVODE (adaptive order) explicit,\n\t"
+                  "            16 - ARKODE default (4th order) explicit.");
    args.AddOption(&t_final, "-tf", "--t-final",
                   "Final time; start time is 0.");
    args.AddOption(&dt, "-dt", "--time-step",
@@ -230,19 +232,21 @@ int main(int argc, char *argv[])
       case 1:  ode_solver = new BackwardEulerSolver; break;
       case 2:  ode_solver = new SDIRK23Solver(2); break;
       case 3:  ode_solver = new SDIRK33Solver; break;
-      case 4: break;
-      case 5: break;
-      case 6: break;
+      // SUNDIALS time integrators can be initialized only after the
+      // initial condition is known.
+      case 4:
+      case 5:
+      case 6:
       case 7: break;
       // Explicit methods
       case 11: ode_solver = new ForwardEulerSolver; break;
       case 12: ode_solver = new RK2Solver(0.5); break; // midpoint method
       case 13: ode_solver = new RK3SSPSolver; break;
       case 14: ode_solver = new RK4Solver; break;
-      case 15: break;
+      // SUNDIALS time integrators can be initialized only after the
+      // initial condition is known.
+      case 15:
       case 16: break;
-      case 17: break;
-
       // Implicit A-stable methods (not L-stable)
       case 22: ode_solver = new ImplicitMidpointSolver; break;
       case 23: ode_solver = new SDIRK23Solver; break;
@@ -326,9 +330,7 @@ int main(int argc, char *argv[])
    cout << "initial kinetic energy (KE) = " << ke0 << endl;
    cout << "initial   total energy (TE) = " << (ee0 + ke0) << endl;
 
-   // 8. Perform time-integration (looping over the time iterations, ti, with a
-   //    time-step dt).
-   double t = 0.0;
+   // Initialization of SUNDIALS time integrators.
    CVODESolver *cvode_solver;
    ARKODESolver *arkode_solver;
    switch (ode_solver_type)
@@ -356,6 +358,9 @@ int main(int argc, char *argv[])
 
    ode_solver->Init(oper);
 
+   // 8. Perform time-integration (looping over the time iterations, ti, with a
+   //    time-step dt).
+   double t = 0.0;
    bool last_step = false;
    double dt_by_ref = dt;
    for (int ti = 1; !last_step; ti++)
@@ -523,7 +528,8 @@ HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
                                            Array<int> &ess_bdr, double visc,
                                            double mu, double K, bool kinsol)
    : TimeDependentOperator(2*f.GetVSize(), 0.0), fespace(f),
-     M(&fespace), S(&fespace), H(&fespace), use_kinsol(kinsol), z(height/2)
+     M(&fespace), S(&fespace), H(&fespace),
+     viscosity(visc), use_kinsol(kinsol), z(height/2)
 {
    const double rel_tol = 1e-8;
    const int skip_zero_entries = 0;
@@ -547,7 +553,6 @@ HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
    H.AddDomainIntegrator(new HyperelasticNLFIntegrator(model));
    H.SetEssentialBC(ess_bdr);
 
-   viscosity = visc;
    ConstantCoefficient visc_coeff(viscosity);
    S.AddDomainIntegrator(new VectorDiffusionIntegrator(visc_coeff));
    S.Assemble(skip_zero_entries);
@@ -618,7 +623,6 @@ void HyperelasticOperator::ImplicitSolve(const double dt,
    if (use_kinsol)
    {
       KinSolver kinsol(*backward_euler_oper, v, false);
-      //kinsol.SetPrintLevel(1);
       // The scalings for KinSol can be done better.
       Vector one(sc); one = 1.0;
       kinsol.Solve(dv_dt, one, one);

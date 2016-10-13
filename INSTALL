@@ -189,6 +189,11 @@ MFEM_TIMER_TYPE = 0/1/2/3/NO
       3  - use QueryPerformanceCounter from <windows.h>
       NO - use option 3 if the compiler macro _WIN32 is defined, 0 otherwise
 
+MFEM_USE_SUNDIALS = YES/NO
+   Enable MFEM time integrators and non-linear solvers based on the SUNDIALS
+   library. When enabled, this option uses the SUNDIALS_* library options,
+   see below.
+
 MFEM_USE_MESQUITE = YES/NO
    Enable MFEM functionality based on the Mesquite library. When enabled, this
    option uses the MESQUITE_* library options, see below.
@@ -271,6 +276,10 @@ The specific libraries and their options are:
 - High-resolution POSIX clocks: when using MFEM_TIMER_TYPE = 2, it may be
   necessary to link with a system library (e.g. librt.so).
   Option: POSIX_CLOCKS_LIB (default = -lrt).
+
+- SUNDIALS (optional), used when MFEM_USE_SUNDIALS = YES.
+  URL: http://computation.llnl.gov/projects/sundials/sundials-software
+  Options: SUNDIALS_OPT, SUNDIALS_LIB, SUNDIALS_PAR_LIB.
 
 - Mesquite (optional), used when MFEM_USE_MESQUITE = YES.
   URL: http://trilinos.org/oldsite/packages/mesquite

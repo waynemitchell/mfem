@@ -116,8 +116,8 @@ public:
                          ParNonlinearForm *H_);
    void SetParameters(double dt_, const Vector *v_, const Vector *x_);
 
-   // Linear solve applicable to the Sundials format.
-   // (Sundials doesn't work with increments).
+   // Linear solve applicable to the SUNDIALS format.
+   // (SUNDIALS doesn't work with increments).
    // Solves (Mass - dt J) y = Mass b, where in our case:
    // Mass = | M  0 |  J = | -S  -grad_H |  y = | v_hat |  b = | b_v |
    //        | 0  I |      |  I     0    |      | x_hat |      | b_x |
@@ -188,12 +188,15 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Order (degree) of the finite elements.");
    args.AddOption(&ode_solver_type, "-s", "--ode-solver",
-                  "ODE solver: 1 - Backward Euler, 2 - SDIRK2, 3 - SDIRK3,"
-                  " 4/5 - CVODE default implicit,"
-                  " 6/7 - ARKODE default implicit,\n\t"
-                  "\t    11 - Forward Euler, 12 - RK2, 13 - RK3 SSP,"
-                  " 14 - RK4, 15 - CVODE default explicit,"
-                  " 16 - ARKODE default explicit.");
+                  "ODE solver: 1 - Backward Euler, 2 - SDIRK2, 3 - SDIRK3,\n\t"
+                  "            4 - CVODE implicit, approximate Jacobian,\n\t"
+                  "            5 - CVODE implicit, specified Jacobian,\n\t"
+                  "            6 - ARKODE implicit, approximate Jacobian,\n\t"
+                  "            7 - ARKODE implicit, approximate Jacobian,\n\t"
+                  "            11 - Forward Euler, 12 - RK2,\n\t"
+                  "            13 - RK3 SSP, 14 - RK4,\n\t"
+                  "            15 - CVODE (adaptive order) explicit,\n\t"
+                  "            16 - ARKODE default (4th order) explicit.");
    args.AddOption(&t_final, "-tf", "--t-final",
                   "Final time; start time is 0.");
    args.AddOption(&dt, "-dt", "--time-step",
@@ -243,18 +246,21 @@ int main(int argc, char *argv[])
       case 1:  ode_solver = new BackwardEulerSolver; break;
       case 2:  ode_solver = new SDIRK23Solver(2); break;
       case 3:  ode_solver = new SDIRK33Solver; break;
-      case 4: break;
-      case 5: break;
-      case 6: break;
+      // SUNDIALS time integrators can be initialized only after the
+      // initial condition is known.
+      case 4:
+      case 5:
+      case 6:
       case 7: break;
       // Explicit methods
       case 11: ode_solver = new ForwardEulerSolver; break;
       case 12: ode_solver = new RK2Solver(0.5); break; // midpoint method
       case 13: ode_solver = new RK3SSPSolver; break;
       case 14: ode_solver = new RK4Solver; break;
-      case 15: break;
+      // SUNDIALS time integrators can be initialized only after the
+      // initial condition is known.
+      case 15:
       case 16: break;
-      case 17: break;
       // Implicit A-stable methods (not L-stable)
       case 22: ode_solver = new ImplicitMidpointSolver; break;
       case 23: ode_solver = new SDIRK23Solver; break;
@@ -363,11 +369,10 @@ int main(int argc, char *argv[])
       cout << "initial   total energy (TE) = " << (ee0 + ke0) << endl;
    }
 
-   // Sundials time integrators.
-   // Sundials needs the Vector's partitioning to setup its parallel structures.
+   // Initialization of SUNDIALS time integrators.
+   // SUNDIALS needs the Vector's partitioning to setup its parallel structures.
    // This is not available in BlockVector, so here we create an auxiliary
    // HypreParVector that corresponds to vx.
-   double t = 0.0;
    int part_size = (HYPRE_AssumedPartitionCheck()) ? 2 : num_procs + 1;
    HYPRE_Int *par1 = v_gf.GetTrueDofs()->Partitioning();
    HYPRE_Int *par2 = x_gf.GetTrueDofs()->Partitioning();
@@ -380,24 +385,24 @@ int main(int argc, char *argv[])
                v_gf.GetTrueDofs()->GlobalSize();
    HypreParVector *vx_hyp = new HypreParVector(pmesh->GetComm(),
                                                gsize, vx.GetData(), par3);
-
+   CVODESolver *cvode_solver;
+   ARKODESolver *arkode_solver;
    switch (ode_solver_type)
    {
       case 4:
          ode_solver = new CVODESolver(*vx_hyp, true, CV_BDF, CV_NEWTON); break;
       case 5:
-         ode_solver = new CVODESolver(*vx_hyp, true, CV_BDF, CV_NEWTON);
+         ode_solver = cvode_solver =
+                        new CVODESolver(*vx_hyp, true, CV_BDF, CV_NEWTON);
          // Custom Jacobian inversion.
-         static_cast<CVODESolver *>(ode_solver)->
-         SetLinearSolve(oper.backward_euler_oper);
+         cvode_solver->SetLinearSolve(oper.backward_euler_oper);
          break;
       case 6:
          ode_solver = new ARKODESolver(*vx_hyp, true, false); break;
       case 7:
-         ode_solver = new ARKODESolver(*vx_hyp, true, false);
+         ode_solver = arkode_solver = new ARKODESolver(*vx_hyp, true, false);
          // Custom Jacobian inversion.
-         static_cast<ARKODESolver *>(ode_solver)->
-         SetLinearSolve(oper.backward_euler_oper);
+         arkode_solver->SetLinearSolve(oper.backward_euler_oper);
          break;
       case 15:
          ode_solver = new CVODESolver(*vx_hyp, true); break;
@@ -407,9 +412,9 @@ int main(int argc, char *argv[])
 
    ode_solver->Init(oper);
 
-
    // 10. Perform time-integration
    //     (looping over the time iterations, ti, with a time-step dt).
+   double t = 0.0;
    double dt_by_ref = dt;
    bool last_step = false;
    for (int ti = 1; !last_step; ti++)
@@ -473,7 +478,7 @@ int main(int argc, char *argv[])
    // 12. Free the used memory.
    delete ode_solver;
    delete vx_hyp;
-   delete par3;
+   delete [] par3;
    delete pmesh;
 
    MPI_Finalize();
@@ -598,7 +603,8 @@ HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
                                            Array<int> &ess_bdr, double visc,
                                            double mu, double K, bool kinsol)
    : TimeDependentOperator(2*f.TrueVSize(), 0.0), fespace(f),
-     M(&fespace), S(&fespace), H(&fespace), use_kinsol(kinsol),
+     M(&fespace), S(&fespace), H(&fespace),
+     viscosity(visc), use_kinsol(kinsol),
      M_solver(f.GetComm()), newton_solver(f.GetComm()), z(height/2)
 {
    const double rel_tol = 1e-8;
@@ -625,7 +631,6 @@ HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
    H.AddDomainIntegrator(new HyperelasticNLFIntegrator(model));
    H.SetEssentialBC(ess_bdr);
 
-   viscosity = visc;
    ConstantCoefficient visc_coeff(viscosity);
    S.AddDomainIntegrator(new VectorDiffusionIntegrator(visc_coeff));
    S.Assemble(skip_zero_entries);
@@ -699,7 +704,6 @@ void HyperelasticOperator::ImplicitSolve(const double dt,
                             dv_dt.GetData(),
                             M.ParFESpace()->GetTrueDofOffsets());
       KinSolver kinsol(*backward_euler_oper, *dv_dt_h, true);
-      //kinsol.SetPrintLevel(1);
       // The scalings for KinSol can be done better.
       HypreParVector one(M.ParFESpace()); one = 1.0;
       *dv_dt_h = 0.0;

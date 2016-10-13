@@ -34,11 +34,6 @@ class SundialsLinearSolveOperator;
 /// http://computation.llnl.gov/sites/default/files/public/cv_guide.pdf
 class CVODESolver: public ODESolver
 {
-#ifdef MFEM_USE_MPI
-private:
-   MPI_Comm comm;
-#endif
-
 protected:
    N_Vector y;
    void *ode_mem;
@@ -59,10 +54,20 @@ public:
    void Init(TimeDependentOperator &f_);
 
    /// Allows changing the operator, starting solution, current time.
+   /// Note that the linear solver and RHS function set previously
+   /// remain in effect.
    void ReInit(TimeDependentOperator &f_, Vector &y_, double &t_);
 
    /// Note that this MUST be called before the first call to Step().
    void SetSStolerances(realtype reltol, realtype abstol);
+
+   /// Sets the maximum order of the linear multistep method.
+   /// The default is 12 (CV_ADAMS) or 5 (CV_BDF).
+   /// CVODE uses adaptive-order integration, based on the local truncation
+   /// error. Use this if you know a-priori that your system is such that
+   /// higher order integration formulas are unstable.
+   /// Note: max_order can't be higher than the current maximum order.
+   void SetMaxOrder(int max_order);
 
    /// Uses CVODE to integrate over (t, t + dt).
    /// Calls CVODE(), which is the main driver of the CVODE package.
@@ -79,11 +84,6 @@ public:
 /// http://computation.llnl.gov/sites/default/files/public/ark_guide.pdf
 class ARKODESolver: public ODESolver
 {
-#ifdef MFEM_USE_MPI
-private:
-   MPI_Comm comm;
-#endif
-
 protected:
    N_Vector y;
    void* ode_mem;
@@ -100,6 +100,7 @@ public:
    void Init(TimeDependentOperator &f_);
 
    /// Allows changing the operator, starting solution, current time.
+   /// Note that the linear solver set previously remains in effect.
    void ReInit(TimeDependentOperator &f_, Vector &y_, double &t_);
 
    /// Note that this MUST be called before the first call to Step().
@@ -110,11 +111,18 @@ public:
    void Step(Vector &x, double &t, double &dt);
 
    /// Defines a custom Jacobian inversion for non-linear problems.
-   void SetLinearSolve(SundialsLinearSolveOperator*);
+   void SetLinearSolve(SundialsLinearSolveOperator *op);
 
-   /// Chooses a specific Butcher table for a RK method.
-   /// By default ARKODE uses a 4th order integrator.
+   /// Chooses integration order for all explicit / implicit / IMEX methods.
+   /// The default is 4, and the allowed ranges are:
+   /// [2, 8] for explicit; [2, 5] for implicit; [3, 5] for IMEX.
+   void SetOrder(int order);
+
+   /// Chooses a specific Butcher table for an explicit or implicit RK method.
+   /// See the documentation for all possible options, stability regions, etc.
+   /// For example, table_num = ARK548L2SA_DIRK_8_4_5 is 8-stage 5th order.
    void SetERKTableNum(int table_num);
+   void SetIRKTableNum(int table_num);
 
    /// Specifies to use a fixed time step size instead of performing any form
    /// of temporal adaptivity.

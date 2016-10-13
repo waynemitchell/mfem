@@ -111,9 +111,11 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Order (degree) of the finite elements.");
    args.AddOption(&ode_solver_type, "-s", "--ode-solver",
-                  "ODE solver: 1 - Forward Euler, 2 - RK2 SSP, 3 - RK3 SSP,"
-                  " 4 - RK4, 6 - RK6, 11 - CVODE default explicit,"
-                  " 12 - ARKODE default explicit, 13 - ARKODE RK3.");
+                  "ODE solver: 1 - Forward Euler,\n\t"
+                  "            2 - RK2 SSP, 3 - RK3 SSP, 4 - RK4, 6 - RK6,\n\t"
+                  "            11 - CVODE (adaptive order) explicit,\n\t"
+                  "            12 - ARKODE default (4th order) explicit,\n\t"
+                  "            13 - ARKODE RK8.");
    args.AddOption(&t_final, "-tf", "--t-final",
                   "Final time; start time is 0.");
    args.AddOption(&dt, "-dt", "--time-step",
@@ -156,10 +158,11 @@ int main(int argc, char *argv[])
       case 3: ode_solver = new RK3SSPSolver; break;
       case 4: ode_solver = new RK4Solver; break;
       case 6: ode_solver = new RK6Solver; break;
-      case 11: break;
-      case 12: break;
+      // SUNDIALS time integrators can be initialized only after the
+      // initial condition is known.
+      case 11:
+      case 12:
       case 13: break;
-      case 14: break;
       default:
          if (myid == 0)
          {
@@ -298,8 +301,9 @@ int main(int argc, char *argv[])
    //     iterations, ti, with a time-step dt).
    FE_Evolution adv(*M, *K, *B);
 
-   double t = 0.0;
-   const int table_num = 3;
+   // Initialization of SUNDIALS time integrators.
+   const int rk_order = FEHLBERG_13_7_8;
+   ARKODESolver *arkode_solver;
    switch (ode_solver_type)
    {
       case 11:
@@ -307,19 +311,18 @@ int main(int argc, char *argv[])
       case 12:
          ode_solver = new ARKODESolver(*U, true); break;
       case 13:
-         ode_solver = new ARKODESolver(*U, true);
-         // Use RK3.
-         ((ARKODESolver*) ode_solver)->SetERKTableNum(table_num);
+         ode_solver = arkode_solver = new ARKODESolver(*U, true);
+         arkode_solver->SetERKTableNum(rk_order);
          // Always use dt (no internal temporal adaptivity).
-         ((ARKODESolver*) ode_solver)->SetFixedStep(dt);
+         arkode_solver->SetFixedStep(dt);
          break;
    }
 
    ode_solver->Init(adv);
 
    // Track past incremental time steps
+   double t = 0.0;
    double dt_by_ref = dt;
-
    for (int ti = 0; true; )
    {
       if (t >= t_final - dt/2)
