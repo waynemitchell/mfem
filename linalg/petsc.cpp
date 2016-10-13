@@ -1085,7 +1085,7 @@ int PetscSolver::GetConverged()
       KSPConvergedReason reason;
       ierr = KSPGetConvergedReason(ksp,&reason);
       PCHKERRQ(ksp,ierr);
-      return (int)reason;
+      return reason > 0 ? 1 : 0;
    }
    else
    {
