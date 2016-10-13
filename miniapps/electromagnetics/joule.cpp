@@ -866,7 +866,6 @@ void edot_bc(const Vector &x, Vector &E)
 
 void e_exact(const Vector &x, double t, Vector &E)
 {
-
    E[0] = 0.0;
    E[1] = 0.0;
    E[2] = 0.0;
@@ -911,12 +910,10 @@ void e_exact(const Vector &x, double t, Vector &E)
    E[1] = 0.0;
    E[2] = aj_*Ereal;
 #endif
-
 }
 
 void b_exact(const Vector &x, double t, Vector &B)
 {
-
    B[0] = 0.0;
    B[1] = 0.0;
    B[2] = 0.0;
@@ -955,7 +952,6 @@ void b_exact(const Vector &x, double t, Vector &B)
       b = gsl_sf_bessel_In(m,k_imag*rj_);
       besselJ0kR_real += a*b*cos(m*1.57079632);
       besselJ0kR_imag += a*b*sin(m*1.57079632);
-
    }
 
    complex<double> besselJ1kr(besselJ1kr_real,besselJ1kr_imag);
@@ -971,7 +967,6 @@ void b_exact(const Vector &x, double t, Vector &B)
    B[2] =  0.0;
 
 #endif
-
 }
 
 double t_exact(Vector &x)
@@ -982,7 +977,6 @@ double t_exact(Vector &x)
 
 double p_bc(const Vector &x, double t)
 {
-
    // the value
    double T;
    if (x[2] < 0.0)
