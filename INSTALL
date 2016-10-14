@@ -224,11 +224,6 @@ MFEM_USE_NETCDF = YES/NO
    Genesis mesh files. This option enables a reader for these files, which
    requires that NetCDF be installed, see the NETCDF_* build options below.
 
-MFEM_USE_GSL = YES/NO
-   Enable the use of the GNU scientific library (GSL). Currently, GSL is only
-   used in the Joule electromagnetics miniapp for computing analytic solutions.
-   When enabled, this option uses the GSL_* library options, see below.
-
 MFEM_USE_MPFR = YES/NO
    MPFR is a library for multiple-precision floating-point computations. This
    option enables the use of MPFR in MFEM, e.g. for precise computation of 1D
@@ -304,11 +299,6 @@ The specific libraries and their options are:
   don't need the C++ or parallel versions.
   URL: www.unidata.ucar.edu/software/netcdf
   Options: NETCDF_OPT, NETCDF_LIB.
-
-- GSL (optional), used when MFEM_USE_GSL = YES, used for computing analytic
-  solutions in the Joule electromagnetics miniapp.
-  URL: https://www.gnu.org/software/gsl
-  Options: GSL_OPT, GSL_LIB
 
 - MPFR (optional), used when MFEM_USE_MPFR = YES.
   URL: http://mpfr.org, it depends on the GMP library: https://gmplib.org

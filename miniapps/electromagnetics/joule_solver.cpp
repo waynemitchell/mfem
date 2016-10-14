@@ -53,9 +53,7 @@ MagneticDiffusionEOperator::MagneticDiffusionEOperator(
      pcg_a1(NULL), dsp_m3(NULL),pcg_m3(NULL),
      dsp_m1(NULL), pcg_m1(NULL), dsp_m2(NULL), pcg_m2(NULL),
      mu(mu_coef), dt_A1(-1.0), dt_A2(-1.0)
-
 {
-
    ess_bdr.SetSize(ess_bdr_arg.Size());
    for (int i=0; i<ess_bdr_arg.Size(); i++)
    {
@@ -100,7 +98,6 @@ MagneticDiffusionEOperator::MagneticDiffusionEOperator(
    B1 = new Vector;
    B2 = new Vector;
    B3 = new Vector;
-
 }
 
 void MagneticDiffusionEOperator::Init(Vector &X)
@@ -109,14 +106,13 @@ void MagneticDiffusionEOperator::Init(Vector &X)
    VectorConstantCoefficient Zero_vec(zero_vec);
    ConstantCoefficient Zero(0.0);
 
-   /* the big BlockVector stores the fields as
-      Temperature
-      Temperature Flux
-      P field
-      E field
-      B field
-      Joule Heating
-   */
+   // The big BlockVector stores the fields as follows:
+   //    Temperature
+   //    Temperature Flux
+   //    P field
+   //    E field
+   //    B field
+   //    Joule Heating
 
    int Vsize_l2 = L2FESpace.GetVSize();
    int Vsize_nd = HCurlFESpace.GetVSize();
@@ -141,18 +137,15 @@ void MagneticDiffusionEOperator::Init(Vector &X)
    B.MakeRef(&HDivFESpace, *xptr,true_offset[4]);
    W.MakeRef(&L2FESpace,   *xptr,true_offset[5]);
 
-
    E.ProjectCoefficient(Zero_vec);
    B.ProjectCoefficient(Zero_vec);
    F.ProjectCoefficient(Zero_vec);
    T.ProjectCoefficient(Zero);
    P.ProjectCoefficient(Zero);
    W.ProjectCoefficient(Zero);
-
 }
 
 /*
-
 This is an experimental Mult() method for explicit integration.
 Not recommended for actual use.
 
@@ -163,26 +156,22 @@ M2 F  = WeakDiv^T T
 M3 dT = WeakDiv F + W
 
 where W is the Joule heating.
-Boundary conditions are applied to E.
-No boundary conditions are applied to B.
-Since we are using Hdiv, zero flux is an essential BC on F.
-P is given by Div sigma Grad P = 0 with appropriate BC's
 
-
+Boundary conditions are applied to E.  No boundary conditions are applied to B.
+Since we are using Hdiv, zero flux is an essential BC on F.  P is given by Div
+sigma Grad P = 0 with appropriate BC's.
 */
 void MagneticDiffusionEOperator::Mult(const Vector &X, Vector &dX_dt) const
 {
-
    dX_dt = 0.0;
 
-   /* the big BlockVector stores the fields as
-      Temperature
-      Temperature Flux
-      P field
-      E field
-      B field
-      Joule Heating
-   */
+   // The big BlockVector stores the fields as follows:
+   //    Temperature
+   //    Temperature Flux
+   //    P field
+   //    E field
+   //    B field
+   //    Joule Heating
 
    int Vsize_l2 = L2FESpace.GetVSize();
    int Vsize_nd = HCurlFESpace.GetVSize();
@@ -227,10 +216,10 @@ void MagneticDiffusionEOperator::Mult(const Vector &X, Vector &dX_dt) const
    voltage.SetTime(this->GetTime());
    Phi_gf = 0.0;
 
-   // the line below should work but doesn't there is a bug
+   // the line below is currently not fully supported on AMR meshes
    // Phi_gf.ProjectBdrCoefficient(voltage,poisson_ess_bdr);
 
-   // this is a hack for the above bug
+   // this is a hack to get around the above issue
    {
       Array<int> my_ess_dof_list;
       HGradFESpace.GetEssentialVDofs(poisson_ess_bdr, my_ess_dof_list);
@@ -245,8 +234,8 @@ void MagneticDiffusionEOperator::Mult(const Vector &X, Vector &dX_dt) const
    }
    // end of hack
 
-   // apply essential BC's and apply static condensation
-   // the new system to solve is A0 X0 = B0
+   // apply essential BC's and apply static condensation, the new system to
+   // solve is A0 X0 = B0
    Array<int> poisson_ess_tdof_list;
    HGradFESpace.GetEssentialTrueDofs(poisson_ess_bdr, poisson_ess_tdof_list);
 
@@ -257,9 +246,9 @@ void MagneticDiffusionEOperator::Mult(const Vector &X, Vector &dX_dt) const
    if (pcg_a0 == NULL)
    {
       pcg_a0 = new HyprePCG(*A0);
-      pcg_a0->SetTol(SOLVERTOL);
-      pcg_a0->SetMaxIter(SOLVERMAXIT);
-      pcg_a0->SetPrintLevel(SOLVERPRINTLEVEL);
+      pcg_a0->SetTol(SOLVER_TOL);
+      pcg_a0->SetMaxIter(SOLVER_MAX_IT);
+      pcg_a0->SetPrintLevel(SOLVER_PRINT_LEVEL);
       pcg_a0->SetPreconditioner(*amg_a0);
    }
    // pcg "Mult" operation is a solve
@@ -287,8 +276,8 @@ void MagneticDiffusionEOperator::Mult(const Vector &X, Vector &dX_dt) const
 
    ParGridFunction J_gf(&HCurlFESpace);
 
-   // edot_bc is time-derivative E-field on a boundary surface
-   // and then it is used as a Dirichlet BC.
+   // edot_bc is time-derivative E-field on a boundary surface and then it is
+   // used as a Dirichlet BC.
 
    VectorFunctionCoefficient Jdot(3, edot_bc);
    J_gf = 0.0;
@@ -305,9 +294,9 @@ void MagneticDiffusionEOperator::Mult(const Vector &X, Vector &dX_dt) const
    if (pcg_m1 == NULL)
    {
       pcg_m1 = new HyprePCG(*A1);
-      pcg_m1->SetTol(SOLVERTOL);
-      pcg_m1->SetMaxIter(SOLVERMAXIT);
-      pcg_m1->SetPrintLevel(SOLVERPRINTLEVEL);
+      pcg_m1->SetTol(SOLVER_TOL);
+      pcg_m1->SetMaxIter(SOLVER_MAX_IT);
+      pcg_m1->SetPrintLevel(SOLVER_PRINT_LEVEL);
       pcg_m1->SetPreconditioner(*dsp_m1);
    }
    // pcg "Mult" operation is a solve
@@ -333,7 +322,6 @@ void MagneticDiffusionEOperator::Mult(const Vector &X, Vector &dX_dt) const
    // v2 = <v, div u> * T
    weakDiv->Mult(T, *v2);
 
-
    // apply the thermal BC
    // recall for Hdiv formulation the essential BC is on the flux
    Vector zero_vec(3); zero_vec = 0.0;
@@ -353,9 +341,9 @@ void MagneticDiffusionEOperator::Mult(const Vector &X, Vector &dX_dt) const
    if (pcg_m2 == NULL)
    {
       pcg_m2 = new HyprePCG(*A2);
-      pcg_m2->SetTol(SOLVERTOL);
-      pcg_m2->SetMaxIter(SOLVERMAXIT);
-      pcg_m2->SetPrintLevel(SOLVERPRINTLEVEL);
+      pcg_m2->SetTol(SOLVER_TOL);
+      pcg_m2->SetMaxIter(SOLVER_MAX_IT);
+      pcg_m2->SetPrintLevel(SOLVER_PRINT_LEVEL);
       pcg_m2->SetPreconditioner(*dsp_m2);
    }
    // X2 = m2^-1 * B2
@@ -363,7 +351,6 @@ void MagneticDiffusionEOperator::Mult(const Vector &X, Vector &dX_dt) const
 
    // "undo" the static condensation and fill in grid function dF
    m2->RecoverFEMSolution(*X2,*v2,F);
-
 
    // Compute dT using previous value of flux
    // dT = [w - div F]
@@ -390,16 +377,14 @@ void MagneticDiffusionEOperator::Mult(const Vector &X, Vector &dX_dt) const
    if (pcg_m3 == NULL)
    {
       pcg_m3 = new HyprePCG(*M3);
-      pcg_m3->SetTol(SOLVERTOL);
-      pcg_m3->SetMaxIter(SOLVERMAXIT);
-      pcg_m3->SetPrintLevel(SOLVERPRINTLEVEL);
+      pcg_m3->SetTol(SOLVER_TOL);
+      pcg_m3->SetMaxIter(SOLVER_MAX_IT);
+      pcg_m3->SetPrintLevel(SOLVER_PRINT_LEVEL);
       pcg_m3->SetPreconditioner(*dsp_m3);
    }
    // solve for dT from M3 dT = lf
    // no boundary conditions on this solve
    pcg_m3->Mult(temp_lf, dT);
-
-
 }
 
 /*
@@ -413,9 +398,9 @@ where X is the state vector containing P, E, B, F, T, and W
        M3 dT = WeakDiv F + W
 
 where W is the Joule heating.
-Boundary conditions are applied to E.
-Boundary conditions are applied to F.
-No boundary conditions are applied to B or T.
+
+Boundary conditions are applied to E.  Boundary conditions are applied to F.  No
+boundary conditions are applied to B or T.
 
 The W term in the left hand side is the Joule heating which is a nonlinear
 (quadratic) function of E.
@@ -440,14 +425,13 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
 
    dX_dt = 0.0;
 
-   /* the big BlockVector stores the fields as
-      Temperature
-      Temperature Flux
-      P field
-      E field
-      B field
-      Joule Heating
-   */
+   // The big BlockVector stores the fields as follows:
+   //    Temperature
+   //    Temperature Flux
+   //    P field
+   //    E field
+   //    B field
+   //    Joule Heating
 
    int Vsize_l2 = L2FESpace.GetVSize();
    int Vsize_nd = HCurlFESpace.GetVSize();
@@ -472,7 +456,6 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
    B.MakeRef(&HDivFESpace, *xptr,true_offset[4]);
    W.MakeRef(&L2FESpace,   *xptr,true_offset[5]);
 
-
    ParGridFunction dE, dB, dT, dF, dW, dP;
    dT.MakeRef(&L2FESpace,   dX_dt,true_offset[0]);
    dF.MakeRef(&HDivFESpace, dX_dt,true_offset[1]);
@@ -489,10 +472,10 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
    voltage.SetTime(this->GetTime());
    Phi_gf = 0.0;
 
-   // the function below doesn't work !!!
+   // the function below is currently not fully supported on AMR meshes
    // Phi_gf.ProjectBdrCoefficient(voltage,poisson_ess_bdr);
 
-   // this is a hack for the above bug
+   // this is a hack to get around the above issue
    {
       Array<int> my_ess_dof_list;
       HGradFESpace.GetEssentialVDofs(poisson_ess_bdr, my_ess_dof_list);
@@ -507,8 +490,8 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
    }
    // end of hack
 
-   // apply essential BC's and apply static condensation
-   // the new system to solve is A0 X0 = B0
+   // apply essential BC's and apply static condensation, the new system to
+   // solve is A0 X0 = B0
    Array<int> poisson_ess_tdof_list;
    HGradFESpace.GetEssentialTrueDofs(poisson_ess_bdr, poisson_ess_tdof_list);
 
@@ -519,9 +502,9 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
    if (pcg_a0 == NULL)
    {
       pcg_a0 = new HyprePCG(*A0);
-      pcg_a0->SetTol(SOLVERTOL);
-      pcg_a0->SetMaxIter(SOLVERMAXIT);
-      pcg_a0->SetPrintLevel(SOLVERPRINTLEVEL);
+      pcg_a0->SetTol(SOLVER_TOL);
+      pcg_a0->SetMaxIter(SOLVER_MAX_IT);
+      pcg_a0->SetPrintLevel(SOLVER_PRINT_LEVEL);
       pcg_a0->SetPreconditioner(*amg_a0);
    }
    // pcg "Mult" operation is a solve
@@ -569,9 +552,9 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
    if ( pcg_a1 == NULL )
    {
       pcg_a1 = new HyprePCG(*A1);
-      pcg_a1->SetTol(SOLVERTOL);
-      pcg_a1->SetMaxIter(SOLVERMAXIT);
-      pcg_a1->SetPrintLevel(SOLVERPRINTLEVEL);
+      pcg_a1->SetTol(SOLVER_TOL);
+      pcg_a1->SetMaxIter(SOLVER_MAX_IT);
+      pcg_a1->SetPrintLevel(SOLVER_PRINT_LEVEL);
       pcg_a1->SetPreconditioner(*ams_a1);
    }
    // solve the system
@@ -587,7 +570,6 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
    // E = E - grad (P)
    // note grad maps GF to GF
    grad->AddMult(P,E,-1.0);
-
 
    // Compute dB/dt = -Curl(E_{n+1})
    // note curl maps GF to GF
@@ -628,9 +610,9 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
    if ( pcg_a2 == NULL )
    {
       pcg_a2 = new HyprePCG(*A2);
-      pcg_a2->SetTol(SOLVERTOL);
-      pcg_a2->SetMaxIter(SOLVERMAXIT);
-      pcg_a2->SetPrintLevel(SOLVERPRINTLEVEL);
+      pcg_a2->SetTol(SOLVER_TOL);
+      pcg_a2->SetMaxIter(SOLVER_MAX_IT);
+      pcg_a2->SetPrintLevel(SOLVER_PRINT_LEVEL);
       pcg_a2->SetPreconditioner(*ads_a2);
    }
    // solve for dF from a2 dF = v2
@@ -647,7 +629,7 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
    // where W is Joule heating and F is the flux that we just computed
    //
    // note: if div is a BilinearForm, then W should be converted to a LoadVector
-   // compute load vector <1/c W, u> whre W is the Joule heating GF
+   // compute load vector <1/c W, u> where W is the Joule heating GF
 
    // create the Coefficient 1/c W
    //ScaledGFCoefficient Wcoeff(&W, *InvTcap);
@@ -670,9 +652,9 @@ void MagneticDiffusionEOperator::ImplicitSolve(const double dt,
    if (pcg_m3 == NULL)
    {
       pcg_m3 = new HyprePCG(*M3);
-      pcg_m3->SetTol(SOLVERTOL);
-      pcg_m3->SetMaxIter(SOLVERMAXIT);
-      pcg_m3->SetPrintLevel(SOLVERPRINTLEVEL);
+      pcg_m3->SetTol(SOLVER_TOL);
+      pcg_m3->SetMaxIter(SOLVER_MAX_IT);
+      pcg_m3->SetPrintLevel(SOLVER_PRINT_LEVEL);
       pcg_m3->SetPreconditioner(*dsp_m3);
    }
 
@@ -685,9 +667,9 @@ void MagneticDiffusionEOperator::buildA0(MeshDependentCoefficient &Sigma)
 {
    if ( a0 != NULL ) { delete a0; }
 
-   // First create and assemble the bilinear form.
-   // For now we assume the mesh isn't moving, the materials are time independent,
-   // and dt is constant. So we only need to do this once.
+   // First create and assemble the bilinear form.  For now we assume the mesh
+   // isn't moving, the materials are time independent, and dt is constant. So
+   // we only need to do this once.
 
    // ConstantCoefficient Sigma(sigma);
    a0 = new ParBilinearForm(&HGradFESpace);
@@ -695,19 +677,18 @@ void MagneticDiffusionEOperator::buildA0(MeshDependentCoefficient &Sigma)
    if (STATIC_COND == 1) { a0->EnableStaticCondensation(); }
    a0->Assemble();
 
-   // don't finalize or parallel assemble this is done in FormLinearSystem
+   // Don't finalize or parallel assemble this is done in FormLinearSystem.
 }
 
 void MagneticDiffusionEOperator::buildA1(double muInv,
                                          MeshDependentCoefficient &Sigma,
                                          double dt)
 {
-
    if ( a1 != NULL ) { delete a1; }
 
-   // First create and assemble the bilinear form.
-   // For now we assume the mesh isn't moving, the materials are time independent,
-   // and dt is constant. So we only need to do this once.
+   // First create and assemble the bilinear form.  For now we assume the mesh
+   // isn't moving, the materials are time independent, and dt is constant. So
+   // we only need to do this once.
 
    ConstantCoefficient dtMuInv(dt*muInv);
    a1 = new ParBilinearForm(&HCurlFESpace);
@@ -716,7 +697,7 @@ void MagneticDiffusionEOperator::buildA1(double muInv,
    if (STATIC_COND == 1) { a1->EnableStaticCondensation(); }
    a1->Assemble();
 
-   // don't finalize or parallel assemble this is done in FormLinearSystem
+   // Don't finalize or parallel assemble this is done in FormLinearSystem.
 
    dt_A1 = dt;
 }
@@ -734,7 +715,7 @@ void MagneticDiffusionEOperator::buildA2(MeshDependentCoefficient &InvTcond,
    if (STATIC_COND == 1) { a2->EnableStaticCondensation(); }
    a2->Assemble();
 
-   // don't finalize or parallel assemble this is done in FormLinearSystem
+   // Don't finalize or parallel assemble this is done in FormLinearSystem.
 
    dt_A2 = dt;
 }
@@ -747,8 +728,7 @@ void MagneticDiffusionEOperator::buildM1(MeshDependentCoefficient &Sigma)
    m1->AddDomainIntegrator(new VectorFEMassIntegrator(Sigma));
    m1->Assemble();
 
-   // don't finalize or parallel assemble this is done in FormLinearSystem
-
+   // Don't finalize or parallel assemble this is done in FormLinearSystem.
 }
 
 void MagneticDiffusionEOperator::buildM2(MeshDependentCoefficient &Alpha)
@@ -760,13 +740,11 @@ void MagneticDiffusionEOperator::buildM2(MeshDependentCoefficient &Alpha)
    m2->AddDomainIntegrator(new VectorFEMassIntegrator(Alpha));
    m2->Assemble();
 
-   // don't finalize or parallel assemble this is done in FormLinearSystem
-
+   // Don't finalize or parallel assemble this is done in FormLinearSystem.
 }
 
 void MagneticDiffusionEOperator::buildM3(MeshDependentCoefficient &Tcapacity)
 {
-
    if ( m3 != NULL ) { delete m3; }
 
    // ConstantCoefficient Sigma(sigma);
@@ -775,7 +753,6 @@ void MagneticDiffusionEOperator::buildM3(MeshDependentCoefficient &Tcapacity)
    m3->Assemble();
    m3->Finalize();
    M3 = m3->ParallelAssemble();
-
 }
 
 void MagneticDiffusionEOperator::buildS1(double muInv)
@@ -800,7 +777,6 @@ void MagneticDiffusionEOperator::buildS2(MeshDependentCoefficient &InvTcap)
 
 void MagneticDiffusionEOperator::buildCurl(double muInv)
 {
-
    if ( curl != NULL ) { delete curl; }
    if ( weakCurl != NULL ) { delete weakCurl; }
 
@@ -843,10 +819,8 @@ void MagneticDiffusionEOperator::buildGrad()
    // no ParallelAssemble since this will be applied to GridFunctions
 }
 
-
 double MagneticDiffusionEOperator::ElectricLosses(ParGridFunction &E_gf) const
 {
-
    double el = m1->InnerProduct(E_gf,E_gf);
 
    double global_el;
@@ -856,7 +830,7 @@ double MagneticDiffusionEOperator::ElectricLosses(ParGridFunction &E_gf) const
    return el;
 }
 
-// E is the input GF, w is the output GF which is I assume an L2 scalar
+// E is the input GF, w is the output GF which is assumed to be an L2 scalar
 // representing the Joule heating
 void MagneticDiffusionEOperator::GetJouleHeating(ParGridFunction &E_gf,
                                                  ParGridFunction &w_gf) const
@@ -875,7 +849,6 @@ void MagneticDiffusionEOperator::SetTime(const double _t)
 
 MagneticDiffusionEOperator::~MagneticDiffusionEOperator()
 {
-
    if ( ams_a1 != NULL ) { delete ams_a1; }
    if ( pcg_a1 != NULL ) { delete pcg_a1; }
 
@@ -890,7 +863,6 @@ MagneticDiffusionEOperator::~MagneticDiffusionEOperator()
    if ( weakDivC != NULL ) { delete weakDivC; }
    if ( weakCurl != NULL ) { delete weakCurl; }
    if ( grad != NULL ) { delete grad; }
-
 
    if ( a0 != NULL ) { delete a0; }
    if ( a1 != NULL ) { delete a1; }
@@ -954,24 +926,18 @@ MeshDependentCoefficient::MeshDependentCoefficient(
    const std::map<int, double> &inputMap, double scale)
    : Coefficient()
 {
-
-   // make a copy of the magic attribute-value map
-   // for later use
+   // make a copy of the magic attribute-value map for later use
    materialMap = new std::map<int, double>(inputMap);
    scaleFactor = scale;
-
 }
 
 MeshDependentCoefficient::MeshDependentCoefficient(
    const MeshDependentCoefficient &cloneMe)
    : Coefficient()
 {
-
-   // make a copy of the magic attribute-value map
-   // for later use
+   // make a copy of the magic attribute-value map for later use
    materialMap = new std::map<int, double>(*(cloneMe.materialMap));
    scaleFactor = cloneMe.scaleFactor;
-
 }
 
 double MeshDependentCoefficient::Eval(ElementTransformation &T,
@@ -995,7 +961,6 @@ double MeshDependentCoefficient::Eval(ElementTransformation &T,
 
    return value*scaleFactor;
 }
-
 
 ScaledGFCoefficient::ScaledGFCoefficient(GridFunction *gf,
                                          MeshDependentCoefficient &input_mdc)

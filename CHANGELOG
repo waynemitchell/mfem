@@ -58,13 +58,13 @@ FEM <-> linear system interface for action-only linear operators
 
 New and updated examples and miniapps
 -------------------------------------
-- Added new example code, Example 16/16p, demonstrating the solution of a
+- Added a new example code, Example 16/16p, demonstrating the solution of a
   time-dependent nonlinear heat equation in serial and in parallel.
 
-- Added new example 17/17p, illustrating discontinuous Galerkin (DG)
-  formulations of static linear elasticity.
+- Added a new example code, Example 17/17p, illustrating discontinuous Galerkin
+  (DG) formulations of static linear elasticity.
 
-- Added new electromagnetic miniapp, joule, illustrating the simulation of
+- Added a new electromagnetic miniapp, Joule, illustrating the simulation of
   transient magnetics and joule heating. This is a comprehensive miniapp that
   uses finite element spaces and solvers for the whole de Rham sequence.
 
