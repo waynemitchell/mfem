@@ -33,7 +33,6 @@ class KnotVector;
 class NURBSExtension;
 class FiniteElementSpace;
 class GridFunction;
-class DataCollection;
 struct Refinement;
 class named_ifstream;
 
@@ -489,12 +488,6 @@ public:
        generate_edges = 0 (default) edges are not generated, if 1 edges are
        generated. */
    Mesh(std::istream &input, int generate_edges = 0, int refine = 1,
-        bool fix_orientation = true);
-
-   /// Creates mesh from mesh data in data collection.
-   Mesh(DataCollection * dc);
-
-   Mesh(std::istream &input, DataCollection * dc, int generate_edges = 0, int refine = 1,
         bool fix_orientation = true);
 
    /// Create a disjoint mesh from the given mesh array
