@@ -95,7 +95,7 @@ public:
    /// Set random values
    void Randomize(PetscInt seed);
 
-   /// Prints the locally owned rows in parallel
+   /// Prints the vector (to stdout if fname is NULL)
    void Print(const char *fname) const;
 };
 
@@ -227,6 +227,9 @@ public:
    /// If action is true, then the matrix is not actually transposed.
    /// Instead, an object that behaves like the transpose is returned.
    PetscParMatrix* Transpose(bool action = false);
+
+   /// Prints the matrix (to stdout if fname is NULL)
+   void Print(const char *fname) const;
 
    /// Scale all entries by s: A_scaled = s*A.
    void operator*=(double s);

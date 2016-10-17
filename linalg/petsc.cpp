@@ -736,6 +736,24 @@ void PetscParMatrix::MultTranspose(double a, const Vector &x, double b,
    YY->ResetData();
 }
 
+void PetscParMatrix::Print(const char *fname) const
+{
+   if (fname)
+   {
+      PetscViewer view;
+
+      ierr = PetscViewerASCIIOpen(PetscObjectComm((PetscObject)A),fname,&view);
+      PCHKERRQ(A,ierr);
+      ierr = MatView(A,view); PCHKERRQ(A,ierr);
+      ierr = PetscViewerDestroy(&view); PCHKERRQ(A,ierr);
+   }
+   else
+   {
+      ierr = MatView(A,NULL); PCHKERRQ(A,ierr);
+   }
+}
+
+
 PetscParMatrix * RAP(PetscParMatrix *Rt, PetscParMatrix *A, PetscParMatrix *P)
 {
    Mat       pA = *A,pP = *P,pRt = *Rt;
