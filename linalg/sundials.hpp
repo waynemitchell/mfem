@@ -30,51 +30,123 @@ namespace mfem
 {
 class SundialsLinearSolveOperator;
 
-/// Wraps the CVODE library.
+
+class SundialsSolver
+{
+protected:
+   void *sundials_mem;
+
+   static const double default_rel_tol;
+   static const double default_abs_tol;
+
+   // Computes the action of a time-dependent operator.
+   static int ODEMult(realtype t, N_Vector y, N_Vector ydot, void *td_oper);
+
+   // Computes the non-linear operator action F(u).
+   static int Mult(N_Vector u, N_Vector fu, void *oper);
+
+   // Computes J(u)v.
+   // Here new_u tells you whether u has been updated since the
+   // last call to KinSolJacAction.
+   static int GradientMult(N_Vector v, N_Vector Jv, N_Vector u,
+                           booleantype *new_u, void *oper);
+
+   // Note: the contructors are protected.
+   SundialsSolver() : sundials_mem(NULL) { }
+   SundialsSolver(void *mem) : sundials_mem(mem) { }
+
+public:
+   /// Access the underlying SUNDIALS object.
+   void *SundialsMem() const { return sundials_mem; }
+};
+
+/// Wrapper for the CVODE library.
 /// http://computation.llnl.gov/sites/default/files/public/cv_guide.pdf
-class CVODESolver: public ODESolver
+class CVODESolver : public ODESolver, public SundialsSolver
 {
 protected:
    N_Vector y;
-   void *ode_mem;
-   int lin_method_type, solver_iteration_type;
+   int flag;
 
-   void (*connectNV)(Vector &, N_Vector &);
+#ifdef MFEM_USE_MPI
+   bool Parallel() { return (y->ops->nvgetvectorid != N_VGetVectorID_Serial); }
+#else
+   bool Parallel() { return false; }
+#endif
 
 public:
-   /// CVODE needs the initial condition (first argument).
-   /// parallel specifies whether the calling code is parallel or not.
-   /// lmm specifies the linear multistep method, the options are
-   /// CV_ADAMS (explicit problems) or CV_BDF (implicit problems).
-   /// iter specifies type of solver iteration, the options are
-   /// CV_FUNCTIONAL (linear problems) or CV_NEWTON (nonlinear problems).
-   CVODESolver(Vector &y_, bool parallel,
-               int lmm = CV_ADAMS, int iter = CV_FUNCTIONAL);
+   /// Construct a serial CVODESolver, a wrapper for SUNDIALS' CVODE solver.
+   /** @param[in] lmm   Specifies the linear multistep method, the options are
+                        CV_ADAMS (explicit problems) or CV_BDF (implicit
+                        problems).
+       @param[in] iter  Specifies type of solver iteration, the options are
+                        CV_FUNCTIONAL (linear problems) or CV_NEWTON (nonlinear
+                        problems).
+       For parameter desciption, see the CVodeCreate documentation (cvode.h).
+   */
+   CVODESolver(int lmm, int iter);
 
-   void Init(TimeDependentOperator &f_);
+#ifdef MFEM_USE_MPI
+   /// Construct a parallel CVODESolver, a wrapper for SUNDIALS' CVODE solver.
+   /** @param[in] comm  The MPI communicator used to partition the ODE system.
+       @param[in] lmm   Specifies the linear multistep method, the options are
+                        CV_ADAMS (explicit problems) or CV_BDF (implicit
+                        problems).
+       @param[in] iter  Specifies type of solver iteration, the options are
+                        CV_FUNCTIONAL (linear problems) or CV_NEWTON (nonlinear
+                        problems).
+       For parameter desciption, see the CVodeCreate documentation (cvode.h).
+   */
+   CVODESolver(MPI_Comm comm, int lmm, int iter);
+#endif
 
-   /// Allows changing the operator, starting solution, current time.
-   /// Note that the linear solver and RHS function set previously
-   /// remain in effect.
-   void ReInit(TimeDependentOperator &f_, Vector &y_, double &t_);
+   /** @brief CVode supports two modes, specified by itask: CV_NORMAL (default)
+       and CV_ONE_STEP.
 
-   /// Note that this MUST be called before the first call to Step().
-   void SetSStolerances(realtype reltol, realtype abstol);
+       In the CV_NORMAL mode, the solver steps until it reaches or passes
+       tout = t + dt, where t and dt are specified in Step(), and then
+       interpolates to obtain y(tout). In the CV_ONE_STEP mode, it takes one
+       internal step and returns.
+   */
+   void SetStepMode(int itask);
+
+   /// Return the flag returned by the last call to a CVODE function.
+   int GetFlag() const { return flag; }
+
+   /// Specify the scalar relative tolerance and scalar absolute tolerance.
+   /** @note This method can be called before Init(). */
+   void SetSStolerances(double reltol, double abstol);
 
    /// Sets the maximum order of the linear multistep method.
-   /// The default is 12 (CV_ADAMS) or 5 (CV_BDF).
-   /// CVODE uses adaptive-order integration, based on the local truncation
-   /// error. Use this if you know a-priori that your system is such that
-   /// higher order integration formulas are unstable.
-   /// Note: max_order can't be higher than the current maximum order.
+   /** The default is 12 (CV_ADAMS) or 5 (CV_BDF).
+       CVODE uses adaptive-order integration, based on the local truncation
+       error. Use this if you know a-priori that your system is such that
+       higher order integration formulas are unstable.
+       @note @a max_order can't be higher than the current maximum order. */
    void SetMaxOrder(int max_order);
 
-   /// Uses CVODE to integrate over (t, t + dt).
-   /// Calls CVODE(), which is the main driver of the CVODE package.
-   void Step(Vector &x, double &t, double &dt);
+   /// Set the ODE right-hand-side operator.
+   /** The start time of CVODE is initialized from the current time of @a f_.
+       @note This method calls CVodeInit(). Some CVODE parameters can be set
+       (using the handle returned by SundialsMem()) only after this call. */
+   virtual void Init(TimeDependentOperator &f_);
 
    /// Defines a custom Jacobian inversion for non-linear problems.
    void SetLinearSolve(SundialsLinearSolveOperator *op);
+
+   /// Uses CVODE to integrate over [t, t + dt], using the specified step mode.
+   /** Calls CVode(), which is the main driver of the CVODE package.
+       @param[in,out] x  Solution vector to advance. On input/output x=x(t)
+                         for t corresponding to the input/output value of t,
+                         respectively.
+       @param[in,out] t  Input: the starting time value. Output: the time value
+                         of the solution output, as returned by CVode().
+       @param[in,out] dt Input: desired time step. Output: the last incremental
+                         time step used. */
+   virtual void Step(Vector &x, double &t, double &dt);
+
+   /// Print CVODE statistics.
+   void PrintInfo() const;
 
    /// Destroys the associated CVODE memory.
    ~CVODESolver();
@@ -82,14 +154,11 @@ public:
 
 /// Wraps the ARKODE library.
 /// http://computation.llnl.gov/sites/default/files/public/ark_guide.pdf
-class ARKODESolver: public ODESolver
+class ARKODESolver: public ODESolver, public SundialsSolver
 {
 protected:
    N_Vector y;
-   void* ode_mem;
    bool use_explicit;
-
-   void (*connectNV)(Vector &, N_Vector &);
 
 public:
    /// ARKODE needs the initial condition (first argument).
@@ -137,13 +206,10 @@ public:
 
 /// Wraps the KINSOL library.
 /// http://computation.llnl.gov/sites/default/files/public/kin_guide.pdf
-class KinSolver
+class KinSolver : public SundialsSolver
 {
 private:
-   void *kin_mem;
    N_Vector u, u_scale, f_scale;
-
-   void (*connectNV)(Vector &, N_Vector &);
 
 public:
    /// Specifies the initial condition and non-linear operator.

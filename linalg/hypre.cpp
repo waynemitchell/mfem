@@ -192,6 +192,22 @@ HypreParVector::~HypreParVector()
    }
 }
 
+#ifdef MFEM_USE_SUNDIALS
+
+void HypreParVector::ToNVector(N_Vector &nv)
+{
+   MFEM_ASSERT(nv && N_VGetVectorID(nv) == SUNDIALS_NVEC_PARHYP,
+               "invalid N_Vector");
+   N_VectorContent_ParHyp nv_c = (N_VectorContent_ParHyp)(nv->content);
+   MFEM_ASSERT(nv_c->own_parvector == FALSE, "invalid N_Vector");
+   nv_c->local_length = x->local_vector->size;
+   nv_c->global_length = x->global_size;
+   nv_c->comm = x->comm;
+   nv_c->x = x;
+}
+
+#endif // MFEM_USE_SUNDIALS
+
 
 double InnerProduct(HypreParVector *x, HypreParVector *y)
 {

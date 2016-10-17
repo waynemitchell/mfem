@@ -15,6 +15,9 @@
 // Data type vector
 
 #include "../general/array.hpp"
+#ifdef MFEM_USE_SUNDIALS
+#include <nvector/nvector_serial.h>
+#endif
 #include <cmath>
 #include <iostream>
 #if defined(_MSC_VER) && (_MSC_VER < 1800)
@@ -222,6 +225,19 @@ public:
 
    /// Destroys vector.
    virtual ~Vector ();
+
+#ifdef MFEM_USE_SUNDIALS
+   /// Construct a wrapper Vector from SUNDIALS N_Vector.
+   explicit Vector(N_Vector nv);
+
+   /// Return a new wrapper SUNDIALS N_Vector of type SUNDIALS_NVEC_SERIAL.
+   /** The returned N_Vector must be destroyed by the caller. */
+   virtual N_Vector ToNVector() { return N_VMake_Serial(Size(), GetData()); }
+
+   /** @brief Update an existing wrapper SUNDIALS N_Vector to point to this
+       Vector. */
+   virtual void ToNVector(N_Vector &nv);
+#endif
 };
 
 // Inline methods

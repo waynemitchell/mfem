@@ -9,6 +9,7 @@
 //    ex10 -m ../data/beam-tet.mesh -s 2 -r 1 -o 2 -dt 3
 //    ex10 -m ../data/beam-quad.mesh -s 14 -r 2 -o 2 -dt 0.03 -vs 20
 //    ex10 -m ../data/beam-hex.mesh -s 14 -r 1 -o 2 -dt 0.05 -vs 20
+//    ex10 -m ../data/beam-quad.mesh -s 5 -r 2 -o 2 -dt 3
 //
 // Description:  This examples solves a time dependent nonlinear elasticity
 //               problem of the form dv/dt = H(x) + S v, dx/dt = v, where H is a
@@ -226,16 +227,24 @@ int main(int argc, char *argv[])
    //    singly diagonal implicit Runge-Kutta (SDIRK) methods, as well as
    //    explicit Runge-Kutta methods are available.
    ODESolver *ode_solver;
+   CVODESolver *cvode;
    switch (ode_solver_type)
    {
       // Implicit L-stable methods
       case 1:  ode_solver = new BackwardEulerSolver; break;
       case 2:  ode_solver = new SDIRK23Solver(2); break;
       case 3:  ode_solver = new SDIRK33Solver; break;
-      // SUNDIALS time integrators can be initialized only after the
-      // initial condition is known.
       case 4:
       case 5:
+      {
+         cvode = new CVODESolver(CV_BDF, CV_NEWTON);
+         cvode->SetSStolerances(1.0, 1.0);
+         CVodeSetMaxStep(cvode->SundialsMem(), dt);
+         ode_solver = cvode;
+         break;
+      }
+      // SUNDIALS time integrators can be initialized only after the
+      // initial condition is known.
       case 6:
       case 7: break;
       // Explicit methods
@@ -243,9 +252,16 @@ int main(int argc, char *argv[])
       case 12: ode_solver = new RK2Solver(0.5); break; // midpoint method
       case 13: ode_solver = new RK3SSPSolver; break;
       case 14: ode_solver = new RK4Solver; break;
+      case 15:
+      {
+         cvode = new CVODESolver(CV_ADAMS, CV_FUNCTIONAL);
+         cvode->SetSStolerances(1.0, 1.0);
+         CVodeSetMaxStep(cvode->SundialsMem(), dt);
+         ode_solver = cvode;
+         break;
+      }
       // SUNDIALS time integrators can be initialized only after the
       // initial condition is known.
-      case 15:
       case 16: break;
       // Implicit A-stable methods (not L-stable)
       case 22: ode_solver = new ImplicitMidpointSolver; break;
@@ -331,18 +347,9 @@ int main(int argc, char *argv[])
    cout << "initial   total energy (TE) = " << (ee0 + ke0) << endl;
 
    // Initialization of SUNDIALS time integrators.
-   CVODESolver *cvode_solver;
    ARKODESolver *arkode_solver;
    switch (ode_solver_type)
    {
-      case 4:
-         ode_solver = new CVODESolver(vx, false, CV_BDF, CV_NEWTON); break;
-      case 5:
-         ode_solver = cvode_solver =
-                         new CVODESolver(vx, false, CV_BDF, CV_NEWTON);
-         // Custom Jacobian inversion.
-         cvode_solver->SetLinearSolve(oper.backward_euler_oper);
-         break;
       case 6:
          ode_solver = new ARKODESolver(vx, false, false); break;
       case 7:
@@ -350,28 +357,31 @@ int main(int argc, char *argv[])
          // Custom Jacobian inversion.
          arkode_solver->SetLinearSolve(oper.backward_euler_oper);
          break;
-      case 15:
-         ode_solver = new CVODESolver(vx, false); break;
       case 16:
          ode_solver = new ARKODESolver(vx, false, true); break;
    }
 
+   double t = 0.0;
+   oper.SetTime(t);
    ode_solver->Init(oper);
+
+   switch (ode_solver_type)
+   {
+      case 5:
+         // Custom Jacobian inversion.
+         cvode->SetLinearSolve(oper.backward_euler_oper);
+         break;
+   }
 
    // 8. Perform time-integration (looping over the time iterations, ti, with a
    //    time-step dt).
-   double t = 0.0;
    bool last_step = false;
-   double dt_by_ref = dt;
    for (int ti = 1; !last_step; ti++)
    {
-      if (t + dt >= t_final - dt/2)
-      {
-         last_step = true;
-      }
+      double dt_real = min(dt, t_final - t);
+      ode_solver->Step(vx, t, dt_real);
 
-      dt_by_ref=dt;
-      ode_solver->Step(vx, t, dt_by_ref);
+      last_step = (t >= t_final - 1e-8*dt);
 
       if (last_step || (ti % vis_steps) == 0)
       {
@@ -380,6 +390,8 @@ int main(int argc, char *argv[])
 
          cout << "step " << ti << ", t = " << t << ", EE = " << ee << ", KE = "
               << ke << ", ΔTE = " << (ee+ke)-(ee0+ke0) << endl;
+
+         if (cvode) { cvode->PrintInfo(); }
 
          if (visualization)
          {
@@ -492,6 +504,7 @@ void BackwardEulerOperator::SolveJacobian(Vector *b, Vector *y, double dt)
    J_minres.SetPrintLevel(-1);
    J_minres.SetPreconditioner(J_prec);
    J_minres.SetOperator(*Jacobian);
+   J_minres.iterative_mode = false;
 
    J_minres.Mult(rhs, v_hat);
    add(b_x, dt, v_hat, x_hat);

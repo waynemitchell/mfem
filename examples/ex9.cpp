@@ -14,6 +14,7 @@
 //    ex9 -m ../data/disc-nurbs.mesh -p 2 -r 3 -dt 0.005 -tf 9
 //    ex9 -m ../data/periodic-square.mesh -p 3 -r 4 -dt 0.0025 -tf 9 -vs 20
 //    ex9 -m ../data/periodic-cube.mesh -p 0 -r 2 -o 2 -dt 0.02 -tf 8
+//    ex9 -s 11 -dt 0.0018 -vs 25
 //
 // Description:  This example code solves the time-dependent advection equation
 //               du/dt + v.grad(u) = 0, where v is a given fluid velocity, and
@@ -136,6 +137,7 @@ int main(int argc, char *argv[])
    // 3. Define the ODE solver used for time integration. Several explicit
    //    Runge-Kutta methods are available.
    ODESolver *ode_solver = NULL;
+   CVODESolver *cvode = NULL;
    switch (ode_solver_type)
    {
       case 1: ode_solver = new ForwardEulerSolver; break;
@@ -143,9 +145,16 @@ int main(int argc, char *argv[])
       case 3: ode_solver = new RK3SSPSolver; break;
       case 4: ode_solver = new RK4Solver; break;
       case 6: ode_solver = new RK6Solver; break;
+      case 11:
+      {
+         cvode = new CVODESolver(CV_ADAMS, CV_FUNCTIONAL);
+         cvode->SetSStolerances(1.0, 1.0);
+         CVodeSetMaxStep(cvode->SundialsMem(), dt);
+         ode_solver = cvode;
+         break;
+      }
       // SUNDIALS time integrators can be initialized only after the
       // initial condition is known.
-      case 11:
       case 12:
       case 13: break;
       default:
@@ -259,8 +268,6 @@ int main(int argc, char *argv[])
    ARKODESolver *arkode_solver;
    switch (ode_solver_type)
    {
-      case 11:
-         ode_solver = new CVODESolver(u, false); break;
       case 12:
          ode_solver = new ARKODESolver(u, false); break;
       case 13:
@@ -271,25 +278,24 @@ int main(int argc, char *argv[])
          break;
    }
 
+   double t = 0.0;
+   adv.SetTime(t);
    ode_solver->Init(adv);
 
-   // Track past incremental time steps
-   double t = 0.0;
-   double dt_by_ref = dt;
-   for (int ti = 0; true; )
+   bool done = false;
+   for (int ti = 0; !done; )
    {
-      if (t >= t_final - dt/2)
-      {
-         break;
-      }
-
-      dt_by_ref=dt;
-      ode_solver->Step(u, t, dt_by_ref);
+      double dt_real = min(dt, t_final - t);
+      ode_solver->Step(u, t, dt_real);
       ti++;
 
-      if (ti % vis_steps == 0)
+      done = (t >= t_final - 1e-8*dt);
+
+      if (done || ti % vis_steps == 0)
       {
          cout << "time step: " << ti << ", time: " << t << endl;
+
+         if (cvode) { cvode->PrintInfo(); }
 
          if (visualization)
          {
