@@ -243,9 +243,10 @@ int main(int argc, char *argv[])
    else { pBT = pB->Transpose(); };
 #endif
 
-   BlockOperator *darcyOp = new BlockOperator(block_trueOffsets);
+   Operator *darcyOp = NULL;
    if (!use_petsc)
    {
+      darcyOp = new BlockOperator(block_trueOffsets);
       darcyOp->SetBlock(0,0,M);
       darcyOp->SetBlock(0,1,BT);
       darcyOp->SetBlock(1,0,B);
@@ -253,9 +254,15 @@ int main(int argc, char *argv[])
 #ifdef MFEM_USE_PETSC
    else
    {
-      darcyOp->SetBlock(0,0,pM);
-      darcyOp->SetBlock(0,1,pBT);
-      darcyOp->SetBlock(1,0,pB);
+      // We construct the BlockOperator and we then convert it to
+      // a PetscParMatrix to avoid any conversion in the
+      // construction of the preconditioners.
+      BlockOperator *tdarcyOp = new BlockOperator(block_trueOffsets);
+      tdarcyOp->SetBlock(0,0,pM);
+      tdarcyOp->SetBlock(0,1,pBT);
+      tdarcyOp->SetBlock(1,0,pB);
+      darcyOp = new PetscParMatrix(pM->GetComm(),tdarcyOp,false);
+      delete tdarcyOp;
    }
 #endif
 

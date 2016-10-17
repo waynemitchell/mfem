@@ -1358,14 +1358,11 @@ void PetscPreconditioner::SetOperator(const Operator &op)
    bool delete_pA = false;
    PetscParMatrix *pA = const_cast<PetscParMatrix *>
                         (dynamic_cast<const PetscParMatrix *>(&op));
-   BlockOperator  *pB = const_cast<BlockOperator *>
-                        (dynamic_cast<const BlockOperator *>(&op));
-   if (!pA && pB)
+   if (!pA)
    {
-      pA = new PetscParMatrix(PetscObjectComm(obj),pB,false);
+      pA = new PetscParMatrix(PetscObjectComm(obj),&op,false);
       delete_pA = true;
    }
-   if (!pA) { MFEM_ABORT("PetscPreconditioner::SetOperator Operator should be a PetscParMatrix or a BlockOperator"); }
 
    PC pc = (PC)obj;
    ierr = PCSetOperators(pc,pA->A,pA->A); PCHKERRQ(obj,ierr);
@@ -1681,15 +1678,23 @@ PetscBDDCSolver::PetscBDDCSolver(MPI_Comm comm, Operator &op, PetscBDDCSolverPar
    Customize();
 }
 
-PetscFieldSplitSolver::PetscFieldSplitSolver(MPI_Comm comm, BlockOperator &op,
+PetscFieldSplitSolver::PetscFieldSplitSolver(MPI_Comm comm, Operator &op,
                                              std::string prefix) : PetscPreconditioner(comm,op,prefix)
 {
    PC pc = (PC)obj;
+
    Mat pA;
-   IS  *isrow;
-   PetscInt nr,i;
-   ierr = PCSetType(pc,PCFIELDSPLIT); PCHKERRQ(pc,ierr);
    ierr = PCGetOperators(pc,&pA,NULL); PCHKERRQ(pc,ierr);
+
+   // check if pA is of type MATNEST (this requirement can be removed when we can pass fields)
+   PetscBool isnest;
+   ierr = PetscObjectTypeCompare((PetscObject)pA,MATNEST,&isnest);
+   PCHKERRQ(pA,ierr);
+   MFEM_VERIFY(isnest,"PetscFieldSplitSolver needs the matrix in nested format");
+
+   PetscInt nr;
+   IS  *isrow;
+   ierr = PCSetType(pc,PCFIELDSPLIT); PCHKERRQ(pc,ierr);
    ierr = MatNestGetSize(pA,&nr,NULL); PCHKERRQ(pc,ierr);
    ierr = PetscCalloc1(nr,&isrow); CCHKERRQ(PETSC_COMM_SELF,ierr);
    ierr = MatNestGetISs(pA,isrow,NULL); PCHKERRQ(pc,ierr);
@@ -1697,7 +1702,7 @@ PetscFieldSplitSolver::PetscFieldSplitSolver(MPI_Comm comm, BlockOperator &op,
    // we need to customize here, before setting the index sets
    Customize();
 
-   for (i=0; i<nr; i++)
+   for (PetscInt i=0; i<nr; i++)
    {
       ierr = PCFieldSplitSetIS(pc,NULL,isrow[i]); PCHKERRQ(pc,ierr);
    }

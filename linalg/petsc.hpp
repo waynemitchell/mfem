@@ -424,7 +424,7 @@ public:
 class PetscFieldSplitSolver : public PetscPreconditioner
 {
 public:
-   PetscFieldSplitSolver(MPI_Comm comm, BlockOperator &op,
+   PetscFieldSplitSolver(MPI_Comm comm, Operator &op,
                          std::string prefix = std::string());
 };
 
