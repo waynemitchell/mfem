@@ -1430,17 +1430,17 @@ void PetscBDDCSolver::BDDCSolverConstructor(PetscBDDCSolverParams opts)
    // check information about index sets (essential dofs, fields, etc.)
 #ifdef MFEM_DEBUG
    {
-      // make sure ess/nat_tdof_list have been collectively set
+      // make sure ess/nat_dof_list have been collectively set
       PetscBool lpr = PETSC_FALSE,pr;
-      if (opts.ess_tdof_list) { lpr = PETSC_TRUE; }
+      if (opts.ess_dof_list) { lpr = PETSC_TRUE; }
       ierr = MPI_Allreduce(&lpr,&pr,1,MPIU_BOOL,MPI_LOR,comm);
       PCHKERRQ(pA,ierr);
-      MFEM_VERIFY(lpr == pr,"ess_tdof_list should be collectively set");
+      MFEM_VERIFY(lpr == pr,"ess_dof_list should be collectively set");
       lpr = PETSC_FALSE;
-      if (opts.nat_tdof_list) { lpr = PETSC_TRUE; }
+      if (opts.nat_dof_list) { lpr = PETSC_TRUE; }
       ierr = MPI_Allreduce(&lpr,&pr,1,MPIU_BOOL,MPI_LOR,comm);
       PCHKERRQ(pA,ierr);
-      MFEM_VERIFY(lpr == pr,"nat_tdof_list should be collectively set");
+      MFEM_VERIFY(lpr == pr,"nat_dof_list should be collectively set");
       // make sure fields have been collectively set
       PetscInt ms[2],Ms[2];
       ms[0] = -nf; ms[1] = nf;
@@ -1452,17 +1452,33 @@ void PetscBDDCSolver::BDDCSolverConstructor(PetscBDDCSolverParams opts)
 
    // boundary sets
    ierr = MatGetOwnershipRange(pA,&rst,NULL); PCHKERRQ(pA,ierr);
-   if (opts.ess_tdof_list)
+   if (opts.ess_dof_list)
    {
       // need to compute the boundary dofs in global ordering
-      ierr = Convert_Array_IS(comm,opts.ess_tdof_list,rst,&dir); CCHKERRQ(comm,ierr);
-      ierr = PCBDDCSetDirichletBoundaries(pc,dir); PCHKERRQ(pc,ierr);
+      PetscInt st = opts.ess_dof_local ? 0 : rst;
+      ierr = Convert_Array_IS(comm,opts.ess_dof_list,st,&dir); CCHKERRQ(comm,ierr);
+      if (!opts.ess_dof_local)
+      {
+         ierr = PCBDDCSetDirichletBoundaries(pc,dir); PCHKERRQ(pc,ierr);
+      }
+      else
+      {
+         ierr = PCBDDCSetDirichletBoundariesLocal(pc,dir); PCHKERRQ(pc,ierr);
+      }
    }
-   if (opts.nat_tdof_list)
+   if (opts.nat_dof_list)
    {
       // need to compute the boundary dofs in global ordering
-      ierr = Convert_Array_IS(comm,opts.nat_tdof_list,rst,&neu); CCHKERRQ(comm,ierr);
-      ierr = PCBDDCSetNeumannBoundaries(pc,neu); PCHKERRQ(pc,ierr);
+      PetscInt st = opts.nat_dof_local ? 0 : rst;
+      ierr = Convert_Array_IS(comm,opts.nat_dof_list,st,&neu); CCHKERRQ(comm,ierr);
+      if (!opts.nat_dof_local)
+      {
+         ierr = PCBDDCSetNeumannBoundaries(pc,neu); PCHKERRQ(pc,ierr);
+      }
+      else
+      {
+         ierr = PCBDDCSetNeumannBoundariesLocal(pc,neu); PCHKERRQ(pc,ierr);
+      }
    }
 
    // field splitting
@@ -1620,7 +1636,14 @@ void PetscBDDCSolver::BDDCSolverConstructor(PetscBDDCSolverParams opts)
          {
             Mat pB = *B;
             ierr = MatTranspose(pB,MAT_REUSE_MATRIX,&pB); PCHKERRQ(pA,ierr);
-            ierr = MatZeroRowsIS(pB,dir,0.,NULL,NULL); PCHKERRQ(pA,ierr);
+            if (!opts.ess_dof_local)
+            {
+               ierr = MatZeroRowsIS(pB,dir,0.,NULL,NULL); PCHKERRQ(pA,ierr);
+            }
+            else
+            {
+               ierr = MatZeroRowsLocalIS(pB,dir,0.,NULL,NULL); PCHKERRQ(pA,ierr);
+            }
             B_is_Trans = PETSC_TRUE;
          }
          delete b;

@@ -391,16 +391,19 @@ class PetscBDDCSolverParams
 {
 protected:
    ParFiniteElementSpace *fespace;
-   Array<int>            *ess_tdof_list;
-   Array<int>            *nat_tdof_list;
+   Array<int>            *ess_dof_list;
+   bool                  ess_dof_local;
+   Array<int>            *nat_dof_list;
+   bool                  nat_dof_local;
    friend class PetscBDDCSolver;
 
 public:
-   PetscBDDCSolverParams() : fespace(NULL), ess_tdof_list(NULL),
-      nat_tdof_list(NULL) {};
+   PetscBDDCSolverParams() : fespace(NULL),
+      ess_dof_list(NULL), ess_dof_local(false),
+      nat_dof_list(NULL), nat_dof_local(false) {};
    void SetSpace(ParFiniteElementSpace *fe) { fespace = fe; };
-   void SetEssBdrDofs(Array<int> *esstdofs) { ess_tdof_list = esstdofs; };
-   void SetNatBdrDofs(Array<int> *nattdofs) { nat_tdof_list = nattdofs; };
+   void SetEssBdrDofs(Array<int> *essdofs, bool loc = false) { ess_dof_list = essdofs; ess_dof_local = loc; };
+   void SetNatBdrDofs(Array<int> *natdofs, bool loc = false) { nat_dof_list = natdofs; nat_dof_local = loc; };
    ~PetscBDDCSolverParams() {};
 };
 
