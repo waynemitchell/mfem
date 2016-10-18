@@ -44,5 +44,6 @@
 #endif
 
 #include "sidredatacollection.hpp"
+#include "datacollection_utility.hpp"
 
 #endif
