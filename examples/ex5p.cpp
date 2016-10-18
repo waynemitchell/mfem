@@ -246,10 +246,11 @@ int main(int argc, char *argv[])
    Operator *darcyOp = NULL;
    if (!use_petsc)
    {
-      darcyOp = new BlockOperator(block_trueOffsets);
-      darcyOp->SetBlock(0,0,M);
-      darcyOp->SetBlock(0,1,BT);
-      darcyOp->SetBlock(1,0,B);
+      BlockOperator *tdarcyOp = new BlockOperator(block_trueOffsets);
+      tdarcyOp->SetBlock(0,0,M);
+      tdarcyOp->SetBlock(0,1,BT);
+      tdarcyOp->SetBlock(1,0,B);
+      darcyOp = tdarcyOp;
    }
 #ifdef MFEM_USE_PETSC
    else
@@ -311,11 +312,19 @@ int main(int argc, char *argv[])
          // Since R_space is the only space that may have boundary dofs and it is ordered
          // first then W_space, we don't need any local offset when specifying the dofs.
          Array<int> bdr_tdof_list;
+         bool local;
          if (pmesh->bdr_attributes.Size())
          {
             Array<int> bdr(pmesh->bdr_attributes.Max());
             bdr = 1;
+#if 0
             R_space->GetEssentialTrueDofs(bdr, bdr_tdof_list);
+            local = false;
+#else
+            R_space->GetEssentialVDofs(bdr, bdr_tdof_list);
+            bdr_tdof_list.SetSize(R_space->GetVSize()+W_space->GetVSize(),0);
+            local = true;
+#endif
          }
          else
          {
@@ -323,7 +332,7 @@ int main(int argc, char *argv[])
          }
 
          PetscBDDCSolverParams opts;
-         opts.SetNatBdrDofs(&bdr_tdof_list);
+         opts.SetNatBdrDofs(&bdr_tdof_list,local);
          // See also command line options .petsc_rc_ex5p_bddc
          pdarcyPr = new PetscBDDCSolver(MPI_COMM_WORLD,*darcyOp,opts,"prec_");
       }

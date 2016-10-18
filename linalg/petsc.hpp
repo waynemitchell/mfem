@@ -391,19 +391,25 @@ class PetscBDDCSolverParams
 {
 protected:
    ParFiniteElementSpace *fespace;
-   Array<int>            *ess_dof_list;
+   Array<int>            *ess_dof;
    bool                  ess_dof_local;
-   Array<int>            *nat_dof_list;
+   Array<int>            *nat_dof;
    bool                  nat_dof_local;
    friend class PetscBDDCSolver;
 
 public:
    PetscBDDCSolverParams() : fespace(NULL),
-      ess_dof_list(NULL), ess_dof_local(false),
-      nat_dof_list(NULL), nat_dof_local(false) {};
+      ess_dof(NULL), ess_dof_local(false),
+      nat_dof(NULL), nat_dof_local(false) {};
    void SetSpace(ParFiniteElementSpace *fe) { fespace = fe; };
-   void SetEssBdrDofs(Array<int> *essdofs, bool loc = false) { ess_dof_list = essdofs; ess_dof_local = loc; };
-   void SetNatBdrDofs(Array<int> *natdofs, bool loc = false) { nat_dof_list = natdofs; nat_dof_local = loc; };
+   /// Specify dofs on the essential boundary
+   /// If loc is false, it is a list of true dofs in local ordering
+   /// If loc is true, it is a marker for Vdofs in local ordering
+   void SetEssBdrDofs(Array<int> *essdofs, bool loc = false) { ess_dof = essdofs; ess_dof_local = loc; };
+   /// Specify dofs on the natural boundary
+   /// If loc is false, it is a list of true dofs in local ordering
+   /// If loc is true, it is a marker for Vdofs in local ordering
+   void SetNatBdrDofs(Array<int> *natdofs, bool loc = false) { nat_dof = natdofs; nat_dof_local = loc; };
    ~PetscBDDCSolverParams() {};
 };
 
