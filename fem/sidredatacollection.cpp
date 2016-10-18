@@ -305,10 +305,6 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
 
    if (has_bnd_elts)
    {
-      // TODO: why are you getting these?
-      int * x1 = bp_grp->getView("topologies/boundary/elements/connectivity")->getArray();
-      int * x2 = bp_grp->getView("fields/boundary_material_attribute/values")->getArray();
-
       new_mesh->ChangeBoundaryElementDataOwnership(
                 bp_grp->getView("topologies/boundary/elements/connectivity")->getArray(),
                 bnd_element_size * bnd_num_elements,
@@ -534,6 +530,7 @@ double* SidreDataCollection::GetFieldData(const char *field_name, int sz)
 
    namespace sidre = asctoolkit::sidre;
 
+   MFEM_VERIFY(simdata_grp->hasGroup("array_data") == true, "No group 'array_data' in data collection.  Verify that SetMesh was called to set the mesh in the data collection.");
    sidre::DataGroup* f = simdata_grp->getGroup("array_data");
    if( ! f->hasView( field_name ) )
    {

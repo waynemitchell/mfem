@@ -93,8 +93,8 @@ int main(int argc, char *argv[])
    double t_final = 10.0;
    double dt = 0.01;
    bool visualization = true;
-   bool visit = false;
-   int vis_steps = 5;
+   bool binary = false;
+   int vis_steps = 25;
 
    int precision = 8;
    cout.precision(precision);
@@ -120,9 +120,9 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
-   args.AddOption(&visit, "-visit", "--visit-datafiles", "-no-visit",
-                  "--no-visit-datafiles",
-                  "Save data files for VisIt (visit.llnl.gov) visualization.");
+   args.AddOption(&binary, "-binary", "--binary-datafiles", "-ascii",
+                  "--ascii-datafiles",
+                  "Save binary data files for VisIt (visit.llnl.gov) visualization using sidre (ASC Toolkit datastore).  If false, ascii text output files will be used.");
    args.AddOption(&vis_steps, "-vs", "--visualization-steps",
                   "Visualize every n-th timestep.");
    args.Parse();
@@ -188,6 +188,32 @@ int main(int argc, char *argv[])
       pmesh->UniformRefinement();
    }
 
+   DataCollection * dc = NULL;
+   // Create data collection, either VisitDC (for ascii data files) or SidreDC (for binary).
+   if (binary)
+   {
+#if defined(MFEM_USE_SIDRE)
+      namespace sidre = asctoolkit::sidre;
+      sidre::DataStore ds;
+      sidre::DataGroup * global_grp = ds.getRoot()->createGroup("mfem_global");
+      sidre::DataGroup * domain_grp = ds.getRoot()->createGroup("mfem");
+      dc = new SidreDataCollection("ex9p_refined_mesh", global_grp, domain_grp );
+      // Must set node positions gf name before setting mesh.
+      SidreDataCollection * sdc = dynamic_cast<SidreDataCollection * >(dc);
+      sdc->SetNodePositionsFieldName("nodes");
+
+      dc->SetMesh(pmesh);
+      dc->RegisterField("nodes", pmesh->GetNodes());
+
+#else
+      MFEM_ABORT("Must compile with sidre support MFEM_USE_SIDRE=YES for binary output.");
+#endif
+   }
+   else
+   {
+      dc = new VisItDataCollection("Example9-Parallel", pmesh);
+   }
+   dc->SetPrefixPath("ex9p_output");
    // 7. Define the parallel discontinuous DG finite element space on the
    //    parallel refined mesh of the given polynomial order.
    DG_FECollection fec(order, dim);
@@ -233,14 +259,26 @@ int main(int argc, char *argv[])
    // 9. Define the initial conditions, save the corresponding grid function to
    //    a file and (optionally) save data in the VisIt format and initialize
    //    GLVis visualization.
-   ParGridFunction *u = new ParGridFunction(fes);
+
+   // TODO - These three lines will be replaced with a one-liner helper function when Kenny moves over the helper function to MFEM.
+
+   double * foo = dc->GetFieldData("solution", fes->GetVSize() );
+   std::cerr << "vsize is " << fes->GetVSize() << std::endl;
+
+//   ParGridFunction u_object(fes, dc->GetFieldData("solution", fes->GetVSize() ) );
+   ParGridFunction u_object(fes, foo );
+   dc->RegisterField("solution", &u_object);
+
+   ParGridFunction *u = &u_object;
+//   ParGridFunction *u = new ParGridFunction(fes);
+
    u->ProjectCoefficient(u0);
    HypreParVector *U = u->GetTrueDofs();
 
    {
       ostringstream mesh_name, sol_name;
-      mesh_name << "ex9-mesh." << setfill('0') << setw(6) << myid;
-      sol_name << "ex9-init." << setfill('0') << setw(6) << myid;
+      mesh_name << "ex9p_output/ex9-mesh." << setfill('0') << setw(6) << myid;
+      sol_name << "ex9p_output/ex9-init." << setfill('0') << setw(6) << myid;
       ofstream omesh(mesh_name.str().c_str());
       omesh.precision(precision);
       pmesh->Print(omesh);
@@ -249,14 +287,11 @@ int main(int argc, char *argv[])
       u->Save(osol);
    }
 
-   VisItDataCollection visit_dc("Example9-Parallel", pmesh);
-   visit_dc.RegisterField("solution", u);
-   if (visit)
-   {
-      visit_dc.SetCycle(0);
-      visit_dc.SetTime(0.0);
-      visit_dc.Save();
-   }
+   dc->RegisterField("solution", u);
+
+   dc->SetCycle(0);
+   dc->SetTime(0.0);
+   dc->Save();
 
    socketstream sout;
    if (visualization)
@@ -322,12 +357,10 @@ int main(int argc, char *argv[])
             sout << "solution\n" << *pmesh << *u << flush;
          }
 
-         if (visit)
-         {
-            visit_dc.SetCycle(ti);
-            visit_dc.SetTime(t);
-            visit_dc.Save();
-         }
+         dc->SetCycle(ti);
+         dc->SetTime(t);
+         dc->Save();
+         
       }
    }
 
@@ -336,15 +369,25 @@ int main(int argc, char *argv[])
    {
       *u = *U;
       ostringstream sol_name;
-      sol_name << "ex9-final." << setfill('0') << setw(6) << myid;
+      sol_name << "ex9p_output/ex9-final." << setfill('0') << setw(6) << myid;
       ofstream osol(sol_name.str().c_str());
       osol.precision(precision);
       u->Save(osol);
    }
 
-   // 13. Free the used memory.
+   // 13. Demonstrate additional output formats available in sidre.
+#ifdef MFEM_USE_SIDRE
+   if (binary)
+   {
+      SidreDataCollection * sdc = dynamic_cast<SidreDataCollection * >(dc);
+      sdc->Save("ex9p_dump", "sidre_hdf5");
+      sdc->Save("ex9p_dump", "json");
+      sdc->Save("ex9p_dump", "conduit_json");
+   }
+#endif
+
+   // 14. Free the used memory.
    delete U;
-   delete u;
    delete B;
    delete b;
    delete K;
@@ -354,6 +397,7 @@ int main(int argc, char *argv[])
    delete fes;
    delete pmesh;
    delete ode_solver;
+   delete dc;
 
    MPI_Finalize();
    return 0;

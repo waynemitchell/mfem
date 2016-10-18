@@ -43,6 +43,6 @@
 #include "pnonlinearform.hpp"
 #endif
 
-#include "../external/sidredatacollection.hpp"
+#include "sidredatacollection.hpp"
 
 #endif

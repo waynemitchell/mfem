@@ -125,13 +125,12 @@ endif
 DEP_CXX ?= $(MFEM_CXX)
 
 # SIDRE library and required libraries.
-MFEM_USE_SIDRE ?= NO
 ifeq ($(MFEM_USE_SIDRE),YES)
    INCFLAGS += -I$(SIDRE_DIR)/include -I$(CONDUIT_DIR)/include/conduit -I$(HDF5_DIR)/include
    ALL_LIBS += -L$(SIDRE_DIR)/lib -L$(CONDUIT_DIR)/lib -L$(HDF5_DIR)/lib -Wl,-rpath=$(HDF5_DIR)/lib -lsidre -lslic -lcommon -lconduit -lconduit_relay -lconduit_b64 -lhdf5 -lz -ldl
 
    ifeq ($(MFEM_USE_MPI),YES)
-     ALL_LIBS += -lspio
+     ALL_LIBS += -lspio -lcommon
    endif 
 endif
 
