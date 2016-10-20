@@ -2206,15 +2206,15 @@ Mesh::Mesh(const char *filename, int generate_edges, int refine,
    // Initialization as in the default constructor
    SetEmpty();
 
-   named_ifstream imesh(filename);
-   if (!imesh)
+   named_ifgzstream imesh(filename);
+   if (!imesh())
    {
       // Abort with an error message.
       MFEM_ABORT("Mesh file not found: " << filename << '\n');
    }
    else
    {
-      Load(imesh, generate_edges, refine, fix_orientation);
+      Load(imesh(), generate_edges, refine, fix_orientation);
    }
 }
 
@@ -2376,11 +2376,11 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    else if (mesh_type.size() > 2 &&
             mesh_type[0] == 'C' && mesh_type[1] == 'D' && mesh_type[2] == 'F')
    {
-      named_ifstream *mesh_input = dynamic_cast<named_ifstream *>(&input);
+      named_ifgzstream *mesh_input = dynamic_cast<named_ifgzstream *>(&input);
       if (mesh_input)
       {
 #ifdef MFEM_USE_NETCDF
-         ReadCubit(*mesh_input, curved, read_gf);
+         ReadCubit(*mesh_input(), curved, read_gf);
 #else
          MFEM_ABORT("NetCDF support requires configuration with"
                     " MFEM_USE_NETCDF=YES");

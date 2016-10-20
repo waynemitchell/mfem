@@ -982,23 +982,12 @@ public:
 Mesh *Extrude1D(Mesh *mesh, const int ny, const double sy,
                 const bool closed = false);
 
-
-/// Input file stream that remembers the input file name (used for reading
-/// NetCDF meshes).
-#ifdef MFEM_GZSTREAM
-class named_ifstream : public mfem::igzstream
-#else
-class named_ifstream : public std::ifstream
-#endif
+class named_ifgzstream : public mfem::ifgzstream
 {
 public:
    const char *filename;
-   named_ifstream(const char *mesh_name) :
-#ifdef MFEM_GZSTREAM
-      mfem::igzstream(mesh_name), filename(mesh_name) {}
-#else
-      std::ifstream(mesh_name), filename(mesh_name) {}
-#endif
+   named_ifgzstream(const char *mesh_name) :
+      mfem::ifgzstream(mesh_name), filename(mesh_name) {}
 };
 
 // inline functions

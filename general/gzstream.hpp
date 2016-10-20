@@ -621,6 +621,27 @@ public:
     }
 };
 
+class ifgzstream {
+public:
+    ifgzstream(char const *name, char const *mode = "rb") {
+        if (maybe_gz(name))
+            strm = new igzstream(name,mode);
+        else
+            strm = new std::ifstream(name);
+    };
+    std::istream &operator()(void) const { return *strm; };
+   ~ifgzstream() { delete strm; };
+private:
+   ifgzstream() {};
+   std::istream *strm;
+   static bool maybe_gz(const char *fn) {
+       unsigned short byt = 0x0000;
+       std::ifstream strm(fn,std::ios_base::binary|std::ios_base::in);
+       strm.read(reinterpret_cast<char*>(&byt),2);
+       if (byt==0x1f8b||byt==0x8b1f) return true;
+       return false;}
+};
+
 class ogzstream : public gzstreambase, public std::ostream {
 public:
     ogzstream() : std::ostream( &buf) {}
@@ -637,6 +658,21 @@ public:
     void open(char const * name, char const *mode = "wb6") {
         gzstreambase::open(name, mode);
     }
+};
+
+class ofgzstream {
+public:
+    ofgzstream(char const *name, char const *mode = "zwb6") {
+        if (strchr(mode,'z'))
+            strm = new ogzstream(name,mode);
+        else
+            strm = new std::ofstream(name);
+    };
+    std::ostream &operator()(void) const { return *strm; };
+   ~ofgzstream() { delete strm; };
+private:
+   ofgzstream() {};
+   std::ostream *strm;
 };
 
 } // namespace mfem
