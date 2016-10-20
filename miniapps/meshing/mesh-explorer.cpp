@@ -636,13 +636,9 @@ int main (int argc, char *argv[])
       if (mk == 'S')
       {
          const char mesh_file[] = "mesh-explorer.mesh";
-#ifdef MFEM_GZSTREAM
-         ogzstream omesh(mesh_file);
-#else
-         ofstream omesh(mesh_file);
-#endif
-         omesh.precision(14);
-         mesh->Print(omesh);
+         ofgzstream omesh(mesh_file,"zwb9");
+         omesh().precision(14);
+         mesh->Print(omesh());
          cout << "New mesh file: " << mesh_file << endl;
       }
    }
