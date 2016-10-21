@@ -2308,26 +2308,6 @@ void Mesh::ChangeVertexDataOwnership(double *vertex_data,
 }
 
 
-int numOfVerticesFromGeometry(Geometry::Type t) {
-   switch(t) {
-      case Geometry::POINT:
-         return 1;
-      case Geometry::SEGMENT:
-         return 2;
-      case Geometry::TRIANGLE:
-         return 3;
-      case Geometry::SQUARE:
-         return 4;
-      case Geometry::TETRAHEDRON:
-         return 6;
-      case Geometry::CUBE:
-         return 8;
-      default:
-         throw std::runtime_error("invalid type. cannot determine its number of vertices");
-   }
-}
-
-
 Mesh::Mesh(double *_vertices, int num_vertices,
       int *element_indices, Geometry::Type element_type, 
       int *element_attributes, int num_elements,
@@ -2344,8 +2324,8 @@ Mesh::Mesh(double *_vertices, int num_vertices,
    InitMesh(dimension, space_dimension, /*num_vertices*/ 0, num_elements,
          num_boundary_elements);
 
-   int element_index_stride = numOfVerticesFromGeometry(element_type);
-   int boundary_index_stride = numOfVerticesFromGeometry(boundary_type);
+   int element_index_stride = Geometry::NumVerts[element_type];
+   int boundary_index_stride = Geometry::NumVerts[boundary_type];
 
    // assuming Vertex is POD
    printf("setting vertices\n");
