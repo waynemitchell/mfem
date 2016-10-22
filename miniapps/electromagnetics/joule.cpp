@@ -87,14 +87,14 @@
 //
 // NOTE:  Example meshes for this miniapp are cylinder-hex.mesh,
 //        cylinder-tet.mesh, cylinder-hex-q2.mesh/gen, cylinder-tet-q2.mesh/gen,
-//        and coil.gen. Note that the meshes with the "gen" extension require
+//        and coil_small.mesh. Note that the meshes with the "gen" extension require
 //        MFEM to be built with NetCDF.
 //
 // NOTE:  This code is set up to solve two example problems, 1) a straight metal
 //        rod surrounded by air, 2) a metal rod surrounded by a metal coil all
 //        surrounded by air. To specify problem (1) use the command line options
 //        "-p rod -m cylinder-hex-q2.mesh", to specify problem (2) use the
-//        command line options "-p coil -m coil.gen". Problem (1) has two
+//        command line options "-p coil -m coil_small.mesh". Problem (1) has two
 //        materials and problem (2) has three materials, and the BC's are
 //        different.
 //
