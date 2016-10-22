@@ -543,12 +543,12 @@ That's all there is to it!
 
 #include "../config/config.hpp"
 
-#ifdef MFEM_GZSTREAM
-
 // standard C++ with new header file names and std:: namespace
 #include <iostream>
 #include <fstream>
+#ifdef MFEM_GZSTREAM
 #include <zlib.h>
+#endif
 
 namespace mfem {
 
@@ -556,6 +556,7 @@ namespace mfem {
 // Internal classes to implement gzstream. See below for user classes.
 // ----------------------------------------------------------------------------
 
+#ifdef MFEM_GZSTREAM
 class gzstreambuf : public std::streambuf {
 private:
     static const int bufferSize = 8192;    // size of data buff
@@ -620,13 +621,19 @@ public:
         gzstreambase::open(name, mode);
     }
 };
+#endif
 
 class ifgzstream {
 public:
+   /** Simple factory to create ifstream or igzstream depending on whether
+       named file appears to be a gzip'd compressed file.
+       https://refspecs.linuxbase.org/LSB_3.0.0/LSB-PDA/LSB-PDA/zlib-gzopen-1.html. */
     ifgzstream(char const *name, char const *mode = "rb") {
+#ifdef MFEM_GZSTREAM
         if (maybe_gz(name))
             strm = new igzstream(name,mode);
         else
+#endif
             strm = new std::ifstream(name);
     };
     std::istream &operator()(void) const { return *strm; };
@@ -642,6 +649,7 @@ private:
        return false;}
 };
 
+#ifdef MFEM_GZSTREAM
 class ogzstream : public gzstreambase, public std::ostream {
 public:
     ogzstream() : std::ostream( &buf) {}
@@ -659,13 +667,26 @@ public:
         gzstreambase::open(name, mode);
     }
 };
+#endif
 
 class ofgzstream {
 public:
+   /** Simple factory to create ofstream or ogzstream depending on mode.
+       The mode chars are as in gzopen() with additional caveat that presence of a 'z'
+       character indicates desire to compress (e.g. use ogzstream) and absence
+       indicates a desire to use std::ofstream.
+       https://refspecs.linuxbase.org/LSB_3.0.0/LSB-PDA/LSB-PDA/zlib-gzopen-1.html.
+       Default mode is "zwb6". */
+#ifdef MFEM_GZSTREAM
     ofgzstream(char const *name, char const *mode = "zwb6") {
+#else
+    ofgzstream(char const *name, char const *mode = "w") {
+#endif
+#ifdef MFEM_GZSTREAM
         if (strchr(mode,'z'))
             strm = new ogzstream(name,mode);
         else
+#endif
             strm = new std::ofstream(name);
     };
     std::ostream &operator()(void) const { return *strm; };
@@ -676,8 +697,6 @@ private:
 };
 
 } // namespace mfem
-
-#endif // MFEM_GZSTREAM
 
 #endif // GZSTREAM_H
 // ============================================================================

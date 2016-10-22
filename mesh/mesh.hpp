@@ -20,9 +20,7 @@
 #include "ncmesh.hpp"
 #include "../fem/eltrans.hpp"
 #include "../fem/coefficient.hpp"
-#ifdef MFEM_GZSTREAM
 #include "../general/gzstream.hpp"
-#endif
 #include <iostream>
 #include <fstream>
 #include <limits>
