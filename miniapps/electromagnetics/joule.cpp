@@ -975,7 +975,7 @@ double p_bc(const Vector &x, double t)
 
    // the value
    double T;
-   if (x[2] < 0.0)
+   if (x[0] < 0.0)
    {
       T = 1.0;
    }
