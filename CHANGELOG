@@ -8,8 +8,24 @@
                                http://mfem.org
 
 
-Version 3.2.1, not yet released
-===============================
+Version 3.3, not yet released
+=============================
+
+New integrators and extensions to BilinearForm and LinearForm
+-------------------------------------------------------------
+- Added a new class DGElasticityIntegrator that supports a few types of DG
+  formulations for linear elasticity.
+
+- Added a new linear form integrator class DGElasticityDirichletLFIntegrator
+  that implements non-homogeneous Dirichlet b.c. for DG elasticity formulations.
+
+- Added support for DG spaces in class VectorBoundaryLFIntegrator.
+
+- In class BilinearForm, added support for boundary face integrators applied to
+  a subset of the boundary, see the method AddBdrFaceIntegrator.
+
+- In class LinearForm, added support for boundary face integrators applied to
+  a subset of the boundary, see method AddBdrFaceIntegrator.
 
 Coordinated general quadrature and nodal finite element basis types
 -------------------------------------------------------------------
@@ -38,12 +54,19 @@ FEM <-> linear system interface for action-only linear operators
   Operators that are available only through their action. This includes all
   necessary transformations, such as: parallel assembly, conforming constraints
   for non-conforming AMR and eliminating boundary conditions. (Hybridization and
-  static condensation are not supported.) See examples in miniapps/peformance.
+  static condensation are not supported.) See examples in miniapps/performance.
 
 New and updated examples and miniapps
 -------------------------------------
-- Added new example code, Example 16/16p, demonstrating the solution of a
+- Added a new example code, Example 16/16p, demonstrating the solution of a
   time-dependent nonlinear heat equation in serial and in parallel.
+
+- Added a new example code, Example 17/17p, illustrating discontinuous Galerkin
+  (DG) formulations of static linear elasticity.
+
+- Added a new electromagnetic miniapp, Joule, illustrating the simulation of
+  transient magnetics and joule heating. This is a comprehensive miniapp that
+  uses finite element spaces and solvers for the whole de Rham sequence.
 
 - The HPC examples in miniapps/performance now have a -mf/--matrix-free option
   illustrating optimized "partial assembly" operator evaluation. This is now the
@@ -69,6 +92,14 @@ Miscellaneous
 
 - Provide an informative backtrace in mfem_error based on the cross-platform
   libunwind library (requires MFEM_USE_LIBUNWIND=YES).
+
+- Added method MemoryUsage to the classes Stack and MemAlloc.
+
+- In class SparseMatrix, added methods CheckFinite and PrintInfo.
+
+- GMRESSolver and MINRESSolver now support the same print levels as CGSolver.
+
+- Various other simplifications, extensions, and bugfixes in the code.
 
 
 Version 3.2, released on June 30, 2016

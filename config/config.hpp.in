@@ -65,9 +65,6 @@
 // Enable functionality based on the NetCDF library (reading CUBIT files)
 // #define MFEM_USE_NETCDF
 
-// Enable functionality based on the GNU Scientific Library
-// #define MFEM_USE_GSL
-
 // Enable functionality based on the MPFR library.
 // #define MFEM_USE_MPFR
 

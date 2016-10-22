@@ -1,35 +1,23 @@
-//                       J O U L E
+// Copyright (c) 2010, Lawrence Livermore National Security, LLC. Produced at
+// the Lawrence Livermore National Laboratory. LLNL-CODE-443211. All Rights
+// reserved. See file COPYRIGHT for details.
 //
-// Usage:
-//    srun -n 8 -p pdebug joule -m ../../data/cylinderHex.mesh -p test
-//    srun -n 8 -p pdebug joule -m rod2eb3sshex27.gen -s 22 -dt 0.1 -tf 240.0 -p test
+// This file is part of the MFEM library. For more information and source code
+// availability see http://mfem.org.
 //
-// Options:
-// -m [string]   the mesh file name
-// -o [int]      the order of the basis
-// -rs [int]     number of times to serially refine the mesh
-// -rp [int]     number of times to refine the mesh in parallel
-// -s [int]      time integrator 1=backward Euler, 2=SDIRK2, 3=SDIRK3,
-//               22=Midpoint, 23=SDIRK23, 34=SDIRK34
-// -tf [double]  the final time
-// -dt [double]  time step
-// -mu [double]  the magnetic permeability
-// -cnd [double] the electrical conductivity
-// -f [double]   the frequency of the applied EM BC
-// -vis [int]    GLVis -vis = true -no-vis = false
-// -vs [int]     visualization step
-// -k [string]   base file name for output file
-// -print [int]  print solution (gridfunctions) to disk  0 = no, 1 = yes
-// -amr [int]    0 = no amr, 1 = amr
-// -sc [int]     0 = no static condensation, 1 = use static condensation
-// -p [string]   specify the problem to run, "rod", "coil", or "test"
+// MFEM is free software; you can redistribute it and/or modify it under the
+// terms of the GNU Lesser General Public License (as published by the Free
+// Software Foundation) version 2.1 dated February 1999.
 //
-// Description:  This examples solves a time dependent eddy current
-//               problem, resulting in Joule heating.
+//            -----------------------------------------------------
+//            Joule Miniapp:  Transient Magnetics and Joule Heating
+//            -----------------------------------------------------
 //
-//               This version has electrostatic potential, Phi, which is a source
-//               term in the EM diffusion equation. The potenatial itself is
-//               driven by essential BC's
+// This miniapp solves a time dependent eddy current problem, resulting in Joule
+// heating.
+//
+// This version has electrostatic potential, Phi, which is a source term in the
+// EM diffusion equation. The potential itself is driven by essential BC's
 //
 //               Div sigma Grad Phi = 0
 //               sigma E  =  Curl B/mu - sigma grad Phi
@@ -37,83 +25,91 @@
 //               F = -k Grad T
 //               c dT/dt = -Div(F) + sigma E.E,
 //
-//               where B is the magnetic flux, E is the electric field,
-//               T is the temperature, F is the thermal flux,
-//               sigma is electrical conductivity, mu is the magnetic
-//               permeability, and alpha is the thermal diffusivity.
-//               The geometry of the domain is assumed to be as follows:
+// where B is the magnetic flux, E is the electric field, T is the temperature,
+// F is the thermal flux, sigma is electrical conductivity, mu is the magnetic
+// permeability, and alpha is the thermal diffusivity.  The geometry of the
+// domain is assumed to be as follows:
 //
+//                              boundary attribute 3
+//                            +---------------------+
+//               boundary --->|                     | boundary
+//               attribute 1  |                     | attribute 2
+//               (driven)     +---------------------+
 //
-//                                   boundary attribute 3
-//                                 +---------------------+
-//                    boundary --->|                     | boundary
-//                    attribute 1  |                     | atribute 2
-//                    (driven)     +---------------------+
+// The voltage BC condition is essential BC on attribute 1 (front) and 2 (rear)
+// given by function p_bc() at bottom of this file.
 //
-//               The voltage BC condition is essential BC on atribute 1 (front)
-//               and 2 (rear) given by function p_bc() at bottom of this file.
+// The E-field boundary condition specifies the essential BC (n cross E) on
+// attribute 1 (front) and 2 (rear) given by function edot_bc at bottom of this
+// file. The E-field can be set on attribute 3 also.
 //
-//               The E-field boundary condition specifies the essential BC (n
-//               cross E) on atribute 1 (front) and 2 (rear) given by function
-//               edot_bc at bottom of this file. The E-field can be set on
-//               attribute 3 also.
+// The thermal boundary condition for the flux F is the natural BC on attribute 1
+// (front) and 2 (rear). This means that dT/dt = 0 on the boundaries, and the
+// initial T = 0.
 //
-//               The thermal boundary condition for the flux F is the natural BC
-//               on  atribute 1 (front) and 2 (rear). This means that dT/dt = 0
-//               on the boundaries, and the initial T = 0.
+// See Section 3 for how the material propertied are assigned to mesh
+// attributes, this needs to be changed for different applications.
 //
-//               See section 2.5 for how the material propertied are assigned to
-//               mesh attribiutes, this needs to be changed for different
-//               applications.
+// See Section 5 for how the boundary conditions are assigned to mesh
+// attributes, this needs to be changed for different applications.
 //
-//               See section 8.0 for how the boundary conditions are assigned to
-//               mesh attributes, this needs to be changed for different
-//               applications.
+// This code supports a simple version of AMR, all elements containing material
+// attribute 1 are (optionally) refined.
 //
-//               This code supports a simple version of AMR, all elements
-//               containing material attribute 1 are (optionally) refined.
+// Compile with: make joule
 //
-// NOTE:         If the option "-p test" is provided, the code will compute the
-//               analytical solution of the electric and magnetic fields and
-//               compute the L2 error. This solution is only valid for the
-//               particular problem of a right circular cylindrical rod of
-//               length 1 and radius 1, and with particular boundary conditions.
-//               Example meshes for this test are cylinderHex.mesh,
-//               cylinderTet.mesh, rod2eb3sshex27.gen, rod2eb3sstet10.gen.
-//               Note that the meshes with the "gen" extension require MFEM to
-//               be built with NetCDF.
+// Sample runs:
 //
-// NOTE:         This code is set up to solve two example problems, 1) a
-//               straight metal rod surrounded by air, 2) a metal rod surrounded
-//               by a metal coil all surrounded by air. To specify problem (1)
-//               use the command line options "-p rod -m rod2eb3sshex27.gen", to
-//               specify problem (2) use the command line options "-p coil -m
-//               coil_centered_tet10.gen". Problem (1) has two materials and
-//               problem (2) has three materials, and the BC's are different.
+//    mpirun -np 8 joule -m cylinder-hex.mesh -p rod
+//    mpirun -np 8 joule -m cylinder-tet.mesh -sc 1 -amr 1 -p rod
+//    mpirun -np 8 joule -m cylinder-hex-q2.mesh -s 22 -dt 0.1 -tf 240.0 -p rod
 //
-// NOTE:         We write out, optionally, grid functions for P, E, B, W, F, and
-//               T. These can be visualized using glvis -np 4 -m mesh.mesh -g E,
-//               assuming we used 4 processors.
+// Options:
 //
+//    -m [string]   the mesh file name
+//    -o [int]      the order of the basis
+//    -rs [int]     number of times to serially refine the mesh
+//    -rp [int]     number of times to refine the mesh in parallel
+//    -s [int]      time integrator 1=Backward Euler, 2=SDIRK2, 3=SDIRK3,
+//                  22=Midpoint, 23=SDIRK23, 34=SDIRK34
+//    -tf [double]  the final time
+//    -dt [double]  time step
+//    -mu [double]  the magnetic permeability
+//    -cnd [double] the electrical conductivity
+//    -f [double]   the frequency of the applied EM BC
+//    -vis [int]    GLVis -vis = true -no-vis = false
+//    -vs [int]     visualization step
+//    -k [string]   base file name for output file
+//    -print [int]  print solution (gridfunctions) to disk  0 = no, 1 = yes
+//    -amr [int]    0 = no amr, 1 = amr
+//    -sc [int]     0 = no static condensation, 1 = use static condensation
+//    -p [string]   specify the problem to run, "rod", "coil", or "test"
+//
+// NOTE:  Example meshes for this miniapp are cylinder-hex.mesh,
+//        cylinder-tet.mesh, cylinder-hex-q2.mesh/gen, cylinder-tet-q2.mesh/gen,
+//        and coil.gen. Note that the meshes with the "gen" extension require
+//        MFEM to be built with NetCDF.
+//
+// NOTE:  This code is set up to solve two example problems, 1) a straight metal
+//        rod surrounded by air, 2) a metal rod surrounded by a metal coil all
+//        surrounded by air. To specify problem (1) use the command line options
+//        "-p rod -m cylinder-hex-q2.mesh", to specify problem (2) use the
+//        command line options "-p coil -m coil.gen". Problem (1) has two
+//        materials and problem (2) has three materials, and the BC's are
+//        different.
+//
+// NOTE:  We write out, optionally, grid functions for P, E, B, W, F, and
+//        T. These can be visualized using "glvis -np 4 -m mesh.mesh -g E",
+//        assuming we used 4 processors.
 
-
-#include "mfem.hpp"
+#include "joule_solver.hpp"
 #include <memory>
 #include <iostream>
 #include <fstream>
-#include "joule_solver.hpp"
-#include "joule_globals.hpp"
-#include "../common/pfem_extras.hpp"
-
-#ifdef MFEM_USE_GSL
-#include <gsl/gsl_sf_bessel.h>
-#include <gsl/gsl_cblas.h>
-#include <complex>
-#endif
 
 using namespace std;
 using namespace mfem;
-
+using namespace mfem::electromagnetics;
 
 void display_banner(ostream & os);
 void print_banner();
@@ -138,7 +134,7 @@ int main(int argc, char *argv[])
    // if (mpi.Root()) { print_banner(); }
 
    // 2. Parse command-line options.
-   const char *mesh_file = "../../data/cylinderHex.mesh";
+   const char *mesh_file = "cylinder-hex.mesh";
    int ser_ref_levels = 0;
    int par_ref_levels = 0;
    int order = 2;
@@ -193,18 +189,17 @@ int main(int argc, char *argv[])
    args.AddOption(&basename, "-k", "--outputfilename",
                   "Name of the visit dump files");
    args.AddOption(&gfprint, "-print", "--print",
-                  "Print results (gridfunctions) to disk.");
+                  "Print results (grid functions) to disk.");
    args.AddOption(&amr, "-amr", "--amr",
                   "Enable AMR");
    args.AddOption(&STATIC_COND, "-sc", "--static-condensation",
-                  "Enable static condesnsation");
+                  "Enable static condensation");
    args.AddOption(&debug, "-debug", "--debug",
                   "Print matrices and vectors to disk");
-   args.AddOption(&SOLVERPRINTLEVEL, "-hl", "--hypre-print-level",
+   args.AddOption(&SOLVER_PRINT_LEVEL, "-hl", "--hypre-print-level",
                   "Hypre print level");
    args.AddOption(&problem, "-p", "--problem",
                   "Name of problem to run");
-
    args.Parse();
    if (!args.Good())
    {
@@ -235,17 +230,14 @@ int main(int argc, char *argv[])
       printf("Skin depth sqrt(2.0*dt/(mj*sj)) = %g\n",sqrt(2.0*dt/(mj_*sj_)));
    }
 
-   // 3.0
+   // 3. Here material properties are assigned to mesh attributes.  This code is
+   //    not general, it is assumed the mesh has 3 regions each with a different
+   //    integer attribute: 1, 2 or 3.
    //
-   // Here I assign material properties to mesh attributes.
-   // This code is not general, I assume the mesh has 3 regions
-   // each with a different integer attribiute 1, 2 or 3.
+   //       The coil problem has three regions: 1) coil, 2) air, 3) the rod.
+   //       The rod problem has two regions: 1) rod, 2) air.
    //
-   // the coil problem has three regions 1) coil, 2) air, 3) the rod
-   //
-   // the rod problem has two regions 1) rod, 2) air
-   //
-   // turns out for the rod and coil problem we can use the same material maps
+   //    We can use the same material maps for both problems.
 
    std::map<int, double> sigmaMap, InvTcondMap, TcapMap, InvTcapMap;
    double sigmaAir;
@@ -257,30 +249,13 @@ int main(int argc, char *argv[])
       TcondAir     = 1.0e6  * Tconductivity;
       TcapAir      = 1.0    * Tcapacity;
    }
-   else if (strcmp(problem,"test")==0)
-   {
-
-      if (mpi.Root()) { cout << "Running test problem" << endl; }
-
-      sigmaAir     = 1.0 * sigma;
-      TcondAir     = 1.0 * Tconductivity;
-      TcapAir      = 1.0 * Tcapacity;
-
-#ifndef MFEM_USE_GSL
-      cout << "You selected to run the test prpoblem, but did not"
-           " build with GSL.\n"
-           "The analytical solution requires GSL." << endl;
-#endif
-
-   }
    else
    {
       cerr << "Problem " << problem << " not recognized\n";
       mfem_error();
    }
 
-   if (strcmp(problem,"rod")==0 || strcmp(problem,"coil")==0 ||
-       strcmp(problem,"test")==0)
+   if (strcmp(problem,"rod")==0 || strcmp(problem,"coil")==0)
    {
 
       sigmaMap.insert(pair<int, double>(1, sigma));
@@ -305,8 +280,6 @@ int main(int argc, char *argv[])
       mfem_error();
    }
 
-
-
    // 4. Read the serial mesh from the given mesh file on all processors. We can
    //    handle triangular, quadrilateral, tetrahedral and hexahedral meshes
    //    with the same code.
@@ -314,15 +287,12 @@ int main(int argc, char *argv[])
    mesh = new Mesh(mesh_file, 1, 1);
    int dim = mesh->Dimension();
 
-   //
    // 5. Assign the boundary conditions
-   //
    Array<int> ess_bdr(mesh->bdr_attributes.Max());
    Array<int> thermal_ess_bdr(mesh->bdr_attributes.Max());
    Array<int> poisson_ess_bdr(mesh->bdr_attributes.Max());
    if (strcmp(problem,"coil")==0)
    {
-
       // BEGIN CODE FOR THE COIL PROBLEM
       // For the coil in a box problem we have surfaces 1) coil end (+),
       // 2) coil end (-), 3) five sides of box, 4) side of box with coil BC
@@ -333,23 +303,22 @@ int main(int argc, char *argv[])
       ess_bdr[2] = 1; // boundary attribute 4 (index 3) is fixed
       ess_bdr[3] = 1; // boundary attribute 4 (index 3) is fixed
 
-      // Same as above, but this is for the thermal operator
-      // for HDiv formulation the essetial BC is the flux
+      // Same as above, but this is for the thermal operator for HDiv
+      // formulation the essential BC is the flux
 
       thermal_ess_bdr = 0;
       thermal_ess_bdr[2] = 1; // boundary attribute 4 (index 3) is fixed
 
-      // Same as above, but this is for the poisson eq
-      // for H1 formulation the essetial BC is the value of Phi
+      // Same as above, but this is for the poisson eq for H1 formulation the
+      // essential BC is the value of Phi
 
       poisson_ess_bdr = 0;
       poisson_ess_bdr[0] = 1; // boundary attribute 1 (index 0) is fixed
       poisson_ess_bdr[1] = 1; // boundary attribute 2 (index 1) is fixed
       // END CODE FOR THE COIL PROBLEM
    }
-   else if (strcmp(problem,"rod")==0 || strcmp(problem,"test")==0)
+   else if (strcmp(problem,"rod")==0)
    {
-
       // BEGIN CODE FOR THE STRAIGHT ROD PROBLEM
       // the boundary conditions below are for the straight rod problem
 
@@ -358,16 +327,16 @@ int main(int argc, char *argv[])
       ess_bdr[1] = 1; // boundary attribute 2 (index 1) is fixed (rear)
       ess_bdr[2] = 1; // boundary attribute 3 (index 3) is fixed (outer)
 
-      // Same as above, but this is for the thermal operator.
-      // For HDiv formulation the essetial BC is the flux, which is zero on the
-      // front and sides. Note the Natural BC is T = 0 on the outer surface.
+      // Same as above, but this is for the thermal operator.  For HDiv
+      // formulation the essential BC is the flux, which is zero on the front
+      // and sides. Note the Natural BC is T = 0 on the outer surface.
 
       thermal_ess_bdr = 0;
       thermal_ess_bdr[0] = 1; // boundary attribute 1 (index 0) is fixed (front)
       thermal_ess_bdr[1] = 1; // boundary attribute 2 (index 1) is fixed (rear)
 
-      // Same as above, but this is for the poisson eq
-      // for H1 formulation the essetial BC is the value of Phi
+      // Same as above, but this is for the poisson eq for H1 formulation the
+      // essential BC is the value of Phi
 
       poisson_ess_bdr = 0;
       poisson_ess_bdr[0] = 1; // boundary attribute 1 (index 0) is fixed (front)
@@ -380,13 +349,12 @@ int main(int argc, char *argv[])
       mfem_error();
    }
 
-
    // The following is required for mesh refinement
    mesh->EnsureNCMesh();
 
    // 6. Define the ODE solver used for time integration. Several implicit
-   //    methods are available, including singly diagonal implicit
-   //    Runge-Kutta (SDIRK).
+   //    methods are available, including singly diagonal implicit Runge-Kutta
+   //    (SDIRK).
    ODESolver *ode_solver;
    switch (ode_solver_type)
    {
@@ -425,11 +393,9 @@ int main(int argc, char *argv[])
       pmesh->UniformRefinement();
    }
 
-
-   // 9. Apply non-uniform non-conforming mesh refinement to the mesh.
-   //    The whole metal region is refined, i.e. this is not based on any error
-   //    estimator.
-
+   // 9. Apply non-uniform non-conforming mesh refinement to the mesh.  The
+   //    whole metal region is refined once, before the start of the time loop,
+   //    i.e. this is not based on any error estimator.
    if (amr == 1)
    {
       Array<int> ref_list;
@@ -448,43 +414,38 @@ int main(int argc, char *argv[])
       ref_list.DeleteAll();
    }
 
-   //
-   // 10. Reorient the mesh.
-   //
-   // Must be done after refinement but before definition
-   // of higher order Nedelec spaces
-
+   // 10. Reorient the mesh. Must be done after refinement but before definition
+   //     of higher order Nedelec spaces
    pmesh->ReorientTetMesh();
 
-   // 11. Rebalance the mesh
-   //
-   // Since the mesh was adaptively refined in a non-uniform way it will be
-   // computationally unbalanced.
-   //
-
+   // 11. Rebalance the mesh. Since the mesh was adaptively refined in a
+   //     non-uniform way it will be computationally unbalanced.
    if (pmesh->Nonconforming())
    {
       pmesh->Rebalance();
    }
 
-   // 12. Define the parallel finite element spaces representing.
-   //     We'll use H(curl) for electric field
-   //     and H(div) for magnetic flux
-   //     and H(div) for thermal flux
-   //     and H(grad) for electrostatic potential
-   //     and L2 for temperature
+   // 12. Define the parallel finite element spaces. We use:
+   //
+   //     H(curl) for electric field,
+   //     H(div) for magnetic flux,
+   //     H(div) for thermal flux,
+   //     H(grad)/H1 for electrostatic potential,
+   //     L2 for temperature
 
-   // L2 is discontinous "cell-center" bases
-   // type 2 is "positive"
+   // L2 contains discontinuous "cell-center" finite elements, type 2 is
+   // "positive"
    L2_FECollection L2FEC(order-1, dim);
 
-   // ND stands for Nedelec
+   // ND contains Nedelec "edge-centered" vector finite elements with continuous
+   // tangential component.
    ND_FECollection HCurlFEC(order, dim);
 
-   // RT stands for Raviart-Thomas
+   // RT contains Raviart-Thomas "face-centered" vector finite elements with
+   // continuous normal component.
    RT_FECollection HDivFEC(order-1, dim);
 
-   // H1 is nodal continous "Lagrange" interpolatory bases
+   // H1 contains continuous "node-centered" Lagrange finite elements.
    H1_FECollection HGradFEC(order, dim);
 
    ParFiniteElementSpace    L2FESpace(pmesh, &L2FEC);
@@ -493,10 +454,10 @@ int main(int argc, char *argv[])
    ParFiniteElementSpace  HGradFESpace(pmesh, &HGradFEC);
 
    // The terminology is TrueVSize is the unique (non-redundant) number of dofs
-   HYPRE_Int glob_size_l2 =    L2FESpace.GlobalTrueVSize();
-   HYPRE_Int glob_size_nd =    HCurlFESpace.GlobalTrueVSize();
-   HYPRE_Int glob_size_rt =    HDivFESpace.GlobalTrueVSize();
-   HYPRE_Int glob_size_h1 =    HGradFESpace.GlobalTrueVSize();
+   HYPRE_Int glob_size_l2 = L2FESpace.GlobalTrueVSize();
+   HYPRE_Int glob_size_nd = HCurlFESpace.GlobalTrueVSize();
+   HYPRE_Int glob_size_rt = HDivFESpace.GlobalTrueVSize();
+   HYPRE_Int glob_size_h1 = HGradFESpace.GlobalTrueVSize();
 
    if (mpi.Root())
    {
@@ -512,14 +473,13 @@ int main(int argc, char *argv[])
    int Vsize_rt = HDivFESpace.GetVSize();
    int Vsize_h1 = HGradFESpace.GetVSize();
 
-   /* the big BlockVector stores the fields as
-   0 Temperature
-   1 Temperature Flux
-   2 P field
-   3 E field
-   4 B field
-   5 Joule Heating
-   */
+   // the big BlockVector stores the fields as
+   //    0 Temperature
+   //    1 Temperature Flux
+   //    2 P field
+   //    3 E field
+   //    4 B field
+   //    5 Joule Heating
 
    Array<int> true_offset(7);
    true_offset[0] = 0;
@@ -530,11 +490,9 @@ int main(int argc, char *argv[])
    true_offset[5] = true_offset[4] + Vsize_rt;
    true_offset[6] = true_offset[5] + Vsize_l2;
 
-
-   // The BlockVector is a large contiguous chunck of memory for storing
-   // the required data for the hyprevectors, in this case the temperature L2,
-   // the T-flux HDiv, the E-field HCurl, and the B-field HDiv,
-   // and scalar potential P
+   // The BlockVector is a large contiguous chunk of memory for storing required
+   // data for the hypre vectors, in this case: the temperature L2, the T-flux
+   // HDiv, the E-field HCurl, and the B-field HDiv, and scalar potential P.
    BlockVector F(true_offset);
 
    // grid functions E, B, T, F, P, and w which is the Joule heating
@@ -546,33 +504,18 @@ int main(int argc, char *argv[])
    B_gf.MakeRef(&HDivFESpace,F, true_offset[4]);
    w_gf.MakeRef(&L2FESpace,F,   true_offset[5]);
 
-   // This is for visit visualization of exact solution
-   ParGridFunction Eexact_gf(&HCurlFESpace);
-   ParGridFunction Bexact_gf(&HDivFESpace);
-   ParGridFunction Texact_gf(&L2FESpace);
-
    // 13. Get the boundary conditions, set up the exact solution grid functions
-   //
-   // These VectorCoefficients have an Eval function.
-   // Note that e_exact anf b_exact in this case are exact analytical
-   // solutions, taking a 3-vector point as input and returning a 3-vector field
+   //     These VectorCoefficients have an Eval function.  Note that e_exact and
+   //     b_exact in this case are exact analytical solutions, taking a 3-vector
+   //     point as input and returning a 3-vector field
    VectorFunctionCoefficient E_exact(3, e_exact);
    VectorFunctionCoefficient B_exact(3, b_exact);
    FunctionCoefficient T_exact(t_exact);
-
    E_exact.SetTime(0.0);
    B_exact.SetTime(0.0);
 
-   Eexact_gf.ProjectCoefficient(E_exact);
-   Eexact_gf.ProjectCoefficient(B_exact);
-   Texact_gf.ProjectCoefficient(T_exact);
-
-
-
-
    // 14. Initialize the Diffusion operator, the GLVis visualization and print
    //     the initial energies.
-
    MagneticDiffusionEOperator oper(true_offset[6], L2FESpace, HCurlFESpace,
                                    HDivFESpace, HGradFESpace,
                                    ess_bdr, thermal_ess_bdr, poisson_ess_bdr,
@@ -621,10 +564,8 @@ int main(int argc, char *argv[])
 
       miniapps::VisualizeField(vis_T, vishost, visport,
                                T_gf, "Temperature", Wx, Wy, Ww, Wh);
-
    }
-
-   // visit visualization
+   // VisIt visualization
    VisItDataCollection visit_dc(basename, pmesh);
    if ( visit )
    {
@@ -634,8 +575,6 @@ int main(int argc, char *argv[])
       visit_dc.RegisterField("w", &w_gf);
       visit_dc.RegisterField("Phi", &P_gf);
       visit_dc.RegisterField("F", &F_gf);
-      if (strcmp(problem,"test")==0) { visit_dc.RegisterField("Eexact", &Eexact_gf); }
-      if (strcmp(problem,"test")==0) { visit_dc.RegisterField("Bexact", &Bexact_gf); }
 
       visit_dc.SetCycle(0);
       visit_dc.SetTime(0.0);
@@ -654,27 +593,15 @@ int main(int argc, char *argv[])
    double err_E0 = E_gf.ComputeL2Error(E_exact);
    double err_B0 = B_gf.ComputeL2Error(B_exact);
 
-   //double me0 = oper.MagneticEnergy(B_gf);
+   // double me0 = oper.MagneticEnergy(B_gf);
    double el0 = oper.ElectricLosses(E_gf);
 
-   if (mpi.Root() && (strcmp(problem,"test")==0))
-   {
-      cout << scientific << setprecision(3) << "initial electric L2 error    = "
-           << err_E0/(eng_E0+1.0e-20) << endl;
-      cout << scientific << setprecision(3) << "initial magnetic L2 error    = "
-           << err_B0/(eng_B0+1.0e-20) << endl;
-      cout << scientific << setprecision(3) << "initial electric losses (EL) = "
-           << el0 << endl;
-   }
-
-   // 10. Perform time-integration (looping over the time iterations, ti, with a
-   //     time-step dt).
-   //
-   // oper is the MagneticDiffusionOperator which has a Mult() method and an
-   // ImplicitSolve() method which are used by the time integrators.
+   // 15. Perform time-integration (looping over the time iterations, ti, with a
+   //     time-step dt). The object oper is the MagneticDiffusionOperator which
+   //     has a Mult() method and an ImplicitSolve() method which are used by
+   //     the time integrators.
    ode_solver->Init(oper);
    double t = 0.0;
-
 
    bool last_step = false;
    for (int ti = 1; !last_step; ti++)
@@ -684,19 +611,9 @@ int main(int argc, char *argv[])
          last_step = true;
       }
 
-      // F is the vector of dofs, t is the current time, and dt is the
-      // time step to advance.
+      // F is the vector of dofs, t is the current time, and dt is the time step
+      // to advance.
       ode_solver->Step(F, t, dt);
-
-      // update the exact solution GF
-      if (strcmp(problem,"test")==0)
-      {
-         E_exact.SetTime(t);
-         Eexact_gf.ProjectCoefficient(E_exact);
-         B_exact.SetTime(t);
-         Bexact_gf.ProjectCoefficient(B_exact);
-         Texact_gf.ProjectCoefficient(T_exact);
-      }
 
       if (debug == 1)
       {
@@ -705,7 +622,6 @@ int main(int argc, char *argv[])
 
       if (gfprint == 1)
       {
-
          ostringstream T_name, E_name, B_name, F_name, w_name, P_name, mesh_name;
          T_name << basename << "_" << setfill('0') << setw(6) << t << "_"
                 << "T." << setfill('0') << setw(6) << myid;
@@ -767,27 +683,7 @@ int main(int argc, char *argv[])
                  << setprecision(3) << t;
          }
 
-         if (strcmp(problem,"test")==0)
-         {
-            double eng_E = E_gf.ComputeL2Error(Zero_vec);
-            double eng_B = B_gf.ComputeL2Error(Zero_vec);
-            double eng_T = T_gf.ComputeL2Error(Zero);
-
-            double err_E = E_gf.ComputeL2Error(E_exact);
-            double err_B = B_gf.ComputeL2Error(B_exact);
-            double err_T = T_gf.ComputeL2Error(T_exact);
-
-            if (mpi.Root())
-            {
-               cout << " relative errors "  << scientific
-                    << setprecision(3) << err_E/(eng_E+1.0e-20) << " "
-                    << setprecision(3) << err_B/(eng_B+1.0e-20) << " "
-                    << setprecision(3) << err_T/(eng_T+1.0e-20);
-            }
-         }
-
          if (mpi.Root()) { cout << endl; }
-
 
          // Make sure all ranks have sent their 'v' solution before initiating
          // another set of GLVis connections (one from each rank):
@@ -795,7 +691,6 @@ int main(int argc, char *argv[])
 
          if (visualization)
          {
-
             int Wx = 0, Wy = 0; // window position
             int Ww = 350, Wh = 350; // window size
             int offx = Ww+10, offy = Wh+45; // window offsets
@@ -840,13 +735,18 @@ int main(int argc, char *argv[])
       vis_P.close();
    }
 
-
-   // 15. Free the used memory.
+   // 16. Free the used memory.
    delete ode_solver;
    delete pmesh;
 
    return 0;
 }
+
+namespace mfem
+{
+
+namespace electromagnetics
+{
 
 void edot_bc(const Vector &x, Vector &E)
 {
@@ -855,114 +755,17 @@ void edot_bc(const Vector &x, Vector &E)
 
 void e_exact(const Vector &x, double t, Vector &E)
 {
-
    E[0] = 0.0;
    E[1] = 0.0;
    E[2] = 0.0;
-
-#ifdef MFEM_USE_GSL
-
-   // formula for current in the z-direction is function of (r,t)
-   // requires bessels functions with complex arugments
-   // and these are approximated by a finite series of bessel
-   // functions with real arguments
-
-   double r      = sqrt(x[0]*x[0] + x[1]*x[1]);
-   double k_real = 1.0/sqrt(2.0) * sqrt(wj_*mj_*sj_);
-   double k_imag = -k_real;
-   int sign      = -1;
-
-   double besselJ0kr_real = 0.0;
-   double besselJ0kr_imag = 0.0;
-   double besselJ0kR_real = 0.0;
-   double besselJ0kR_imag = 0.0;
-
-   for (int m = -10; m <= 10; m++ )
-   {
-      double a = gsl_sf_bessel_Jn(sign*m,k_real*r);
-      double b = gsl_sf_bessel_In(m,k_imag*r);
-      besselJ0kr_real += a*b*cos(m*1.57079632);
-      besselJ0kr_imag += a*b*sin(m*1.57079632);
-      a = gsl_sf_bessel_Jn(sign*m,k_real*rj_);
-      b = gsl_sf_bessel_In(m,k_imag*rj_);
-      besselJ0kR_real += a*b*cos(m*1.57079632);
-      besselJ0kR_imag += a*b*sin(m*1.57079632);
-
-   }
-
-   complex<double>  besselJ0kr(besselJ0kr_real,besselJ0kr_imag);
-   complex<double>  besselJ0kR(besselJ0kR_real,besselJ0kR_imag);
-   complex<double>  sinc(cos(wj_*t),sin(wj_*t));
-   complex<double>  Jcmplx = sinc * besselJ0kr / besselJ0kR;
-   double Ereal = real(Jcmplx);
-
-   E[0] = 0.0;
-   E[1] = 0.0;
-   E[2] = aj_*Ereal;
-#endif
-
 }
 
 void b_exact(const Vector &x, double t, Vector &B)
 {
-
    B[0] = 0.0;
    B[1] = 0.0;
    B[2] = 0.0;
-
-#ifdef MFEM_USE_GSL
-
-   // formula for B-field in the theta-direction is function of (r,t)
-   // requires bessels functions with complex arugments
-   // and these are approximated by a finite series of bessel
-   // functions with real arguments
-
-   double r      = sqrt(x[0]*x[0] + x[1]*x[1]);
-   double k_real = 1.0/sqrt(2.0) * sqrt(wj_*mj_*sj_);
-   double k_imag = -k_real;
-   int sign      = -1;
-
-   //  d/dr J0[k r] = -k J1[k r]
-
-   double besselJ1kr_real = 0.0;
-   double besselJ1kr_imag = 0.0;
-   double besselJ0kR_real = 0.0;
-   double besselJ0kR_imag = 0.0;
-
-   // J0[a + b] = sum Jk[a]*Jk[b],     k = -inf, inf
-   // J1[a + b] = sum J(1+k)[a]*Jk[b], k = -inf, inf
-
-   // Jm[i x] = i^m Im[x]
-
-   for (int m = -10; m <= 10; m++ )
-   {
-      double a = gsl_sf_bessel_Jn(1+sign*m,k_real*r);
-      double b = gsl_sf_bessel_In(m,k_imag*r);
-      besselJ1kr_real += a*b*cos(m*1.57079632);
-      besselJ1kr_imag += a*b*sin(m*1.57079632);
-      a = gsl_sf_bessel_Jn(sign*m,k_real*rj_);
-      b = gsl_sf_bessel_In(m,k_imag*rj_);
-      besselJ0kR_real += a*b*cos(m*1.57079632);
-      besselJ0kR_imag += a*b*sin(m*1.57079632);
-
-   }
-
-   complex<double> besselJ1kr(besselJ1kr_real,besselJ1kr_imag);
-   complex<double> besselJ0kR(besselJ0kR_real,besselJ0kR_imag);
-   complex<double> sinc(cos(wj_*t),sin(wj_*t));
-   complex<double> kcmplx(k_real,k_imag);
-   complex<double> Bcmplx =
-      kcmplx / (complex<double>(0,1)*wj_) * sinc * besselJ1kr / besselJ0kR;
-   double Breal = -1.0*real(Bcmplx);
-
-   B[0] = -x[1]/r*aj_*Breal;
-   B[1] =  x[0]/r*aj_*Breal;
-   B[2] =  0.0;
-
-#endif
-
 }
-
 
 double t_exact(Vector &x)
 {
@@ -972,7 +775,6 @@ double t_exact(Vector &x)
 
 double p_bc(const Vector &x, double t)
 {
-
    // the value
    double T;
    if (x[0] < 0.0)
@@ -987,6 +789,10 @@ double p_bc(const Vector &x, double t)
    return T*cos(wj_ * t);
 }
 
+} // namespace electromagnetics
+
+} // namespace mfem
+
 void display_banner(ostream & os)
 {
    os << "     ____.            .__          " << endl
@@ -999,7 +805,6 @@ void display_banner(ostream & os)
 
 void print_banner()
 {
-
    char banner[219] =
    {
       32,
@@ -1224,5 +1029,4 @@ void print_banner()
    };
 
    printf("%s",banner);
-
 }

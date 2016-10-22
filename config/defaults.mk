@@ -68,7 +68,6 @@ MFEM_USE_SUPERLU     = NO
 MFEM_USE_GECKO       = NO
 MFEM_USE_GNUTLS      = NO
 MFEM_USE_NETCDF      = NO
-MFEM_USE_GSL         = NO
 MFEM_USE_MPFR        = NO
 
 LIBUNWIND_OPT = -g
@@ -154,10 +153,6 @@ ZLIB_DIR    = $(HOME)/local
 NETCDF_OPT  = -I$(NETCDF_DIR)/include
 NETCDF_LIB  = -L$(NETCDF_DIR)/lib -lnetcdf -L$(HDF5_DIR)/lib -lhdf5_hl -lhdf5\
  -L$(ZLIB_DIR)/lib -lz
-
-# GNU Scientific Library
-GSL_OPT  =
-GSL_LIB  = -lgsl -lgslcblas
 
 # MPFR library configuration
 MPFR_OPT =
