@@ -193,18 +193,9 @@ int main(int argc, char *argv[])
    if (binary)
    {
 #if defined(MFEM_USE_SIDRE)
-      namespace sidre = asctoolkit::sidre;
-      sidre::DataStore ds;
-      sidre::DataGroup * global_grp = ds.getRoot()->createGroup("mfem_global");
-      sidre::DataGroup * domain_grp = ds.getRoot()->createGroup("mfem");
-      dc = new SidreDataCollection("ex9p_refined_mesh", global_grp, domain_grp );
-      // Must set node positions gf name before setting mesh.
-      SidreDataCollection * sdc = dynamic_cast<SidreDataCollection * >(dc);
-      sdc->SetNodePositionsFieldName("nodes");
-
-      dc->SetMesh(pmesh);
-      dc->RegisterField("nodes", pmesh->GetNodes());
-
+      SidreDataCollection * sdc = new SidreDataCollection("ex9p_refined_mesh");
+      sdc->SetMesh(pmesh);
+      dc = sdc;
 #else
       MFEM_ABORT("Must compile with sidre support MFEM_USE_SIDRE=YES for binary output.");
 #endif
@@ -260,17 +251,8 @@ int main(int argc, char *argv[])
    //    a file and (optionally) save data in the VisIt format and initialize
    //    GLVis visualization.
 
-   // TODO - These three lines will be replaced with a one-liner helper function when Kenny moves over the helper function to MFEM.
-
-   double * foo = dc->GetFieldData("solution", fes->GetVSize() );
-   std::cerr << "vsize is " << fes->GetVSize() << std::endl;
-
-//   ParGridFunction u_object(fes, dc->GetFieldData("solution", fes->GetVSize() ) );
-   ParGridFunction u_object(fes, foo );
-   dc->RegisterField("solution", &u_object);
-
-   ParGridFunction *u = &u_object;
-//   ParGridFunction *u = new ParGridFunction(fes);
+   ParGridFunction *u = new ParGridFunction(fes);
+   dc->RegisterField("solution", u);
 
    u->ProjectCoefficient(u0);
    HypreParVector *U = u->GetTrueDofs();
@@ -286,8 +268,6 @@ int main(int argc, char *argv[])
       osol.precision(precision);
       u->Save(osol);
    }
-
-   dc->RegisterField("solution", u);
 
    dc->SetCycle(0);
    dc->SetTime(0.0);
@@ -375,7 +355,7 @@ int main(int argc, char *argv[])
       u->Save(osol);
    }
 
-   // 13. Demonstrate additional output formats available in sidre.
+   // 13. Demonstrate additional output formats available in sidre. (Optional)
 #ifdef MFEM_USE_SIDRE
    if (binary)
    {

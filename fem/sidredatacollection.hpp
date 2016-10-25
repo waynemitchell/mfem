@@ -44,6 +44,8 @@ public:
    typedef int mfem_int_t;
    typedef double mfem_double_t;
 
+   SidreDataCollection(const std::string& collection_name);
+
    SidreDataCollection(const std::string& collection_name, asctoolkit::sidre::DataGroup * rootfile_dg, asctoolkit::sidre::DataGroup * dg);
 
    void DeregisterField(const char* field_name);
@@ -67,7 +69,7 @@ public:
 
    void Save(const std::string& filename, const std::string& protocol);
 
-   void Load(const std::string& path, const std::string& protocol = "sidre_hdf5");
+   void Load(const std::string& path, const std::string& protocol);
 
    /**
     * Gets a pointer to the associated field's view data (always an array of doubles)

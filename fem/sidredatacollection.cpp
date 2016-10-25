@@ -28,7 +28,26 @@
 namespace mfem
 {
 
-// class SidreDataCollection implementation
+// Constructor that will automatically create the sidre data store and necessary data groups for domain and global data.
+SidreDataCollection::SidreDataCollection(const std::string& collection_name)
+   : mfem::DataCollection(collection_name.c_str()),
+     m_nodePositionsFieldName("positions"),
+     m_loadCalled(false)
+{
+   namespace sidre = asctoolkit::sidre;
+   sidre::DataStore ds;
+   sidre::DataGroup * global_grp = ds.getRoot()->createGroup("mfem_global");
+   sidre::DataGroup * domain_grp = ds.getRoot()->createGroup("mfem");
+
+   parent_datagroup= domain_grp->getParent();
+
+   bp_grp = domain_grp->createGroup("blueprint");
+   //Currently only rank 0 adds anything to bp_index.
+   bp_index_grp = global_grp->createGroup("blueprint_index/" + name);
+   simdata_grp = domain_grp->createGroup("sim");
+}
+
+// Second constructor that allows external code to specify data groups to place domain and global data in.
 SidreDataCollection::SidreDataCollection(const std::string& collection_name,
                                          asctoolkit::sidre::DataGroup* rootfile_dg,
                                          asctoolkit::sidre::DataGroup* dg)
@@ -163,7 +182,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
       }
       else
       {
-         MFEM_ERROR("Unknown coordinate system.");
+         MFEM_ABORT("Unknown coordinate system.");
       }
 
       bp_index_grp->createViewString("coordsets/coords/coord_system", coord_system);
@@ -190,7 +209,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
       if ( m_nodePositionsFieldName.empty() )
       {
          std::string errorString("A mesh node positions field has not been specified.  Please call setNodePositionsFieldName before calling SetMesh.");
-         MFEM_ERROR(errorString);
+         MFEM_ABORT(errorString);
       }
       else
       {
@@ -361,7 +380,7 @@ void SidreDataCollection::Load(const std::string& path, const std::string& proto
    if ( m_loadCalled )
    {
       std::string error_msg( "Attempt to call SidreDataCollection::Load() more than once on collection: " + name );
-      MFEM_ERROR( error_msg);
+      MFEM_ABORT( error_msg);
    }
    else
    {
@@ -384,7 +403,7 @@ void SidreDataCollection::Load(const std::string& path, const std::string& proto
    ParMesh *par_mesh = dynamic_cast<ParMesh*>(mesh);
    if (par_mesh)
    {
-       sidre::DataGroup * domain_file_grp = bp_grp->getParent()->getParent();
+//       sidre::DataGroup * domain_file_grp = bp_grp->getParent()->getParent();
        asctoolkit::spio::IOManager reader(par_mesh->GetComm());
        reader.read(datastore->getRoot(), path);
    }
@@ -453,7 +472,7 @@ void SidreDataCollection::Save(const std::string& filename, const std::string& p
       bp_index_grp->getView("state/time")->setScalar(time);
    }
 
-   sidre::DataGroup * domain_file_grp = bp_grp->getParent()->getParent();
+//   sidre::DataGroup * domain_file_grp = bp_grp->getParent()->getParent();
 
 //   if (protocol == "sidre_hdf5")
 //   {
@@ -802,7 +821,7 @@ void SidreDataCollection::RegisterFieldInBPIndex(asctoolkit::sidre::DataGroup * 
    else
    {
       std::string errorMessage = " Field " + bp_field_grp->getName() + " is missing association or basis entry in blueprint.";
-      MFEM_ERROR( errorMessage );
+      MFEM_ABORT( errorMessage );
    }
 
 
