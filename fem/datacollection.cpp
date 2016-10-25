@@ -158,11 +158,16 @@ void DataCollection::SetMesh(Mesh *new_mesh)
 
 }
 
+void DataCollection::DeregisterField(const char* name)
+{
+   delete field_map[name];
+}
+
 void DataCollection::RegisterField(const char* name, GridFunction *gf)
 {
    if (own_data && HasField(name))
    {
-      delete field_map[name];
+      DeregisterField(name);
    }
    field_map[name] = gf;
 }

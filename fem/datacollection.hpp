@@ -91,6 +91,10 @@ public:
 
    /// Add a grid function to the collection
    virtual void RegisterField(const char* field_name, GridFunction *gf);
+
+   /// Add a grid function to the collection
+   virtual void DeregisterField(const char* field_name);
+
    /** Get a pointer to a grid function in the collection. Returns NULL if
        'field_name' is not in the collection. */
    GridFunction *GetField(const char *field_name);

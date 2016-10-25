@@ -33,6 +33,7 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name,
                                          asctoolkit::sidre::DataGroup* rootfile_dg,
                                          asctoolkit::sidre::DataGroup* dg)
   : mfem::DataCollection(collection_name.c_str()), 
+    m_nodePositionsFieldName("nodes"),
     parent_datagroup( dg->getParent() ),
     m_loadCalled(false)
 {
@@ -314,22 +315,26 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
                 changeDataOwnership);
    }
    
-   // Note:
-   // We are no longer automatically registering the mesh node position field in the data collection.
-   // If this is needed, the below code can be uncommented.
+   if (!HasField(m_nodePositionsFieldName.c_str()) )
+   {
+   /*
+      const FiniteElementSpace* nFes = new_mesh->GetNodalFESpace();
+      int sz = nFes->GetVSize();
+      double* gfData = GetFieldData( m_nodePositionsFieldName.c_str(), sz);
 
-   // const FiniteElementSpace* nFes = new_mesh->GetNodalFESpace();
-   //int sz = nFes->GetVSize();
-   //double* gfData = GetFieldData( "nodes", sz);
+      if(!hasBP)
+      {
+         double* meshNodeData = new_mesh->GetNodes()->GetData();
+         std::memcpy(gfData, meshNodeData, sizeof(double) * sz);
+      }
 
-   //if(!hasBP)
-   //{
-   //   double* meshNodeData = new_mesh->GetNodes()->GetData();
-   //   std::memcpy(gfData, meshNodeData, sizeof(double) * sz);
-   //}
+      new_mesh->GetNodes()->NewDataAndSize(gfData, sz);
+      */
 
-   //new_mesh->GetNodes()->NewDataAndSize(gfData, sz);
-   //RegisterField( "nodes", new_mesh->GetNodes());
+   // TODO - Add code to move data to sidre ( check with Kenny - use helper allocate register function?) 
+      RegisterField( m_nodePositionsFieldName.c_str(), new_mesh->GetNodes());
+
+   }
 }
 
 void SidreDataCollection::Load(const std::string& path, const std::string& protocol)
@@ -746,6 +751,19 @@ void SidreDataCollection::addVectorBasedGridFunction(const char* field_name, Gri
 }
 
 // Should only be called on mpi rank 0 ( or if serial problem ).
+void SidreDataCollection::DeregisterFieldInBPIndex(const std::string& field_name)
+{
+   namespace sidre = asctoolkit::sidre;
+
+   sidre::DataGroup * fields_grp = bp_index_grp->getGroup("fields");
+   MFEM_VERIFY(fields_grp->hasGroup(field_name), "No field exists in blueprint index with name " << name);
+
+   // Note: This will destroy all orphaned views or buffer classes under this group also.  If sidre owns this
+   // field data, the memory will be deleted unless it's referenced somewhere else in sidre.
+   fields_grp->destroyGroup(field_name);
+}
+
+// Should only be called on mpi rank 0 ( or if serial problem ).
 void SidreDataCollection::RegisterFieldInBPIndex(asctoolkit::sidre::DataGroup * bp_field_grp)
 {
    namespace sidre = asctoolkit::sidre;
@@ -779,6 +797,23 @@ void SidreDataCollection::RegisterFieldInBPIndex(asctoolkit::sidre::DataGroup * 
 
 }
 
+void SidreDataCollection::DeregisterField(const char * field_name)
+{
+   namespace sidre = asctoolkit::sidre;
+
+   sidre::DataGroup * fields_grp = bp_grp->getGroup("fields");
+   MFEM_VERIFY(fields_grp->hasGroup(field_name), "No field exists in blueprint with name " << field_name);
+
+   // Note: This will destroy all orphaned views or buffer classes under this group also.  If sidre owns this
+   // field data, the memory will be deleted unless it's referenced somewhere else in sidre.
+   fields_grp->destroyGroup(field_name);
+
+   if (!serial && myid == 0)
+   {
+      DeregisterFieldInBPIndex(field_name);
+   }
+}
+
 void SidreDataCollection::RegisterField(const char* field_name, GridFunction *gf)
 {
    namespace sidre = asctoolkit::sidre;
@@ -786,13 +821,9 @@ void SidreDataCollection::RegisterField(const char* field_name, GridFunction *gf
 
    if( gf != NULL )
    {
-      // (Create on demand) and) access the group of the field
-      if( !f->hasGroup( field_name ) )
-      {
-         f->createGroup( field_name );
-      }
+      MFEM_VERIFY(!f->hasGroup( field_name ), "Blueprint already has field registered with name '" << field_name << "', de-register the old field first.");
 
-      sidre::DataGroup* grp = f->getGroup( field_name );
+      sidre::DataGroup* grp = f->createGroup( field_name );
 
       // Set the basis string using the gf's finite element space, overwrite if necessary
       if(!grp->hasView("basis"))
@@ -823,7 +854,10 @@ void SidreDataCollection::RegisterField(const char* field_name, GridFunction *gf
       }
    }
 
-   RegisterFieldInBPIndex( f->getGroup(field_name) );
+   if (!serial && myid == 0)
+   {
+      RegisterFieldInBPIndex( f->getGroup(field_name) );
+   }
    DataCollection::RegisterField(field_name, gf);
 }
 

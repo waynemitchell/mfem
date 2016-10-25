@@ -46,6 +46,8 @@ public:
 
    SidreDataCollection(const std::string& collection_name, asctoolkit::sidre::DataGroup * rootfile_dg, asctoolkit::sidre::DataGroup * dg);
 
+   void DeregisterField(const char* field_name);
+
    void RegisterField(const char* field_name, GridFunction *gf);
 
    /// Verify we will delete the mesh and fields if we own them
@@ -129,6 +131,7 @@ private:
 
    bool m_loadCalled;
 
+   void DeregisterFieldInBPIndex(const std::string & field_name);
 	void RegisterFieldInBPIndex(asctoolkit::sidre::DataGroup * bp_field_group);
 
    std::string getElementName( Element::Type elementEnum );
