@@ -630,6 +630,9 @@ Miscellaneous
 
 - Various simplifications, extensions, and bugfixes in the code.
 
+- Added on-the-fly compression of file streams input and output
+  via gzstream.
+
 
 Version 1.2, released on Apr 08, 2011
 =====================================
