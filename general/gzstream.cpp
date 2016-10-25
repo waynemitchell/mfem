@@ -190,6 +190,3 @@ void gzstreambase::close()
 } // namespace mfem
 
 #endif // MFEM_USE_GZSTREAM
-
-// ============================================================================
-// EOF //

@@ -538,7 +538,7 @@
 
 
 #ifndef GZSTREAM_H
-#define GZSTREAM_H 1
+#define GZSTREAM_H
 
 #include "../config/config.hpp"
 
@@ -546,6 +546,7 @@
 #include <iostream>
 #include <fstream>
 #ifdef MFEM_USE_GZSTREAM
+#include <string.h>
 #include <zlib.h>
 #endif
 
@@ -717,6 +718,3 @@ private:
 } // namespace mfem
 
 #endif // GZSTREAM_H
-// ============================================================================
-// EOF //
-
