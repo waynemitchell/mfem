@@ -546,7 +546,7 @@ That's all there is to it!
 // standard C++ with new header file names and std:: namespace
 #include <iostream>
 #include <fstream>
-#ifdef MFEM_GZSTREAM
+#ifdef MFEM_USE_GZSTREAM
 #include <zlib.h>
 #endif
 
@@ -556,7 +556,7 @@ namespace mfem {
 // Internal classes to implement gzstream. See below for user classes.
 // ----------------------------------------------------------------------------
 
-#ifdef MFEM_GZSTREAM
+#ifdef MFEM_USE_GZSTREAM
 class gzstreambuf : public std::streambuf {
 private:
     static const int bufferSize = 8192;    // size of data buff
@@ -629,7 +629,7 @@ public:
        named file appears to be a gzip'd compressed file.
        https://refspecs.linuxbase.org/LSB_3.0.0/LSB-PDA/LSB-PDA/zlib-gzopen-1.html. */
     ifgzstream(char const *name, char const *mode = "rb") {
-#ifdef MFEM_GZSTREAM
+#ifdef MFEM_USE_GZSTREAM
         if (maybe_gz(name))
             strm = new igzstream(name,mode);
         else
@@ -649,7 +649,7 @@ private:
        return false;}
 };
 
-#ifdef MFEM_GZSTREAM
+#ifdef MFEM_USE_GZSTREAM
 class ogzstream : public gzstreambase, public std::ostream {
 public:
     ogzstream() : std::ostream( &buf) {}
@@ -677,12 +677,12 @@ public:
        indicates a desire to use std::ofstream.
        https://refspecs.linuxbase.org/LSB_3.0.0/LSB-PDA/LSB-PDA/zlib-gzopen-1.html.
        Default mode is "zwb6". */
-#ifdef MFEM_GZSTREAM
+#ifdef MFEM_USE_GZSTREAM
     ofgzstream(char const *name, char const *mode = "zwb6") {
 #else
     ofgzstream(char const *name, char const *mode = "w") {
 #endif
-#ifdef MFEM_GZSTREAM
+#ifdef MFEM_USE_GZSTREAM
         if (strchr(mode,'z'))
             strm = new ogzstream(name,mode);
         else
