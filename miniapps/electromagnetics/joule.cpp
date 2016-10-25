@@ -85,16 +85,18 @@
 //    -sc [int]     0 = no static condensation, 1 = use static condensation
 //    -p [string]   specify the problem to run, "rod", "coil", or "test"
 //
-// NOTE:  Example meshes for this miniapp are cylinder-hex.mesh,
-//        cylinder-tet.mesh, cylinder-hex-q2.mesh/gen, cylinder-tet-q2.mesh/gen,
-//        and coil_small.mesh. Note that the meshes with the "gen" extension require
-//        MFEM to be built with NetCDF.
+//
+// NOTE:  Example meshes for this miniapp are the included cylinder/rod meshes:
+//        cylinder-hex.mesh, cylinder-tet.mesh, cylinder-hex-q2.{mesh|gen},
+//        cylinder-tet-q2.{mesh|gen}, as well as the coil.gen mesh which can be
+//        downloaded from github.com/mfem/data (its size is 21MB). Note that the
+//        meshes with the "gen" extension require MFEM to be built with NetCDF.
 //
 // NOTE:  This code is set up to solve two example problems, 1) a straight metal
 //        rod surrounded by air, 2) a metal rod surrounded by a metal coil all
 //        surrounded by air. To specify problem (1) use the command line options
 //        "-p rod -m cylinder-hex-q2.mesh", to specify problem (2) use the
-//        command line options "-p coil -m coil_small.mesh". Problem (1) has two
+//        command line options "-p coil -m coil.gen". Problem (1) has two
 //        materials and problem (2) has three materials, and the BC's are
 //        different.
 //
