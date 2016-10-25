@@ -290,29 +290,48 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
    // Change ownership of mesh data to sidre
    double *coord_values = bp_grp->getView("coordsets/coords/values/x")->getBuffer()->getData();
 
-   new_mesh->ChangeElementDataOwnership(
-             bp_grp->getView("topologies/mesh/elements/connectivity")->getArray(),
-             element_size * mesh_num_elements,
-             bp_grp->getView("fields/mesh_material_attribute/values")->getArray(),
-             mesh_num_elements,
-             hasBP,
-             changeDataOwnership);
+   if (changeDataOwnership) {
+      new_mesh->ChangeElementDataOwnership(
+                bp_grp->getView("topologies/mesh/elements/connectivity")->getArray(),
+                element_size * mesh_num_elements,
+                bp_grp->getView("fields/mesh_material_attribute/values")->getArray(),
+                mesh_num_elements,
+                hasBP);
 
-   new_mesh->ChangeVertexDataOwnership(
-             coord_values,
-             coordset_len,
-             hasBP,
-             changeDataOwnership);
+      new_mesh->ChangeVertexDataOwnership(
+                coord_values,
+                coordset_len,
+                hasBP);
 
-   if (has_bnd_elts)
-   {
-      new_mesh->ChangeBoundaryElementDataOwnership(
-                bp_grp->getView("topologies/boundary/elements/connectivity")->getArray(),
-                bnd_element_size * bnd_num_elements,
-                bp_grp->getView("fields/boundary_material_attribute/values")->getArray(),
-                bnd_num_elements,
-                hasBP,
-                changeDataOwnership);
+      if (has_bnd_elts)
+      {
+         new_mesh->ChangeBoundaryElementDataOwnership(
+                   bp_grp->getView("topologies/boundary/elements/connectivity")->getArray(),
+                   bnd_element_size * bnd_num_elements,
+                   bp_grp->getView("fields/boundary_material_attribute/values")->getArray(),
+                   bnd_num_elements,
+                   hasBP);
+      }
+   }
+   else {
+      new_mesh->CopyElementData(
+                bp_grp->getView("topologies/mesh/elements/connectivity")->getArray(),
+                element_size * mesh_num_elements,
+                bp_grp->getView("fields/mesh_material_attribute/values")->getArray(),
+                mesh_num_elements);
+
+      new_mesh->CopyVertexData(
+                coord_values,
+                coordset_len);
+
+      if (has_bnd_elts)
+      {
+         new_mesh->CopyBoundaryElementData(
+                   bp_grp->getView("topologies/boundary/elements/connectivity")->getArray(),
+                   bnd_element_size * bnd_num_elements,
+                   bp_grp->getView("fields/boundary_material_attribute/values")->getArray(),
+                   bnd_num_elements);
+      }
    }
    
    if (!HasField(m_nodePositionsFieldName.c_str()) )
