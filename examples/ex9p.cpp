@@ -365,6 +365,7 @@ int main(int argc, char *argv[])
 #endif
 
    // 14. Free the used memory.
+   delete u;
    delete U;
    delete B;
    delete b;
