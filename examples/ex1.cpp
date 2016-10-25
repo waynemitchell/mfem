@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
 
    // 12. Save the refined mesh and the solution. This output can be viewed later
    //     using GLVis: "glvis -m refined.mesh -g sol.gf".
-   //     Demonstrate use of ogzstream to produce gzip level 9 outout 
+   //     Demonstrate use of ogzstream to produce gzip level 9 outout
    ofgzstream mesh_ofs("refined.mesh","zwb9");
    mesh_ofs().precision(8);
    mesh->Print(mesh_ofs());
