@@ -193,9 +193,7 @@ int main(int argc, char *argv[])
    if (binary)
    {
 #if defined(MFEM_USE_SIDRE)
-      SidreDataCollection * sdc = new SidreDataCollection("ex9p_refined_mesh");
-      sdc->SetMesh(pmesh);
-      dc = sdc;
+      dc = new SidreDataCollection("ex9p_refined_mesh", pmesh);
 #else
       MFEM_ABORT("Must compile with sidre support MFEM_USE_SIDRE=YES for binary output.");
 #endif

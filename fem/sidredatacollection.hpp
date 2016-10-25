@@ -44,7 +44,7 @@ public:
    typedef int mfem_int_t;
    typedef double mfem_double_t;
 
-   SidreDataCollection(const std::string& collection_name);
+   SidreDataCollection(const std::string& collection_name, Mesh *mesh);
 
    SidreDataCollection(const std::string& collection_name, asctoolkit::sidre::DataGroup * rootfile_dg, asctoolkit::sidre::DataGroup * dg);
 

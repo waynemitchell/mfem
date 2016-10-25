@@ -29,7 +29,7 @@ namespace mfem
 {
 
 // Constructor that will automatically create the sidre data store and necessary data groups for domain and global data.
-SidreDataCollection::SidreDataCollection(const std::string& collection_name)
+SidreDataCollection::SidreDataCollection(const std::string& collection_name, Mesh * mesh)
    : mfem::DataCollection(collection_name.c_str()),
      m_nodePositionsFieldName("positions"),
      m_loadCalled(false)
@@ -45,6 +45,7 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name)
    //Currently only rank 0 adds anything to bp_index.
    bp_index_grp = global_grp->createGroup("blueprint_index/" + name);
    simdata_grp = domain_grp->createGroup("sim");
+   SetMesh(mesh);
 }
 
 // Second constructor that allows external code to specify data groups to place domain and global data in.
