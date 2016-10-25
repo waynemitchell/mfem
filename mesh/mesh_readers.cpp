@@ -910,7 +910,7 @@ void Mesh::ReadGmshMesh(std::istream &input)
                   input >> coord[ci];
                }
             }
-// TODO:
+// Only if we have CPP11 do we have non-default constructors
 #ifdef CPP11
             vertices[ver] = Vertex(coord, gmsh_dim);
 #else

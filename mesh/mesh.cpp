@@ -2226,87 +2226,131 @@ Mesh::Mesh(std::istream &input, int generate_edges, int refine,
    Load(input, generate_edges, refine, fix_orientation);
 }
 
-
-void Mesh::ChangeElementObjectDataOwnership(
-      Array<Element*> &elem_objs, size_t elem_objs_size,
-      int *indices, size_t len_indices, 
-      int *attributes, size_t len_attributes, bool zerocopy, bool changeDataOwnership)
-{
-   size_t offset = 0;
-   if (len_attributes < elem_objs_size) {
+void Mesh::CopyElementObjectData(Array<Element*>& array_of_elements, size_t len_array_of_elements,
+      int* indices, size_t len_indices, int* attributes, size_t len_attributes) {
+   if (len_attributes < len_array_of_elements) {
+      printf("%d < %d: ", len_attributes, len_array_of_elements);
       throw std::runtime_error("new `attributes` memory not large enough");
    }
-   for (size_t i = 0; i < elem_objs_size; i++) {
-      // copy the indices data, delete self allocated members,
-      // set to the new data
-      size_t length = elem_objs[i]->GetNVertices();
-      int *element_indices = elem_objs[i]->GetIndices();
+
+   size_t offset = 0;
+   for (size_t i = 0; i < len_array_of_elements; i++) {
+      // to allow heterogeneous element arrays we need to check the
+      // number of vertices of each element 
+      size_t length = array_of_elements[i]->GetNVertices();
+      int *element_indices = array_of_elements[i]->GetIndices();
       if (offset + length > len_indices) {
          throw std::runtime_error("new `indices` memory not large enough");
       }
-      if (!zerocopy) {
-         memcpy(indices + offset, element_indices, length * sizeof(int));
-         attributes[i] = elem_objs[i]->GetAttribute();
+
+      // copy the indices data
+      memcpy(indices + offset, element_indices, length * sizeof(int));
+      attributes[i] = array_of_elements[i]->GetAttribute();
+
+      offset += length;
+   }
+}
+
+void Mesh::ChangeElementObjectDataOwnership(
+      Array<Element*> &array_of_elements, size_t len_array_of_elements,
+      int *indices, size_t len_indices, 
+      int *attributes, size_t len_attributes, bool zerocopy)
+{
+   if (len_attributes < len_array_of_elements) {
+      printf("%d < %d: ", len_attributes, len_array_of_elements);
+      throw std::runtime_error("new `attributes` memory not large enough");
+   }
+
+   size_t offset = 0;
+   for (size_t i = 0; i < len_array_of_elements; i++) {
+      // to allow heterogeneous element arrays we need to check the
+      // number of vertices of each element 
+      size_t length = array_of_elements[i]->GetNVertices();
+      int *element_indices = array_of_elements[i]->GetIndices();
+      if (offset + length > len_indices) {
+         throw std::runtime_error("new `indices` memory not large enough");
       }
 
-      if (changeDataOwnership)
-      {
-         if (elem_objs[i]->IsSelfAlloc()) {
-            delete element_indices;
-            elem_objs[i]->SetOwnership(false);
-         }
-         elem_objs[i]->SetIndices(indices + offset);
-         elem_objs[i]->SetAttributePtr(attributes + i);
+      // copy the indices data
+      if (!zerocopy) {
+         memcpy(indices + offset, element_indices, length * sizeof(int));
+         attributes[i] = array_of_elements[i]->GetAttribute();
       }
+
+      // delete the mfem owned data
+      if (array_of_elements[i]->IsSelfAlloc()) {
+         delete element_indices;
+         array_of_elements[i]->SetOwnership(false);
+      }
+
+      // set the element array data to the external arrays
+      array_of_elements[i]->SetIndices(indices + offset);
+      array_of_elements[i]->SetAttributePtr(attributes + i);
+
       offset += length;
    }
 }
 
 void Mesh::ChangeElementDataOwnership(int *indices,
       size_t len_indices, int *attributes,
-      size_t len_attributes, bool zerocopy, bool changeDataOwnership)
-      
-{
+      size_t len_attributes, bool zerocopy) {
    ChangeElementObjectDataOwnership(elements, NumOfElements,
-         indices, len_indices, attributes, len_attributes, zerocopy, changeDataOwnership);
+         indices, len_indices, attributes, len_attributes, zerocopy);
+}
+
+void Mesh::CopyElementData(int *indices, size_t len_indices, int *attributes, 
+      size_t len_attributes) {
+   CopyElementObjectData(elements, NumOfElements,
+         indices, len_indices, attributes, len_attributes);
 }
 
 
 void Mesh::ChangeBoundaryElementDataOwnership(int *indices,
       size_t len_indices, int *attributes,
-      size_t len_attributes, bool zerocopy, bool changeDataOwnership) {
+      size_t len_attributes, bool zerocopy) {
    ChangeElementObjectDataOwnership(boundary, NumOfBdrElements,
-         indices, len_indices, attributes, len_attributes, zerocopy, changeDataOwnership);
+         indices, len_indices, attributes, len_attributes, zerocopy);
 }
+
+void Mesh::CopyBoundaryElementData(int *indices, size_t len_indices, int *attributes, 
+      size_t len_attributes) {
+   CopyElementObjectData(elements, NumOfBdrElements,
+         indices, len_indices, attributes, len_attributes);
+}
+
+
 
 
 // A dimension of 3 is now required since we use mfem::Vertex objects as PODs
 // and these object have a hardcoded double[3] entry
 void Mesh::ChangeVertexDataOwnership(double *vertex_data,
-      size_t len_vertex_data, bool zerocopy, bool changeDataOwnership) {
+      size_t len_vertex_data, bool zerocopy) {
    if (static_cast<int>(len_vertex_data) < NumOfVertices * 3) {
+      printf("%d < %d: ", len_vertex_data, NumOfVertices * 3);
       throw std::runtime_error("Not enough vertices in external array");
    }
-   else if (static_cast<int>(len_vertex_data) != NumOfVertices * 3) {
-      printf("Warning (ChangeVertexDataOwnership): externally supplied vertex data"
-             " has a different length than mesh::Vertices (%zu != %d)", len_vertex_data,
-             NumOfVertices * 3);
-   }
+
    if (!zerocopy) memcpy(vertex_data, vertices.GetData(), NumOfVertices * 3 * sizeof(double));
-   if (changeDataOwnership) {
-      // make sure we don't leak the mfem owned vertex data
-      if (vertices.OwnsData()) {
-         // mfem::Array uses an array of char (bytes) on the backend so 
-         // reinterpret to that before we delete
-         char *data = reinterpret_cast<char*>(vertices.GetData());
-         delete[] data;
-         vertices.LoseData();
-      }
-      // Vertex is POD double[3]
-      vertices.SetData(reinterpret_cast<Vertex*>(vertex_data), NumOfVertices);
+   // make sure we don't leak the mfem owned vertex data
+   if (vertices.OwnsData()) {
+      // mfem::Array uses an array of char (bytes) on the backend so 
+      // reinterpret to that before we delete
+      char *data = reinterpret_cast<char*>(vertices.GetData());
+      delete[] data;
+      vertices.LoseData();
    }
+   // Vertex is POD double[3]
+   vertices.SetData(reinterpret_cast<Vertex*>(vertex_data), NumOfVertices);
 }
 
+void Mesh::CopyVertexData(double *vertex_data,
+      size_t len_vertex_data) {
+   if (static_cast<int>(len_vertex_data) < NumOfVertices * 3) {
+      printf("%d < %d: ", len_vertex_data, NumOfVertices * 3);
+      throw std::runtime_error("Not enough vertices in external array");
+   }
+   memcpy(vertex_data, vertices.GetData(), NumOfVertices * 3 * sizeof(double));
+}
 
 Mesh::Mesh(double *_vertices, int num_vertices,
       int *element_indices, Geometry::Type element_type, 
