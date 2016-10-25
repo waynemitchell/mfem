@@ -980,6 +980,9 @@ public:
 Mesh *Extrude1D(Mesh *mesh, const int ny, const double sy,
                 const bool closed = false);
 
+
+/// Input file stream that remembers the input file name (useful for example
+/// when reading NetCDF meshes) and supports optional gzstream decompression.
 class named_ifgzstream : public mfem::ifgzstream
 {
 public:

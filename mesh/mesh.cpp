@@ -8174,6 +8174,7 @@ std::ostream &operator<<(std::ostream &out, const Mesh &mesh)
    return out;
 }
 
+
 NodeExtrudeCoefficient::NodeExtrudeCoefficient(const int dim, const int _n,
                                                const double _s)
    : VectorCoefficient(dim), n(_n), s(_s), tip(p, dim-1)
