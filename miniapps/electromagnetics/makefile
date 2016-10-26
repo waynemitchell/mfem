@@ -63,6 +63,9 @@ volta-test-par: volta
 tesla-test-par: tesla
 	@$(call mfem-test,$<, mpirun -np 4, Electromagnetic miniapp,\
 	-maxit 2 -cr '0 0 -0.2 0 0 0.2 0.2 0.4 1')
+joule-test-par: joule
+	@$(call mfem-test,$<, mpirun -np 4, Electromagnetic miniapp,\
+	-p rod -tf 3)
 
 # Testing: "test" target and mfem-test* variables are defined in config/test.mk
 
