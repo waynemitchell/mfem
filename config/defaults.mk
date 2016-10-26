@@ -160,9 +160,9 @@ MPFR_OPT =
 MPFR_LIB = -lmpfr
 
 # Sidre and required libraries configuration
+# Be sure to check the HDF5_DIR is correct ( the default value is set above by NETCDF vars )
 SIDRE_DIR = @MFEM_DIR@/../asctoolkit
 CONDUIT_DIR = @MFEM_DIR@/../conduit
-HDF5_DIR = @MFEM_DIR@/../hdf5
 
 # If YES, enable some informational messages
 VERBOSE = NO
