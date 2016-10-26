@@ -581,20 +581,8 @@ int main(int argc, char *argv[])
       visit_dc.Save();
    }
 
-   // Vector zero_vec(3); zero_vec = 0.0;
-   // VectorConstantCoefficient Zero_vec(zero_vec);
-   // ConstantCoefficient Zero(0.0);
-   // double eng_E0 = E_gf.ComputeL2Error(Zero_vec);
-   // double eng_B0 = B_gf.ComputeL2Error(Zero_vec);
-
    E_exact.SetTime(0.0);
    B_exact.SetTime(0.0);
-
-   // double err_E0 = E_gf.ComputeL2Error(E_exact);
-   // double err_B0 = B_gf.ComputeL2Error(B_exact);
-
-   // double me0 = oper.MagneticEnergy(B_gf);
-   // double el0 = oper.ElectricLosses(E_gf);
 
    // 15. Perform time-integration (looping over the time iterations, ti, with a
    //     time-step dt). The object oper is the MagneticDiffusionOperator which
@@ -676,14 +664,15 @@ int main(int argc, char *argv[])
 
       if (last_step || (ti % vis_steps) == 0)
       {
+         double el = oper.ElectricLosses(E_gf);
+
          if (mpi.Root())
          {
             cout << fixed;
-            cout << "step " << setw(6) << ti << " t = " << setw(6)
-                 << setprecision(3) << t;
+            cout << "step " << setw(6) << ti << ",\tt = " << setw(6)
+                 << setprecision(3) << t
+                 << ",\tdot(E, J) = " << setprecision(8) << el << endl;
          }
-
-         if (mpi.Root()) { cout << endl; }
 
          // Make sure all ranks have sent their 'v' solution before initiating
          // another set of GLVis connections (one from each rank):

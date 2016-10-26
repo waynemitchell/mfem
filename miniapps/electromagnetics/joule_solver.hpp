@@ -95,8 +95,11 @@ public:
      M is the mass matrix,
      S is the stiffness matrix,
      Curl is the curl matrix,
-     Div is the divergence matrix.
-     J is a function of the Joule heating sigma (E dot E)
+     Div is the divergence matrix,
+     sigma is the electrical conductivity,
+     k is the thermal conductivity,
+     c is the heat capacity,
+     J is a function of the Joule heating sigma (E dot E).
 
    Class MagneticDiffusionEOperator represents the right-hand side of the above
    system of ODEs.
