@@ -35,7 +35,6 @@ class NURBSExtension;
 class FiniteElementSpace;
 class GridFunction;
 struct Refinement;
-class named_ifstream;
 
 #ifdef MFEM_USE_MPI
 class ParMesh;
@@ -174,7 +173,7 @@ protected:
    void ReadGmshMesh(std::istream &input);
    /* Note NetCDF (optional library) is used for reading cubit files */
 #ifdef MFEM_USE_NETCDF
-   void ReadCubit(named_ifstream &input, int &curved, int &read_gf);
+   void ReadCubit(const char *filename, int &curved, int &read_gf);
 #endif
 
    static void skip_comment_lines(std::istream &is, const char comment_char)
@@ -990,6 +989,7 @@ public:
    named_ifgzstream(const char *mesh_name) :
       mfem::ifgzstream(mesh_name), filename(mesh_name) {}
 };
+
 
 // inline functions
 inline void Mesh::ShiftL2R(int &a, int &b, int &c)

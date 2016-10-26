@@ -187,6 +187,37 @@ void gzstreambase::close()
       }
 }
 
+
+ifgzstream::ifgzstream(char const *name, char const *mode)
+   : std::istream(0)
+{
+   bool err;
+#ifdef MFEM_USE_GZSTREAM
+   if (maybe_gz(name))
+   {
+      gzstreambuf *gzbuf = new gzstreambuf;
+      err = gzbuf != gzbuf->open(name, mode);
+      buf = gzbuf;
+   }
+   else
+#endif
+   {
+      std::filebuf *fbuf = new std::filebuf;
+      err = fbuf != fbuf->open(name, std::ios_base::in); // 'mode' is ignored
+      buf = fbuf;
+   }
+   if (!err)
+   {
+      rdbuf(buf);
+   }
+   else
+   {
+      delete buf;
+      buf = NULL;
+      setstate(std::ios::failbit);
+   }
+}
+
 } // namespace mfem
 
 #endif // MFEM_USE_GZSTREAM

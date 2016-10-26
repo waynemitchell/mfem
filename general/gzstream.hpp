@@ -629,28 +629,17 @@ public:
 };
 #endif
 
-class ifgzstream
+class ifgzstream : public std::istream
 {
 public:
    /** Simple factory to create ifstream or igzstream depending on whether
        named file appears to be a gzip'd compressed file.
        https://refspecs.linuxbase.org/LSB_3.0.0/LSB-PDA/LSB-PDA/zlib-gzopen-1.html. */
-   ifgzstream(char const *name, char const *mode = "rb")
-   {
-#ifdef MFEM_USE_GZSTREAM
-      if (maybe_gz(name))
-      {
-         strm = new igzstream(name,mode);
-      }
-      else
-#endif
-         strm = new std::ifstream(name);
-   };
-   std::istream &operator()(void) const { return *strm; };
-   ~ifgzstream() { delete strm; };
-private:
-   ifgzstream() {};
-   std::istream *strm;
+   ifgzstream(char const *name, char const *mode = "rb");
+   ~ifgzstream() { delete buf; }
+
+protected:
+   std::streambuf *buf;
    static bool maybe_gz(const char *fn)
    {
       unsigned short byt = 0x0000;
@@ -707,11 +696,11 @@ public:
       else
 #endif
          strm = new std::ofstream(name);
-   };
-   std::ostream &operator()(void) const { return *strm; };
-   ~ofgzstream() { delete strm; };
+   }
+   std::ostream &operator()(void) const { return *strm; }
+   ~ofgzstream() { delete strm; }
 private:
-   ofgzstream() {};
+   ofgzstream() {}
    std::ostream *strm;
 };
 

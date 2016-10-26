@@ -2207,14 +2207,14 @@ Mesh::Mesh(const char *filename, int generate_edges, int refine,
    SetEmpty();
 
    named_ifgzstream imesh(filename);
-   if (!imesh())
+   if (!imesh)
    {
       // Abort with an error message.
       MFEM_ABORT("Mesh file not found: " << filename << '\n');
    }
    else
    {
-      Load(imesh(), generate_edges, refine, fix_orientation);
+      Load(imesh, generate_edges, refine, fix_orientation);
    }
 }
 
@@ -2380,7 +2380,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
       if (mesh_input)
       {
 #ifdef MFEM_USE_NETCDF
-         ReadCubit(*mesh_input(), curved, read_gf);
+         ReadCubit(mesh_input->filename, curved, read_gf);
 #else
          MFEM_ABORT("NetCDF support requires configuration with"
                     " MFEM_USE_NETCDF=YES");
@@ -2389,7 +2389,8 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
       }
       else
       {
-         MFEM_ABORT("Need to use mfem_ifstream with NetCDF");
+         MFEM_ABORT("Can not determine Cubit mesh filename!"
+                    " Use mfem::named_ifgzstream for input.");
          return;
       }
    }
