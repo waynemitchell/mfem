@@ -18,6 +18,14 @@
 
 #include "../fem/fem.hpp"
 
+#include <cerrno>      // errno
+#ifndef _WIN32
+#include <sys/stat.h>  // mkdir
+#else
+#include <direct.h>    // _mkdir
+#define mkdir(dir, mode) _mkdir(dir)
+#endif
+
 #include <string>
 #include <cstdio>       // for snprintf()
 
@@ -27,6 +35,46 @@
 
 namespace mfem
 {
+
+// TODO - This code is duplicated from data collection.  It should obviously be changed to a class member of
+// data collection so sidre dc can call it and this code doesn't have to be duplicated.
+// Will change this later, but priority is to get ex9p working right now -- Aaron
+static int create_directory(const std::string &dir_name, const Mesh *mesh, int myid)
+{
+    // create directories recursively
+    const char path_delim = '/';
+    std::string::size_type pos = 0;
+    int err;
+
+    do {
+        pos = dir_name.find(path_delim, pos+1);
+        std::string subdir = dir_name.substr(0, pos);
+
+    #ifndef MFEM_USE_MPI
+       err = mkdir(subdir.c_str(), 0777);
+       err = (err && (errno != EEXIST)) ? 1 : 0;
+    #else
+       const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
+       if (myid == 0 || pmesh == NULL)
+       {
+          err = mkdir(subdir.c_str(), 0777);
+          err = (err && (errno != EEXIST)) ? 1 : 0;
+          if (pmesh)
+          {
+             MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
+          }
+       }
+       else
+       {
+          // Wait for rank 0 to create the directory
+          MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
+       }
+    #endif
+
+    } while( pos != std::string::npos );
+
+   return err;
+}
 
 // Constructor that will automatically create the sidre data store and necessary data groups for domain and global data.
 SidreDataCollection::SidreDataCollection(const std::string& collection_name, Mesh * mesh, bool own_mesh_data)
@@ -454,6 +502,8 @@ void SidreDataCollection::Save(const std::string& filename, const std::string& p
 {
    namespace sidre = asctoolkit::sidre;
 
+   create_directory(prefix_path, mesh, myid);
+   
    std::stringstream fNameSstr;
 
    // Note: If non-empty, prefix_path has a separator ('/') at the end
