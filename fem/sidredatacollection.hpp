@@ -53,7 +53,7 @@ public:
    void RegisterField(const char* field_name, GridFunction *gf);
 
    /// Verify we will delete the mesh and fields if we own them
-   virtual ~SidreDataCollection() {}
+   virtual ~SidreDataCollection();
 
    void SetNodePositionsFieldName(const std::string& fieldName);
 
@@ -124,6 +124,10 @@ public:
 
 private:
    // Private helper functions
+
+	// Used if the sidre data collection is providing the datastore itself.
+   const bool m_owns_datastore;
+   asctoolkit::sidre::DataStore * m_datastore_ptr;
 
    asctoolkit::sidre::DataGroup * simdata_grp;
    asctoolkit::sidre::DataGroup * bp_grp;

@@ -31,13 +31,16 @@ namespace mfem
 // Constructor that will automatically create the sidre data store and necessary data groups for domain and global data.
 SidreDataCollection::SidreDataCollection(const std::string& collection_name, Mesh * mesh)
    : mfem::DataCollection(collection_name.c_str()),
+     m_owns_datastore(true),
      m_nodePositionsFieldName("positions"),
      m_loadCalled(false)
 {
    namespace sidre = asctoolkit::sidre;
-   sidre::DataStore ds;
-   sidre::DataGroup * global_grp = ds.getRoot()->createGroup("mfem_global");
-   sidre::DataGroup * domain_grp = ds.getRoot()->createGroup("mfem");
+
+   m_datastore_ptr = new sidre::DataStore();
+
+   sidre::DataGroup * global_grp = m_datastore_ptr->getRoot()->createGroup("mfem_global");
+   sidre::DataGroup * domain_grp = m_datastore_ptr->getRoot()->createGroup("mfem");
 
    parent_datagroup= domain_grp->getParent();
 
@@ -53,6 +56,7 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name,
                                          asctoolkit::sidre::DataGroup* rootfile_dg,
                                          asctoolkit::sidre::DataGroup* dg)
   : mfem::DataCollection(collection_name.c_str()), 
+    m_owns_datastore(false),
     m_nodePositionsFieldName("nodes"),
     parent_datagroup( dg->getParent() ),
     m_loadCalled(false)
@@ -62,6 +66,14 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name,
    //Currently only rank 0 adds anything to bp_index.
    bp_index_grp = rootfile_dg->createGroup("blueprint_index/" + name);
    simdata_grp = dg->createGroup("sim");
+}
+
+SidreDataCollection::~SidreDataCollection()
+{
+   if (m_owns_datastore)
+   {
+      delete m_datastore_ptr;
+   }
 }
 
 void SidreDataCollection::SetMesh(Mesh *new_mesh)
