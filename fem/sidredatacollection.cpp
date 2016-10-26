@@ -30,7 +30,7 @@ namespace mfem
 
 // Constructor that will automatically create the sidre data store and necessary data groups for domain and global data.
 SidreDataCollection::SidreDataCollection(const std::string& collection_name, Mesh * mesh, bool own_mesh_data)
-   : mfem::DataCollection(collection_name.c_str()),
+   : mfem::DataCollection(collection_name.c_str(), mesh),
      m_owns_datastore(true),
      m_owns_mesh_data(own_mesh_data),
      m_nodePositionsFieldName("nodes"),
