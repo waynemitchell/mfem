@@ -351,6 +351,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
    
    if (!HasField(m_nodePositionsFieldName.c_str()) )
    {
+      /*
       if (m_owns_mesh_data)
       {
          const FiniteElementSpace* nFes = new_mesh->GetNodalFESpace();
@@ -365,6 +366,8 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
 
          new_mesh->GetNodes()->NewDataAndSize(gfData, sz);
       }
+      */
+      
       RegisterField( m_nodePositionsFieldName.c_str(), new_mesh->GetNodes());
 
    }
@@ -429,7 +432,14 @@ void SidreDataCollection::Load(const std::string& path, const std::string& proto
 
 void SidreDataCollection::SetNodePositionsFieldName(const std::string& fieldName)
 {
+   namespace sidre = asctoolkit::sidre;
    m_nodePositionsFieldName = fieldName;
+
+   if ( bp_grp->hasView("topologies/mesh/mfem_grid_function") )
+   {
+      sidre::DataView * gf_name = bp_grp->getView("topologies/mesh/mfem_grid_function");
+      gf_name->setString(m_nodePositionsFieldName);
+   }
 }
 
 void SidreDataCollection::Save()
