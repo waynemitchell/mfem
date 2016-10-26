@@ -62,7 +62,7 @@
 //
 //    mpirun -np 8 joule -m cylinder-hex.mesh -p rod
 //    mpirun -np 8 joule -m cylinder-tet.mesh -sc 1 -amr 1 -p rod
-//    mpirun -np 8 joule -m cylinder-hex-q2.mesh -s 22 -dt 0.1 -tf 240.0 -p rod
+//    mpirun -np 8 joule -m cylinder-hex-q2.gen -s 22 -dt 0.1 -tf 240.0 -p rod
 //
 // Options:
 //
@@ -87,15 +87,15 @@
 //
 //
 // NOTE:  Example meshes for this miniapp are the included cylinder/rod meshes:
-//        cylinder-hex.mesh, cylinder-tet.mesh, cylinder-hex-q2.{mesh|gen},
-//        cylinder-tet-q2.{mesh|gen}, as well as the coil.gen mesh which can be
+//        cylinder-hex.mesh, cylinder-tet.mesh, cylinder-hex-q2.gen,
+//        cylinder-tet-q2.gen, as well as the coil.gen mesh which can be
 //        downloaded from github.com/mfem/data (its size is 21MB). Note that the
 //        meshes with the "gen" extension require MFEM to be built with NetCDF.
 //
 // NOTE:  This code is set up to solve two example problems, 1) a straight metal
 //        rod surrounded by air, 2) a metal rod surrounded by a metal coil all
 //        surrounded by air. To specify problem (1) use the command line options
-//        "-p rod -m cylinder-hex-q2.mesh", to specify problem (2) use the
+//        "-p rod -m cylinder-hex-q2.gen", to specify problem (2) use the
 //        command line options "-p coil -m coil.gen". Problem (1) has two
 //        materials and problem (2) has three materials, and the BC's are
 //        different.
