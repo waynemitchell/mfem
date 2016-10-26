@@ -637,8 +637,8 @@ int main (int argc, char *argv[])
       {
          const char mesh_file[] = "mesh-explorer.mesh";
          ofgzstream omesh(mesh_file,"zwb9");
-         omesh().precision(14);
-         mesh->Print(omesh());
+         omesh.precision(14);
+         mesh->Print(omesh);
          cout << "New mesh file: " << mesh_file << endl;
       }
    }

@@ -26,16 +26,14 @@
 // Standard C++ Library".
 // ============================================================================
 
-#include "config/config.hpp"
-
-#ifdef MFEM_USE_GZSTREAM
-#include "general/gzstream.hpp"
-#include <iostream>
-#include <string.h>  // for memcpy
+#include "../config/config.hpp"
+#include "gzstream.hpp"
+#include <cstring>
 
 namespace mfem
 {
 
+#ifdef MFEM_USE_GZSTREAM
 // ----------------------------------------------------------------------------
 // Internal classes to implement gzstream. See header file for user classes.
 // ----------------------------------------------------------------------------
@@ -187,6 +185,8 @@ void gzstreambase::close()
       }
 }
 
+#endif // MFEM_USE_GZSTREAM
+
 
 ifgzstream::ifgzstream(char const *name, char const *mode)
    : std::istream(0)
@@ -218,6 +218,42 @@ ifgzstream::ifgzstream(char const *name, char const *mode)
    }
 }
 
-} // namespace mfem
 
-#endif // MFEM_USE_GZSTREAM
+// static class member, ofgzstream::default_mode
+#ifdef MFEM_USE_GZSTREAM
+char const *ofgzstream::default_mode = "zwb6";
+#else
+char const *ofgzstream::default_mode = "w";
+#endif
+
+ofgzstream::ofgzstream(char const *name, char const *mode)
+   : std::ostream(0)
+{
+   bool err;
+#ifdef MFEM_USE_GZSTREAM
+   if (strchr(mode,'z'))
+   {
+      gzstreambuf *gzbuf = new gzstreambuf;
+      err = gzbuf != gzbuf->open(name, mode);
+      buf = gzbuf;
+   }
+   else
+#endif
+   {
+      std::filebuf *fbuf = new std::filebuf;
+      err = fbuf != fbuf->open(name, std::ios_base::out); // 'mode' is ignored
+      buf = fbuf;
+   }
+   if (!err)
+   {
+      rdbuf(buf);
+   }
+   else
+   {
+      delete buf;
+      buf = NULL;
+      setstate(std::ios::failbit);
+   }
+}
+
+} // namespace mfem

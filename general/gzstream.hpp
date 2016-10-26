@@ -537,8 +537,8 @@
 //        * consider mode char options for zlib's internal buffer sizes
 
 
-#ifndef GZSTREAM_H
-#define GZSTREAM_H
+#ifndef MFEM_GZSTREAM_H
+#define MFEM_GZSTREAM_H
 
 #include "../config/config.hpp"
 
@@ -546,7 +546,6 @@
 #include <iostream>
 #include <fstream>
 #ifdef MFEM_USE_GZSTREAM
-#include <string.h>
 #include <zlib.h>
 #endif
 
@@ -672,38 +671,25 @@ public:
 };
 #endif
 
-class ofgzstream
+class ofgzstream : public std::ostream
 {
 public:
+   static char const *default_mode; // defined in gzstream.cpp
+
    /** Simple factory to create ofstream or ogzstream depending on mode.
        The mode chars are as in gzopen() with additional caveat that presence of a 'z'
        character indicates desire to compress (e.g. use ogzstream) and absence
        indicates a desire to use std::ofstream.
        https://refspecs.linuxbase.org/LSB_3.0.0/LSB-PDA/LSB-PDA/zlib-gzopen-1.html.
        Default mode is "zwb6". */
-#ifdef MFEM_USE_GZSTREAM
-   ofgzstream(char const *name, char const *mode = "zwb6")
-   {
-#else
-   ofgzstream(char const *name, char const *mode = "w")
-   {
-#endif
-#ifdef MFEM_USE_GZSTREAM
-      if (strchr(mode,'z'))
-      {
-         strm = new ogzstream(name,mode);
-      }
-      else
-#endif
-         strm = new std::ofstream(name);
-   }
-   std::ostream &operator()(void) const { return *strm; }
-   ~ofgzstream() { delete strm; }
-private:
-   ofgzstream() {}
-   std::ostream *strm;
+   ofgzstream(char const *name, char const *mode = default_mode);
+
+   ~ofgzstream() { delete buf; }
+
+protected:
+   std::streambuf *buf;
 };
 
 } // namespace mfem
 
-#endif // GZSTREAM_H
+#endif // MFEM_GZSTREAM_H
