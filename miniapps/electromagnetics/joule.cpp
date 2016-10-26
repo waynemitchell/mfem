@@ -325,7 +325,7 @@ int main(int argc, char *argv[])
       ess_bdr = 0;
       ess_bdr[0] = 1; // boundary attribute 1 (index 0) is fixed (front)
       ess_bdr[1] = 1; // boundary attribute 2 (index 1) is fixed (rear)
-      ess_bdr[2] = 1; // boundary attribute 3 (index 3) is fixed (outer)
+      ess_bdr[2] = 1; // boundary attribute 3 (index 2) is fixed (outer)
 
       // Same as above, but this is for the thermal operator.  For HDiv
       // formulation the essential BC is the flux, which is zero on the front
@@ -581,20 +581,20 @@ int main(int argc, char *argv[])
       visit_dc.Save();
    }
 
-   Vector zero_vec(3); zero_vec = 0.0;
-   VectorConstantCoefficient Zero_vec(zero_vec);
-   ConstantCoefficient Zero(0.0);
-   double eng_E0 = E_gf.ComputeL2Error(Zero_vec);
-   double eng_B0 = B_gf.ComputeL2Error(Zero_vec);
+   // Vector zero_vec(3); zero_vec = 0.0;
+   // VectorConstantCoefficient Zero_vec(zero_vec);
+   // ConstantCoefficient Zero(0.0);
+   // double eng_E0 = E_gf.ComputeL2Error(Zero_vec);
+   // double eng_B0 = B_gf.ComputeL2Error(Zero_vec);
 
    E_exact.SetTime(0.0);
    B_exact.SetTime(0.0);
 
-   double err_E0 = E_gf.ComputeL2Error(E_exact);
-   double err_B0 = B_gf.ComputeL2Error(B_exact);
+   // double err_E0 = E_gf.ComputeL2Error(E_exact);
+   // double err_B0 = B_gf.ComputeL2Error(B_exact);
 
    // double me0 = oper.MagneticEnergy(B_gf);
-   double el0 = oper.ElectricLosses(E_gf);
+   // double el0 = oper.ElectricLosses(E_gf);
 
    // 15. Perform time-integration (looping over the time iterations, ti, with a
    //     time-step dt). The object oper is the MagneticDiffusionOperator which
@@ -777,7 +777,7 @@ double p_bc(const Vector &x, double t)
 {
    // the value
    double T;
-   if (x[0] < 0.0)
+   if (x[2] < 0.0)
    {
       T = 1.0;
    }
