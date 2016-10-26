@@ -29,10 +29,11 @@ namespace mfem
 {
 
 // Constructor that will automatically create the sidre data store and necessary data groups for domain and global data.
-SidreDataCollection::SidreDataCollection(const std::string& collection_name, Mesh * mesh)
+SidreDataCollection::SidreDataCollection(const std::string& collection_name, Mesh * mesh, bool own_mesh_data)
    : mfem::DataCollection(collection_name.c_str()),
      m_owns_datastore(true),
-     m_nodePositionsFieldName("positions"),
+     m_owns_mesh_data(own_mesh_data),
+     m_nodePositionsFieldName("nodes"),
      m_loadCalled(false)
 {
    namespace sidre = asctoolkit::sidre;
@@ -54,9 +55,11 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name, Mes
 // Second constructor that allows external code to specify data groups to place domain and global data in.
 SidreDataCollection::SidreDataCollection(const std::string& collection_name,
                                          asctoolkit::sidre::DataGroup* rootfile_dg,
-                                         asctoolkit::sidre::DataGroup* dg)
+                                         asctoolkit::sidre::DataGroup* dg,
+                                         bool own_mesh_data)
   : mfem::DataCollection(collection_name.c_str()), 
     m_owns_datastore(false),
+    m_owns_mesh_data(own_mesh_data),
     m_nodePositionsFieldName("nodes"),
     parent_datagroup( dg->getParent() ),
     m_loadCalled(false)
@@ -78,21 +81,9 @@ SidreDataCollection::~SidreDataCollection()
 
 void SidreDataCollection::SetMesh(Mesh *new_mesh)
 {
-   SetMesh(new_mesh, -1, true);
-}
-
-void SidreDataCollection::SetMesh(Mesh *new_mesh,
-                                  int number_of_domains,
-                                  bool changeDataOwnership)
-{
    namespace sidre = asctoolkit::sidre;
 
    DataCollection::SetMesh(new_mesh);
-
-   if (number_of_domains == -1)
-   {
-      number_of_domains = num_procs;
-   }
 
    if ( !simdata_grp->hasGroup("array_data") )
    {
@@ -114,7 +105,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
    {
       bp_index_grp->createViewScalar("state/cycle", 0);
       bp_index_grp->createViewScalar("state/time", 0.);
-      bp_index_grp->createViewScalar("state/number_of_domains", number_of_domains);
+      bp_index_grp->createViewScalar("state/number_of_domains", num_procs);
    }
 
    int dim = new_mesh->Dimension();
@@ -219,15 +210,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
 
       bp_grp->createViewString("topologies/mesh/coordset", "coords");
 
-      if ( m_nodePositionsFieldName.empty() )
-      {
-         std::string errorString("A mesh node positions field has not been specified.  Please call setNodePositionsFieldName before calling SetMesh.");
-         MFEM_ABORT(errorString);
-      }
-      else
-      {
-         bp_grp->createViewString("topologies/mesh/mfem_grid_function",m_nodePositionsFieldName);
-      }
+      bp_grp->createViewString("topologies/mesh/mfem_grid_function",m_nodePositionsFieldName);
 
       // Add mesh elements material attribute field to blueprint
       bp_grp->createViewString("fields/mesh_material_attribute/association", "element");
@@ -322,7 +305,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
    // Change ownership of mesh data to sidre
    double *coord_values = bp_grp->getView("coordsets/coords/values/x")->getBuffer()->getData();
 
-   if (changeDataOwnership) {
+   if (m_owns_mesh_data) {
       new_mesh->ChangeElementDataOwnership(
                 bp_grp->getView("topologies/mesh/elements/connectivity")->getArray(),
                 element_size * mesh_num_elements,
@@ -368,21 +351,20 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh,
    
    if (!HasField(m_nodePositionsFieldName.c_str()) )
    {
-   /*
-      const FiniteElementSpace* nFes = new_mesh->GetNodalFESpace();
-      int sz = nFes->GetVSize();
-      double* gfData = GetFieldData( m_nodePositionsFieldName.c_str(), sz);
-
-      if(!hasBP)
+      if (m_owns_mesh_data)
       {
-         double* meshNodeData = new_mesh->GetNodes()->GetData();
-         std::memcpy(gfData, meshNodeData, sizeof(double) * sz);
+         const FiniteElementSpace* nFes = new_mesh->GetNodalFESpace();
+         int sz = nFes->GetVSize();
+         double* gfData = GetFieldData( "nodes", sz);
+
+         if(!hasBP)
+         {
+            double* meshNodeData = new_mesh->GetNodes()->GetData();
+            std::memcpy(gfData, meshNodeData, sizeof(double) * sz);
+         }
+
+         new_mesh->GetNodes()->NewDataAndSize(gfData, sz);
       }
-
-      new_mesh->GetNodes()->NewDataAndSize(gfData, sz);
-      */
-
-   // TODO - Add code to move data to sidre ( check with Kenny - use helper allocate register function?) 
       RegisterField( m_nodePositionsFieldName.c_str(), new_mesh->GetNodes());
 
    }

@@ -44,9 +44,9 @@ public:
    typedef int mfem_int_t;
    typedef double mfem_double_t;
 
-   SidreDataCollection(const std::string& collection_name, Mesh *mesh);
+   SidreDataCollection(const std::string& collection_name, Mesh *mesh, bool owns_mesh_data=false);
 
-   SidreDataCollection(const std::string& collection_name, asctoolkit::sidre::DataGroup * rootfile_dg, asctoolkit::sidre::DataGroup * dg);
+   SidreDataCollection(const std::string& collection_name, asctoolkit::sidre::DataGroup * rootfile_dg, asctoolkit::sidre::DataGroup * dg, bool owns_mesh_data=false);
 
    void DeregisterField(const char* field_name);
 
@@ -58,12 +58,6 @@ public:
    void SetNodePositionsFieldName(const std::string& fieldName);
 
    void SetMesh(Mesh *new_mesh);
-
-   void SetMesh(Mesh *new_mesh,
-                int number_of_domains,
-                bool changeDataOwnership);
-
-   void setMeshStream(std::istream& input) {}
 
    void Save();
 
@@ -127,6 +121,13 @@ private:
 
 	// Used if the sidre data collection is providing the datastore itself.
    const bool m_owns_datastore;
+
+   // TODO - Need to evaluate if this bool member can be combined with own_data in parent data collection class.
+   // m_owns_mesh_data indicates whether the sidre dc owns the mesh element data and node positions gf.
+   // The DC base class own_data indicates if the dc owns the mesh object pointer itself and GF objects.
+   // Can we use one flag and just have DC own all objects vs none?
+   const bool m_owns_mesh_data;
+
    asctoolkit::sidre::DataStore * m_datastore_ptr;
 
    asctoolkit::sidre::DataGroup * simdata_grp;
