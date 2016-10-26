@@ -355,7 +355,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
       {
          const FiniteElementSpace* nFes = new_mesh->GetNodalFESpace();
          int sz = nFes->GetVSize();
-         double* gfData = GetFieldData( "nodes", sz);
+         double* gfData = GetFieldData( m_nodePositionsFieldName.c_str(), sz);
 
          if(!hasBP)
          {
