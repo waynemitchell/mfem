@@ -353,17 +353,6 @@ int main(int argc, char *argv[])
       u->Save(osol);
    }
 
-   // 13. Demonstrate additional output formats available in sidre. (Optional)
-#ifdef MFEM_USE_SIDRE
-   if (binary)
-   {
-      SidreDataCollection * sdc = dynamic_cast<SidreDataCollection * >(dc);
-      sdc->Save("ex9p_dump", "sidre_hdf5");
-      sdc->Save("ex9p_dump", "json");
-      sdc->Save("ex9p_dump", "conduit_json");
-   }
-#endif
-
    // 14. Free the used memory.
    delete u;
    delete U;
