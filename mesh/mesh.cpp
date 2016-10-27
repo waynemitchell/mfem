@@ -2314,7 +2314,7 @@ void Mesh::ChangeBoundaryElementDataOwnership(int *indices,
 
 void Mesh::CopyBoundaryElementData(int *indices, size_t len_indices, int *attributes, 
       size_t len_attributes) {
-   CopyElementObjectData(elements, NumOfBdrElements,
+   CopyElementObjectData(boundary, NumOfBdrElements,
          indices, len_indices, attributes, len_attributes);
 }
 
