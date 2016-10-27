@@ -54,12 +54,11 @@ Mesh *read_par_mesh(int np, const char *mesh_prefix)
    Array<Mesh *> mesh_array;
 
    mesh_array.SetSize(np);
-   ifstream meshin;
    for (int p = 0; p < np; p++)
    {
       ostringstream fname;
       fname << mesh_prefix << '.' << setfill('0') << setw(6) << p;
-      meshin.open(fname.str().c_str());
+      ifgzstream meshin(fname.str().c_str());
       if (!meshin)
       {
          cerr << "Can not open mesh file: " << fname.str().c_str()
@@ -83,7 +82,6 @@ Mesh *read_par_mesh(int np, const char *mesh_prefix)
             mesh_array[p]->GetBdrElement(i)->SetAttribute(p+1);
          }
       }
-      meshin.close();
    }
    mesh = new Mesh(mesh_array, np);
 
@@ -628,15 +626,19 @@ int main (int argc, char *argv[])
             sol_sock << flush;
          }
          else
+         {
             cout << "Unable to connect to "
                  << vishost << ':' << visport << endl;
+         }
          delete attr_fespace;
       }
 
       if (mk == 'S')
       {
          const char mesh_file[] = "mesh-explorer.mesh";
-         ofgzstream omesh(mesh_file,"zwb9");
+         ofstream omesh(mesh_file);
+         // Save gzip-ed mesh, requires MFEM_USE_GZSTREAM = YES
+         // ofgzstream omesh(mesh_file, "zwb9");
          omesh.precision(14);
          mesh->Print(omesh);
          cout << "New mesh file: " << mesh_file << endl;
