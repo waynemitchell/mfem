@@ -22,7 +22,7 @@ MFEM_LIB_FILE = mfem_is_not_built
 -include $(CONFIG_MK)
 
 SEQ_MINIAPPS =
-PAR_MINIAPPS = volta tesla
+PAR_MINIAPPS = volta tesla joule
 ifeq ($(MFEM_USE_MPI),NO)
    MINIAPPS = $(SEQ_MINIAPPS)
 else
@@ -63,6 +63,9 @@ volta-test-par: volta
 tesla-test-par: tesla
 	@$(call mfem-test,$<, mpirun -np 4, Electromagnetic miniapp,\
 	-maxit 2 -cr '0 0 -0.2 0 0 0.2 0.2 0.4 1')
+joule-test-par: joule
+	@$(call mfem-test,$<, mpirun -np 4, Electromagnetic miniapp,\
+	-p rod -tf 3)
 
 # Testing: "test" target and mfem-test* variables are defined in config/test.mk
 
@@ -73,8 +76,8 @@ $(MFEM_LIB_FILE):
 clean: clean-build clean-exec
 
 clean-build:
-	rm -f *.o *~ volta tesla
+	rm -f *.o *~ $(SEQ_MINIAPPS) $(PAR_MINIAPPS)
 	rm -rf *.dSYM *.TVD.*breakpoints
 
 clean-exec:
-	@rm -rf Volta-AMR* Tesla-AMR*
+	@rm -rf Volta-AMR* Tesla-AMR* Joule_*

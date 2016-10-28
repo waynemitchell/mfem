@@ -2428,7 +2428,8 @@ const NCMesh::PointMatrix& NCMesh::GetGeomIdentity(int geom)
       case Geometry::SQUARE:   return pm_quad_identity;
       case Geometry::CUBE:     return pm_hex_identity;
       default:
-         MFEM_ABORT("unsupported geometry."); throw;
+         MFEM_ABORT("unsupported geometry.");
+         return pm_tri_identity;
    }
 }
 

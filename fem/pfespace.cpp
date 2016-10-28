@@ -1772,6 +1772,7 @@ HypreParMatrix *ParFiniteElementSpace::GetPartialConformingInterpolation()
                            dof_offsets.GetData(), tdof_off.GetData());
 #else
    (void) glob_cdofs;
+   PP = NULL;
    MFEM_ABORT("HYPRE_BIGINT not supported yet.");
 #endif
 
