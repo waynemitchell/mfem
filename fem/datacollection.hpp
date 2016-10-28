@@ -16,6 +16,7 @@
 #include "gridfunc.hpp"
 #include <string>
 #include <map>
+#include <vector>
 
 namespace mfem
 {
@@ -114,6 +115,11 @@ public:
     */
    virtual double* GetFieldData(const char *field_name, int sz, const char *base_field, int offset = 0, int stride = 1);
 
+
+   /** 
+    *  Creates and returns a vector containing the names of all registered grid functions 
+    */
+   std::vector<std::string> GetFieldNames() const;
 
    virtual bool HasFieldData(const char *field_name);
 

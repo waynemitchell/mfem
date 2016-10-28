@@ -521,6 +521,19 @@ void SidreDataCollection::Save(const std::string& filename, const std::string& p
    bp_grp->getView("state/time")->setScalar(time);
    bp_grp->getView("state/time_step")->setScalar(time_step);
 
+   /*  
+   { // BEGIN debug block
+     std::stringstream sstr;
+     sstr << "Dumping checkpoint: Registered grid functions: \n";
+     for (std::map<std::string,GridFunction*>::iterator it = this->field_map.begin()
+            ; it != this->field_map.end(); ++it)
+     { 
+        sstr << "\t" << it->first;
+     }
+     SLIC_INFO(sstr.str());
+   } // END debug code 
+   */
+
    if (myid == 0)
    {
       bp_index_grp->getView("state/cycle")->setScalar(cycle);

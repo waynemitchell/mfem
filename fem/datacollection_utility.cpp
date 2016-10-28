@@ -11,8 +11,8 @@
 
 #include "fem.hpp"
 
-#include <cstdio>      // snprintf
-
+#include <cstdio>      // snprintf, sscanf
+#include <sstream>
 
 namespace mfem
 {
@@ -36,6 +36,25 @@ void DataCollectionUtility::GenerateFieldName(const char* inputFldName, int arr_
       std::snprintf(outputFldName, sz, "%s", inputFldName);
    }
 }
+
+
+std::string DataCollectionUtility::DecomposeFieldName(const std::string& inputFldName, int& arr_idx)
+{
+    int idx = arr_idx = -1;
+
+    std::string::size_type pos = inputFldName.find_last_of('_');
+    if(pos != std::string::npos)
+    {
+        std::istringstream isstr( inputFldName.substr(pos+1, inputFldName.size()));
+        if( !( isstr  >> idx).fail() )
+        {
+            arr_idx = idx-1;
+            return inputFldName.substr(0,pos);
+        }
+    }
+    return inputFldName;
+}
+
 
 
 void DataCollectionUtility::AllocateVector( Vector* vec,
@@ -109,7 +128,7 @@ namespace {
         char name[NAME_SZ];
         DataCollectionUtility::GenerateFieldName(fldName, arr_idx, name, NAME_SZ);
 
-        // The data for gf will be offset from that of the 'HydroState' data
+        // The data for gf will be offset from that of the srcField data
         if (dc)
         {
            const int sz = fes->GetVSize();

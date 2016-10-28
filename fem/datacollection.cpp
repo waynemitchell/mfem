@@ -172,6 +172,20 @@ void DataCollection::RegisterField(const char* name, GridFunction *gf)
    field_map[name] = gf;
 }
 
+std::vector<std::string> DataCollection::GetFieldNames() const
+{
+    std::vector<std::string> res;
+    res.reserve(field_map.size());
+
+    for(std::map<std::string, GridFunction*>::const_iterator it = field_map.begin(),
+            itEnd = field_map.end();it != itEnd; ++it)
+    {
+        res.push_back( it->first);
+    }
+    return res;
+}
+
+
 GridFunction *DataCollection::GetField(const char *field_name)
 {
    if (HasField(field_name))
