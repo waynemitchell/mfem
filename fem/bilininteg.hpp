@@ -167,6 +167,577 @@ public:
    virtual ~SumIntegrator();
 };
 
+class MixedScalarIntegrator: public BilinearFormIntegrator
+{
+public:
+
+   MixedScalarIntegrator() : Q(NULL) {}
+   MixedScalarIntegrator(Coefficient &q) : Q(&q) {}
+
+   virtual void AssembleElementMatrix2(const FiniteElement &trial_fe,
+                                       const FiniteElement &test_fe,
+                                       ElementTransformation &Trans,
+                                       DenseMatrix &elmat);
+
+protected:
+
+   inline virtual bool VerifyFiniteElementTypes(
+      const FiniteElement & trial_fe,
+      const FiniteElement & test_fe) const
+   {
+      return (trial_fe.GetRangeType() == mfem::FiniteElement::SCALAR &&
+              test_fe.GetRangeType()  == mfem::FiniteElement::SCALAR );
+   }
+
+   inline virtual const char * FiniteElementTypeFailureMessage() const
+   {
+      return "Trial and test spaces must both be scalar fields.";
+   }
+
+   inline virtual int GetIntegrationOrder(const FiniteElement & trial_fe,
+                                          const FiniteElement & test_fe,
+                                          ElementTransformation &Trans)
+   { return trial_fe.GetOrder() + test_fe.GetOrder() + Trans.OrderW(); }
+
+
+   inline virtual void CalcTestShape(const FiniteElement & test_fe,
+                                     ElementTransformation &Trans,
+                                     Vector & shape)
+   { test_fe.CalcShape(Trans.GetIntPoint(), shape); }
+
+   inline virtual void CalcTrialShape(const FiniteElement & trial_fe,
+                                      ElementTransformation &Trans,
+                                      Vector & shape)
+   { trial_fe.CalcShape(Trans.GetIntPoint(), shape); }
+
+private:
+
+   Coefficient *Q;
+
+#ifndef MFEM_THREAD_SAFE
+   Vector test_shape;
+   Vector trial_shape;
+#endif
+
+};
+
+class MixedVectorIntegrator: public BilinearFormIntegrator
+{
+public:
+
+   MixedVectorIntegrator() : Q(NULL), VQ(NULL), DQ(NULL), MQ(NULL) {}
+   MixedVectorIntegrator(Coefficient &q)
+      : Q(&q), VQ(NULL), DQ(NULL), MQ(NULL) {}
+   MixedVectorIntegrator(VectorCoefficient &dq, bool diag = true)
+      : Q(NULL), VQ(diag?NULL:&dq), DQ(diag?&dq:NULL), MQ(NULL) {}
+   MixedVectorIntegrator(MatrixCoefficient &mq)
+      : Q(NULL), VQ(NULL), DQ(NULL), MQ(&mq) {}
+
+   virtual void AssembleElementMatrix2(const FiniteElement &trial_fe,
+                                       const FiniteElement &test_fe,
+                                       ElementTransformation &Trans,
+                                       DenseMatrix &elmat);
+
+protected:
+
+   inline virtual bool VerifyFiniteElementTypes(
+      const FiniteElement & trial_fe,
+      const FiniteElement & test_fe) const
+   {
+      return (trial_fe.GetRangeType() == mfem::FiniteElement::VECTOR &&
+              test_fe.GetRangeType()  == mfem::FiniteElement::VECTOR );
+   }
+
+   inline virtual const char * FiniteElementTypeFailureMessage() const
+   { return "Trial and test spaces must both be vector fields"; }
+
+   inline virtual int GetIntegrationOrder(const FiniteElement & trial_fe,
+                                          const FiniteElement & test_fe,
+                                          ElementTransformation &Trans)
+   { return trial_fe.GetOrder() + test_fe.GetOrder() + Trans.OrderW(); }
+
+
+   inline virtual void CalcTestShape(const FiniteElement & test_fe,
+                                     ElementTransformation &Trans,
+                                     DenseMatrix & ref_shape,
+                                     DenseMatrix & shape)
+   { test_fe.CalcVShape(Trans.GetIntPoint(), shape); }
+
+   inline virtual void CalcTrialShape(const FiniteElement & trial_fe,
+                                      ElementTransformation &Trans,
+                                      DenseMatrix & ref_shape,
+                                      DenseMatrix & shape)
+   { trial_fe.CalcVShape(Trans.GetIntPoint(), shape); }
+
+private:
+
+   Coefficient *Q;
+   VectorCoefficient *VQ;
+   VectorCoefficient *DQ;
+   MatrixCoefficient *MQ;
+
+#ifndef MFEM_THREAD_SAFE
+   Vector V;
+   Vector D;
+   DenseMatrix M;
+   DenseMatrix test_shape;
+   DenseMatrix trial_shape;
+   DenseMatrix test_shape_tmp;
+   DenseMatrix trial_shape_tmp;
+#endif
+
+};
+
+/** Class for integrating the bilinear form a(u,v) := (Q u, v) in
+    either  1D, 2D, or 3D and where Q is an optional scalar coefficient,
+    u and v are each in H1 or L2.
+ */
+class MixedScalarMassIntegrator : public MixedScalarIntegrator
+{
+public:
+   MixedScalarMassIntegrator() {}
+   MixedScalarMassIntegrator(Coefficient &q) {}
+};
+
+/** Class for integrating the bilinear form a(u,v) := (Q D u, v) in 1D
+    where Q is an optional scalar coefficient,
+    u is in H1, and v is in L2.
+ */
+class MixedScalarDerivativeIntegrator : public MixedScalarIntegrator
+{
+public:
+   MixedScalarDerivativeIntegrator() {}
+   MixedScalarDerivativeIntegrator(Coefficient &q) {}
+
+protected:
+   inline virtual bool VerifyFiniteElementTypes(
+      const FiniteElement & trial_fe,
+      const FiniteElement & test_fe) const
+   {
+      return (trial_fe.GetDim() == 1 && test_fe.GetDim() == 1 &&
+              trial_fe.GetDerivType()    == mfem::FiniteElement::GRAD  &&
+              trial_fe.GetDerivMapType() == mfem::FiniteElement::VALUE &&
+              test_fe.GetRangeType()     == mfem::FiniteElement::SCALAR );
+   }
+
+   inline virtual const char * FiniteElementTypeFailureMessage() const
+   {
+      return "Trial and test spaces must both be scalar fields in 1D "
+             "and the trial space must implement CaldDShape with "
+             "map type \"VALUE\".";
+   }
+
+   inline virtual void CalcTrialShape(const FiniteElement & trial_fe,
+                                      ElementTransformation &Trans,
+                                      Vector & shape)
+   {
+      DenseMatrix dshape(shape.GetData(), shape.Size(), 1);
+      trial_fe.CalcDShape(Trans.GetIntPoint(), dshape);
+      shape /= Trans.Weight();
+   }
+};
+
+/** Class for integrating the bilinear form a(u,v) := -(Q u, D v) in 1D
+    where Q is an optional scalar coefficient,
+    u is in L2, and v is in H1.
+ */
+class MixedScalarWeakDerivativeIntegrator : public MixedScalarIntegrator
+{
+public:
+   MixedScalarWeakDerivativeIntegrator() {}
+   MixedScalarWeakDerivativeIntegrator(Coefficient &q) {}
+
+protected:
+   inline virtual bool VerifyFiniteElementTypes(
+      const FiniteElement & trial_fe,
+      const FiniteElement & test_fe) const
+   {
+      return (trial_fe.GetDim() == 1 && test_fe.GetDim() == 1 &&
+              trial_fe.GetRangeType()   == mfem::FiniteElement::SCALAR &&
+              test_fe.GetDerivType()    == mfem::FiniteElement::GRAD &&
+              test_fe.GetDerivMapType() == mfem::FiniteElement::VALUE );
+   }
+
+   inline virtual const char * FiniteElementTypeFailureMessage() const
+   {
+      return "Trial and test spaces must both be scalar fields in 1D "
+             "and the test space must implement CalcDShape with "
+             "map type \"VALUE\".";
+   }
+
+   inline virtual void CalcTestShape(const FiniteElement & test_fe,
+                                     ElementTransformation &Trans,
+                                     Vector & shape)
+   {
+      DenseMatrix dshape(shape.GetData(), shape.Size(), 1);
+      test_fe.CalcDShape(Trans.GetIntPoint(), dshape);
+      shape *= -1.0 / Trans.Weight();
+   }
+};
+
+/** Class for integrating the bilinear form a(u,v) := (Q div u, v) in
+    either 2D or 3D where Q is an optional scalar coefficient,
+    u is in H(Div), and v is a scalar field.
+ */
+class MixedScalarDivergenceIntegrator : public MixedScalarIntegrator
+{
+public:
+   MixedScalarDivergenceIntegrator() {}
+   MixedScalarDivergenceIntegrator(Coefficient &q) {}
+
+protected:
+   inline virtual bool VerifyFiniteElementTypes(
+      const FiniteElement & trial_fe,
+      const FiniteElement & test_fe) const
+   {
+      return (trial_fe.GetDerivType()    == mfem::FiniteElement::DIV  &&
+              trial_fe.GetDerivMapType() == mfem::FiniteElement::VALUE &&
+              test_fe.GetRangeType()     == mfem::FiniteElement::SCALAR );
+   }
+
+   inline virtual const char * FiniteElementTypeFailureMessage() const
+   {
+      return "Trial must be H(Div) and the test space must be a "
+             "scalar field";
+   }
+
+   inline virtual int GetIntegrationOrder(const FiniteElement & trial_fe,
+                                          const FiniteElement & test_fe,
+                                          ElementTransformation &Trans)
+   { return trial_fe.GetOrder() + test_fe.GetOrder() + Trans.OrderW() - 1; }
+
+   inline virtual void CalcTrialShape(const FiniteElement & trial_fe,
+                                      ElementTransformation &Trans,
+                                      Vector & shape)
+   { trial_fe.CalcDivShape(Trans.GetIntPoint(), shape); }
+};
+
+/** Class for integrating the bilinear form a(u,v) := -(Q u, div v) in
+    either 2D or 3D where Q is an optional scalar coefficient,
+    u is in L2 or H1, and v is in H(Div).
+ */
+class MixedScalarWeakGradientIntegrator : public MixedScalarIntegrator
+{
+public:
+   MixedScalarWeakGradientIntegrator() {}
+   MixedScalarWeakGradientIntegrator(Coefficient &q) {}
+
+protected:
+   inline virtual bool VerifyFiniteElementTypes(
+      const FiniteElement & trial_fe,
+      const FiniteElement & test_fe) const
+   {
+      return (trial_fe.GetRangeType()   == mfem::FiniteElement::SCALAR &&
+              test_fe.GetDerivType()    == mfem::FiniteElement::DIV &&
+              test_fe.GetDerivMapType() == mfem::FiniteElement::VALUE );
+   }
+
+   inline virtual const char * FiniteElementTypeFailureMessage() const
+   {
+      return "Trial space must be a scalar field "
+             "and the test space must be H(Div)";
+   }
+
+   virtual void CalcTestShape(const FiniteElement & test_fe,
+                              ElementTransformation &Trans,
+                              Vector & shape)
+   {
+      test_fe.CalcDivShape(Trans.GetIntPoint(), shape);
+      shape *= -1.0;
+   }
+};
+
+/** Class for integrating the bilinear form a(u,v) := (Q curl u, v) in 2D
+    where Q is an optional scalar coefficient, u is in H(Curl), and v is in
+    L2 or H1.
+ */
+class MixedScalarCurlIntegrator : public MixedScalarIntegrator
+{
+public:
+   MixedScalarCurlIntegrator() {}
+   MixedScalarCurlIntegrator(Coefficient &q) {}
+
+protected:
+   inline virtual bool VerifyFiniteElementTypes(
+      const FiniteElement & trial_fe,
+      const FiniteElement & test_fe) const
+   {
+      return (trial_fe.GetDim() == 2 && test_fe.GetDim() == 2 &&
+              trial_fe.GetDerivType()    == mfem::FiniteElement::CURL  &&
+              trial_fe.GetDerivMapType() == mfem::FiniteElement::VALUE &&
+              test_fe.GetRangeType()     == mfem::FiniteElement::SCALAR );
+   }
+
+   inline virtual const char * FiniteElementTypeFailureMessage() const
+   {
+      return "Trial must be H(Curl) and the test space must be a "
+             "scalar field";
+   }
+
+   inline virtual int GetIntegrationOrder(const FiniteElement & trial_fe,
+                                          const FiniteElement & test_fe,
+                                          ElementTransformation &Trans)
+   { return trial_fe.GetOrder() + test_fe.GetOrder() + Trans.OrderW() - 1; }
+
+   inline virtual void CalcTrialShape(const FiniteElement & trial_fe,
+                                      ElementTransformation &Trans,
+                                      Vector & shape)
+   {
+      DenseMatrix dshape(shape.GetData(), shape.Size(), 1);
+      trial_fe.CalcCurlShape(Trans.GetIntPoint(), dshape);
+   }
+};
+
+/** Class for integrating the bilinear form a(u,v) := (Q u, curl v) in 2D
+    where Q is an optional scalar coefficient, u is in L2 or H1, and v is
+    in H(Curl).
+ */
+class MixedScalarWeakCurlIntegrator : public MixedScalarIntegrator
+{
+public:
+   MixedScalarWeakCurlIntegrator() {}
+   MixedScalarWeakCurlIntegrator(Coefficient &q) {}
+
+protected:
+   inline virtual bool VerifyFiniteElementTypes(
+      const FiniteElement & trial_fe,
+      const FiniteElement & test_fe) const
+   {
+      return (trial_fe.GetDim() == 2 && test_fe.GetDim() == 2 &&
+              trial_fe.GetRangeType()   == mfem::FiniteElement::SCALAR &&
+              test_fe.GetDerivType()    == mfem::FiniteElement::CURL &&
+              test_fe.GetDerivMapType() == mfem::FiniteElement::VALUE );
+   }
+
+   inline virtual const char * FiniteElementTypeFailureMessage() const
+   {
+      return "Trial space must be a scalar field "
+             "and the test space must be H(Curl)";
+   }
+
+   inline virtual void CalcTestShape(const FiniteElement & test_fe,
+                                     ElementTransformation &Trans,
+                                     Vector & shape)
+   {
+      DenseMatrix dshape(shape.GetData(), shape.Size(), 1);
+      test_fe.CalcCurlShape(Trans.GetIntPoint(), dshape);
+   }
+};
+
+/** Class for integrating the bilinear form a(u,v) := (Q u, v) in
+    either  2D or 3D and where Q is an optional coefficient (of type
+    scalar, matrix, or diagonal matrix) u and v are each in H(Curl) or H(Div).
+ */
+class MixedVectorMassIntegrator : public MixedVectorIntegrator
+{
+public:
+   MixedVectorMassIntegrator() {}
+   MixedVectorMassIntegrator(Coefficient &q)
+      : MixedVectorIntegrator(q) {}
+   MixedVectorMassIntegrator(VectorCoefficient &dq)
+      : MixedVectorIntegrator(dq, true) {}
+   MixedVectorMassIntegrator(MatrixCoefficient &mq)
+      : MixedVectorIntegrator(mq) {}
+};
+
+/** Class for integrating the bilinear form a(u,v) := (V x u, v) in 3D
+    and where V is a vector coefficient u and v are each in H(Curl) or H(Div).
+ */
+class MixedVectorCrossProductIntegrator : public MixedVectorIntegrator
+{
+public:
+   MixedVectorCrossProductIntegrator(VectorCoefficient &vq)
+      : MixedVectorIntegrator(vq, false) {}
+};
+
+/** Class for integrating the bilinear form a(u,v) := (Q grad u, v) in
+    either  2D or 3D and where Q is an optional coefficient (of type
+    scalar, matrix, or diagonal matrix) u is in H1 and v is in H(Curl)
+    or H(Div).
+ */
+class MixedVectorGradientIntegrator : public MixedVectorIntegrator
+{
+public:
+   MixedVectorGradientIntegrator() {}
+   MixedVectorGradientIntegrator(Coefficient &q)
+      : MixedVectorIntegrator(q) {}
+   MixedVectorGradientIntegrator(VectorCoefficient &dq)
+      : MixedVectorIntegrator(dq, true) {}
+   MixedVectorGradientIntegrator(MatrixCoefficient &mq)
+      : MixedVectorIntegrator(mq) {}
+
+protected:
+   inline virtual bool VerifyFiniteElementTypes(
+      const FiniteElement & trial_fe,
+      const FiniteElement & test_fe) const
+   {
+      return (trial_fe.GetDerivType()    == mfem::FiniteElement::GRAD &&
+              trial_fe.GetDerivMapType() == mfem::FiniteElement::H_CURL &&
+              test_fe.GetRangeType()     == mfem::FiniteElement::VECTOR );
+   }
+
+   inline virtual const char * FiniteElementTypeFailureMessage() const
+   {
+      return "Trial spaces must be H1 and the test space must be a "
+             "vector field in 2D or 3D";
+   }
+
+   inline virtual void CalcTrialShape(const FiniteElement & trial_fe,
+                                      ElementTransformation &Trans,
+                                      DenseMatrix & ref_shape,
+                                      DenseMatrix & shape)
+   {
+      const DenseMatrix &J = Trans.Jacobian();
+#ifdef MFEM_THREAD_SAFE
+      DenseMatrix Jinv(J.Width(), J.Height());
+#else
+      Jinv.SetSize(J.Width(), J.Height());
+#endif
+      CalcInverse(J, Jinv);
+      trial_fe.CalcDShape(Trans.GetIntPoint(), ref_shape);
+      Mult(ref_shape, Jinv, shape);
+   }
+
+private:
+   DenseMatrix Jinv;
+};
+
+/** Class for integrating the bilinear form a(u,v) := (Q curl u, v) in 3D
+    and where Q is an optional coefficient (of type scalar, matrix, or
+    diagonal matrix) u is in H(Curl) and v is in H(Div) or H(Curl).
+ */
+class MixedVectorCurlIntegrator : public MixedVectorIntegrator
+{
+public:
+   MixedVectorCurlIntegrator() {}
+   MixedVectorCurlIntegrator(Coefficient &q)
+      : MixedVectorIntegrator(q) {}
+   MixedVectorCurlIntegrator(VectorCoefficient &dq)
+      : MixedVectorIntegrator(dq, true) {}
+   MixedVectorCurlIntegrator(MatrixCoefficient &mq)
+      : MixedVectorIntegrator(mq) {}
+
+protected:
+   inline virtual bool VerifyFiniteElementTypes(
+      const FiniteElement & trial_fe,
+      const FiniteElement & test_fe) const
+   {
+      return (trial_fe.GetDim() == 3 && test_fe.GetDim() == 3 &&
+              trial_fe.GetDerivType()    == mfem::FiniteElement::CURL  &&
+              trial_fe.GetDerivMapType() == mfem::FiniteElement::H_DIV &&
+              test_fe.GetRangeType()     == mfem::FiniteElement::VECTOR );
+   }
+
+   inline virtual const char * FiniteElementTypeFailureMessage() const
+   {
+      return "Trial space must be H(Curl) and the test space must be a "
+             "vector field in 3D";
+   }
+
+   inline virtual void CalcTrialShape(const FiniteElement & trial_fe,
+                                      ElementTransformation &Trans,
+                                      DenseMatrix & ref_shape,
+                                      DenseMatrix & shape)
+   {
+      trial_fe.CalcCurlShape(Trans.GetIntPoint(), ref_shape);
+      MultABt(ref_shape, Trans.Jacobian(), shape);
+      shape *= 1.0 / Trans.Weight();
+   }
+};
+
+/** Class for integrating the bilinear form a(u,v) := (Q u, curl v) in 3D
+    and where Q is an optional coefficient (of type scalar, matrix, or
+    diagonal matrix) u is in H(Div) or H(Curl) and v is in H(Curl).
+ */
+class MixedVectorWeakCurlIntegrator : public MixedVectorIntegrator
+{
+public:
+   MixedVectorWeakCurlIntegrator() {}
+   MixedVectorWeakCurlIntegrator(Coefficient &q)
+      : MixedVectorIntegrator(q) {}
+   MixedVectorWeakCurlIntegrator(VectorCoefficient &dq)
+      : MixedVectorIntegrator(dq, true) {}
+   MixedVectorWeakCurlIntegrator(MatrixCoefficient &mq)
+      : MixedVectorIntegrator(mq) {}
+
+protected:
+   inline virtual bool VerifyFiniteElementTypes(
+      const FiniteElement & trial_fe,
+      const FiniteElement & test_fe) const
+   {
+      return (trial_fe.GetDim() == 3 && test_fe.GetDim() == 3 &&
+              trial_fe.GetRangeType()   == mfem::FiniteElement::VECTOR &&
+              test_fe.GetDerivType()    == mfem::FiniteElement::CURL &&
+              test_fe.GetDerivMapType() == mfem::FiniteElement::H_DIV );
+   }
+
+   inline virtual const char * FiniteElementTypeFailureMessage() const
+   {
+      return "Trial space must be vector field in 3D and the "
+             "test space must be H(Curl)";
+   }
+
+   inline virtual void CalcTestShape(const FiniteElement & test_fe,
+                                     ElementTransformation &Trans,
+                                     DenseMatrix & ref_shape,
+                                     DenseMatrix & shape)
+   {
+      test_fe.CalcCurlShape(Trans.GetIntPoint(), ref_shape);
+      MultABt(ref_shape, Trans.Jacobian(), shape);
+   }
+};
+
+/** Class for integrating the bilinear form a(u,v) := - (Q u, grad v) in
+    either 2D or 3D and where Q is an optional coefficient (of type scalar,
+    matrix, or diagonal matrix) u is in H(Div) or H(Curl) and v is in H1.
+ */
+class MixedVectorWeakDivergenceIntegrator : public MixedVectorIntegrator
+{
+public:
+   MixedVectorWeakDivergenceIntegrator() {}
+   MixedVectorWeakDivergenceIntegrator(Coefficient &q)
+      : MixedVectorIntegrator(q) {}
+   MixedVectorWeakDivergenceIntegrator(VectorCoefficient &dq)
+      : MixedVectorIntegrator(dq, true) {}
+   MixedVectorWeakDivergenceIntegrator(MatrixCoefficient &mq)
+      : MixedVectorIntegrator(mq) {}
+
+protected:
+   inline virtual bool VerifyFiniteElementTypes(
+      const FiniteElement & trial_fe,
+      const FiniteElement & test_fe) const
+   {
+      return (trial_fe.GetRangeType()   == mfem::FiniteElement::VECTOR &&
+              test_fe.GetDerivType()    == mfem::FiniteElement::GRAD &&
+              test_fe.GetDerivMapType() == mfem::FiniteElement::H_CURL );
+   }
+
+   inline virtual const char * FiniteElementTypeFailureMessage() const
+   {
+      return "Trial space must be vector field and the "
+             "test space must be H1";
+   }
+
+   inline virtual void CalcTestShape(const FiniteElement & test_fe,
+                                     ElementTransformation &Trans,
+                                     DenseMatrix & ref_shape,
+                                     DenseMatrix & shape)
+   {
+      const DenseMatrix &J = Trans.Jacobian();
+#ifdef MFEM_THREAD_SAFE
+      DenseMatrix Jinv(J.Width(), J.Height());
+#else
+      Jinv.SetSize(J.Width(), J.Height());
+#endif
+      CalcInverse(J, Jinv); Jinv *= -1.0;
+      test_fe.CalcDShape(Trans.GetIntPoint(), ref_shape);
+      Mult(ref_shape, Jinv, shape);
+   }
+
+private:
+   DenseMatrix Jinv;
+};
+
 /** Class for integrating the bilinear form a(u,v) := (Q grad u, grad v)
     where Q can be a scalar or a matrix coefficient. */
 class DiffusionIntegrator: public BilinearFormIntegrator
