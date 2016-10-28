@@ -160,7 +160,11 @@ void DataCollection::SetMesh(Mesh *new_mesh)
 
 void DataCollection::DeregisterField(const char* name)
 {
-   delete field_map[name];
+    if(own_data)
+    {
+        delete field_map[name];
+    }
+   field_map.erase(name);
 }
 
 void DataCollection::RegisterField(const char* name, GridFunction *gf)
