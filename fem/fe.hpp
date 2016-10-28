@@ -46,7 +46,8 @@ class KnotVector;
 class FiniteElement
 {
 protected:
-   int Dim, GeomType, Dof, Order, FuncSpace, RangeType, MapType;
+   int Dim, GeomType, Dof, Order, FuncSpace, RangeType, MapType,
+       DerivType, DerivMapType;
    IntegrationRule Nodes;
 
 public:
@@ -75,6 +76,20 @@ public:
    */
    enum { VALUE, INTEGRAL, H_DIV, H_CURL };
 
+   /** @brief Enumeration for DerivType: defines which derivative method
+       is implemented.
+
+       Each FiniteElement class implements only one type of derivative.  The
+       value returned by GetDerivType() indicates which derivative method is
+       implemented.
+
+       NONE -> No derivative is implemented
+       GRAD -> CalcDShape
+       DIV  -> CalcDivShape
+       CURL -> CalcCurlShape
+   */
+   enum { NONE, GRAD, DIV, CURL};
+
    /** Construct Finite Element with given
        (D)im      - space dimension,
        (G)eomType - geometry type (of type Geometry::Type),
@@ -101,6 +116,10 @@ public:
    int GetRangeType() const { return RangeType; }
 
    int GetMapType() const { return MapType; }
+
+   int GetDerivType() const { return DerivType; }
+
+   int GetDerivMapType() const { return DerivMapType; }
 
    /** pure virtual function which evaluates the values of all
        shape functions at a given point ip and stores
@@ -246,11 +265,14 @@ protected:
 
 public:
 #ifdef MFEM_THREAD_SAFE
-   NodalFiniteElement(int D, int G, int Do, int O, int F = FunctionSpace::Pk) :
-      ScalarFiniteElement(D, G, Do, O, F) { }
+   NodalFiniteElement(int D, int G, int Do, int O, int DT, int DM,
+                      int F = FunctionSpace::Pk) :
+      ScalarFiniteElement(D, G, Do, O, F) { DerivType = DT; DerivMapType = DM; }
 #else
-   NodalFiniteElement(int D, int G, int Do, int O, int F = FunctionSpace::Pk) :
-      ScalarFiniteElement(D, G, Do, O, F), c_shape(Do) { }
+   NodalFiniteElement(int D, int G, int Do, int O, int DT, int DM,
+                      int F = FunctionSpace::Pk) :
+      ScalarFiniteElement(D, G, Do, O, F), c_shape(Do)
+   { DerivType = DT; DerivMapType = DM; }
 #endif
 
    virtual void GetLocalInterpolation (ElementTransformation &Trans,
@@ -370,14 +392,14 @@ protected:
                               DenseMatrix &I) const;
 
 public:
-   VectorFiniteElement (int D, int G, int Do, int O, int M,
+   VectorFiniteElement (int D, int G, int Do, int O, int M, int DT, int DM,
                         int F = FunctionSpace::Pk) :
 #ifdef MFEM_THREAD_SAFE
       FiniteElement(D, G, Do, O, F)
-   { RangeType = VECTOR; MapType = M; }
+   { RangeType = VECTOR; MapType = M; DerivType = DT; DerivMapType = DM; }
 #else
       FiniteElement(D, G, Do, O, F), Jinv(D), vshape(Do, D)
-   { RangeType = VECTOR; MapType = M; }
+   { RangeType = VECTOR; MapType = M; DerivType = DT; DerivMapType = DM; }
 #endif
 };
 
