@@ -47,11 +47,11 @@ class FiniteElement
 {
 protected:
    int Dim, GeomType, Dof, Order, FuncSpace, RangeType, MapType,
-       DerivType, DerivMapType;
+      DerivType, DerivRangeType, DerivMapType;
    IntegrationRule Nodes;
 
 public:
-   /// Enumeration for RangeType
+   /// Enumeration for RangeType and DerivRangeType
    enum { SCALAR, VECTOR };
 
    /** @brief Enumeration for MapType: defines how reference functions are
@@ -114,6 +114,8 @@ public:
    int Space() const { return FuncSpace; }
 
    int GetRangeType() const { return RangeType; }
+
+   int GetDerivRangeType() const { return DerivRangeType; }
 
    int GetMapType() const { return MapType; }
 
@@ -265,14 +267,15 @@ protected:
 
 public:
 #ifdef MFEM_THREAD_SAFE
-   NodalFiniteElement(int D, int G, int Do, int O, int DT, int DM,
+   NodalFiniteElement(int D, int G, int Do, int O, int DT, int DR, int DM,
                       int F = FunctionSpace::Pk) :
-      ScalarFiniteElement(D, G, Do, O, F) { DerivType = DT; DerivMapType = DM; }
+      ScalarFiniteElement(D, G, Do, O, F)
+   { DerivType = DT; DerivRangeType = DR; DerivMapType = DM; }
 #else
-   NodalFiniteElement(int D, int G, int Do, int O, int DT, int DM,
+   NodalFiniteElement(int D, int G, int Do, int O, int DT, int DR, int DM,
                       int F = FunctionSpace::Pk) :
       ScalarFiniteElement(D, G, Do, O, F), c_shape(Do)
-   { DerivType = DT; DerivMapType = DM; }
+   { DerivType = DT; DerivRangeType = DR; DerivMapType = DM; }
 #endif
 
    virtual void GetLocalInterpolation (ElementTransformation &Trans,
@@ -392,14 +395,17 @@ protected:
                               DenseMatrix &I) const;
 
 public:
-   VectorFiniteElement (int D, int G, int Do, int O, int M, int DT, int DM,
+   VectorFiniteElement (int D, int G, int Do, int O, int M,
+			int DT, int DR, int DM,
                         int F = FunctionSpace::Pk) :
 #ifdef MFEM_THREAD_SAFE
       FiniteElement(D, G, Do, O, F)
-   { RangeType = VECTOR; MapType = M; DerivType = DT; DerivMapType = DM; }
+   { RangeType = VECTOR; MapType = M;
+     DerivType = DT; DerivRangeType = DR; DerivMapType = DM; }
 #else
       FiniteElement(D, G, Do, O, F), Jinv(D), vshape(Do, D)
-   { RangeType = VECTOR; MapType = M; DerivType = DT; DerivMapType = DM; }
+   { RangeType = VECTOR; MapType = M;
+     DerivType = DT; DerivRangeType = DR; DerivMapType = DM; }
 #endif
 };
 
