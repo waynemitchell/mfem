@@ -275,13 +275,10 @@ int main(int argc, char *argv[])
 
    ParFiniteElementSpace *fespace_lor = NULL;
    Operator *P_lor = NULL, *R_lor = NULL;
-   ParMesh *pmesh_lor = NULL;
-   FiniteElementCollection *fec_lor = NULL;
    if (pc_choice == LOR)
    {
       fespace->BuildDofToArrays();
-      fespace_lor = fespace->LowOrderRefinement(sol_lor_p, P_lor, R_lor,
-                                                pmesh_lor, fec_lor);
+      fespace_lor = fespace->LowOrderRefinement(sol_lor_p, P_lor, R_lor);
    }
 
    HYPRE_Int size = fespace->GlobalTrueVSize();
@@ -540,16 +537,16 @@ int main(int argc, char *argv[])
    }
    delete b;
    delete fespace;
-   if (order > 0) { delete fec; }
    if (pc_choice == LOR)
    {
       delete a_hpc_lor;
-      delete fespace_lor;
       delete P_lor;
       delete R_lor;
-      delete fec_lor;
-      delete pmesh_lor;
+      delete fespace_lor->FEColl();
+      delete fespace_lor->GetParMesh();
+      delete fespace_lor;
    }
+   if (order > 0) { delete fec; }
    delete pmesh;
    delete pcg;
 

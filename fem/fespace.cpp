@@ -1078,13 +1078,14 @@ void FiniteElementSpace::BuildLORMesh(int order, Mesh *& mesh_lor) const
    }
 }
 
-FiniteElementSpace* FiniteElementSpace::LowOrderRefinement(
-   int order, Operator *& P, Operator *& R, Mesh *& mesh_lor,
-   FiniteElementCollection *& fec_lor) const
+FiniteElementSpace*
+FiniteElementSpace::LowOrderRefinement(int order, Operator *& P, Operator *& R)
+   const
 {
+   Mesh *mesh_lor = NULL;
    BuildLORMesh(order, mesh_lor);
 
-   fec_lor =
+   FiniteElementCollection *fec_lor =
       new H1_FECollection(1, mesh->Dimension(), BasisType::GaussLobatto);
    FiniteElementSpace *fes_lor =
       new FiniteElementSpace(mesh_lor, fec_lor, GetVDim(), GetOrdering());

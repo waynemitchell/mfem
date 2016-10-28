@@ -158,9 +158,8 @@ public:
    ParFiniteElementSpace(ParMesh *pm, const FiniteElementCollection *f,
                          int dim = 1, int ordering = Ordering::byNODES);
 
-   virtual ParFiniteElementSpace *LowOrderRefinement(
-      int order, Operator *&P, Operator *&R, ParMesh *& pmesh_lor,
-      FiniteElementCollection *& fec_lor) const;
+   virtual ParFiniteElementSpace *LowOrderRefinement(int order, Operator *&P,
+         Operator *&R) const;
 
    MPI_Comm GetComm() { return MyComm; }
    int GetNRanks() { return NRanks; }

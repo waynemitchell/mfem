@@ -2127,8 +2127,7 @@ ParFiniteElementSpace::ParallelDerefinementMatrix(int old_ndofs,
 
 ParFiniteElementSpace*
 ParFiniteElementSpace::LowOrderRefinement(
-   int order, Operator *&P, Operator *&R, ParMesh *& pmesh_lor,
-   FiniteElementCollection *& fec_lor) const
+   int order, Operator *&P, Operator *&R) const
 {
    int dim = mesh->Dimension();
 
@@ -2327,12 +2326,13 @@ ParFiniteElementSpace::LowOrderRefinement(
       group_sface.SetIJ(I_group_sface, J_group_sface);
    }
 
-   pmesh_lor = new ParMesh(*mesh_lor, GetGroupTopo(),
-                           group_svert, group_sedge, group_sface,
-                           svert_lvert_lor, sedge_ledge_lor,
-                           sface_lface_lor);
+   ParMesh *pmesh_lor = new ParMesh(*mesh_lor, GetGroupTopo(),
+                                    group_svert, group_sedge, group_sface,
+                                    svert_lvert_lor, sedge_ledge_lor,
+                                    sface_lface_lor);
    delete mesh_lor;
-   fec_lor = new H1_FECollection(1, dim, BasisType::GaussLobatto);
+   FiniteElementCollection *fec_lor =
+      new H1_FECollection(1, dim, BasisType::GaussLobatto);
    ParFiniteElementSpace *fes_lor =
       new ParFiniteElementSpace(pmesh_lor, fec_lor, GetVDim(), GetOrdering());
    fes_lor->GetMesh()->SetCurvature(order, false, -1, GetOrdering());

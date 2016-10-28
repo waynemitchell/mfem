@@ -137,14 +137,12 @@ public:
 
    /** Create a low order refinement of the mesh and build new FE Space.
        Sets P, R to the inter-space restriction, interpolation Operators.
-       Put the low-order refined mesh in mesh_lor, and the low order
-       FE collection in fec_lor.
 
-       Caller is responsible for deleting P, R, mesh_lor, and fec_lor.
-       This interface is not very clean. */
-   virtual FiniteElementSpace *LowOrderRefinement(
-      int order, Operator *&P, Operator *&R, Mesh *&mesh_lor,
-      FiniteElementCollection *&fec_lor) const;
+       Caller is responsible for deleting P, R. The Mesh and
+       FiniteElementCollection objects should be deleted by using appropriate
+       accessor methods */
+   virtual FiniteElementSpace *LowOrderRefinement(int order, Operator *&P,
+         Operator *&R) const;
 
    /// Returns the mesh
    inline Mesh *GetMesh() const { return mesh; }
