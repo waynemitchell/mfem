@@ -3395,6 +3395,100 @@ void AddMultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt)
 #endif
 }
 
+void AddMultADBt(const DenseMatrix &A, const Vector &D,
+                 const DenseMatrix &B, DenseMatrix &ADBt)
+{
+#ifdef MFEM_DEBUG
+   if (A.Height() != ADBt.Height() || B.Height() != ADBt.Width() ||
+       A.Width() != B.Width() || A.Width() != D.Size())
+   {
+      mfem_error("AddMultADBt(...)");
+   }
+#endif
+
+   const int ah = A.Height();
+   const int bh = B.Height();
+   const int aw = A.Width();
+   const double *ad = A.Data();
+   const double *bd = B.Data();
+   const double *dd = D.GetData();
+   double *cd = ADBt.Data();
+
+   for (int k = 0; k < aw; k++)
+   {
+      double *cp = cd;
+      for (int j = 0; j < bh; j++)
+      {
+         const double dk_bjk = dd[k] * bd[j];
+         for (int i = 0; i < ah; i++)
+         {
+            cp[i] += ad[i] * dk_bjk;
+         }
+         cp += ah;
+      }
+      ad += ah;
+      bd += bh;
+   }
+}
+
+void AddMult_a_ABt(double a, const DenseMatrix &A, const DenseMatrix &B,
+                   DenseMatrix &ABt)
+{
+#ifdef MFEM_DEBUG
+   if (A.Height() != ABt.Height() || B.Height() != ABt.Width() ||
+       A.Width() != B.Width())
+   {
+      mfem_error("AddMult_a_ABt(...)");
+   }
+#endif
+
+#ifdef MFEM_USE_LAPACK
+   static char transa = 'N', transb = 'T';
+   static double alpha = a, beta = 1.0;
+   int m = A.Height(), n = B.Height(), k = A.Width();
+
+   dgemm_(&transa, &transb, &m, &n, &k, &alpha, A.Data(), &m,
+          B.Data(), &n, &beta, ABt.Data(), &m);
+#elif 1
+   const int ah = A.Height();
+   const int bh = B.Height();
+   const int aw = A.Width();
+   const double *ad = A.Data();
+   const double *bd = B.Data();
+   double *cd = ABt.Data();
+
+   for (int k = 0; k < aw; k++)
+   {
+      double *cp = cd;
+      for (int j = 0; j < bh; j++)
+      {
+         const double bjk = bd[j];
+         for (int i = 0; i < ah; i++)
+         {
+            cp[i] += a * ad[i] * bjk;
+         }
+         cp += ah;
+      }
+      ad += ah;
+      bd += bh;
+   }
+#else
+   int i, j, k;
+   double d;
+
+   for (i = 0; i < A.Height(); i++)
+      for (j = 0; j < B.Height(); j++)
+      {
+         d = 0.0;
+         for (k = 0; k < A.Width(); k++)
+         {
+            d += A(i, k) * B(j, k);
+         }
+         ABt(i, j) += a * d;
+      }
+#endif
+}
+
 void MultAtB(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &AtB)
 {
 #ifdef MFEM_DEBUG
@@ -3551,7 +3645,7 @@ void AddMult_a_VWt(const double a, const Vector &v, const Vector &w,
 #ifdef MFEM_DEBUG
    if (VWt.Height() != m || VWt.Width() != n)
    {
-      mfem_error("AddMultVWt(...)");
+      mfem_error("AddMult_a_VWt(...)");
    }
 #endif
 
