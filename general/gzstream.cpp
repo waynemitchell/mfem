@@ -28,6 +28,7 @@
 
 #include "../config/config.hpp"
 #include "gzstream.hpp"
+#include <fstream>
 #include <cstring>
 
 namespace mfem
@@ -187,6 +188,16 @@ void gzstreambase::close()
 
 #endif // MFEM_USE_GZSTREAM
 
+
+// static method
+bool ifgzstream::maybe_gz(const char *fn)
+{
+   unsigned short byt = 0x0000;
+   std::ifstream strm(fn,std::ios_base::binary|std::ios_base::in);
+   strm.read(reinterpret_cast<char*>(&byt),2);
+   if (byt==0x1f8b||byt==0x8b1f) { return true; }
+   return false;
+}
 
 ifgzstream::ifgzstream(char const *name, char const *mode)
    : std::istream(0)

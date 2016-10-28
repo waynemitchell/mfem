@@ -544,7 +544,6 @@
 
 // standard C++ with new header file names and std:: namespace
 #include <iostream>
-#include <fstream>
 #ifdef MFEM_USE_GZSTREAM
 #include <zlib.h>
 #endif
@@ -583,7 +582,7 @@ public:
    gzstreambuf* close();
    ~gzstreambuf() { close(); }
 
-   virtual int     overflow( int c = EOF);
+   virtual int     overflow( int c = traits_type::eof());
    virtual int     underflow();
    virtual int     sync();
 };
@@ -631,22 +630,21 @@ public:
 class ifgzstream : public std::istream
 {
 public:
-   /** Simple factory to create ifstream or igzstream depending on whether
-       named file appears to be a gzip'd compressed file.
+   /** Simple replacement for class @c std::ifstream that automatically detects
+       compressed files in gzip format and transparently uncompresses them.
+       Internally, the classes @c std::filebuf or @ref gzstreambuf are used to
+       handle the file I/O. Reading compressed files requires the MFEM
+       build-time option MFEM_USE_GZSTREAM.
+       @note For uncompressed files, the @a mode option is ignored and the file
+       is opened with @c std::ios_base::in mode.
+       @see @ref ofgzstream,
        https://refspecs.linuxbase.org/LSB_3.0.0/LSB-PDA/LSB-PDA/zlib-gzopen-1.html. */
    ifgzstream(char const *name, char const *mode = "rb");
    ~ifgzstream() { delete buf; }
 
 protected:
    std::streambuf *buf;
-   static bool maybe_gz(const char *fn)
-   {
-      unsigned short byt = 0x0000;
-      std::ifstream strm(fn,std::ios_base::binary|std::ios_base::in);
-      strm.read(reinterpret_cast<char*>(&byt),2);
-      if (byt==0x1f8b||byt==0x8b1f) { return true; }
-      return false;
-   }
+   static bool maybe_gz(const char *fn);
 };
 
 #ifdef MFEM_USE_GZSTREAM
@@ -676,12 +674,18 @@ class ofgzstream : public std::ostream
 public:
    static char const *default_mode; // defined in gzstream.cpp
 
-   /** Simple factory to create ofstream or ogzstream depending on mode.
-       The mode chars are as in gzopen() with additional caveat that presence of a 'z'
-       character indicates desire to compress (e.g. use ogzstream) and absence
-       indicates a desire to use std::ofstream.
-       https://refspecs.linuxbase.org/LSB_3.0.0/LSB-PDA/LSB-PDA/zlib-gzopen-1.html.
-       Default mode is "zwb6". */
+   /** Simple replacement for class @c std::ofstream that can transparently
+       create files compressed in gzip format (when @a mode contains the
+       character @c 'z') or regular uncompressed files. Internally, the classes
+       @c std::filebuf or @ref gzstreambuf are used to handle the file I/O.
+       The mode chars are as in gzopen() with additional caveat that presence of
+       a @c 'z' character indicates desire to compress. Default mode is "zwb6".
+       Writing compressed files requires the MFEM build-time option
+       MFEM_USE_GZSTREAM.
+       @note For uncompressed files, the @a mode option is ignored and the file
+       is opened with @c std::ios_base::out mode.
+       @see @ref ifgzstream,
+       https://refspecs.linuxbase.org/LSB_3.0.0/LSB-PDA/LSB-PDA/zlib-gzopen-1.html. */
    ofgzstream(char const *name, char const *mode = default_mode);
 
    ~ofgzstream() { delete buf; }
