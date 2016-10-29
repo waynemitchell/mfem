@@ -137,32 +137,7 @@ void FiniteElement::ProjectDiv(
    mfem_error("FiniteElement::ProjectDiv(...) is not implemented for "
               "this element!");
 }
-/*
-void NodalFiniteElement::CalcShape(ElementTransformation &Trans,
-          Vector &shape) const
-{
- CalcShape(Trans.GetIntPoint(), shape);
-}
 
-void NodalFiniteElement::CalcDShape(ElementTransformation &Trans,
-           DenseMatrix &dshape) const
-{
- const DenseMatrix &J = Trans.Jacobian();
-
-#ifdef MFEM_THREAD_SAFE
- DenseMatrix d_shape(Dof, Dim);
- DenseMatrix Jinv(J.Width(), J.Height());
-#else
- Jinv.SetSize(J.Width(), J.Height());
-#endif
-
- CalcInverse(J, Jinv);
-
- CalcDShape(Trans.GetIntPoint(), d_shape);
-
- Mult(d_shape, Jinv, dshape);
-}
-*/
 void ScalarFiniteElement::CalcShape(ElementTransformation &Trans,
                                     Vector &shape) const
 {
@@ -10954,6 +10929,30 @@ void ND_SegmentElement::CalcVShape(const IntegrationPoint &ip,
    obasis1d.Eval(ip.x, vshape);
 }
 
+void NURBSFiniteElement::CalcShape(ElementTransformation &Trans,
+                                   Vector &shape) const
+{
+   CalcShape(Trans.GetIntPoint(), shape);
+}
+
+void NURBSFiniteElement::CalcDShape(ElementTransformation &Trans,
+                                    DenseMatrix &dshape) const
+{
+   const DenseMatrix &J = Trans.Jacobian();
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix d_shape(Dof, Dim);
+   DenseMatrix Jinv(J.Width(), J.Height());
+#else
+   Jinv.SetSize(J.Width(), J.Height());
+#endif
+
+   CalcInverse(J, Jinv);
+
+   CalcDShape(Trans.GetIntPoint(), d_shape);
+
+   Mult(d_shape, Jinv, dshape);
+}
 
 void NURBS1DFiniteElement::CalcShape(const IntegrationPoint &ip,
                                      Vector &shape) const

@@ -1245,7 +1245,7 @@ public:
                               DenseMatrix &curl_shape) const;
    virtual void CalcCurlShape(ElementTransformation &Trans,
                               DenseMatrix &curl_shape) const
-   { CalcCurlShape_ND(Trans, curlshape); }
+   { CalcCurlShape_ND(Trans, curl_shape); }
    virtual void GetLocalInterpolation (ElementTransformation &Trans,
                                        DenseMatrix &I) const;
    using FiniteElement::Project;
@@ -1270,7 +1270,7 @@ public:
                               DenseMatrix &curl_shape) const;
    virtual void CalcCurlShape(ElementTransformation &Trans,
                               DenseMatrix &curl_shape) const
-   { CalcCurlShape_ND(Trans, curlshape); }
+   { CalcCurlShape_ND(Trans, curl_shape); }
    virtual void GetLocalInterpolation (ElementTransformation &Trans,
                                        DenseMatrix &I) const;
    using FiniteElement::Project;
@@ -2096,7 +2096,7 @@ public:
                               DenseMatrix &curl_shape) const;
    virtual void CalcCurlShape(ElementTransformation &Trans,
                               DenseMatrix &curl_shape) const
-   { CalcCurlShape_ND(Trans, curlshape); }
+   { CalcCurlShape_ND(Trans, curl_shape); }
 
    virtual void GetLocalInterpolation(ElementTransformation &Trans,
                                       DenseMatrix &I) const
@@ -2149,7 +2149,7 @@ public:
                               DenseMatrix &curl_shape) const;
    virtual void CalcCurlShape(ElementTransformation &Trans,
                               DenseMatrix &curl_shape) const
-   { CalcCurlShape_ND(Trans, curlshape); }
+   { CalcCurlShape_ND(Trans, curl_shape); }
    virtual void GetLocalInterpolation(ElementTransformation &Trans,
                                       DenseMatrix &I) const
    { LocalInterpolation_ND(tk, dof2tk, Trans, I); }
@@ -2191,7 +2191,7 @@ public:
                               DenseMatrix &curl_shape) const;
    virtual void CalcCurlShape(ElementTransformation &Trans,
                               DenseMatrix &curl_shape) const
-   { CalcCurlShape_ND(Trans, curlshape); }
+   { CalcCurlShape_ND(Trans, curl_shape); }
    virtual void GetLocalInterpolation(ElementTransformation &Trans,
                                       DenseMatrix &I) const
    { LocalInterpolation_ND(tk, dof2tk, Trans, I); }
@@ -2238,7 +2238,7 @@ public:
                               DenseMatrix &curl_shape) const;
    virtual void CalcCurlShape(ElementTransformation &Trans,
                               DenseMatrix &curl_shape) const
-   { CalcCurlShape_ND(Trans, curlshape); }
+   { CalcCurlShape_ND(Trans, curl_shape); }
    virtual void GetLocalInterpolation(ElementTransformation &Trans,
                                       DenseMatrix &I) const
    { LocalInterpolation_ND(tk, dof2tk, Trans, I); }
@@ -2301,9 +2301,19 @@ protected:
    mutable int *ijk, patch, elem;
    mutable Vector weights;
 
+#ifndef MFEM_THREAD_SAFE
+   mutable DenseMatrix d_shape;
+   mutable DenseMatrix Jinv;
+#endif
+
 public:
+#ifdef MFEM_THREAD_SAFE
    NURBSFiniteElement(int D, int G, int Do, int O, int F)
       : FiniteElement(D, G, Do, O, F)
+#else
+   NURBSFiniteElement(int D, int G, int Do, int O, int F)
+      : FiniteElement(D, G, Do, O, F), d_shape(Do, D)
+#endif
    {
       ijk = NULL;
       patch = elem = -1;
@@ -2311,6 +2321,15 @@ public:
       weights.SetSize(Dof);
       weights = 1.0;
    }
+
+   virtual void CalcShape(const IntegrationPoint &ip,
+                          Vector &shape) const = 0;
+   virtual void CalcShape(ElementTransformation &Trans,
+                          Vector &shape) const;
+   virtual void CalcDShape(const IntegrationPoint &ip,
+                           DenseMatrix &dshape) const = 0;
+   virtual void CalcDShape(ElementTransformation &Trans,
+                           DenseMatrix &dshape) const;
 
    void                 Reset      ()         const { patch = elem = -1; }
    void                 SetIJK     (int *IJK) const { ijk = IJK; }
