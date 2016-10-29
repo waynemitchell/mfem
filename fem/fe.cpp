@@ -33,28 +33,42 @@ FiniteElement::FiniteElement(int D, int G, int Do, int O, int F)
 void FiniteElement::CalcVShape (
    const IntegrationPoint &ip, DenseMatrix &shape) const
 {
-   mfem_error ("FiniteElement::CalcVShape (...)\n"
+   mfem_error ("FiniteElement::CalcVShape (ip, ...)\n"
                "   is not implemented for this class!");
 }
 
 void FiniteElement::CalcVShape (
    ElementTransformation &Trans, DenseMatrix &shape) const
 {
-   mfem_error ("FiniteElement::CalcVShape 2 (...)\n"
+   mfem_error ("FiniteElement::CalcVShape (trans, ...)\n"
                "   is not implemented for this class!");
 }
 
 void FiniteElement::CalcDivShape (
    const IntegrationPoint &ip, Vector &divshape) const
 {
-   mfem_error ("FiniteElement::CalcDivShape (...)\n"
+   mfem_error ("FiniteElement::CalcDivShape (ip, ...)\n"
+               "   is not implemented for this class!");
+}
+
+void FiniteElement::CalcDivShape (
+   ElementTransformation &Trans, Vector &divshape) const
+{
+   mfem_error ("FiniteElement::CalcDivShape (trans, ...)\n"
                "   is not implemented for this class!");
 }
 
 void FiniteElement::CalcCurlShape(const IntegrationPoint &ip,
                                   DenseMatrix &curl_shape) const
 {
-   mfem_error ("FiniteElement::CalcCurlShape (...)\n"
+   mfem_error ("FiniteElement::CalcCurlShape (ip, ...)\n"
+               "   is not implemented for this class!");
+}
+
+void FiniteElement::CalcCurlShape(ElementTransformation &Trans,
+                                  DenseMatrix &curl_shape) const
+{
+   mfem_error ("FiniteElement::CalcCurlShape (trans, ...)\n"
                "   is not implemented for this class!");
 }
 
@@ -123,7 +137,56 @@ void FiniteElement::ProjectDiv(
    mfem_error("FiniteElement::ProjectDiv(...) is not implemented for "
               "this element!");
 }
+/*
+void NodalFiniteElement::CalcShape(ElementTransformation &Trans,
+          Vector &shape) const
+{
+ CalcShape(Trans.GetIntPoint(), shape);
+}
 
+void NodalFiniteElement::CalcDShape(ElementTransformation &Trans,
+           DenseMatrix &dshape) const
+{
+ const DenseMatrix &J = Trans.Jacobian();
+
+#ifdef MFEM_THREAD_SAFE
+ DenseMatrix d_shape(Dof, Dim);
+ DenseMatrix Jinv(J.Width(), J.Height());
+#else
+ Jinv.SetSize(J.Width(), J.Height());
+#endif
+
+ CalcInverse(J, Jinv);
+
+ CalcDShape(Trans.GetIntPoint(), d_shape);
+
+ Mult(d_shape, Jinv, dshape);
+}
+*/
+void ScalarFiniteElement::CalcShape(ElementTransformation &Trans,
+                                    Vector &shape) const
+{
+   CalcShape(Trans.GetIntPoint(), shape);
+}
+
+void ScalarFiniteElement::CalcDShape(ElementTransformation &Trans,
+                                     DenseMatrix &dshape) const
+{
+   const DenseMatrix &J = Trans.Jacobian();
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix d_shape(Dof, Dim);
+   DenseMatrix Jinv(J.Width(), J.Height());
+#else
+   Jinv.SetSize(J.Width(), J.Height());
+#endif
+
+   CalcInverse(J, Jinv);
+
+   CalcDShape(Trans.GetIntPoint(), d_shape);
+
+   Mult(d_shape, Jinv, dshape);
+}
 
 void NodalFiniteElement::NodalLocalInterpolation (
    ElementTransformation &Trans, DenseMatrix &I,
@@ -404,8 +467,22 @@ void VectorFiniteElement::CalcShape (
                "   VectorFiniteElements!");
 }
 
+void VectorFiniteElement::CalcShape (
+   ElementTransformation &Trans, Vector &shape ) const
+{
+   mfem_error ("Error: Cannot use scalar CalcShape(...) function with\n"
+               "   VectorFiniteElements!");
+}
+
 void VectorFiniteElement::CalcDShape (
    const IntegrationPoint &ip, DenseMatrix &dshape ) const
+{
+   mfem_error ("Error: Cannot use scalar CalcDShape(...) function with\n"
+               "   VectorFiniteElements!");
+}
+
+void VectorFiniteElement::CalcDShape (
+   ElementTransformation &Trans, DenseMatrix &dshape ) const
 {
    mfem_error ("Error: Cannot use scalar CalcDShape(...) function with\n"
                "   VectorFiniteElements!");
@@ -441,6 +518,43 @@ void VectorFiniteElement::CalcVShape_ND (
    CalcVShape(Trans.GetIntPoint(), vshape);
 
    Mult(vshape, Jinv, shape);
+}
+
+void VectorFiniteElement::CalcDivShape_RT (
+   ElementTransformation &Trans, Vector &div_shape) const
+{
+   CalcDivShape(Trans.GetIntPoint(), div_shape);
+
+   if ( DerivMapType == INTEGRAL )
+   {
+      div_shape *= (1.0 / Trans.Weight());
+   }
+}
+
+void VectorFiniteElement::CalcCurlShape_ND (
+   ElementTransformation &Trans, DenseMatrix &curl_shape) const
+{
+   if ( DerivMapType == H_DIV )
+   {
+#ifdef MFEM_THREAD_SAFE
+      DenseMatrix vshape(Dof, Dim);
+#endif
+      CalcCurlShape(Trans.GetIntPoint(), vshape);
+
+      MultABt(vshape, Trans.Jacobian(), curl_shape);
+
+      curl_shape *= (1.0 / Trans.Weight());
+   }
+   else if ( DerivMapType == INTEGRAL )
+   {
+      CalcCurlShape(Trans.GetIntPoint(), curl_shape);
+
+      curl_shape *= (1.0 / Trans.Weight());
+   }
+   else
+   {
+      CalcCurlShape(Trans.GetIntPoint(), curl_shape);
+   }
 }
 
 void VectorFiniteElement::Project_RT(
@@ -779,6 +893,12 @@ void PointFiniteElement::CalcDShape(const IntegrationPoint &ip,
    // doesn't make sense
 }
 
+void PointFiniteElement::CalcDShape(ElementTransformation &Trans,
+                                    DenseMatrix &dshape) const
+{
+   // doesn't make sense
+}
+
 Linear1DFiniteElement::Linear1DFiniteElement()
    : NodalFiniteElement(1, Geometry::SEGMENT, 2, 1, GRAD, SCALAR, VALUE)
 {
@@ -858,7 +978,26 @@ void BiLinear2DFiniteElement::CalcDShape(const IntegrationPoint &ip,
    dshape(2,0) =  ip.y ;     dshape(2,1) = ip.x ;
    dshape(3,0) = -ip.y ;     dshape(3,1) = 1. - ip.x ;
 }
+/*
+void BiLinear2DFiniteElement::CalcDShape(ElementTransformation &Trans,
+           DenseMatrix &dshape) const
+{
+ const DenseMatrix &J = Trans.Jacobian();
 
+#ifdef MFEM_THREAD_SAFE
+ DenseMatrix d_shape(Dof, Dim);
+ DenseMatrix Jinv(J.Width(), J.Height());
+#else
+ Jinv.SetSize(J.Width(), J.Height());
+#endif
+
+ CalcInverse(J, Jinv);
+
+ CalcDShape(Trans.GetIntPoint(), d_shape);
+
+ Mult(d_shape, Jinv, dshape);
+}
+*/
 void BiLinear2DFiniteElement::CalcHessian(
    const IntegrationPoint &ip, DenseMatrix &h) const
 {
@@ -1018,9 +1157,8 @@ void Quad1DFiniteElement::CalcDShape(const IntegrationPoint &ip,
    dshape(2,0) = 4. - 8. * x;
 }
 
-
 QuadPos1DFiniteElement::QuadPos1DFiniteElement()
-   : FiniteElement(1, Geometry::SEGMENT, 3, 2)
+   : PositiveFiniteElement(1, Geometry::SEGMENT, 3, 2)
 {
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(1).x = 1.0;
@@ -1326,7 +1464,7 @@ void BiQuad2DFiniteElement::ProjectDelta(int vertex, Vector &dofs) const
 }
 
 BiQuadPos2DFiniteElement::BiQuadPos2DFiniteElement()
-   : FiniteElement(2, Geometry::SQUARE, 9, 2, FunctionSpace::Qk)
+   : PositiveFiniteElement(2, Geometry::SQUARE, 9, 2, FunctionSpace::Qk)
 {
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(0).y = 0.0;
@@ -2161,7 +2299,7 @@ void P0QuadFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
 
 Linear3DFiniteElement::Linear3DFiniteElement()
-  : NodalFiniteElement(3, Geometry::TETRAHEDRON, 4, 1, GRAD, VECTOR, H_CURL)
+   : NodalFiniteElement(3, Geometry::TETRAHEDRON, 4, 1, GRAD, VECTOR, H_CURL)
 {
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(0).y = 0.0;
@@ -3081,7 +3219,7 @@ const double RT2TriangleFiniteElement::M[15][15] =
 
 RT2TriangleFiniteElement::RT2TriangleFiniteElement()
    : VectorFiniteElement(2, Geometry::TRIANGLE, 15, 3, H_DIV,
-			 DIV, SCALAR, VALUE)
+                         DIV, SCALAR, VALUE)
 {
    const double p = 0.11270166537925831148;
 
@@ -3537,7 +3675,7 @@ void P2SegmentFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
 Lagrange1DFiniteElement::Lagrange1DFiniteElement(int degree)
    : NodalFiniteElement(1, Geometry::SEGMENT, degree+1, degree,
-			GRAD, SCALAR, VALUE)
+                        GRAD, SCALAR, VALUE)
 {
    int i, m = degree;
 
@@ -3672,6 +3810,11 @@ void Lagrange1DFiniteElement::CalcDShape(const IntegrationPoint &ip,
       }
 }
 
+void Lagrange1DFiniteElement::CalcDShape(ElementTransformation &Trans,
+                                         DenseMatrix &dshape) const
+{
+   CalcDShape(Trans.GetIntPoint(), dshape);
+}
 
 P1TetNonConfFiniteElement::P1TetNonConfFiniteElement()
    : NodalFiniteElement(3, Geometry::TETRAHEDRON, 4, 1, GRAD, SCALAR, H_CURL)
@@ -5115,7 +5258,7 @@ void Nedelec1HexFiniteElement::Project (
 
 Nedelec1TetFiniteElement::Nedelec1TetFiniteElement()
    : VectorFiniteElement(3, Geometry::TETRAHEDRON, 6, 1, H_CURL,
-			 CURL, VECTOR, H_DIV)
+                         CURL, VECTOR, H_DIV)
 {
    // not real nodes ...
    Nodes.IntPoint(0).x = 0.5;
@@ -5826,7 +5969,7 @@ void RT1HexFiniteElement::Project (
 
 RT0TetFiniteElement::RT0TetFiniteElement()
    : VectorFiniteElement(3, Geometry::TETRAHEDRON, 4, 1, H_DIV,
-			 DIV, SCALAR, VALUE)
+                         DIV, SCALAR, VALUE)
 {
    // not real nodes ...
    Nodes.IntPoint(0).x = 0.33333333333333333333;
