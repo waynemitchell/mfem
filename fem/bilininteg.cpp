@@ -188,7 +188,6 @@ void MixedVectorIntegrator::AssembleElementMatrix2(
    DenseMatrix test_shape(test_nd, spaceDim);
    DenseMatrix trial_shape(trial_nd, spaceDim);
    DenseMatrix test_shape_tmp(test_nd, spaceDim);
-   DenseMatrix trial_shape_tmp(trial_nd, spaceDim);
 #else
    V.SetSize(VQ ? VQ->GetVDim() : 0);
    D.SetSize(DQ ? DQ->GetVDim() : 0);
@@ -196,7 +195,6 @@ void MixedVectorIntegrator::AssembleElementMatrix2(
    test_shape.SetSize(test_nd, spaceDim);
    trial_shape.SetSize(trial_nd, spaceDim);
    test_shape_tmp.SetSize(test_nd, spaceDim);
-   trial_shape_tmp.SetSize(trial_nd, spaceDim);
 #endif
 
    elmat.SetSize(test_nd, trial_nd);
@@ -214,8 +212,8 @@ void MixedVectorIntegrator::AssembleElementMatrix2(
       const IntegrationPoint &ip = ir->IntPoint(i);
       Trans.SetIntPoint(&ip);
 
-      this->CalcTestShape(test_fe, Trans, test_shape_tmp, test_shape);
-      this->CalcTrialShape(trial_fe, Trans, trial_shape_tmp, trial_shape);
+      this->CalcTestShape(test_fe, Trans, test_shape);
+      this->CalcTrialShape(trial_fe, Trans, trial_shape);
 
       double w = Trans.Weight() * ip.weight;
 

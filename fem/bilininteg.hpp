@@ -203,12 +203,12 @@ protected:
    inline virtual void CalcTestShape(const FiniteElement & test_fe,
                                      ElementTransformation &Trans,
                                      Vector & shape)
-   { test_fe.CalcShape(Trans.GetIntPoint(), shape); }
+   { test_fe.CalcShape(Trans, shape); }
 
    inline virtual void CalcTrialShape(const FiniteElement & trial_fe,
                                       ElementTransformation &Trans,
                                       Vector & shape)
-   { trial_fe.CalcShape(Trans.GetIntPoint(), shape); }
+   { trial_fe.CalcShape(Trans, shape); }
 
 private:
 
@@ -259,15 +259,13 @@ protected:
 
    inline virtual void CalcTestShape(const FiniteElement & test_fe,
                                      ElementTransformation &Trans,
-                                     DenseMatrix & ref_shape,
                                      DenseMatrix & shape)
-   { test_fe.CalcVShape(Trans.GetIntPoint(), shape); }
+   { test_fe.CalcVShape(Trans, shape); }
 
    inline virtual void CalcTrialShape(const FiniteElement & trial_fe,
                                       ElementTransformation &Trans,
-                                      DenseMatrix & ref_shape,
                                       DenseMatrix & shape)
-   { trial_fe.CalcVShape(Trans.GetIntPoint(), shape); }
+   { trial_fe.CalcVShape(Trans, shape); }
 
 private:
 
@@ -283,7 +281,6 @@ private:
    DenseMatrix test_shape;
    DenseMatrix trial_shape;
    DenseMatrix test_shape_tmp;
-   DenseMatrix trial_shape_tmp;
 #endif
 
 };
@@ -315,9 +312,8 @@ protected:
       const FiniteElement & test_fe) const
    {
       return (trial_fe.GetDim() == 1 && test_fe.GetDim() == 1 &&
-              trial_fe.GetDerivType()    == mfem::FiniteElement::GRAD  &&
-              trial_fe.GetDerivMapType() == mfem::FiniteElement::VALUE &&
-              test_fe.GetRangeType()     == mfem::FiniteElement::SCALAR );
+              trial_fe.GetDerivType() == mfem::FiniteElement::GRAD  &&
+              test_fe.GetRangeType()  == mfem::FiniteElement::SCALAR );
    }
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
@@ -332,8 +328,7 @@ protected:
                                       Vector & shape)
    {
       DenseMatrix dshape(shape.GetData(), shape.Size(), 1);
-      trial_fe.CalcDShape(Trans.GetIntPoint(), dshape);
-      shape /= Trans.Weight();
+      trial_fe.CalcDShape(Trans, dshape);
    }
 };
 
@@ -353,9 +348,8 @@ protected:
       const FiniteElement & test_fe) const
    {
       return (trial_fe.GetDim() == 1 && test_fe.GetDim() == 1 &&
-              trial_fe.GetRangeType()   == mfem::FiniteElement::SCALAR &&
-              test_fe.GetDerivType()    == mfem::FiniteElement::GRAD &&
-              test_fe.GetDerivMapType() == mfem::FiniteElement::VALUE );
+              trial_fe.GetRangeType() == mfem::FiniteElement::SCALAR &&
+              test_fe.GetDerivType()  == mfem::FiniteElement::GRAD );
    }
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
@@ -370,8 +364,7 @@ protected:
                                      Vector & shape)
    {
       DenseMatrix dshape(shape.GetData(), shape.Size(), 1);
-      test_fe.CalcDShape(Trans.GetIntPoint(), dshape);
-      shape *= -1.0 / Trans.Weight();
+      test_fe.CalcDShape(Trans, dshape);
    }
 };
 
@@ -390,9 +383,8 @@ protected:
       const FiniteElement & trial_fe,
       const FiniteElement & test_fe) const
    {
-      return (trial_fe.GetDerivType()    == mfem::FiniteElement::DIV  &&
-              trial_fe.GetDerivMapType() == mfem::FiniteElement::VALUE &&
-              test_fe.GetRangeType()     == mfem::FiniteElement::SCALAR );
+      return (trial_fe.GetDerivType() == mfem::FiniteElement::DIV  &&
+              test_fe.GetRangeType()  == mfem::FiniteElement::SCALAR );
    }
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
@@ -409,7 +401,7 @@ protected:
    inline virtual void CalcTrialShape(const FiniteElement & trial_fe,
                                       ElementTransformation &Trans,
                                       Vector & shape)
-   { trial_fe.CalcDivShape(Trans.GetIntPoint(), shape); }
+   { trial_fe.CalcDivShape(Trans, shape); }
 };
 
 /** Class for integrating the bilinear form a(u,v) := -(Q u, div v) in
@@ -427,9 +419,8 @@ protected:
       const FiniteElement & trial_fe,
       const FiniteElement & test_fe) const
    {
-      return (trial_fe.GetRangeType()   == mfem::FiniteElement::SCALAR &&
-              test_fe.GetDerivType()    == mfem::FiniteElement::DIV &&
-              test_fe.GetDerivMapType() == mfem::FiniteElement::VALUE );
+      return (trial_fe.GetRangeType() == mfem::FiniteElement::SCALAR &&
+              test_fe.GetDerivType()  == mfem::FiniteElement::DIV );
    }
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
@@ -442,7 +433,7 @@ protected:
                               ElementTransformation &Trans,
                               Vector & shape)
    {
-      test_fe.CalcDivShape(Trans.GetIntPoint(), shape);
+      test_fe.CalcDivShape(Trans, shape);
       shape *= -1.0;
    }
 };
@@ -463,9 +454,8 @@ protected:
       const FiniteElement & test_fe) const
    {
       return (trial_fe.GetDim() == 2 && test_fe.GetDim() == 2 &&
-              trial_fe.GetDerivType()    == mfem::FiniteElement::CURL  &&
-              trial_fe.GetDerivMapType() == mfem::FiniteElement::VALUE &&
-              test_fe.GetRangeType()     == mfem::FiniteElement::SCALAR );
+              trial_fe.GetDerivType() == mfem::FiniteElement::CURL  &&
+              test_fe.GetRangeType()  == mfem::FiniteElement::SCALAR );
    }
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
@@ -484,7 +474,7 @@ protected:
                                       Vector & shape)
    {
       DenseMatrix dshape(shape.GetData(), shape.Size(), 1);
-      trial_fe.CalcCurlShape(Trans.GetIntPoint(), dshape);
+      trial_fe.CalcCurlShape(Trans, dshape);
    }
 };
 
@@ -504,9 +494,8 @@ protected:
       const FiniteElement & test_fe) const
    {
       return (trial_fe.GetDim() == 2 && test_fe.GetDim() == 2 &&
-              trial_fe.GetRangeType()   == mfem::FiniteElement::SCALAR &&
-              test_fe.GetDerivType()    == mfem::FiniteElement::CURL &&
-              test_fe.GetDerivMapType() == mfem::FiniteElement::VALUE );
+              trial_fe.GetRangeType() == mfem::FiniteElement::SCALAR &&
+              test_fe.GetDerivType()  == mfem::FiniteElement::CURL );
    }
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
@@ -520,7 +509,7 @@ protected:
                                      Vector & shape)
    {
       DenseMatrix dshape(shape.GetData(), shape.Size(), 1);
-      test_fe.CalcCurlShape(Trans.GetIntPoint(), dshape);
+      test_fe.CalcCurlShape(Trans, dshape);
    }
 };
 
@@ -571,9 +560,8 @@ protected:
       const FiniteElement & trial_fe,
       const FiniteElement & test_fe) const
    {
-      return (trial_fe.GetDerivType()    == mfem::FiniteElement::GRAD &&
-              trial_fe.GetDerivMapType() == mfem::FiniteElement::H_CURL &&
-              test_fe.GetRangeType()     == mfem::FiniteElement::VECTOR );
+      return (trial_fe.GetDerivType() == mfem::FiniteElement::GRAD &&
+              test_fe.GetRangeType()  == mfem::FiniteElement::VECTOR );
    }
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
@@ -584,18 +572,9 @@ protected:
 
    inline virtual void CalcTrialShape(const FiniteElement & trial_fe,
                                       ElementTransformation &Trans,
-                                      DenseMatrix & ref_shape,
                                       DenseMatrix & shape)
    {
-      const DenseMatrix &J = Trans.Jacobian();
-#ifdef MFEM_THREAD_SAFE
-      DenseMatrix Jinv(J.Width(), J.Height());
-#else
-      Jinv.SetSize(J.Width(), J.Height());
-#endif
-      CalcInverse(J, Jinv);
-      trial_fe.CalcDShape(Trans.GetIntPoint(), ref_shape);
-      Mult(ref_shape, Jinv, shape);
+      trial_fe.CalcDShape(Trans, shape);
    }
 
 private:
@@ -623,9 +602,8 @@ protected:
       const FiniteElement & test_fe) const
    {
       return (trial_fe.GetDim() == 3 && test_fe.GetDim() == 3 &&
-              trial_fe.GetDerivType()    == mfem::FiniteElement::CURL  &&
-              trial_fe.GetDerivMapType() == mfem::FiniteElement::H_DIV &&
-              test_fe.GetRangeType()     == mfem::FiniteElement::VECTOR );
+              trial_fe.GetDerivType() == mfem::FiniteElement::CURL  &&
+              test_fe.GetRangeType()  == mfem::FiniteElement::VECTOR );
    }
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
@@ -636,12 +614,9 @@ protected:
 
    inline virtual void CalcTrialShape(const FiniteElement & trial_fe,
                                       ElementTransformation &Trans,
-                                      DenseMatrix & ref_shape,
                                       DenseMatrix & shape)
    {
-      trial_fe.CalcCurlShape(Trans.GetIntPoint(), ref_shape);
-      MultABt(ref_shape, Trans.Jacobian(), shape);
-      shape *= 1.0 / Trans.Weight();
+      trial_fe.CalcCurlShape(Trans, shape);
    }
 };
 
@@ -666,9 +641,8 @@ protected:
       const FiniteElement & test_fe) const
    {
       return (trial_fe.GetDim() == 3 && test_fe.GetDim() == 3 &&
-              trial_fe.GetRangeType()   == mfem::FiniteElement::VECTOR &&
-              test_fe.GetDerivType()    == mfem::FiniteElement::CURL &&
-              test_fe.GetDerivMapType() == mfem::FiniteElement::H_DIV );
+              trial_fe.GetRangeType() == mfem::FiniteElement::VECTOR &&
+              test_fe.GetDerivType()  == mfem::FiniteElement::CURL );
    }
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
@@ -679,11 +653,9 @@ protected:
 
    inline virtual void CalcTestShape(const FiniteElement & test_fe,
                                      ElementTransformation &Trans,
-                                     DenseMatrix & ref_shape,
                                      DenseMatrix & shape)
    {
-      test_fe.CalcCurlShape(Trans.GetIntPoint(), ref_shape);
-      MultABt(ref_shape, Trans.Jacobian(), shape);
+      test_fe.CalcCurlShape(Trans, shape);
    }
 };
 
@@ -707,9 +679,8 @@ protected:
       const FiniteElement & trial_fe,
       const FiniteElement & test_fe) const
    {
-      return (trial_fe.GetRangeType()   == mfem::FiniteElement::VECTOR &&
-              test_fe.GetDerivType()    == mfem::FiniteElement::GRAD &&
-              test_fe.GetDerivMapType() == mfem::FiniteElement::H_CURL );
+      return (trial_fe.GetRangeType() == mfem::FiniteElement::VECTOR &&
+              test_fe.GetDerivType()  == mfem::FiniteElement::GRAD );
    }
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
@@ -720,22 +691,10 @@ protected:
 
    inline virtual void CalcTestShape(const FiniteElement & test_fe,
                                      ElementTransformation &Trans,
-                                     DenseMatrix & ref_shape,
                                      DenseMatrix & shape)
    {
-      const DenseMatrix &J = Trans.Jacobian();
-#ifdef MFEM_THREAD_SAFE
-      DenseMatrix Jinv(J.Width(), J.Height());
-#else
-      Jinv.SetSize(J.Width(), J.Height());
-#endif
-      CalcInverse(J, Jinv); Jinv *= -1.0;
-      test_fe.CalcDShape(Trans.GetIntPoint(), ref_shape);
-      Mult(ref_shape, Jinv, shape);
+      test_fe.CalcDShape(Trans, shape);
    }
-
-private:
-   DenseMatrix Jinv;
 };
 
 /** Class for integrating the bilinear form a(u,v) := (Q grad u, grad v)
