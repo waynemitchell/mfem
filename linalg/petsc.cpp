@@ -44,6 +44,8 @@
   }
 
 // prototype for auxiliary functions
+static PetscErrorCode snes_jacobian(SNES,Vec,Mat,Mat,void*);
+static PetscErrorCode snes_function_apply(SNES,Vec,Vec,void*);
 static PetscErrorCode mat_shell_apply(Mat,Vec,Vec);
 static PetscErrorCode mat_shell_apply_transpose(Mat,Vec,Vec);
 static PetscErrorCode mat_shell_destroy(Mat);
@@ -999,6 +1001,22 @@ void PetscSolver::Customize() const
          clcustom = true;
       }
    }
+   else if (cid == SNES_CLASSID)
+   {
+      SNES snes = (SNES)obj;
+      if (!_prset && _prefix.size())
+      {
+         ierr = SNESSetOptionsPrefix(snes,_prefix.c_str());
+         PCHKERRQ(snes,ierr);
+         _prset = true;
+      }
+      if (!clcustom)
+      {
+         ierr = SNESSetFromOptions(snes);
+         PCHKERRQ(snes,ierr);
+         clcustom = true;
+      }
+   }
    else
    {
       MFEM_ABORT("Customize() to be implemented!");
@@ -1017,6 +1035,11 @@ void PetscSolver::SetRelTol(double tol)
       KSP ksp = (KSP)obj;
       ierr = KSPSetTolerances(ksp,tol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);
    }
+   else if (cid == SNES_CLASSID)
+   {
+      SNES snes = (SNES)obj;
+      ierr = SNESSetTolerances(snes,PETSC_DEFAULT,tol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);
+   }
    else
    {
       MFEM_ABORT("SetRelTol() to be implemented!");
@@ -1031,6 +1054,11 @@ void PetscSolver::SetAbsTol(double tol)
       KSP ksp = (KSP)obj;
       ierr = KSPSetTolerances(ksp,PETSC_DEFAULT,tol,PETSC_DEFAULT,PETSC_DEFAULT);
    }
+   else if (cid == SNES_CLASSID)
+   {
+      SNES snes = (SNES)obj;
+      ierr = SNESSetTolerances(snes,tol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);
+   }
    else
    {
       MFEM_ABORT("SetAbsTol() to be implemented!");
@@ -1044,6 +1072,11 @@ void PetscSolver::SetMaxIter(int max_iter)
    {
       KSP ksp = (KSP)obj;
       ierr = KSPSetTolerances(ksp,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT,max_iter);
+   }
+   else if (cid == SNES_CLASSID)
+   {
+      SNES snes = (SNES)obj;
+      ierr = SNESSetTolerances(snes,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT,max_iter,PETSC_DEFAULT);
    }
    else
    {
@@ -1077,6 +1110,12 @@ void PetscSolver::SetPrintLevel(int plev)
             ierr = KSPMonitorSet(ksp,(PetscErrorCode (*)(KSP,PetscInt,PetscReal,void*))KSPMonitorTrueResidualNorm,vf,(PetscErrorCode (*)(void**))PetscViewerAndFormatDestroy); PCHKERRQ(ksp,ierr);
          }
       }
+   }
+   else if (cid == SNES_CLASSID)
+   {
+      SNES snes = (SNES)obj;
+      ierr = SNESMonitorCancel(snes); PCHKERRQ(snes,ierr);
+      ierr = SNESMonitorSet(snes,(PetscErrorCode (*)(SNES,PetscInt,PetscReal,void*))SNESMonitorDefault,vf,(PetscErrorCode (*)(void**))PetscViewerAndFormatDestroy); PCHKERRQ(snes,ierr);
    } else {
       MFEM_ABORT("SetPrintLevel() to be implemented!");
    }
@@ -1098,6 +1137,15 @@ void PetscSolver::Mult(const PetscParVector &b, PetscParVector &x) const
       PC pc = (PC)obj;
       ierr = PCApply(pc,b.x,x.x); PCHKERRQ(obj,ierr);
    }
+   else if (cid == SNES_CLASSID)
+   {
+      SNES snes = (SNES)obj;
+      if (!iterative_mode)
+      {
+         ierr = VecSet(x.x,0.); PCHKERRQ(x.x,ierr);
+      }
+      ierr = SNESSolve(snes,b.x,x.x); PCHKERRQ(obj,ierr);
+   }
    else
    {
       MFEM_ABORT("To be implemented!");
@@ -1106,10 +1154,12 @@ void PetscSolver::Mult(const PetscParVector &b, PetscParVector &x) const
 
 void PetscSolver::Mult(const Vector &b, Vector &x) const
 {
+   bool have_b = (b.Size() == Height());
+
    // constructs PetscParVectors if not present
    if (!B || !X)
    {
-      Mat pA;
+      Mat pA = NULL;
       if (cid == KSP_CLASSID)
       {
          KSP ksp = (KSP)obj;
@@ -1120,27 +1170,39 @@ void PetscSolver::Mult(const Vector &b, Vector &x) const
          PC pc = (PC)obj;
          ierr = PCGetOperators(pc,NULL,&pA); PCHKERRQ(obj,ierr);
       }
-      else
+      if (pA)
       {
-         MFEM_ABORT("To be implemented!");
+         if (!B)
+         {
+            PetscParMatrix A = PetscParMatrix(pA,true);
+            B = new PetscParVector(A,true);
+         }
+         if (!X)
+         {
+            PetscParMatrix A = PetscParMatrix(pA,true);
+            X = new PetscParVector(A,false);
+         }
       }
-      if (!B)
+      else  // fallback for general operators
       {
-         PetscParMatrix A = PetscParMatrix(pA,true);
-         B = new PetscParVector(A,true);
-      }
-      if (!X)
-      {
-         PetscParMatrix A = PetscParMatrix(pA,true);
-         X = new PetscParVector(A,false);
+         if (!B) B = new PetscParVector(PetscObjectComm(obj),*this,true);
+         if (!X) X = new PetscParVector(PetscObjectComm(obj),*this,false);
       }
    }
 
    // Apply Mult
-   B->SetData(b.GetData());
    X->SetData(x.GetData());
-   Mult(*B, *X);
-   B->ResetData();
+   if (have_b)
+   {
+      B->SetData(b.GetData());
+      Mult(*B, *X);
+      B->ResetData();
+   }
+   else
+   {
+      *B = 0.;
+      Mult(*B, *X);
+   }
    X->ResetData();
 }
 
@@ -1152,6 +1214,14 @@ int PetscSolver::GetConverged()
       KSPConvergedReason reason;
       ierr = KSPGetConvergedReason(ksp,&reason);
       PCHKERRQ(ksp,ierr);
+      return reason > 0 ? 1 : 0;
+   }
+   else if (cid == SNES_CLASSID)
+   {
+      SNES snes = (SNES)obj;
+      SNESConvergedReason reason;
+      ierr = SNESGetConvergedReason(snes,&reason);
+      PCHKERRQ(snes,ierr);
       return reason > 0 ? 1 : 0;
    }
    else
@@ -1171,6 +1241,14 @@ int PetscSolver::GetNumIterations()
       PCHKERRQ(ksp,ierr);
       return its;
    }
+   else if (cid == SNES_CLASSID)
+   {
+      SNES snes = (SNES)obj;
+      PetscInt its;
+      ierr = SNESGetIterationNumber(snes,&its);
+      PCHKERRQ(snes,ierr);
+      return its;
+   }
    else
    {
       MFEM_WARNING("GetNumIterations to be implemented!");
@@ -1186,6 +1264,14 @@ double PetscSolver::GetFinalNorm()
       PetscReal norm;
       ierr = KSPGetResidualNorm(ksp,&norm);
       PCHKERRQ(ksp,ierr);
+      return norm;
+   }
+   if (cid == SNES_CLASSID)
+   {
+      SNES snes = (SNES)obj;
+      PetscReal norm;
+      ierr = SNESGetFunctionNorm(snes,&norm);
+      PCHKERRQ(snes,ierr);
       return norm;
    }
    else
@@ -1791,9 +1877,85 @@ PetscFieldSplitSolver::PetscFieldSplitSolver(MPI_Comm comm, Operator &op,
    ierr = PetscFree(isrow); CCHKERRQ(PETSC_COMM_SELF,ierr);
 }
 
+// PetscNonlinearSolver methods
+
+PetscNonlinearSolver::PetscNonlinearSolver(MPI_Comm comm,
+                                           std::string prefix) : PetscSolver()
+{
+   SetPrefix(prefix);
+
+   SNES snes;
+   ierr = SNESCreate(comm,&snes); CCHKERRQ(comm,ierr);
+   obj  = (PetscObject)snes;
+   ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
+}
+
+PetscNonlinearSolver::PetscNonlinearSolver(MPI_Comm comm, Operator &op,
+                                           std::string prefix) : PetscSolver()
+{
+   SetPrefix(prefix);
+
+   SNES snes;
+   ierr = SNESCreate(comm,&snes); CCHKERRQ(comm,ierr);
+   obj  = (PetscObject)snes;
+   ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
+
+   SetOperator(op);
+}
+
+PetscNonlinearSolver::~PetscNonlinearSolver()
+{
+   MPI_Comm comm;
+   SNES snes = (SNES)obj;
+   ierr = PetscObjectGetComm(obj,&comm); PCHKERRQ(obj,ierr);
+   ierr = SNESDestroy(&snes); CCHKERRQ(comm,ierr);
+}
+
+void PetscNonlinearSolver::SetOperator(const Operator &op)
+{
+   height = op.Height();
+   width  = op.Width();
+
+   SNES snes = (SNES)obj;
+   ierr = SNESSetFunction(snes,NULL,snes_function_apply,(void *)&op);
+   PCHKERRQ(snes,ierr);
+   ierr = SNESSetJacobian(snes,NULL,NULL,snes_jacobian,(void *)&op);
+   PCHKERRQ(snes,ierr);
+}
+
 }  // namespace mfem
 
 // auxiliary functions
+#undef __FUNCT__
+#define __FUNCT__ "snes_jacobian"
+static PetscErrorCode snes_jacobian(SNES snes, Vec x, Mat A, Mat P, void *ctx)
+{
+   PetscScalar *array;
+   PetscInt    n;
+
+   PetscFunctionBeginUser;
+   ierr = VecGetLocalSize(x,&n); CHKERRQ(ierr);
+   ierr = VecGetArrayRead(x,(const PetscScalar**)&array); CHKERRQ(ierr);
+   mfem::Vector xx(array,n);
+   ierr = VecRestoreArrayRead(x,(const PetscScalar**)&array); CHKERRQ(ierr);
+
+   mfem::Operator *op = (mfem::Operator*)ctx;
+   mfem::PetscParMatrix pA(PetscObjectComm((PetscObject)snes),&op->GetGradient(xx),false);
+   ierr = SNESSetJacobian(snes,pA,pA,snes_jacobian,ctx); CHKERRQ(ierr);
+   PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "snes_function_apply"
+static PetscErrorCode snes_function_apply(SNES snes, Vec x, Vec f, void *ctx)
+{
+   PetscFunctionBeginUser;
+   mfem::PetscParVector xx(x,true);
+   mfem::PetscParVector ff(f,true);
+   mfem::Operator *op = (mfem::Operator*)ctx;
+   op->Mult(xx,ff);
+   PetscFunctionReturn(0);
+}
 
 #undef __FUNCT__
 #define __FUNCT__ "mat_shell_apply"

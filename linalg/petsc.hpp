@@ -35,6 +35,7 @@ protected:
 
    friend class PetscParMatrix;
    friend class PetscSolver;
+   friend class PetscNonlinearSolver;
    friend class PetscBDDCSolver;
 
    // Set Vector::data and Vector::size from x
@@ -436,6 +437,27 @@ public:
                          std::string prefix = std::string());
 };
 
+/// Abstract class for PETSc's nonlinear solvers
+class PetscNonlinearSolver : public PetscSolver
+{
+public:
+   PetscNonlinearSolver(MPI_Comm comm, std::string prefix = std::string());
+
+   PetscNonlinearSolver(MPI_Comm comm, Operator &op, std::string prefix = std::string());
+
+   /// virtual methods for base classes
+   virtual void SetOperator(const Operator &op);
+   virtual ~PetscNonlinearSolver();
+
+   /// Sets the inner linear solver
+   void SetSolver(Solver &precond)
+   {
+      MFEM_ABORT("Set Solver not implemented!")
+   };
+
+   /// Typecasting to PETSc's SNES
+   operator SNES() const { return (SNES)obj; }
+};
 
 }
 
