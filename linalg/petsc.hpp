@@ -58,6 +58,10 @@ public:
    /// Creates vector compatible with y
    PetscParVector(const PetscParVector &y);
 
+   /// Creates vector compatible with the Operator (i.e. in the domain of) op
+   /// or its adjoint
+   explicit PetscParVector(MPI_Comm comm, const Operator &op, int transpose = 0);
+
    /// Creates vector compatible with (i.e. in the domain of) A or A^T
    explicit PetscParVector(const PetscParMatrix &A, int transpose = 0);
 
@@ -383,8 +387,6 @@ public:
    /// Typecasting to PETSc's PC
    operator PC() const { return (PC)obj; }
 };
-
-// preconditioners
 
 // auxiliary class for BDDC customization
 class PetscBDDCSolverParams

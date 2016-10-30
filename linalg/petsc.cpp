@@ -146,6 +146,29 @@ PetscParVector::PetscParVector(const PetscParVector &y) : Vector()
    ierr = VecDuplicate(y.x,&x); PCHKERRQ(x,ierr);
 }
 
+PetscParVector::PetscParVector(MPI_Comm comm, const Operator &op,
+                               int transpose) : Vector()
+{
+   PetscInt loc;
+   if (!transpose)
+   {
+      loc = op.Width();
+   }
+   else
+   {
+      loc = op.Height();
+   }
+   ierr = VecCreate(comm,&x);
+   CCHKERRQ(comm,ierr);
+   ierr = VecSetSizes(x,loc,PETSC_DECIDE);
+   PCHKERRQ(x,ierr);
+   ierr = VecSetType(x,VECSTANDARD);
+   PCHKERRQ(x,ierr);
+   ierr = VecSetUp(x);
+   PCHKERRQ(x,ierr);
+   _SetDataAndSize_();
+}
+
 PetscParVector::PetscParVector(const PetscParMatrix &A,
                                int transpose) : Vector()
 {
