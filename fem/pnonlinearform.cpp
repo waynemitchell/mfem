@@ -80,21 +80,43 @@ Operator &ParNonlinearForm::GetGradient(const Vector &x) const
    ParFiniteElementSpace *pfes = ParFESpace();
 
    delete pGrad;
+   delete ppGrad;
 
    X.Distribute(&x);
 
    NonlinearForm::GetGradient(X); // (re)assemble Grad
 
    // construct a parallel block-diagonal wrapper matrix A based on Grad
-   HypreParMatrix *A =
-      new HypreParMatrix(pfes->GetComm(),
-                         pfes->GlobalVSize(), pfes->GetDofOffsets(), Grad);
+   if (!use_petsc)
+   {
+      HypreParMatrix *A =
+         new HypreParMatrix(pfes->GetComm(),
+                            pfes->GlobalVSize(), pfes->GetDofOffsets(), Grad);
 
-   pGrad = RAP(A, pfes->Dof_TrueDof_Matrix());
+      pGrad = RAP(A, pfes->Dof_TrueDof_Matrix());
 
-   delete A;
+      delete A;
+      return *pGrad;
+   }
+#ifdef MFEM_USE_PETSC
+   else
+   {
+      PetscParMatrix *A =
+         new PetscParMatrix(pfes->GetComm(),
+                            pfes->GlobalVSize(), pfes->GetDofOffsets(), Grad,
+                            !unassembled);
 
-   return *pGrad;
+      // TODO assemble Dof_TrueDof_Matrix in PETSc format?
+      PetscParMatrix *temp = new PetscParMatrix(pfes->Dof_TrueDof_Matrix(),false,
+                                                !unassembled);
+
+      ppGrad = RAP(A, temp);
+
+      delete A;
+      delete temp;
+      return *ppGrad;
+   }
+#endif
 }
 
 }

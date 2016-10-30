@@ -36,7 +36,7 @@ protected:
    HypreParMatrix *p_mat, *p_mat_e;
 #ifdef MFEM_USE_PETSC
    PetscParMatrix *pp_mat, *pp_mat_e;
-#else // just to not pollute the hpp file with lots of ifdefs
+#else // unused: just to not pollute the hpp file with lots of ifdefs
    HypreParMatrix *pp_mat, *pp_mat_e;
 #endif
    bool keep_nbr_block;

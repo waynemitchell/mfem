@@ -28,11 +28,25 @@ class ParNonlinearForm : public NonlinearForm
 protected:
    mutable ParGridFunction X, Y;
    mutable HypreParMatrix *pGrad;
+#ifdef MFEM_USE_PETSC
+   mutable PetscParMatrix *ppGrad;
+#else // unused: just to not pollute the hpp file with lots of ifdefs
+   mutable HypreParMatrix *ppGrad;
+#endif
+
+   // Assemble Jacobian matrix with PETSc
+   bool use_petsc;
+
+   // assemble the Jacobian matrix in "unassembled format"
+   // for non-overlapping DD
+   // significant only with PETSc backend
+   bool unassembled;
 
 public:
    ParNonlinearForm(ParFiniteElementSpace *pf)
       : NonlinearForm(pf), X(pf), Y(pf)
-   { height = width = pf->TrueVSize(); pGrad = NULL; }
+   { height = width = pf->TrueVSize(); pGrad = NULL; ppGrad = NULL,
+     use_petsc = false; unassembled = false; }
 
    ParFiniteElementSpace *ParFESpace() const
    { return (ParFiniteElementSpace *)fes; }
@@ -54,7 +68,33 @@ public:
 
    virtual Operator &GetGradient(const Vector &x) const;
 
-   virtual ~ParNonlinearForm() { delete pGrad; }
+   /// Assemble the Jacobian matrix with PETSc
+   void SetUsePetsc(bool use = true)
+   {
+#ifndef MFEM_USE_PETSC
+      if (true) { MFEM_ABORT("You did not configured MFEM with PETSc support"); }
+      use_petsc = false;
+#else
+      use_petsc = use;
+#endif
+   }
+
+   bool GetUsePetsc() { return use_petsc; }
+
+   /// Assemble the Jacobian matrix in "unassembled format"
+   //  for non-overlapping DD
+   /// Only significant with PETSc backend
+   void SetUseNonoverlappingFormat(bool use = true)
+   {
+#ifndef MFEM_USE_PETSC
+      if (true) { MFEM_ABORT("You did not configured MFEM with PETSc support"); }
+      unassembled = false;
+#else
+      unassembled = use;
+#endif
+   }
+
+   virtual ~ParNonlinearForm() { delete pGrad; delete ppGrad; }
 };
 
 }
