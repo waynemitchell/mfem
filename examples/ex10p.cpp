@@ -505,16 +505,9 @@ Operator &BackwardEulerOperator::GetGradient(const Vector &k) const
    add(*v, dt, k, w);
    add(*x, dt, w, z);
    localJ->Add(dt*dt, H->GetLocalGradient(z));
-   if (!H->GetUsePetsc())
-   {
-      Jacobian = M->ParallelAssemble(localJ);
-   }
-#ifdef MFEM_USE_PETSC
-   else
-   {
-      Jacobian = M->PetscParallelAssemble(localJ);
-   }
-#endif
+   // if we are using PETSc, the HypreParCSR jacobian will be converted to
+   // PETSc's AIJ on the fly
+   Jacobian = M->ParallelAssemble(localJ);
    delete localJ;
    return *Jacobian;
 }
@@ -555,7 +548,6 @@ HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
    model = new NeoHookeanModel(mu, K);
    H.AddDomainIntegrator(new HyperelasticNLFIntegrator(model));
    H.SetEssentialBC(ess_bdr);
-   H.SetUsePetsc(use_petsc);
 
    viscosity = visc;
    ConstantCoefficient visc_coeff(viscosity);
