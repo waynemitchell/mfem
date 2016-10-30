@@ -100,7 +100,7 @@ public:
    void Randomize(PetscInt seed);
 
    /// Prints the vector (to stdout if fname is NULL)
-   void Print(const char *fname) const;
+   void Print(const char *fname = NULL) const;
 };
 
 /// Wrapper for PETSc's matrix class
@@ -233,7 +233,7 @@ public:
    PetscParMatrix* Transpose(bool action = false);
 
    /// Prints the matrix (to stdout if fname is NULL)
-   void Print(const char *fname) const;
+   void Print(const char *fname = NULL) const;
 
    /// Scale all entries by s: A_scaled = s*A.
    void operator*=(double s);
