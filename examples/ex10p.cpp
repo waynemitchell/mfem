@@ -73,6 +73,15 @@ protected:
    BackwardEulerOperator *backward_euler_oper;
    /// Newton solver for the backward Euler equation
    NewtonSolver newton_solver;
+
+#ifdef MFEM_USE_PETSC
+   /// Newton solver for the backward Euler equation (PETSc SNES)
+   PetscNonlinearSolver* pnewton_solver;
+#else
+   /// Dummy object
+   NewtonSolver *pnewton_solver;
+#endif
+
    /// Solver for the Jacobian solve in the Newton method
    Solver *J_solver;
    /// Preconditioner for the Jacobian
@@ -82,7 +91,7 @@ protected:
 
 public:
    HyperelasticOperator(ParFiniteElementSpace &f, Array<int> &ess_bdr,
-                        double visc, double mu, double K);
+                        double visc, double mu, double K, bool use_petsc);
 
    virtual void Mult(const Vector &vx, Vector &dvx_dt) const;
    /** Solve the Backward-Euler equation: k = f(x + dt*k, t), for the unknown k.
@@ -105,7 +114,7 @@ class BackwardEulerOperator : public Operator
 private:
    ParBilinearForm *M, *S;
    ParNonlinearForm *H;
-   mutable HypreParMatrix *Jacobian;
+   mutable Operator *Jacobian;
    const Vector *v, *x;
    double dt;
    mutable Vector w, z;
@@ -165,6 +174,10 @@ int main(int argc, char *argv[])
    double K = 5.0;
    bool visualization = true;
    int vis_steps = 1;
+   bool use_petsc = false;
+#ifdef MFEM_USE_PETSC
+   const char *petscrc_file = "";
+#endif
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -193,6 +206,13 @@ int main(int argc, char *argv[])
                   "Enable or disable GLVis visualization.");
    args.AddOption(&vis_steps, "-vs", "--visualization-steps",
                   "Visualize every n-th timestep.");
+   args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "no-petsc",
+                  "--no-petsc",
+                  "Use or not PETSc to solve the nonlinear system.");
+#ifdef MFEM_USE_PETSC
+   args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
+                  "PetscOptions file to use.");
+#endif
    args.Parse();
    if (!args.Good())
    {
@@ -206,6 +226,15 @@ int main(int argc, char *argv[])
    if (myid == 0)
    {
       args.PrintOptions(cout);
+   }
+   // 2b. We initialize PETSc
+   if (use_petsc)
+   {
+#ifdef MFEM_USE_PETSC
+      PetscInitialize(NULL,NULL,petscrc_file,NULL);
+#else
+      MFEM_ABORT("You did not configured MFEM with PETSc");
+#endif
    }
 
    // 3. Read the serial mesh from the given mesh file on all processors. We can
@@ -306,7 +335,7 @@ int main(int argc, char *argv[])
 
    // 9. Initialize the hyperelastic operator, the GLVis visualization and print
    //    the initial energies.
-   HyperelasticOperator oper(fespace, ess_bdr, visc, mu, K);
+   HyperelasticOperator *oper = new HyperelasticOperator(fespace, ess_bdr, visc, mu, K, use_petsc);
 
    socketstream vis_v, vis_w;
    if (visualization)
@@ -322,14 +351,14 @@ int main(int argc, char *argv[])
       vis_w.open(vishost, visport);
       if (vis_w)
       {
-         oper.GetElasticEnergyDensity(x_gf, w_gf);
+         oper->GetElasticEnergyDensity(x_gf, w_gf);
          vis_w.precision(8);
          visualize(vis_w, pmesh, &x_gf, &w_gf, "Elastic energy density", true);
       }
    }
 
-   double ee0 = oper.ElasticEnergy(x_gf);
-   double ke0 = oper.KineticEnergy(v_gf);
+   double ee0 = oper->ElasticEnergy(x_gf);
+   double ke0 = oper->KineticEnergy(v_gf);
    if (myid == 0)
    {
       cout << "initial elastic energy (EE) = " << ee0 << endl;
@@ -339,7 +368,7 @@ int main(int argc, char *argv[])
 
    // 10. Perform time-integration (looping over the time iterations, ti, with a
    //     time-step dt).
-   ode_solver->Init(oper);
+   ode_solver->Init(*oper);
    double t = 0.0;
 
    bool last_step = false;
@@ -357,8 +386,8 @@ int main(int argc, char *argv[])
          v_gf.Distribute(vx.GetBlock(0));
          x_gf.Distribute(vx.GetBlock(1));
 
-         double ee = oper.ElasticEnergy(x_gf);
-         double ke = oper.KineticEnergy(v_gf);
+         double ee = oper->ElasticEnergy(x_gf);
+         double ke = oper->KineticEnergy(v_gf);
 
          if (myid == 0)
             cout << "step " << ti << ", t = " << t << ", EE = " << ee
@@ -369,7 +398,7 @@ int main(int argc, char *argv[])
             visualize(vis_v, pmesh, &x_gf, &v_gf);
             if (vis_w)
             {
-               oper.GetElasticEnergyDensity(x_gf, w_gf);
+               oper->GetElasticEnergyDensity(x_gf, w_gf);
                visualize(vis_w, pmesh, &x_gf, &w_gf);
             }
          }
@@ -396,13 +425,17 @@ int main(int argc, char *argv[])
       v_gf.Save(velo_ofs);
       ofstream ee_ofs(ee_name.str().c_str());
       ee_ofs.precision(8);
-      oper.GetElasticEnergyDensity(x_gf, w_gf);
+      oper->GetElasticEnergyDensity(x_gf, w_gf);
       w_gf.Save(ee_ofs);
    }
 
    // 12. Free the used memory.
    delete ode_solver;
    delete pmesh;
+   delete oper;
+#ifdef MFEM_USE_PETSC
+   if (use_petsc) { PetscFinalize(); }
+#endif
 
    MPI_Finalize();
 
@@ -472,7 +505,16 @@ Operator &BackwardEulerOperator::GetGradient(const Vector &k) const
    add(*v, dt, k, w);
    add(*x, dt, w, z);
    localJ->Add(dt*dt, H->GetLocalGradient(z));
-   Jacobian = M->ParallelAssemble(localJ);
+   if (!H->GetUsePetsc())
+   {
+      Jacobian = M->ParallelAssemble(localJ);
+   }
+#ifdef MFEM_USE_PETSC
+   else
+   {
+      Jacobian = M->PetscParallelAssemble(localJ);
+   }
+#endif
    delete localJ;
    return *Jacobian;
 }
@@ -485,10 +527,10 @@ BackwardEulerOperator::~BackwardEulerOperator()
 
 HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
                                            Array<int> &ess_bdr, double visc,
-                                           double mu, double K)
+                                           double mu, double K, bool use_petsc)
    : TimeDependentOperator(2*f.TrueVSize(), 0.0), fespace(f),
      M(&fespace), S(&fespace), H(&fespace), M_solver(f.GetComm()),
-     newton_solver(f.GetComm()), z(height/2)
+     newton_solver(f.GetComm()), pnewton_solver(NULL), z(height/2)
 {
    const double rel_tol = 1e-8;
    const int skip_zero_entries = 0;
@@ -513,6 +555,7 @@ HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
    model = new NeoHookeanModel(mu, K);
    H.AddDomainIntegrator(new HyperelasticNLFIntegrator(model));
    H.SetEssentialBC(ess_bdr);
+   H.SetUsePetsc(use_petsc);
 
    viscosity = visc;
    ConstantCoefficient visc_coeff(viscosity);
@@ -522,26 +565,41 @@ HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
    S.Finalize(skip_zero_entries);
 
    backward_euler_oper = new BackwardEulerOperator(&M, &S, &H);
+   if (!use_petsc)
+   {
+      HypreSmoother *J_hypreSmoother = new HypreSmoother;
+      J_hypreSmoother->SetType(HypreSmoother::l1Jacobi);
+      J_prec = J_hypreSmoother;
 
-   HypreSmoother *J_hypreSmoother = new HypreSmoother;
-   J_hypreSmoother->SetType(HypreSmoother::l1Jacobi);
-   J_prec = J_hypreSmoother;
+      MINRESSolver *J_minres = new MINRESSolver(f.GetComm());
+      J_minres->SetRelTol(rel_tol);
+      J_minres->SetAbsTol(0.0);
+      J_minres->SetMaxIter(300);
+      J_minres->SetPrintLevel(-1);
+      J_minres->SetPreconditioner(*J_prec);
+      J_solver = J_minres;
 
-   MINRESSolver *J_minres = new MINRESSolver(f.GetComm());
-   J_minres->SetRelTol(rel_tol);
-   J_minres->SetAbsTol(0.0);
-   J_minres->SetMaxIter(300);
-   J_minres->SetPrintLevel(-1);
-   J_minres->SetPreconditioner(*J_prec);
-   J_solver = J_minres;
-
-   newton_solver.iterative_mode = false;
-   newton_solver.SetSolver(*J_solver);
-   newton_solver.SetOperator(*backward_euler_oper);
-   newton_solver.SetPrintLevel(1); // print Newton iterations
-   newton_solver.SetRelTol(rel_tol);
-   newton_solver.SetAbsTol(0.0);
-   newton_solver.SetMaxIter(10);
+      newton_solver.iterative_mode = false;
+      newton_solver.SetSolver(*J_solver);
+      newton_solver.SetOperator(*backward_euler_oper);
+      newton_solver.SetPrintLevel(1); // print Newton iterations
+      newton_solver.SetRelTol(rel_tol);
+      newton_solver.SetAbsTol(0.0);
+      newton_solver.SetMaxIter(10);
+   }
+#ifdef MFEM_USE_PETSC
+   else
+   {
+      J_solver = NULL;
+      J_prec = NULL;
+      pnewton_solver = new PetscNonlinearSolver(f.GetComm(),
+                                                *backward_euler_oper);
+      pnewton_solver->SetPrintLevel(1); // print Newton iterations
+      pnewton_solver->SetRelTol(rel_tol);
+      pnewton_solver->SetAbsTol(0.0);
+      pnewton_solver->SetMaxIter(10);
+   }
+#endif
 }
 
 void HyperelasticOperator::Mult(const Vector &vx, Vector &dvx_dt) const
@@ -581,10 +639,18 @@ void HyperelasticOperator::ImplicitSolve(const double dt,
    // object (using J_solver and J_prec internally).
    backward_euler_oper->SetParameters(dt, &v, &x);
    Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
-   newton_solver.Mult(zero, dv_dt);
+   if (!pnewton_solver)
+   {
+      newton_solver.Mult(zero, dv_dt);
+      MFEM_VERIFY(newton_solver.GetConverged(), "Newton Solver did not converge.");
+   }
+   else
+   {
+      pnewton_solver->Mult(zero, dv_dt);
+      MFEM_VERIFY(pnewton_solver->GetConverged(), "Newton Solver did not converge.");
+   }
    add(v, dt, dv_dt, dx_dt);
 
-   MFEM_VERIFY(newton_solver.GetConverged(), "Newton Solver did not converge.");
 }
 
 double HyperelasticOperator::ElasticEnergy(ParGridFunction &x) const
@@ -615,6 +681,7 @@ HyperelasticOperator::~HyperelasticOperator()
    delete J_solver;
    delete J_prec;
    delete Mmat;
+   delete pnewton_solver;
 }
 
 
