@@ -172,17 +172,16 @@ PetscParVector::PetscParVector(MPI_Comm comm, const Operator &op,
 PetscParVector::PetscParVector(const PetscParMatrix &A,
                                int transpose) : Vector()
 {
-   MPI_Comm comm = PETSC_COMM_WORLD;
+   Mat pA = const_cast<PetscParMatrix&>(A);
    if (!transpose)
    {
-      ierr = MatCreateVecs(const_cast<PetscParMatrix&>(A),&x,NULL);
-      CCHKERRQ(comm,ierr);
+      ierr = MatCreateVecs(pA,&x,NULL);
    }
    else
    {
-      ierr = MatCreateVecs(const_cast<PetscParMatrix&>(A),NULL,&x);
-      CCHKERRQ(comm,ierr);
+      ierr = MatCreateVecs(pA,NULL,&x);
    }
+   PCHKERRQ(pA,ierr);
    _SetDataAndSize_();
 }
 
