@@ -46,7 +46,11 @@ public:
 
    SidreDataCollection(const std::string& collection_name, Mesh *mesh, bool owns_mesh_data=false);
 
-   SidreDataCollection(const std::string& collection_name, asctoolkit::sidre::DataGroup * rootfile_dg, asctoolkit::sidre::DataGroup * dg, bool owns_mesh_data=false);
+   SidreDataCollection(const std::string& collection_name,
+                       asctoolkit::sidre::DataGroup * global_grp,
+                       asctoolkit::sidre::DataGroup * domain_grp,
+                       const std::string meshNodesGFName = "mfem_default_mesh_nodes_gf",
+                       bool owns_mesh_data=false);
 
    void DeregisterField(const char* field_name);
 
@@ -55,9 +59,14 @@ public:
    /// Verify we will delete the mesh and fields if we own them
    virtual ~SidreDataCollection();
 
-   void SetNodePositionsFieldName(const std::string& fieldName);
-
    void SetMesh(Mesh *new_mesh);
+
+	// Reset the domain and global (root) datastore group pointers.
+	// These are set in the constructor, but if a host code changes the datastore contents
+	// ( such as wiping out the datastore and loading in new contents from a file, ie a restart )
+	// these pointers will need to be reset to valid groups in the datastore.
+   void SetGroupPointers(asctoolkit::sidre::DataGroup * global_grp,
+                         asctoolkit::sidre::DataGroup * domain_grp);
 
    void Save();
 
@@ -65,6 +74,7 @@ public:
 
    void Load(const std::string& path, const std::string& protocol);
 
+   void UpdateStateFromDS();
    /**
     * Gets a pointer to the associated field's view data (always an array of doubles)
     * If the field does not exist, it will create a view of the appropriate size
@@ -128,18 +138,23 @@ private:
    // Can we use one flag and just have DC own all objects vs none?
    const bool m_owns_mesh_data;
 
+   // If the data collection owns the datastore, it will store a pointer to it.
    asctoolkit::sidre::DataStore * m_datastore_ptr;
 
-   asctoolkit::sidre::DataGroup * simdata_grp;
+   // If the data collection does not own the datastore, it will need pointers
+   // to the blueprint and blueprint index group to use.
    asctoolkit::sidre::DataGroup * bp_grp;
    asctoolkit::sidre::DataGroup * bp_index_grp;
 
-	std::string m_nodePositionsFieldName;
+   // This is stored for convenience.
+   asctoolkit::sidre::DataGroup * simdata_grp;
+
+   std::string m_meshNodesGFName;
 
    bool m_loadCalled;
 
    void DeregisterFieldInBPIndex(const std::string & field_name);
-	void RegisterFieldInBPIndex(asctoolkit::sidre::DataGroup * bp_field_group);
+   void RegisterFieldInBPIndex(asctoolkit::sidre::DataGroup * bp_field_group);
 
    std::string getElementName( Element::Type elementEnum );
 
