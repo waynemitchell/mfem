@@ -217,7 +217,7 @@ PetscParMatrix *ParBilinearForm::PetscParallelAssemble(SparseMatrix *m)
       delete hA;
    }
 
-   // TODO assemble Dof_TrueDof_Matrix in MATIS format?
+   // TODO assemble Dof_TrueDof_Matrix in PETSc format?
    PetscParMatrix *temp = new PetscParMatrix(pfes->Dof_TrueDof_Matrix(),false,
                                              !unassembled);
    PetscParMatrix *rap = RAP(A, temp);
@@ -596,7 +596,7 @@ PetscParMatrix *ParMixedBilinearForm::PetscParallelAssemble()
                          trial_pfes->GetDofOffsets(),
                          mat,!unassembled);
 
-   // TODO assemble Dof_TrueDof_Matrix in MATIS format?
+   // TODO assemble Dof_TrueDof_Matrix in PETSc format?
    PetscParMatrix *tetemp = new PetscParMatrix(test_pfes->Dof_TrueDof_Matrix(),
                                                false,
                                                !unassembled);

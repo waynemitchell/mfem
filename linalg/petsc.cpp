@@ -1359,13 +1359,18 @@ void PetscLinearSolver::SetOperator(const Operator &op)
       MFEM_ABORT("PetscLinearSolver::SetOperator : Unsupported operation!");
    }
 
+   // Set operators into PETSc KSP
    KSP ksp = (KSP)obj;
    Mat A = pA->A;
-   PetscInt nheight,nwidth;
-   ierr = MatGetSize(A,&nheight,&nwidth); PCHKERRQ(A,ierr);
    if (height || width)
    {
-      if (nheight != height || nwidth != width)
+      Mat C;
+      PetscInt nheight,nwidth,oheight,owidth;
+
+      ierr = KSPGetOperators(ksp,&C,NULL); PCHKERRQ(ksp,ierr);
+      ierr = MatGetSize(A,&nheight,&nwidth); PCHKERRQ(A,ierr);
+      ierr = MatGetSize(C,&oheight,&owidth); PCHKERRQ(A,ierr);
+      if (nheight != oheight || nwidth != owidth)
       {
          // reinit without destroying the KSP
          // communicator remains the same
@@ -1377,9 +1382,12 @@ void PetscLinearSolver::SetOperator(const Operator &op)
       }
    }
    ierr = KSPSetOperators(ksp,A,A); PCHKERRQ(ksp,ierr);
+
+   // update base class
+   height = pA->Height();
+   width  = pA->Width();
+
    if (delete_pA) { delete pA; }
-   height = nheight;
-   width  = nwidth;
 }
 
 void PetscLinearSolver::SetPreconditioner(Solver &precond)
@@ -1502,6 +1510,8 @@ void PetscPreconditioner::SetOperator(const Operator &op)
    PC pc = (PC)obj;
    ierr = PCSetOperators(pc,pA->A,pA->A); PCHKERRQ(obj,ierr);
    if (delete_pA) { delete pA; };
+   height = op.Height();
+   width = op.Width();
 }
 
 PetscPreconditioner::~PetscPreconditioner()
