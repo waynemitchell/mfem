@@ -160,7 +160,11 @@ void DataCollection::SetMesh(Mesh *new_mesh)
 
 void DataCollection::DeregisterField(const char* name)
 {
-   delete field_map[name];
+    if(own_data)
+    {
+        delete field_map[name];
+    }
+   field_map.erase(name);
 }
 
 void DataCollection::RegisterField(const char* name, GridFunction *gf)
@@ -171,6 +175,20 @@ void DataCollection::RegisterField(const char* name, GridFunction *gf)
    }
    field_map[name] = gf;
 }
+
+std::vector<std::string> DataCollection::GetFieldNames() const
+{
+    std::vector<std::string> res;
+    res.reserve(field_map.size());
+
+    for(std::map<std::string, GridFunction*>::const_iterator it = field_map.begin(),
+            itEnd = field_map.end();it != itEnd; ++it)
+    {
+        res.push_back( it->first);
+    }
+    return res;
+}
+
 
 GridFunction *DataCollection::GetField(const char *field_name)
 {
