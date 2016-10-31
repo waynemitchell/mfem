@@ -44,6 +44,7 @@
   }
 
 // prototype for auxiliary functions
+static PetscErrorCode ksp_monitor_mfem(KSP,PetscInt,PetscReal,void*);
 static PetscErrorCode snes_jacobian(SNES,Vec,Mat,Mat,void*);
 static PetscErrorCode snes_function_apply(SNES,Vec,Vec,void*);
 static PetscErrorCode mat_shell_apply(Mat,Vec,Vec);
@@ -948,6 +949,7 @@ void PetscSolver::Init()
    clcustom = false;
    _prset = true;
    cid = -1;
+   monitor_ctx = NULL;
 }
 
 void PetscSolver::SetPrefix(std::string prefix)
@@ -1085,6 +1087,7 @@ void PetscSolver::SetMaxIter(int max_iter)
    PCHKERRQ(obj,ierr);
 }
 
+
 void PetscSolver::SetPrintLevel(int plev)
 {
    PetscViewerAndFormat *vf;
@@ -1110,6 +1113,11 @@ void PetscSolver::SetPrintLevel(int plev)
             ierr = KSPMonitorSet(ksp,(PetscErrorCode (*)(KSP,PetscInt,PetscReal,void*))KSPMonitorTrueResidualNorm,vf,(PetscErrorCode (*)(void**))PetscViewerAndFormatDestroy); PCHKERRQ(ksp,ierr);
          }
       }
+      // user defined monitor
+      if (monitor_ctx)
+      {
+         ierr = KSPMonitorSet(ksp,ksp_monitor_mfem,monitor_ctx,NULL); PCHKERRQ(ksp,ierr);
+      }
    }
    else if (cid == SNES_CLASSID)
    {
@@ -1119,6 +1127,11 @@ void PetscSolver::SetPrintLevel(int plev)
    } else {
       MFEM_ABORT("SetPrintLevel() to be implemented!");
    }
+}
+
+void PetscSolver::SetMonitor(PetscSolverMonitorCtx *ctx)
+{
+   monitor_ctx = ctx;
 }
 
 void PetscSolver::Mult(const PetscParVector &b, PetscParVector &x) const
@@ -1936,6 +1949,31 @@ void PetscNonlinearSolver::SetOperator(const Operator &op)
 }  // namespace mfem
 
 // auxiliary functions
+#undef __FUNCT__
+#define __FUNCT__ "ksp_monitor_mfem"
+static PetscErrorCode ksp_monitor_mfem(KSP ksp, PetscInt it, PetscReal res, void* ctx)
+{
+   mfem::PetscSolverMonitorCtx *monitor_ctx = (mfem::PetscSolverMonitorCtx *)ctx;
+   Vec x;
+   PetscErrorCode ierr;
+
+   PetscFunctionBeginUser;
+   if (!ctx) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"No monitor context provided");
+   if (monitor_ctx->_msol)
+   {
+      ierr = KSPBuildSolution(ksp,NULL,&x); CHKERRQ(ierr);
+      mfem::PetscParVector V(x,true);
+      monitor_ctx->MonitorSolution(it,res,V);
+   }
+   if (monitor_ctx->_mres)
+   {
+      ierr = KSPBuildResidual(ksp,NULL,NULL,&x); CHKERRQ(ierr);
+      mfem::PetscParVector V(x,true);
+      monitor_ctx->MonitorResidual(it,res,V);
+   }
+   PetscFunctionReturn(0);
+}
+
 #undef __FUNCT__
 #define __FUNCT__ "snes_jacobian"
 static PetscErrorCode snes_jacobian(SNES snes, Vec x, Mat A, Mat P, void *ctx)

@@ -39,6 +39,8 @@
 //               The example also shows how PETSc Krylov solvers can be used
 //               by wrapping a HypreParMatrix (or not) and a Solver, together
 //               with customization using an options file (see .petsc_rc_ex1p)
+//               We also provide an example on how to visualize the iterative solution
+//               inside a PETSc solver.
 
 #include "mfem.hpp"
 #include <fstream>
@@ -46,6 +48,39 @@
 
 using namespace std;
 using namespace mfem;
+
+#ifdef MFEM_USE_PETSC
+class UserMonitor : public PetscSolverMonitorCtx
+{
+private:
+   ParBilinearForm *_a;
+   ParLinearForm *_b;
+
+public:
+   UserMonitor(ParBilinearForm *a, ParLinearForm *b) : PetscSolverMonitorCtx(true,false), _a(a), _b(b) {}
+
+   void MonitorSolution(PetscInt it, PetscReal norm, Vector &X)
+   {
+      // we plot the first 5 iterates
+      if (!it || it > 5) return;
+      ParFiniteElementSpace *fespace = _a->ParFESpace();
+      ParMesh *mesh = fespace->GetParMesh();
+      ParGridFunction _x(fespace);
+      _a->RecoverFEMSolution(X, *_b, _x);
+
+      char vishost[] = "localhost";
+      int  visport   = 19916;
+      int  num_procs, myid;
+
+      MPI_Comm_size(mesh->GetComm(),&num_procs);
+      MPI_Comm_rank(mesh->GetComm(),&myid);
+      socketstream sol_sock(vishost, visport);
+      sol_sock << "parallel " << num_procs << " " << myid << "\n";
+      sol_sock.precision(8);
+      sol_sock << "solution\n" << *mesh << _x << flush;
+   }
+};
+#endif
 
 int main(int argc, char *argv[])
 {
@@ -59,9 +94,10 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
    bool static_cond = false;
-   bool visualization = 1;
+   bool visualization = false;
    bool use_petsc = false;
    const char *petscrc_file = "";
+   bool petscmonitor = false;
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -79,6 +115,9 @@ int main(int argc, char *argv[])
                   "Use or not PETSc to solve the linear system.");
    args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
                   "PetscOptions file to use.");
+   args.AddOption(&petscmonitor, "-petscmonitor", "--petscmonitor", "-no-petscmonitor",
+                  "--no-petscmonitor",
+                  "Enable or disable GLVis visualization of residual.");
 
    args.Parse();
    if (!args.Good())
@@ -235,7 +274,16 @@ int main(int argc, char *argv[])
       }
       pcg->SetTol(1e-12);
       pcg->SetMaxIter(200);
-      pcg->SetPrintLevel(2); //TODO: as of now, this is a dummy call
+      pcg->SetPrintLevel(2);
+
+      UserMonitor mymon(a,b);
+      if (visualization && petscmonitor)
+      {
+         pcg->SetMonitor(&mymon);
+         pcg->SetPrintLevel(4);
+         pcg->iterative_mode = true;
+         X.Randomize();
+      }
       pcg->Mult(B, X);
       delete pcg;
 #else

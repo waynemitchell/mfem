@@ -266,6 +266,8 @@ PetscParMatrix * RAP(PetscParMatrix *A, PetscParMatrix *P);
 void EliminateBC(PetscParMatrix &A, PetscParMatrix &Ae,
                  const Array<int> &ess_dof_list, const Vector &X, Vector &B);
 
+class PetscSolverMonitorCtx;
+
 /// Abstract class for PETSc's solvers
 class PetscSolver : public Solver
 {
@@ -285,6 +287,9 @@ protected:
 
    /// Right-hand side and solution vector
    mutable PetscParVector *B, *X;
+
+   /// Monitor context
+   PetscSolverMonitorCtx *monitor_ctx;
 
    /// Set prefix for PETSc's options database
    void SetPrefix(std::string prefix);
@@ -314,6 +319,7 @@ public:
    void SetAbsTol(double tol);
    void SetMaxIter(int max_iter);
    void SetPrintLevel(int plev);
+   void SetMonitor(PetscSolverMonitorCtx *ctx);
    void Mult(const PetscParVector &b, PetscParVector &x) const;
    int GetConverged();
    int GetNumIterations();
@@ -457,6 +463,28 @@ public:
 
    /// Typecasting to PETSc's SNES
    operator SNES() const { return (SNES)obj; }
+};
+
+/// Abstract class for monitoring PETSc's solvers
+class PetscSolverMonitorCtx
+{
+public:
+   bool _msol;
+   bool _mres;
+   PetscSolverMonitorCtx(bool msol = false, bool mres = true) : _msol(msol), _mres(mres) {};
+   ~PetscSolverMonitorCtx() {};
+
+   /// Monitor the solution vector x
+   virtual void MonitorSolution(PetscInt it, PetscReal norm, Vector &x)
+   {
+      MFEM_ABORT("MonitorSolution() not implemented!")
+   };
+
+   /// Monitor the residual vector r
+   virtual void MonitorResidual(PetscInt it, PetscReal norm, Vector &r)
+   {
+      MFEM_ABORT("MonitorResidual() not implemented!")
+   };
 };
 
 }
