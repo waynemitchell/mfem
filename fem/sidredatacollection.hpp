@@ -68,6 +68,10 @@ public:
    void SetGroupPointers(asctoolkit::sidre::DataGroup * global_grp,
                          asctoolkit::sidre::DataGroup * domain_grp);
 
+   asctoolkit::sidre::DataGroup * GetBPGroup() { return bp_grp; }
+   asctoolkit::sidre::DataGroup * GetBPIndexGroup() { return bp_index_grp; }
+   asctoolkit::sidre::DataGroup * GetSimGroup() { return simdata_grp; }
+
    void Save();
 
    void Save(const std::string& filename, const std::string& protocol);
