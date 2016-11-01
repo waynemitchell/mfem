@@ -74,7 +74,13 @@ public:
                        \ det(J^t*J)^{1/2}, for general J,
                      is the transformation weight factor.
    */
-   enum { VALUE, INTEGRAL, H_DIV, H_CURL };
+   enum { VALUE,     ///< For scalar fields; preserves point values
+          INTEGRAL,  ///< For scalar fields; preserves volume integrals
+          H_DIV,     /**< For vector fields; preserves surface integrals of the
+                          normal component */
+          H_CURL     /**< For vector fields; preserves line integrals of the
+                          tangential component */
+        };
 
    /** @brief Enumeration for DerivType: defines which derivative method
        is implemented.
@@ -82,20 +88,20 @@ public:
        Each FiniteElement class implements only one type of derivative.  The
        value returned by GetDerivType() indicates which derivative method is
        implemented.
-
-       NONE -> No derivative is implemented
-       GRAD -> CalcDShape
-       DIV  -> CalcDivShape
-       CURL -> CalcCurlShape
    */
-   enum { NONE, GRAD, DIV, CURL};
+   enum { NONE, // No derivatives implemented
+          GRAD, // Implements CalcDShape methods
+          DIV,  // Implements CalcDivShape methods
+          CURL  // Implements CalcCurlShape methods
+        };
 
-   /** Construct Finite Element with given
-       (D)im      - space dimension,
-       (G)eomType - geometry type (of type Geometry::Type),
-       (Do)f      - degrees of freedom in the FE space, and
-       (O)rder    - order of the FE space
-       (F)uncSpace- type of space on each element */
+   /** Construct FiniteElement with given
+       @param D    Reference space dimension
+       @param G    Geometry type (of type Geometry::Type)
+       @param Do   Number of degrees of freedom in the FiniteElement
+       @param O    Order/degree of the FiniteElement
+       @param F    FunctionSpace type of the FiniteElement  */
+
    FiniteElement(int D, int G, int Do, int O, int F = FunctionSpace::Pk);
 
    /// Returns the space dimension for the finite element

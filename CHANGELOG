@@ -88,6 +88,9 @@ Miscellaneous
   the MPFR library. When MFEM_USE_MPFR is enabled, the 1D quadrature rules will
   be computed precisely, at least for rules with up to 65-points.
 
+- Added on-the-fly compression of file streams input and output via gzstream,
+  see the MFEM_USE_GZSTREAM option.
+
 - Better support for METIS version 5 and above.
 
 - Provide an informative backtrace in mfem_error based on the cross-platform

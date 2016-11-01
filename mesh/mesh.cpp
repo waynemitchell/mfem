@@ -2206,7 +2206,7 @@ Mesh::Mesh(const char *filename, int generate_edges, int refine,
    // Initialization as in the default constructor
    SetEmpty();
 
-   named_ifstream imesh(filename);
+   named_ifgzstream imesh(filename);
    if (!imesh)
    {
       // Abort with an error message.
@@ -2376,11 +2376,11 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    else if (mesh_type.size() > 2 &&
             mesh_type[0] == 'C' && mesh_type[1] == 'D' && mesh_type[2] == 'F')
    {
-      named_ifstream *mesh_input = dynamic_cast<named_ifstream *>(&input);
+      named_ifgzstream *mesh_input = dynamic_cast<named_ifgzstream *>(&input);
       if (mesh_input)
       {
 #ifdef MFEM_USE_NETCDF
-         ReadCubit(*mesh_input, curved, read_gf);
+         ReadCubit(mesh_input->filename, curved, read_gf);
 #else
          MFEM_ABORT("NetCDF support requires configuration with"
                     " MFEM_USE_NETCDF=YES");
@@ -2389,7 +2389,8 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
       }
       else
       {
-         MFEM_ABORT("Need to use mfem_ifstream with NetCDF");
+         MFEM_ABORT("Can not determine Cubit mesh filename!"
+                    " Use mfem::named_ifgzstream for input.");
          return;
       }
    }
