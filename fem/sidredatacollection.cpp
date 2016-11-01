@@ -132,6 +132,257 @@ SidreDataCollection::~SidreDataCollection()
    }
 }
 
+
+void SidreDataCollection::createMeshBlueprintStubs(bool hasBP)
+{
+    if(!hasBP)
+    {
+        bp_grp->createGroup("state");
+        bp_grp->createGroup("coordsets");
+        bp_grp->createGroup("topologies");
+        bp_grp->createGroup("fields");
+    }
+
+    // If rank is 0, set up blueprint index state group.
+    if (myid == 0)
+    {
+       bp_index_grp->createGroup("state");
+       bp_index_grp->createGroup("coordsets");
+       bp_index_grp->createGroup("topologies");
+       bp_index_grp->createGroup("fields");
+    }
+
+}
+
+void SidreDataCollection::createMeshBlueprintState(bool hasBP)
+{
+    if (!hasBP)
+    {
+       // Set up blueprint state group.
+       bp_grp->createViewScalar("state/cycle", 0);
+       bp_grp->createViewScalar("state/time", 0.);
+       bp_grp->createViewScalar("state/domain", myid);
+       bp_grp->createViewScalar("state/time_step", 0.);
+
+
+    }
+
+    // If rank is 0, set up blueprint index state group.
+    if (myid == 0)
+    {
+       bp_index_grp->createViewScalar("state/cycle", 0);
+       bp_index_grp->createViewScalar("state/time", 0.);
+       bp_index_grp->createViewScalar("state/number_of_domains", num_procs);
+    }
+}
+
+void SidreDataCollection::createMeshBlueprintCoordset(bool hasBP)
+{
+    namespace sidre = asctoolkit::sidre;
+
+    int dim = mesh->Dimension();
+    MFEM_ASSERT(dim >=1 && dim <= 3, "invalid mesh dimension");
+
+    // With the changes I (Tom) made Vertex is POD and we memcpy to and from the
+    // mfem::Vertex mfem::Array requiring a full sized mfem::Vertex per vertex
+    // aka double[3] -> dim always needs to be three
+    // Note: The coordinates in mfem always have three components (regardless of dim)
+    //       but the mesh constructor can handle packed data <- not anymore
+    const int NUM_COORDS = 3;
+
+    const int num_vertices = mesh->GetNV();
+    const int coordset_len = NUM_COORDS * num_vertices;
+
+    // Add blueprint if not present
+    if( !hasBP )
+    {
+       // Allocate buffer for coord values.
+       sidre::DataBuffer* coordbuf = bp_grp->getDataStore()
+                                           ->createBuffer(sidre::DOUBLE_ID, coordset_len)
+                                           ->allocate();
+
+       bp_grp->createViewString("coordsets/coords/type", "explicit");
+
+       // Set up views for x, y, z values
+       bp_grp->createView("coordsets/coords/values/x")
+             ->attachBuffer(coordbuf)
+             ->apply(sidre::DOUBLE_ID, num_vertices, 0, NUM_COORDS);
+
+       if(dim >= 2)
+       {
+          bp_grp->createView("coordsets/coords/values/y")
+                ->attachBuffer(coordbuf)
+                ->apply(sidre::DOUBLE_ID, num_vertices, 1, NUM_COORDS);
+       }
+       if(dim >= 3)
+       {
+          bp_grp->createView("coordsets/coords/values/z")
+                ->attachBuffer(coordbuf)
+                ->apply(sidre::DOUBLE_ID, num_vertices, 2, NUM_COORDS);
+       }
+    }
+
+    // If rank 0, set up blueprint index for coordinate set.
+    if (myid == 0)
+    {
+       bp_index_grp->createViewString("coordsets/coords/path", bp_grp->getPathName() + "/coordsets/coords");
+       bp_index_grp->getGroup("coordsets/coords")->copyView( bp_grp->getView("coordsets/coords/type") );
+
+       std::string coord_system = "unknown";
+       if ( bp_grp->getGroup("coordsets/coords/values")->hasView("x") &&
+            bp_grp->getGroup("coordsets/coords/values")->hasView("y") )
+       {
+          if ( bp_grp->getGroup("coordsets/coords/values")->hasView("z") )
+          {
+             coord_system = "xyz";
+          }
+          else
+          {
+             coord_system = "xy";
+          }
+       }
+       else
+       {
+          MFEM_ABORT("Unknown coordinate system.");
+       }
+
+       bp_index_grp->createViewString("coordsets/coords/coord_system", coord_system);
+    }
+
+
+    // Change ownership of mesh data to sidre
+    double *coord_values = bp_grp->getView("coordsets/coords/values/x")->getBuffer()->getData();
+    if (m_owns_mesh_data)
+    {
+        mesh->ChangeVertexDataOwnership(coord_values,coordset_len,hasBP);
+    }
+    else
+    {
+        mesh->CopyVertexData(coord_values,coordset_len);
+    }
+}
+
+void SidreDataCollection::createMeshBlueprintTopologies(bool hasBP, const std::string& mesh_name)
+{
+    namespace sidre = asctoolkit::sidre;
+
+    const bool isBdry = (mesh_name == "boundary")? true : false;
+
+    const int element_size = !isBdry
+            ? mesh->GetElement(0)->GetNVertices()
+            : mesh->GetBdrElement(0)->GetNVertices();
+
+    const int num_elements = !isBdry
+            ? mesh->GetNE()
+            : mesh->GetNBE();
+
+    const int num_indices = num_elements * element_size;
+
+    // Find the element shape
+    // Note: Assumes homogeneous elements, so only check the first element
+    const std::string eltTypeStr = !isBdry
+            ? getElementName( static_cast<Element::Type>( mesh->GetElement(0)->GetType() ) )
+            : getElementName( static_cast<Element::Type>( mesh->GetBdrElement(0)->GetType() ) );
+
+    const std::string mesh_topo_str = "topologies/" + mesh_name;
+    const std::string mesh_attr_str = "fields/"+ mesh_name +"_material_attribute";
+
+    if( !hasBP )
+    {
+       sidre::DataGroup* topology_grp = bp_grp->createGroup(mesh_topo_str);
+
+       // Add mesh topology
+       topology_grp->createViewString("type", "unstructured");
+       topology_grp->createViewString("elements/shape",eltTypeStr);   // <-- Note: this comes form the mesh
+       topology_grp->createViewAndAllocate("elements/connectivity",sidre::INT_ID,num_indices);
+       topology_grp->createViewString("coordset", "coords");
+
+       if(!isBdry)
+       {
+           topology_grp->createViewString("mfem_grid_function",m_meshNodesGFName);
+       }
+
+       // Add material attribute field to blueprint
+       sidre::DataGroup* attr_grp = bp_grp->createGroup(mesh_attr_str);
+       attr_grp->createViewString("association", "element");
+       attr_grp->createViewAndAllocate("values",sidre::INT_ID,num_elements);
+       attr_grp->createViewString("topology", mesh_name );
+    }
+
+    // If rank 0, set up blueprint index for topologies group and material attribute field.
+    if (myid == 0)
+    {
+       const std::string bp_grp_path = bp_grp->getPathName();
+
+       // Create blueprint index for topologies.
+       if(isBdry)
+       {
+            bp_index_grp->getGroup("topologies/mesh")
+                        ->copyView( bp_grp->getView("topologies/mesh/boundary_topology") );
+       }
+
+       sidre::DataGroup * bp_index_topo_grp = bp_index_grp->createGroup(mesh_topo_str);
+       sidre::DataGroup* topology_grp = bp_grp->getGroup(mesh_topo_str);
+
+       bp_index_topo_grp->createViewString("path", bp_grp_path + "/" + mesh_topo_str);
+       bp_index_topo_grp->copyView( topology_grp->getView("type") );
+       bp_index_topo_grp->copyView( topology_grp->getView("coordset") );
+
+       if(!isBdry)
+       {
+           bp_index_topo_grp->copyView( topology_grp->getView("mfem_grid_function") );
+       }
+
+       // Create blueprint index for material attributes.
+       sidre::DataGroup * bp_index_field_grp = bp_index_grp->createGroup(mesh_attr_str);
+       sidre::DataGroup * field_grp = bp_grp->getGroup(mesh_attr_str);
+
+       bp_index_field_grp->createViewString( "path", bp_grp_path + "/" + mesh_attr_str );
+       bp_index_field_grp->copyView( field_grp->getView("association") );
+       bp_index_field_grp->copyView( field_grp->getView("topology") );
+
+       int number_of_components = 1;
+       if ( field_grp->hasGroup("values") )
+       {
+          number_of_components = field_grp->getGroup("values")->getNumViews();
+       }
+
+       bp_index_field_grp->createViewScalar("number_of_components", number_of_components);
+    }
+
+
+
+    // Finally, change ownership or copy the element arrays into Sidre
+    sidre::DataView* conn_view = bp_grp->getGroup(mesh_topo_str)->getView("elements/connectivity");
+    sidre::DataView* attr_view = bp_grp->getGroup(mesh_attr_str)->getView("values");
+    if (m_owns_mesh_data)
+    {
+       if(!isBdry)
+       {
+           mesh->ChangeElementDataOwnership(conn_view->getArray(),num_indices,
+                                        attr_view->getArray(),num_elements,hasBP);
+       }
+       else
+       {
+           mesh->ChangeBoundaryElementDataOwnership(conn_view->getArray(),num_indices,
+                                                    attr_view->getArray(),num_elements,hasBP);
+       }
+    }
+    else
+    {
+        if(!isBdry)
+        {
+            mesh->CopyElementData(conn_view->getArray(),num_indices,
+                             attr_view->getArray(),num_elements);
+        }
+        else
+        {
+            mesh->CopyBoundaryElementData(conn_view->getArray(),num_indices,
+                                          attr_view->getArray(),num_elements);
+       }
+    }
+}
+
 void SidreDataCollection::SetMesh(Mesh *new_mesh)
 {
    namespace sidre = asctoolkit::sidre;
@@ -146,265 +397,20 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
    }
 
    bool hasBP = bp_grp->getNumViews() > 0 || bp_grp->getNumGroups() > 0;
-   if (!hasBP)
+   bool has_bnd_elts = (new_mesh->GetNBE() > 0);
+
+   createMeshBlueprintStubs(hasBP);
+   createMeshBlueprintState(hasBP);
+   createMeshBlueprintCoordset(hasBP);
+
+   createMeshBlueprintTopologies(hasBP, "mesh");
+
+   if(has_bnd_elts)
    {
-      // Set up blueprint state group.
-      bp_grp->createViewScalar("state/cycle", 0);
-      bp_grp->createViewScalar("state/time", 0.);
-      bp_grp->createViewScalar("state/domain", myid);
-      bp_grp->createViewScalar("state/time_step", 0.);
-
-
+       bp_grp->createViewString("topologies/mesh/boundary_topology", "boundary");
+       createMeshBlueprintTopologies(hasBP, "boundary");
    }
 
-   // If rank is 0, set up blueprint index state group.
-   if (myid == 0)
-   {
-      bp_index_grp->createViewScalar("state/cycle", 0);
-      bp_index_grp->createViewScalar("state/time", 0.);
-      bp_index_grp->createViewScalar("state/number_of_domains", num_procs);
-   }
-
-   int dim = new_mesh->Dimension();
-   MFEM_ASSERT(dim >=1 && dim <= 3, "invalid mesh dimension");
-
-   // With the changes I (Tom) made Vertex is POD and we memcpy to and from the
-   // mfem::Vertex mfem::Array requiring a full sized mfem::Vertex per vertex
-   // aka double[3] -> dim always needs to be three
-   // Note: The coordinates in mfem always have three components (regardless of dim)
-   //       but the mesh constructor can handle packed data <- not anymore
-   const int NUM_COORDS = 3;
-
-   // Retrieve some mesh attributes from mesh object
-   int num_vertices = new_mesh->GetNV();
-   int coordset_len = NUM_COORDS * num_vertices;
-
-   int element_size = new_mesh->GetElement(0)->GetNVertices();
-   int mesh_num_elements = new_mesh->GetNE();
-   int mesh_num_indices = mesh_num_elements * element_size;
-
-   int bnd_num_elements = new_mesh->GetNBE();
-   bool has_bnd_elts = (bnd_num_elements > 0);
-
-   int bnd_element_size = has_bnd_elts? new_mesh->GetBdrElement(0)->GetNVertices() : 0;
-   int bnd_num_indices = bnd_num_elements * bnd_element_size;
-
-   // Add blueprint if not present
-   if( !hasBP )
-   {
-      // Add blueprint coordinate set
-
-      // Allocate buffer for coord values.
-      sidre::DataBuffer* coordbuf = bp_grp->getDataStore()
-                                          ->createBuffer(sidre::DOUBLE_ID, coordset_len)
-                                          ->allocate();
-
-      bp_grp->createViewString("coordsets/coords/type", "explicit");
-
-      // Set up views for x, y, z values
-      bp_grp->createView("coordsets/coords/values/x")
-            ->attachBuffer(coordbuf)
-            ->apply(sidre::DOUBLE_ID, num_vertices, 0, NUM_COORDS);
-
-      if(dim >= 2)
-      {
-         bp_grp->createView("coordsets/coords/values/y")
-               ->attachBuffer(coordbuf)
-               ->apply(sidre::DOUBLE_ID, num_vertices, 1, NUM_COORDS);
-      }
-      if(dim >= 3)
-      {
-         bp_grp->createView("coordsets/coords/values/z")
-               ->attachBuffer(coordbuf)
-               ->apply(sidre::DOUBLE_ID, num_vertices, 2, NUM_COORDS);
-      }
-   }
-
-   std::string bp_grp_path = bp_grp->getPathName();
-
-   // If rank 0, set up blueprint index for coordinate set.
-   if (myid == 0)
-   {
-      bp_index_grp->createViewString("coordsets/coords/path", bp_grp_path + "/coordsets/coords");
-      bp_index_grp->getGroup("coordsets/coords")->copyView( bp_grp->getView("coordsets/coords/type") );
-
-      std::string coord_system = "unknown";
-      if ( bp_grp->getGroup("coordsets/coords/values")->hasView("x") &&
-           bp_grp->getGroup("coordsets/coords/values")->hasView("y") )
-      {
-         if ( bp_grp->getGroup("coordsets/coords/values")->hasView("z") )
-         {
-            coord_system = "xyz";
-         }
-         else
-         {
-            coord_system = "xy";
-         }
-      }
-      else
-      {
-         MFEM_ABORT("Unknown coordinate system.");
-      }
-
-      bp_index_grp->createViewString("coordsets/coords/coord_system", coord_system);
-   }
-
-   if( !hasBP )
-   {
-      // Add blueprint topologies group
-
-      // Find the element shape
-      // Note: Assumes homogeneous elements, so only check the first element
-      std::string eltTypeStr = getElementName( static_cast<Element::Type>( new_mesh->GetElement(0)->GetType() ) );
-
-      // Add mesh topology
-      bp_grp->createViewString("topologies/mesh/type", "unstructured");
-      bp_grp->createViewString("topologies/mesh/elements/shape",eltTypeStr);   // <-- Note: this comes form the mesh
-
-      bp_grp->createViewAndAllocate("topologies/mesh/elements/connectivity",
-                                 sidre::INT_ID,
-                                 mesh_num_indices);
-
-      bp_grp->createViewString("topologies/mesh/coordset", "coords");
-
-      bp_grp->createViewString("topologies/mesh/mfem_grid_function",m_meshNodesGFName);
-
-      // Add mesh elements material attribute field to blueprint
-      bp_grp->createViewString("fields/mesh_material_attribute/association", "element");
-
-      bp_grp->createViewAndAllocate("fields/mesh_material_attribute/values",
-                                    sidre::INT_ID,
-                                    mesh_num_elements);
-
-      bp_grp->createViewString("fields/mesh_material_attribute/topology", "mesh" );
-   }
-
-   // If rank 0, set up blueprint index for topologies group and material attribute field.
-   if (myid == 0)
-   {
-      sidre::DataGroup * bp_index_mesh_grp = bp_index_grp->createGroup("topologies/mesh");
-      bp_index_mesh_grp->createViewString("path", bp_grp_path + "/topologies/mesh");
-
-      bp_index_mesh_grp->copyView( bp_grp->getView("topologies/mesh/type") );
-      bp_index_mesh_grp->copyView( bp_grp->getView("topologies/mesh/coordset") );
-      bp_index_mesh_grp->copyView( bp_grp->getView("topologies/mesh/mfem_grid_function") );
-
-      // Create blueprint index fields group.
-      sidre::DataGroup * bp_index_field_grp = bp_index_grp->createGroup("fields/mesh_material_attribute");
-      bp_index_field_grp->createViewString( "path", bp_grp_path + "/fields/mesh_material_attribute" );
-
-      bp_index_field_grp->copyView( bp_grp->getView("fields/mesh_material_attribute/association") );
-      bp_index_field_grp->copyView( bp_grp->getView("fields/mesh_material_attribute/topology") );
-
-      int number_of_components = 1;
-      if ( bp_grp->hasGroup("fields/mesh_material_attribute/values") )
-      {
-         number_of_components = bp_grp->getGroup("fields/mesh_material_attributes/values")->getNumViews();
-      }
-
-      bp_index_field_grp->createViewScalar("number_of_components", number_of_components);
-   }
-
-   // Add boundary elements topology to blueprint
-   if( !hasBP && has_bnd_elts)
-   {
-      // Identify in mesh topology where to find these.
-      bp_grp->createViewString("topologies/mesh/boundary_topology", "boundary");
-
-      // Find the element shape
-      // Note: Assumes homogeneous elements, so only check the first element
-      std::string eltTypeStr = getElementName( static_cast<Element::Type>( new_mesh->GetBdrElement(0)->GetType() ) );
-
-      bp_grp->createViewString("topologies/boundary/type", "unstructured");
-      bp_grp->createViewString("topologies/boundary/elements/shape",eltTypeStr);
-
-      bp_grp->createViewAndAllocate("topologies/boundary/elements/connectivity",
-                                    sidre::INT_ID,
-                                    bnd_num_indices);
-
-      bp_grp->createViewString("topologies/boundary/coordset", "coords");
-
-      // Add boundary elements material attribute field
-      bp_grp->createViewString("fields/boundary_material_attribute/association", "element");
-
-      bp_grp->createViewAndAllocate("fields/boundary_material_attribute/values",
-                                    sidre::INT_ID,
-                                    bnd_num_elements);
-
-      bp_grp->createViewString("fields/boundary_material_attribute/topology", "boundary");
-   }
-
-   // If rank 0, add blueprint index boundary topology.
-   if (myid == 0 && has_bnd_elts)
-   {
-      bp_index_grp->getGroup("topologies/mesh")->copyView( bp_grp->getView("topologies/mesh/boundary_topology") );
-
-      sidre::DataGroup * bp_index_bnd_grp = bp_index_grp->createGroup("topologies/boundary");
-      bp_index_bnd_grp->createViewString("path", bp_grp_path + "/topologies/boundary");
-      bp_index_bnd_grp->copyView( bp_grp->getView("topologies/boundary/type") );
-      bp_index_bnd_grp->copyView( bp_grp->getView("topologies/boundary/coordset") );
-
-      // Create blueprint index fields group.
-      sidre::DataGroup * bp_index_field_grp = bp_index_grp->createGroup("fields/boundary_material_attribute");
-      bp_index_field_grp->createViewScalar( "path", bp_grp_path + "/fields/boundary_material_attribute" );
-      bp_index_field_grp->copyView( bp_grp->getView("fields/boundary_material_attribute/association") );
-      bp_index_field_grp->copyView( bp_grp->getView("fields/boundary_material_attribute/topology") );
-
-      int number_of_components = 1;
-      if ( bp_grp->hasGroup("fields/boundary_material_attribute/values") )
-      {
-         number_of_components = bp_grp->getGroup("fields/boundary_material_attributes/values")->getNumViews();
-      }
-
-      bp_index_field_grp->createViewScalar("number_of_components", number_of_components);
-   }
-
-   // Change ownership of mesh data to sidre
-   double *coord_values = bp_grp->getView("coordsets/coords/values/x")->getBuffer()->getData();
-
-   if (m_owns_mesh_data) {
-      new_mesh->ChangeElementDataOwnership(
-                bp_grp->getView("topologies/mesh/elements/connectivity")->getArray(),
-                element_size * mesh_num_elements,
-                bp_grp->getView("fields/mesh_material_attribute/values")->getArray(),
-                mesh_num_elements,
-                hasBP);
-
-      new_mesh->ChangeVertexDataOwnership(
-                coord_values,
-                coordset_len,
-                hasBP);
-
-      if (has_bnd_elts)
-      {
-         new_mesh->ChangeBoundaryElementDataOwnership(
-                   bp_grp->getView("topologies/boundary/elements/connectivity")->getArray(),
-                   bnd_element_size * bnd_num_elements,
-                   bp_grp->getView("fields/boundary_material_attribute/values")->getArray(),
-                   bnd_num_elements,
-                   hasBP);
-      }
-   }
-   else {
-      new_mesh->CopyElementData(
-                bp_grp->getView("topologies/mesh/elements/connectivity")->getArray(),
-                element_size * mesh_num_elements,
-                bp_grp->getView("fields/mesh_material_attribute/values")->getArray(),
-                mesh_num_elements);
-
-      new_mesh->CopyVertexData(
-                coord_values,
-                coordset_len);
-
-      if (has_bnd_elts)
-      {
-         new_mesh->CopyBoundaryElementData(
-                   bp_grp->getView("topologies/boundary/elements/connectivity")->getArray(),
-                   bnd_element_size * bnd_num_elements,
-                   bp_grp->getView("fields/boundary_material_attribute/values")->getArray(),
-                   bnd_num_elements);
-      }
-   }
 
    if( m_meshNodesGFName == "mfem_default_mesh_nodes_gf")
    {
@@ -606,19 +612,19 @@ void SidreDataCollection::Save(const std::string& filename, const std::string& p
 
    }
 #endif
-   /*
-      protocol = "conduit_json";
-      filename = fNameSstr.str() + ".conduit_json";
-      bp_grp->getDataStore()->save(filename, protocol);//, sidre_dc_group);
 
-      protocol = "json";
-      filename = fNameSstr.str() + ".json";
-      bp_grp->getDataStore()->save(filename, protocol);//, sidre_dc_group);
+      std::string _protocol = "conduit_json";
+      std::string _filename = fNameSstr.str() + ".conduit_json";
+      bp_grp->getDataStore()->save(_filename, _protocol);//, sidre_dc_group);
 
-      protocol = "sidre_hdf5";
-      filename = fNameSstr.str() + ".sidre_hdf5";
-      bp_grp->getDataStore()->save(filename, protocol);//, sidre_dc_group);
-*/
+      _protocol = "json";
+      _filename = fNameSstr.str() + ".json";
+      bp_grp->getDataStore()->save(_filename, _protocol);//, sidre_dc_group);
+
+      _protocol = "sidre_hdf5";
+      _filename = fNameSstr.str() + ".sidre_hdf5";
+      bp_grp->getDataStore()->save(_filename, _protocol);//, sidre_dc_group);
+
 }
 
 bool SidreDataCollection::HasFieldData(const char *field_name)

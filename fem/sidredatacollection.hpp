@@ -185,6 +185,32 @@ private:
     */
    void addVectorBasedGridFunction(const char*field_name, GridFunction* gf);
 
+
+   /**
+    * Sets up the four main mesh blueprint groups
+    * \param hasBP Indicates whether the blueprint has already been set up
+    */
+   void createMeshBlueprintStubs(bool hasBP);
+
+   /**
+    * Sets up the mesh blueprint 'state' group
+    * \param hasBP Indicates whether the blueprint has already been set up
+    */
+   void createMeshBlueprintState(bool hasBP);
+
+   /**
+    * Sets up the mesh blueprint 'coordsets' group
+    * \param hasBP Indicates whether the blueprint has already been set up
+    */
+   void createMeshBlueprintCoordset(bool hasBP);
+
+   /**
+    * Sets up the mesh blueprint 'topologies' group
+    * \param hasBP Indicates whether the blueprint has already been set up
+    * \param mesh_name The name of the topology
+    * \note Valid values for mesh_name are "mesh" and "boundary"
+    */
+   void createMeshBlueprintTopologies(bool hasBP, const std::string& mesh_name);
 };
 
 } // end namespace mfem
