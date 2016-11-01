@@ -28,7 +28,13 @@ set(MFEM_USE_MPFR @MFEM_USE_MPFR@)
 
 @PACKAGE_INIT@
 
-set_and_check(MFEM_INCLUDE_DIRS "@PACKAGE_INCLUDE_INSTALL_DIR@")
+set(MFEM_INCLUDE_DIRS "@PACKAGE_INCLUDE_INSTALL_DIRS@")
+foreach (dir ${MFEM_INCLUDE_DIRS})
+  message("DIR = ${dir}")
+
+  set_and_check(MFEM_INCLUDE_DIR "${dir}")
+endforeach (dir "${MFEM_INCLUDE_DIRS}")
+
 set_and_check(MFEM_LIBRARY_DIR "@PACKAGE_LIB_INSTALL_DIR@")
 
 check_required_components(MFEM)

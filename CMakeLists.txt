@@ -231,9 +231,7 @@ string(TOUPPER "${PROJECT_NAME}" PROJECT_NAME_UC)
 # Install the library
 install(TARGETS ${PROJECT_NAME}
   EXPORT ${PROJECT_NAME_UC}Targets
-  PUBLIC_HEADER DESTINATION include
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib)
+  DESTINATION lib)
 
 # Install the master header
 install(FILES ${PROJECT_SOURCE_DIR}/mfem.hpp DESTINATION include)
@@ -268,21 +266,22 @@ export(TARGETS ${PROJECT_NAME}
 export(PACKAGE ${PROJECT_NAME})
 
 # This is the build-tree version
-set(INCLUDE_INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+set(INCLUDE_INSTALL_DIRS
+  ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR} ${PROJECT_BINARY_DIR}/config)
 set(LIB_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR})
 configure_package_config_file(config/MFEMConfig.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/MFEMConfig.cmake
   INSTALL_DESTINATION .
   INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR}
-  PATH_VARS INCLUDE_INSTALL_DIR LIB_INSTALL_DIR)
+  PATH_VARS INCLUDE_INSTALL_DIRS LIB_INSTALL_DIR)
 
 # This is the version that will be installed
-set(INCLUDE_INSTALL_DIR include)
+set(INCLUDE_INSTALL_DIRS include)
 set(LIB_INSTALL_DIR lib)
 configure_package_config_file(config/MFEMConfig.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/MFEMConfig.cmake
   INSTALL_DESTINATION ${LIB_INSTALL_DIR}/cmake/mfem
-  PATH_VARS INCLUDE_INSTALL_DIR LIB_INSTALL_DIR)
+  PATH_VARS INCLUDE_INSTALL_DIRS LIB_INSTALL_DIR)
 
 # Write the version file (same for build and install tree)
 write_basic_package_version_file(
