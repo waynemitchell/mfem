@@ -55,6 +55,7 @@ protected:
 
    /// Set of boundary face Integrators to be applied.
    Array<BilinearFormIntegrator*> bfbfi;
+   Array<Array<int>*>             bfbfi_marker;
 
    DenseMatrix elemmat;
    Array<int>  vdofs;
@@ -206,6 +207,11 @@ public:
 
    /// Adds new boundary Face Integrator.
    void AddBdrFaceIntegrator(BilinearFormIntegrator *bfi);
+
+   /** @brief Adds new boundary Face Integrator, restricted to specific boundary
+       attributes. */
+   void AddBdrFaceIntegrator(BilinearFormIntegrator *bfi,
+                             Array<int> &bdr_marker);
 
    void operator=(const double a)
    {
