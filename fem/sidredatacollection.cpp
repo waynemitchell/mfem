@@ -612,19 +612,19 @@ void SidreDataCollection::Save(const std::string& filename, const std::string& p
 
    }
 #endif
+   /*
+      protocol = "conduit_json";
+      filename = fNameSstr.str() + ".conduit_json";
+      bp_grp->getDataStore()->save(filename, protocol);//, sidre_dc_group);
 
-      std::string _protocol = "conduit_json";
-      std::string _filename = fNameSstr.str() + ".conduit_json";
-      bp_grp->getDataStore()->save(_filename, _protocol);//, sidre_dc_group);
+      protocol = "json";
+      filename = fNameSstr.str() + ".json";
+      bp_grp->getDataStore()->save(filename, protocol);//, sidre_dc_group);
 
-      _protocol = "json";
-      _filename = fNameSstr.str() + ".json";
-      bp_grp->getDataStore()->save(_filename, _protocol);//, sidre_dc_group);
-
-      _protocol = "sidre_hdf5";
-      _filename = fNameSstr.str() + ".sidre_hdf5";
-      bp_grp->getDataStore()->save(_filename, _protocol);//, sidre_dc_group);
-
+      protocol = "sidre_hdf5";
+      filename = fNameSstr.str() + ".sidre_hdf5";
+      bp_grp->getDataStore()->save(filename, protocol);//, sidre_dc_group);
+*/
 }
 
 bool SidreDataCollection::HasFieldData(const char *field_name)
