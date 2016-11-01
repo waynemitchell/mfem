@@ -1,3 +1,14 @@
+# Copyright (c) 2010, Lawrence Livermore National Security, LLC. Produced at the
+# Lawrence Livermore National Laboratory. LLNL-CODE-443211. All Rights reserved.
+# See file COPYRIGHT for details.
+#
+# This file is part of the MFEM library. For more information and source code
+# availability see http://mfem.org.
+#
+# MFEM is free software; you can redistribute it and/or modify it under the
+# terms of the GNU Lesser General Public License (as published by the Free
+# Software Foundation) version 2.1 dated February 1999.
+
 cmake_minimum_required(VERSION 2.8.11)
 
 # Load user settings before the defaults - this way the defaults will not
@@ -260,7 +271,7 @@ set(LIB_INSTALL_DIR lib)
 # Add all targets to the build-tree export set
 export(TARGETS ${PROJECT_NAME}
   FILE "${PROJECT_BINARY_DIR}/MFEMTargets.cmake")
- 
+
 # Export the package for use from the build-tree
 # (this registers the build-tree with a global CMake-registry)
 export(PACKAGE ${PROJECT_NAME})
