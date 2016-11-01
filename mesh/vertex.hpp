@@ -47,6 +47,7 @@ struct Vertex
 
    void SetCoords(const double *p, size_t dim) { memcpy(coord, p, dim * sizeof(double)); }
    void SetCoords(const double *p) { coord[0] = p[0]; coord[1] = p[1]; coord[2] = p[2]; }
+   void SetCoords(double x, double y, double z) { coord[0] = x; coord[1] = y; coord[2] = z; }
 };
 
 }
