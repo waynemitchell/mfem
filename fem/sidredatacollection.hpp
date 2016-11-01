@@ -102,14 +102,11 @@ public:
     * Gets a pointer to the data (an array of template type T)
     * If the array named by field_name does not exist,
     * it will create a view of the appropriate size and allocate as appropriate
-    * Note: This function is not available in base DataCollection class
+    * \note This function is not available in base DataCollection class
     */
    template<typename T>
    T* GetArrayData(const char *field_name, int sz)
    {
-      // NOTE: WE only handle scalar fields right now
-      //       Need to add support for vector fields as well
-
       namespace sidre = asctoolkit::sidre;
 
       sidre::DataGroup* f = simdata_grp->getGroup("array_data");
