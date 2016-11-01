@@ -15,7 +15,7 @@
 namespace mfem
 {
 
-Point::Point( const int *ind, int attr, int_ptr_pair p ) 
+Point::Point( const int *ind, int attr, int_ptr_pair p )
    : Element(Geometry::POINT, p.first, 1, p.second)
 {
    attribute = attr;

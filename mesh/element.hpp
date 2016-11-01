@@ -30,11 +30,12 @@ class Mesh;
 class Element
 {
 public:
-	typedef std::pair<int*, int*> int_ptr_pair; 
+   typedef std::pair<int*, int*> int_ptr_pair;
    static int NumOfIndices[6];
 protected:
    /// Element's attribute (specifying material property, etc).
-   union {
+   union
+   {
       int attribute;
       int *ptr_attribute;
    };
@@ -48,11 +49,12 @@ public:
 
    /// Constants for the classes derived from Element.
    enum Type { POINT, SEGMENT, TRIANGLE, QUADRILATERAL, TETRAHEDRON,
-               HEXAHEDRON};
+               HEXAHEDRON
+             };
 
    /// Default element constructor.
-   explicit Element(int bg = Geometry::POINT, int *_indices = NULL, 
-         size_t indices_count = 0, int *_attribute = NULL);
+   explicit Element(int bg = Geometry::POINT, int *_indices = NULL,
+                    size_t indices_count = 0, int *_attribute = NULL);
 
    /// Set where the indices pointer is pointing.
    /// Useful if the memory location of indices data
@@ -82,18 +84,22 @@ public:
    int GetGeometryType() const { return base_geom; }
 
    /// Return element's attribute.
-   inline int GetAttribute() const 
-   { return self_alloc ? attribute : 
-      (ptr_attribute ? *ptr_attribute : 1); }
+   inline int GetAttribute() const
+   {
+      return self_alloc ? attribute :
+             (ptr_attribute ? *ptr_attribute : 1);
+   }
 
    /// Set element's attribute.
    /// You cannot set a NULL pointer attribute (always returned as 1)
    // TODO: better exception
-   inline void SetAttribute(const int attr) 
-   { self_alloc ? attribute = attr : 
-      (ptr_attribute ? *ptr_attribute = attr : 
-       throw std::runtime_error("Cannot assign an attribute to an "
-          "externally allocated Element with NULL attribute pointer")); }
+   inline void SetAttribute(const int attr)
+   {
+      self_alloc ? attribute = attr :
+                               (ptr_attribute ? *ptr_attribute = attr :
+                                                                 throw std::runtime_error("Cannot assign an attribute to an "
+                                                                       "externally allocated Element with NULL attribute pointer"));
+   }
 
    /// Set the indices the element according to the input.
    virtual void SetVertices(const int *ind);
@@ -139,7 +145,7 @@ public:
    virtual Element *Duplicate(Mesh *m) const = 0;
 
    /// Destroys element.
-   virtual ~Element() { if (self_alloc)  delete indices;  }
+   virtual ~Element() { if (self_alloc) { delete indices; }  }
 };
 
 }

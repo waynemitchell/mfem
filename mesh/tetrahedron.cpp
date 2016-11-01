@@ -29,7 +29,7 @@ Tetrahedron::Tetrahedron(const int *ind, int attr, int_ptr_pair p)
 }
 
 Tetrahedron::Tetrahedron(int ind1, int ind2, int ind3, int ind4, int attr,
-      int_ptr_pair p)
+                         int_ptr_pair p)
    : Element(Geometry::TETRAHEDRON, p.first, 4, p.second)
 {
    attribute  = attr;

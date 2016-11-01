@@ -113,11 +113,12 @@ public:
     * Gets a pointer to the data of field_name
     * If it does not exist, but base_field does, return pointer relative to base_field's data
     */
-   virtual double* GetFieldData(const char *field_name, int sz, const char *base_field, int offset = 0, int stride = 1);
+   virtual double* GetFieldData(const char *field_name, int sz,
+                                const char *base_field, int offset = 0, int stride = 1);
 
 
-   /** 
-    *  Creates and returns a vector containing the names of all registered grid functions 
+   /**
+    *  Creates and returns a vector containing the names of all registered grid functions
     */
    std::vector<std::string> GetFieldNames() const;
 

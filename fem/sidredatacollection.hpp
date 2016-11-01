@@ -44,7 +44,8 @@ public:
    typedef int mfem_int_t;
    typedef double mfem_double_t;
 
-   SidreDataCollection(const std::string& collection_name, Mesh *mesh, bool owns_mesh_data=false);
+   SidreDataCollection(const std::string& collection_name, Mesh *mesh,
+                       bool owns_mesh_data=false);
 
    SidreDataCollection(const std::string& collection_name,
                        asctoolkit::sidre::DataGroup * global_grp,
@@ -61,10 +62,10 @@ public:
 
    void SetMesh(Mesh *new_mesh);
 
-	// Reset the domain and global (root) datastore group pointers.
-	// These are set in the constructor, but if a host code changes the datastore contents
-	// ( such as wiping out the datastore and loading in new contents from a file, ie a restart )
-	// these pointers will need to be reset to valid groups in the datastore.
+   // Reset the domain and global (root) datastore group pointers.
+   // These are set in the constructor, but if a host code changes the datastore contents
+   // ( such as wiping out the datastore and loading in new contents from a file, ie a restart )
+   // these pointers will need to be reset to valid groups in the datastore.
    void SetGroupPointers(asctoolkit::sidre::DataGroup * global_grp,
                          asctoolkit::sidre::DataGroup * domain_grp);
 
@@ -90,50 +91,51 @@ public:
     * Data is relative to the data associated with base_field
     * Returns null if base_field does not exist
     */
-   double* GetFieldData(const char *field_name, int sz, const char *base_field, int offset = 0, int stride = 1);
+   double* GetFieldData(const char *field_name, int sz, const char *base_field,
+                        int offset = 0, int stride = 1);
 
 
    bool HasFieldData(const char *field_name);
 
 
-  /**
-   * Gets a pointer to the data (an array of template type T)
-   * If the array named by field_name does not exist,
-   * it will create a view of the appropriate size and allocate as appropriate
-   * Note: This function is not available in base DataCollection class
-   */
-  template<typename T>
-  T* GetArrayData(const char *field_name, int sz)
-  {
+   /**
+    * Gets a pointer to the data (an array of template type T)
+    * If the array named by field_name does not exist,
+    * it will create a view of the appropriate size and allocate as appropriate
+    * Note: This function is not available in base DataCollection class
+    */
+   template<typename T>
+   T* GetArrayData(const char *field_name, int sz)
+   {
       // NOTE: WE only handle scalar fields right now
       //       Need to add support for vector fields as well
 
       namespace sidre = asctoolkit::sidre;
 
       sidre::DataGroup* f = simdata_grp->getGroup("array_data");
-      if( ! f->hasView( field_name ) )
+      if ( ! f->hasView( field_name ) )
       {
-          f->createViewAndAllocate(field_name, sidre::detail::SidreTT<T>::id, sz);
+         f->createViewAndAllocate(field_name, sidre::detail::SidreTT<T>::id, sz);
       }
       else
       {
-          // Need to handle a case where the user is requesting a larger field
-          sidre::DataView* valsView = f->getView( field_name);
-          int valSz = valsView->getNumElements();
+         // Need to handle a case where the user is requesting a larger field
+         sidre::DataView* valsView = f->getView( field_name);
+         int valSz = valsView->getNumElements();
 
-          if(valSz < sz)
-          {
-              valsView->reallocate(sz);
-          }
+         if (valSz < sz)
+         {
+            valsView->reallocate(sz);
+         }
       }
 
       return f->getView(field_name)->getArray();
-  }
+   }
 
 private:
    // Private helper functions
 
-	// Used if the sidre data collection is providing the datastore itself.
+   // Used if the sidre data collection is providing the datastore itself.
    const bool m_owns_datastore;
 
    // TODO - Need to evaluate if this bool member can be combined with own_data in parent data collection class.

@@ -2098,7 +2098,7 @@ void Mesh::Make1D(int n, double sx)
 
 Mesh::Mesh(const Mesh &mesh, bool copy_nodes)
 {
-   
+
    Dim = mesh.Dim;
    spaceDim = mesh.spaceDim;
 
@@ -2226,20 +2226,25 @@ Mesh::Mesh(std::istream &input, int generate_edges, int refine,
    Load(input, generate_edges, refine, fix_orientation);
 }
 
-void Mesh::CopyElementObjectData(Array<Element*>& array_of_elements, size_t len_array_of_elements,
-      int* indices, size_t len_indices, int* attributes, size_t len_attributes) {
-   if (len_attributes < len_array_of_elements) {
+void Mesh::CopyElementObjectData(Array<Element*>& array_of_elements,
+                                 size_t len_array_of_elements,
+                                 int* indices, size_t len_indices, int* attributes, size_t len_attributes)
+{
+   if (len_attributes < len_array_of_elements)
+   {
       printf("%d < %d: ", len_attributes, len_array_of_elements);
       throw std::runtime_error("new `attributes` memory not large enough");
    }
 
    size_t offset = 0;
-   for (size_t i = 0; i < len_array_of_elements; i++) {
+   for (size_t i = 0; i < len_array_of_elements; i++)
+   {
       // to allow heterogeneous element arrays we need to check the
-      // number of vertices of each element 
+      // number of vertices of each element
       size_t length = array_of_elements[i]->GetNVertices();
       int *element_indices = array_of_elements[i]->GetIndices();
-      if (offset + length > len_indices) {
+      if (offset + length > len_indices)
+      {
          throw std::runtime_error("new `indices` memory not large enough");
       }
 
@@ -2252,33 +2257,38 @@ void Mesh::CopyElementObjectData(Array<Element*>& array_of_elements, size_t len_
 }
 
 void Mesh::ChangeElementObjectDataOwnership(
-      Array<Element*> &array_of_elements, size_t len_array_of_elements,
-      int *indices, size_t len_indices, 
-      int *attributes, size_t len_attributes, bool zerocopy)
+   Array<Element*> &array_of_elements, size_t len_array_of_elements,
+   int *indices, size_t len_indices,
+   int *attributes, size_t len_attributes, bool zerocopy)
 {
-   if (len_attributes < len_array_of_elements) {
+   if (len_attributes < len_array_of_elements)
+   {
       printf("%d < %d: ", len_attributes, len_array_of_elements);
       throw std::runtime_error("new `attributes` memory not large enough");
    }
 
    size_t offset = 0;
-   for (size_t i = 0; i < len_array_of_elements; i++) {
+   for (size_t i = 0; i < len_array_of_elements; i++)
+   {
       // to allow heterogeneous element arrays we need to check the
-      // number of vertices of each element 
+      // number of vertices of each element
       size_t length = array_of_elements[i]->GetNVertices();
       int *element_indices = array_of_elements[i]->GetIndices();
-      if (offset + length > len_indices) {
+      if (offset + length > len_indices)
+      {
          throw std::runtime_error("new `indices` memory not large enough");
       }
 
       // copy the indices data
-      if (!zerocopy) {
+      if (!zerocopy)
+      {
          memcpy(indices + offset, element_indices, length * sizeof(int));
          attributes[i] = array_of_elements[i]->GetAttribute();
       }
 
       // delete the mfem owned data
-      if (array_of_elements[i]->IsSelfAlloc()) {
+      if (array_of_elements[i]->IsSelfAlloc())
+      {
          delete element_indices;
          array_of_elements[i]->SetOwnership(false);
       }
@@ -2292,30 +2302,35 @@ void Mesh::ChangeElementObjectDataOwnership(
 }
 
 void Mesh::ChangeElementDataOwnership(int *indices,
-      size_t len_indices, int *attributes,
-      size_t len_attributes, bool zerocopy) {
+                                      size_t len_indices, int *attributes,
+                                      size_t len_attributes, bool zerocopy)
+{
    ChangeElementObjectDataOwnership(elements, NumOfElements,
-         indices, len_indices, attributes, len_attributes, zerocopy);
+                                    indices, len_indices, attributes, len_attributes, zerocopy);
 }
 
-void Mesh::CopyElementData(int *indices, size_t len_indices, int *attributes, 
-      size_t len_attributes) {
+void Mesh::CopyElementData(int *indices, size_t len_indices, int *attributes,
+                           size_t len_attributes)
+{
    CopyElementObjectData(elements, NumOfElements,
-         indices, len_indices, attributes, len_attributes);
+                         indices, len_indices, attributes, len_attributes);
 }
 
 
 void Mesh::ChangeBoundaryElementDataOwnership(int *indices,
-      size_t len_indices, int *attributes,
-      size_t len_attributes, bool zerocopy) {
+                                              size_t len_indices, int *attributes,
+                                              size_t len_attributes, bool zerocopy)
+{
    ChangeElementObjectDataOwnership(boundary, NumOfBdrElements,
-         indices, len_indices, attributes, len_attributes, zerocopy);
+                                    indices, len_indices, attributes, len_attributes, zerocopy);
 }
 
-void Mesh::CopyBoundaryElementData(int *indices, size_t len_indices, int *attributes, 
-      size_t len_attributes) {
+void Mesh::CopyBoundaryElementData(int *indices, size_t len_indices,
+                                   int *attributes,
+                                   size_t len_attributes)
+{
    CopyElementObjectData(boundary, NumOfBdrElements,
-         indices, len_indices, attributes, len_attributes);
+                         indices, len_indices, attributes, len_attributes);
 }
 
 
@@ -2324,16 +2339,19 @@ void Mesh::CopyBoundaryElementData(int *indices, size_t len_indices, int *attrib
 // A dimension of 3 is now required since we use mfem::Vertex objects as PODs
 // and these object have a hardcoded double[3] entry
 void Mesh::ChangeVertexDataOwnership(double *vertex_data,
-      size_t len_vertex_data, bool zerocopy) {
-   if (static_cast<int>(len_vertex_data) < NumOfVertices * 3) {
+                                     size_t len_vertex_data, bool zerocopy)
+{
+   if (static_cast<int>(len_vertex_data) < NumOfVertices * 3)
+   {
       printf("%d < %d: ", len_vertex_data, NumOfVertices * 3);
       throw std::runtime_error("Not enough vertices in external array");
    }
 
-   if (!zerocopy) memcpy(vertex_data, vertices.GetData(), NumOfVertices * 3 * sizeof(double));
+   if (!zerocopy) { memcpy(vertex_data, vertices.GetData(), NumOfVertices * 3 * sizeof(double)); }
    // make sure we don't leak the mfem owned vertex data
-   if (vertices.OwnsData()) {
-      // mfem::Array uses an array of char (bytes) on the backend so 
+   if (vertices.OwnsData())
+   {
+      // mfem::Array uses an array of char (bytes) on the backend so
       // reinterpret to that before we delete
       char *data = reinterpret_cast<char*>(vertices.GetData());
       delete[] data;
@@ -2344,8 +2362,10 @@ void Mesh::ChangeVertexDataOwnership(double *vertex_data,
 }
 
 void Mesh::CopyVertexData(double *vertex_data,
-      size_t len_vertex_data) {
-   if (static_cast<int>(len_vertex_data) < NumOfVertices * 3) {
+                          size_t len_vertex_data)
+{
+   if (static_cast<int>(len_vertex_data) < NumOfVertices * 3)
+   {
       printf("%d < %d: ", len_vertex_data, NumOfVertices * 3);
       throw std::runtime_error("Not enough vertices in external array");
    }
@@ -2353,12 +2373,12 @@ void Mesh::CopyVertexData(double *vertex_data,
 }
 
 Mesh::Mesh(double *_vertices, int num_vertices,
-      int *element_indices, Geometry::Type element_type, 
-      int *element_attributes, int num_elements,
-      int *boundary_indices, Geometry::Type boundary_type,
-      int *boundary_attributes, int num_boundary_elements,
-      int dimension, int space_dimension,
-      int generate_faces, int refine, bool fix_orientation)
+           int *element_indices, Geometry::Type element_type,
+           int *element_attributes, int num_elements,
+           int *boundary_indices, Geometry::Type boundary_type,
+           int *boundary_attributes, int num_boundary_elements,
+           int dimension, int space_dimension,
+           int generate_faces, int refine, bool fix_orientation)
 {
    if (space_dimension == -1)
    {
@@ -2366,7 +2386,7 @@ Mesh::Mesh(double *_vertices, int num_vertices,
    }
 
    InitMesh(dimension, space_dimension, /*num_vertices*/ 0, num_elements,
-         num_boundary_elements);
+            num_boundary_elements);
 
    int element_index_stride = Geometry::NumVerts[element_type];
    int boundary_index_stride = Geometry::NumVerts[boundary_type];
@@ -2377,37 +2397,44 @@ Mesh::Mesh(double *_vertices, int num_vertices,
    NumOfVertices = num_vertices;
 
    printf("setting elements\n");
-   for (int i = 0; i < num_elements; i++) {
-      elements[i] = NewElement(element_type, Element::int_ptr_pair(element_indices + 
-               i * element_index_stride, element_attributes + i));
+   for (int i = 0; i < num_elements; i++)
+   {
+      elements[i] = NewElement(element_type, Element::int_ptr_pair(element_indices +
+                                                                   i * element_index_stride, element_attributes + i));
    }
    NumOfElements = num_elements;
 
    switch (element_type)
    {
-      case Geometry::TRIANGLE: FinalizeTriMesh(generate_faces, refine, fix_orientation);
-                               break;
-      case Geometry::SQUARE: FinalizeQuadMesh(generate_faces, refine, fix_orientation);
-                               break;
+      case Geometry::TRIANGLE: FinalizeTriMesh(generate_faces, refine,
+                                                  fix_orientation);
+         break;
+      case Geometry::SQUARE: FinalizeQuadMesh(generate_faces, refine,
+                                                 fix_orientation);
+         break;
       case Geometry::CUBE: FinalizeHexMesh(generate_faces, refine, fix_orientation);
-                               break;
-      case Geometry::TETRAHEDRON: FinalizeTetMesh(generate_faces, refine, fix_orientation);
-                               break;
+         break;
+      case Geometry::TETRAHEDRON: FinalizeTetMesh(generate_faces, refine,
+                                                     fix_orientation);
+         break;
       default: throw std::runtime_error("cannot finialize mesh");
    }
 
    printf("setting boundary elements\n");
-   if (num_boundary_elements > 0) {
-      for (int i = 0; i < num_boundary_elements; i++) {
-         boundary[i] = NewElement(boundary_type, Element::int_ptr_pair(boundary_indices + 
-                  i * boundary_index_stride, boundary_attributes + i));
+   if (num_boundary_elements > 0)
+   {
+      for (int i = 0; i < num_boundary_elements; i++)
+      {
+         boundary[i] = NewElement(boundary_type, Element::int_ptr_pair(boundary_indices +
+                                                                       i * boundary_index_stride, boundary_attributes + i));
       }
    }
-   else {
+   else
+   {
       GenerateBoundaryElements();
    }
    NumOfBdrElements = num_boundary_elements;
-   
+
    // need?
    // SetAttributes();
 }
@@ -2741,7 +2768,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
 
 Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
 {
-   
+
 
    int      i, j, ie, ib, iv, *v, nv;
    Element *el;
@@ -5385,7 +5412,7 @@ void Mesh::QuadUniformRefinement()
       int *&v = elements[i]->GetIndicesRef();
       e = el_to_edge->GetRow(i);
       j = NumOfElements + 3 * i;
-      
+
       elements[j+0] = new Quadrilateral(oedge+e[0], v[1], oedge+e[1],
                                         oelem+i, attr);
       elements[j+1] = new Quadrilateral(oelem+i, oedge+e[1], v[2],

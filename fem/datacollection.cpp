@@ -30,37 +30,39 @@ using namespace std;
 
 static int create_directory(const string &dir_name, const Mesh *mesh, int myid)
 {
-    // create directories recursively
-    const char path_delim = '/';
-    std::string::size_type pos = 0;
-    int err;
+   // create directories recursively
+   const char path_delim = '/';
+   std::string::size_type pos = 0;
+   int err;
 
-    do {
-        pos = dir_name.find(path_delim, pos+1);
-        std::string subdir = dir_name.substr(0, pos);
+   do
+   {
+      pos = dir_name.find(path_delim, pos+1);
+      std::string subdir = dir_name.substr(0, pos);
 
-    #ifndef MFEM_USE_MPI
-       err = mkdir(subdir.c_str(), 0777);
-       err = (err && (errno != EEXIST)) ? 1 : 0;
-    #else
-       const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
-       if (myid == 0 || pmesh == NULL)
-       {
-          err = mkdir(subdir.c_str(), 0777);
-          err = (err && (errno != EEXIST)) ? 1 : 0;
-          if (pmesh)
-          {
-             MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
-          }
-       }
-       else
-       {
-          // Wait for rank 0 to create the directory
-          MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
-       }
-    #endif
+#ifndef MFEM_USE_MPI
+      err = mkdir(subdir.c_str(), 0777);
+      err = (err && (errno != EEXIST)) ? 1 : 0;
+#else
+      const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
+      if (myid == 0 || pmesh == NULL)
+      {
+         err = mkdir(subdir.c_str(), 0777);
+         err = (err && (errno != EEXIST)) ? 1 : 0;
+         if (pmesh)
+         {
+            MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
+         }
+      }
+      else
+      {
+         // Wait for rank 0 to create the directory
+         MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
+      }
+#endif
 
-    } while( pos != std::string::npos );
+   }
+   while ( pos != std::string::npos );
 
    return err;
 }
@@ -160,10 +162,10 @@ void DataCollection::SetMesh(Mesh *new_mesh)
 
 void DataCollection::DeregisterField(const char* name)
 {
-    if(own_data)
-    {
-        delete field_map[name];
-    }
+   if (own_data)
+   {
+      delete field_map[name];
+   }
    field_map.erase(name);
 }
 
@@ -178,15 +180,16 @@ void DataCollection::RegisterField(const char* name, GridFunction *gf)
 
 std::vector<std::string> DataCollection::GetFieldNames() const
 {
-    std::vector<std::string> res;
-    res.reserve(field_map.size());
+   std::vector<std::string> res;
+   res.reserve(field_map.size());
 
-    for(std::map<std::string, GridFunction*>::const_iterator it = field_map.begin(),
-            itEnd = field_map.end();it != itEnd; ++it)
-    {
-        res.push_back( it->first);
-    }
-    return res;
+   for (std::map<std::string, GridFunction*>::const_iterator it =
+           field_map.begin(),
+        itEnd = field_map.end(); it != itEnd; ++it)
+   {
+      res.push_back( it->first);
+   }
+   return res;
 }
 
 
@@ -205,69 +208,78 @@ GridFunction *DataCollection::GetField(const char *field_name)
 
 double* DataCollection::GetFieldData(const char *field_name, int sz)
 {
-    // Check if we already have the grid function, if so, return its data
-   if(HasField(field_name))
+   // Check if we already have the grid function, if so, return its data
+   if (HasField(field_name))
    {
-       return field_map[field_name]->GetData();
+      return field_map[field_name]->GetData();
    }
 
 
    // Otherwise, if the data does not exist, and sz > 0, allocate it
-   if(!HasFieldData(field_name))
+   if (!HasFieldData(field_name))
    {
-       if(sz <= 0)
-          return NULL;
-       else
-          managed_field_data_map[field_name] = new double[sz];
+      if (sz <= 0)
+      {
+         return NULL;
+      }
+      else
+      {
+         managed_field_data_map[field_name] = new double[sz];
+      }
    }
 
    // Return a pointer to the data
    return managed_field_data_map[field_name];
 }
 
-double* DataCollection::GetFieldData(const char *field_name, int sz, const char *base_field, int offset, int stride)
+double* DataCollection::GetFieldData(const char *field_name, int sz,
+                                     const char *base_field, int offset, int stride)
 {
-    // If <field_name> is a field, return its pointer
-    if(HasField(field_name))
-    {
-        return field_map[field_name]->GetData();
-    }
+   // If <field_name> is a field, return its pointer
+   if (HasField(field_name))
+   {
+      return field_map[field_name]->GetData();
+   }
 
-    // Else, if we are explicitly managing its memory, return a pointer
-    if( HasFieldData(field_name))
-    {
-        return managed_field_data_map[field_name];
-    }
+   // Else, if we are explicitly managing its memory, return a pointer
+   if ( HasFieldData(field_name))
+   {
+      return managed_field_data_map[field_name];
+   }
 
-    // Else, check if base_field exists as a field and return the appropriate offset
-    if(HasField(base_field))
-    {
-        // Ignore sz and stride for now
-        // TODO: Check that there is sufficient space for this pointer
-        return field_map[base_field]->GetData() + offset;
-    }
+   // Else, check if base_field exists as a field and return the appropriate offset
+   if (HasField(base_field))
+   {
+      // Ignore sz and stride for now
+      // TODO: Check that there is sufficient space for this pointer
+      return field_map[base_field]->GetData() + offset;
+   }
 
-    // Else, check if we are explicitly managing base_field and return offset
-    if( HasFieldData(base_field) )
-    {
-        return managed_field_data_map[base_field] + offset;
-    }
+   // Else, check if we are explicitly managing base_field and return offset
+   if ( HasFieldData(base_field) )
+   {
+      return managed_field_data_map[base_field] + offset;
+   }
 
-    // At this point, we give up
-    return NULL;
+   // At this point, we give up
+   return NULL;
 
 }
 
 
 bool DataCollection::HasFieldData(const char *field_name)
 {
-    if(HasField(field_name))
-        return true;
+   if (HasField(field_name))
+   {
+      return true;
+   }
 
-    if(managed_field_data_map.find(field_name) == managed_field_data_map.end())
-        return false;
+   if (managed_field_data_map.find(field_name) == managed_field_data_map.end())
+   {
+      return false;
+   }
 
-    return (managed_field_data_map[field_name] != NULL);
+   return (managed_field_data_map[field_name] != NULL);
 }
 
 
@@ -425,11 +437,13 @@ void DataCollection::DeleteData()
 
    // Delete data that the data collection explicitly allocated
    typedef std::map<std::string, double*>::iterator DMIt;
-   for(DMIt it = managed_field_data_map.begin();
-       it != managed_field_data_map.end(); ++it)
+   for (DMIt it = managed_field_data_map.begin();
+        it != managed_field_data_map.end(); ++it)
    {
-       if(it->second != NULL)
-           delete [] it->second;
+      if (it->second != NULL)
+      {
+         delete [] it->second;
+      }
    }
 
 }

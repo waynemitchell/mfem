@@ -23,8 +23,9 @@ namespace mfem
 //    in a data collection
 // -----------------------------------------------
 
-void DataCollectionUtility::GenerateFieldName(const char* inputFldName, int arr_idx,
-                       char* outputFldName, const int sz)
+void DataCollectionUtility::GenerateFieldName(const char* inputFldName,
+                                              int arr_idx,
+                                              char* outputFldName, const int sz)
 {
    if (arr_idx >= 0)
    {
@@ -38,30 +39,31 @@ void DataCollectionUtility::GenerateFieldName(const char* inputFldName, int arr_
 }
 
 
-std::string DataCollectionUtility::DecomposeFieldName(const std::string& inputFldName, int& arr_idx)
+std::string DataCollectionUtility::DecomposeFieldName(const std::string&
+                                                      inputFldName, int& arr_idx)
 {
-    int idx = arr_idx = -1;
+   int idx = arr_idx = -1;
 
-    std::string::size_type pos = inputFldName.find_last_of('_');
-    if(pos != std::string::npos)
-    {
-        std::istringstream isstr( inputFldName.substr(pos+1, inputFldName.size()));
-        if( !( isstr  >> idx).fail() )
-        {
-            arr_idx = idx-1;
-            return inputFldName.substr(0,pos);
-        }
-    }
-    return inputFldName;
+   std::string::size_type pos = inputFldName.find_last_of('_');
+   if (pos != std::string::npos)
+   {
+      std::istringstream isstr( inputFldName.substr(pos+1, inputFldName.size()));
+      if ( !( isstr  >> idx).fail() )
+      {
+         arr_idx = idx-1;
+         return inputFldName.substr(0,pos);
+      }
+   }
+   return inputFldName;
 }
 
 
 
 void DataCollectionUtility::AllocateVector( Vector* vec,
-                                int sz,
-                                DataCollection* dc,
-                                const char* fldName,
-                                int arr_idx)
+                                            int sz,
+                                            DataCollection* dc,
+                                            const char* fldName,
+                                            int arr_idx)
 {
    MFEM_ASSERT(vec != NULL, "Attempted to allocate into a null vector pointer");
 
@@ -82,146 +84,150 @@ void DataCollectionUtility::AllocateVector( Vector* vec,
 }
 
 
-namespace {
+namespace
+{
 
-    /**
-     * Templated implementation function to workaround the non-virtual
-     * function calls of GridFunction / ParGridFunction.
-     * \see DataCollectionUtility::AllocateGridFunc()
-     */
-    template<typename GF, typename FES>
-    void AllocGridFuncImpl(GF* gf, FES* fes, DataCollection* dc,
-                          const char* fldName, int arr_idx, bool registerGF)
-    {
-        if ( dc )
-        {
-           const int NAME_SZ = DataCollectionUtility::NAME_SZ;
-           char name[NAME_SZ];
-           DataCollectionUtility::GenerateFieldName(fldName, arr_idx, name, NAME_SZ);
+/**
+ * Templated implementation function to workaround the non-virtual
+ * function calls of GridFunction / ParGridFunction.
+ * \see DataCollectionUtility::AllocateGridFunc()
+ */
+template<typename GF, typename FES>
+void AllocGridFuncImpl(GF* gf, FES* fes, DataCollection* dc,
+                       const char* fldName, int arr_idx, bool registerGF)
+{
+   if ( dc )
+   {
+      const int NAME_SZ = DataCollectionUtility::NAME_SZ;
+      char name[NAME_SZ];
+      DataCollectionUtility::GenerateFieldName(fldName, arr_idx, name, NAME_SZ);
 
-           const int sz = fes->GetVSize();
-           Vector v(dc->GetFieldData(name, sz), sz);
-           gf->MakeRef(fes, v, 0);
+      const int sz = fes->GetVSize();
+      Vector v(dc->GetFieldData(name, sz), sz);
+      gf->MakeRef(fes, v, 0);
 
-           if (registerGF)
-           {
-              dc->RegisterField(name, gf);
-           }
-        }
-        else
-        {
-           gf->SetSpace(fes);
-        }
-    }
+      if (registerGF)
+      {
+         dc->RegisterField(name, gf);
+      }
+   }
+   else
+   {
+      gf->SetSpace(fes);
+   }
+}
 
-    /**
-     * Templated implementation function to workaround the non-virtual
-     * function calls of GridFunction / ParGridFunction.
-     * \see DataCollectionUtility::AllocateGridFuncInPlace()
-     */
-    template<typename GF, typename FES>
-    void AllocGridFuncInPlaceImpl(GF* gf, FES* fes, const char* srcField, Vector* srcVec, int offset,
-                                  DataCollection* dc,const char* fldName,int arr_idx)
-    {
-        // Compose the field name
-        const int NAME_SZ = DataCollectionUtility::NAME_SZ;
-        char name[NAME_SZ];
-        DataCollectionUtility::GenerateFieldName(fldName, arr_idx, name, NAME_SZ);
+/**
+ * Templated implementation function to workaround the non-virtual
+ * function calls of GridFunction / ParGridFunction.
+ * \see DataCollectionUtility::AllocateGridFuncInPlace()
+ */
+template<typename GF, typename FES>
+void AllocGridFuncInPlaceImpl(GF* gf, FES* fes, const char* srcField,
+                              Vector* srcVec, int offset,
+                              DataCollection* dc,const char* fldName,int arr_idx)
+{
+   // Compose the field name
+   const int NAME_SZ = DataCollectionUtility::NAME_SZ;
+   char name[NAME_SZ];
+   DataCollectionUtility::GenerateFieldName(fldName, arr_idx, name, NAME_SZ);
 
-        // The data for gf will be offset from that of the srcField data
-        if (dc)
-        {
-           const int sz = fes->GetVSize();
-           dc->GetFieldData(name, sz, srcField, offset);
-        }
+   // The data for gf will be offset from that of the srcField data
+   if (dc)
+   {
+      const int sz = fes->GetVSize();
+      dc->GetFieldData(name, sz, srcField, offset);
+   }
 
-        gf->MakeRef(fes, *srcVec, offset);
+   gf->MakeRef(fes, *srcVec, offset);
 
-        // Register this grid function as a field in the DataCollection
-        if (dc)
-        {
-           dc->RegisterField(name, gf);
-        }
-    }
+   // Register this grid function as a field in the DataCollection
+   if (dc)
+   {
+      dc->RegisterField(name, gf);
+   }
+}
 
 }
 
 
 void DataCollectionUtility::AllocateGridFunc( GridFunction* gf,
-                                         FiniteElementSpace* fes,
-                                         DataCollection* dc,
-                                         const char* fldName,
-                                         int arr_idx,
-                                         bool registerGF)
+                                              FiniteElementSpace* fes,
+                                              DataCollection* dc,
+                                              const char* fldName,
+                                              int arr_idx,
+                                              bool registerGF)
 {
-    // Note: GridFunction::MakeRef(), GridFunction::SetSpace()
-    //       are not virtual functions, so we must explicitly dynamic_cast
-    //       to a parallel version when the actual type is virtual.
-    //       Since the actual code for both cases is identical,
-    //       we are using a templated 'implementation' function AllocGridFuncImpl
+   // Note: GridFunction::MakeRef(), GridFunction::SetSpace()
+   //       are not virtual functions, so we must explicitly dynamic_cast
+   //       to a parallel version when the actual type is virtual.
+   //       Since the actual code for both cases is identical,
+   //       we are using a templated 'implementation' function AllocGridFuncImpl
 
-    MFEM_ASSERT(gf != NULL, "Attempted to dereference a null grid function");
-    MFEM_ASSERT(fes != NULL, "Attempted to dereference a null finite element space");
+   MFEM_ASSERT(gf != NULL, "Attempted to dereference a null grid function");
+   MFEM_ASSERT(fes != NULL,
+               "Attempted to dereference a null finite element space");
 
 
 #ifdef MFEM_USE_MPI
-    ParGridFunction* pgf = dynamic_cast<ParGridFunction*>(gf);
-    ParFiniteElementSpace* pfes = dynamic_cast<ParFiniteElementSpace*>(fes);
+   ParGridFunction* pgf = dynamic_cast<ParGridFunction*>(gf);
+   ParFiniteElementSpace* pfes = dynamic_cast<ParFiniteElementSpace*>(fes);
 
-    if(pgf && pfes)
-    {
-        AllocGridFuncImpl(pgf,pfes, dc,fldName,arr_idx,registerGF);
-    }
-    else
-    {
-        AllocGridFuncImpl(gf,fes, dc,fldName,arr_idx,registerGF);
-    }
+   if (pgf && pfes)
+   {
+      AllocGridFuncImpl(pgf,pfes, dc,fldName,arr_idx,registerGF);
+   }
+   else
+   {
+      AllocGridFuncImpl(gf,fes, dc,fldName,arr_idx,registerGF);
+   }
 
 #else
-    AllocGridFuncImpl(gf,fes, dc,fldName,arr_idx,registerGF);
+   AllocGridFuncImpl(gf,fes, dc,fldName,arr_idx,registerGF);
 #endif
 
-    MFEM_ASSERT( gf->Size() == fes->GetVSize(), "GridFunction only has storage for "
-                 << gf->Size() <<" dofs but its finite element space requires "
-                 << fes->GetVSize() <<" dofs.");
+   MFEM_ASSERT( gf->Size() == fes->GetVSize(), "GridFunction only has storage for "
+                << gf->Size() <<" dofs but its finite element space requires "
+                << fes->GetVSize() <<" dofs.");
 }
 
 void DataCollectionUtility::AllocateGridFuncInPlace( GridFunction* gf,
-                                         FiniteElementSpace* fes,
-                                         const char* srcField, Vector* srcVec, int offset,
-                                         DataCollection* dc,
-                                         const char* fldName,
-                                         int arr_idx)
+                                                     FiniteElementSpace* fes,
+                                                     const char* srcField, Vector* srcVec, int offset,
+                                                     DataCollection* dc,
+                                                     const char* fldName,
+                                                     int arr_idx)
 {
-    // Note: GridFunction::MakeRef(), GridFunction::SetSpace()
-    //       are not virtual functions, so we must explicitly dynamic_cast
-    //       to a parallel version when the actual type is virtual.
-    //       Since the actual code for both cases is identical,
-    //       we are using a templated 'implementation' function AllocGridFuncImpl
+   // Note: GridFunction::MakeRef(), GridFunction::SetSpace()
+   //       are not virtual functions, so we must explicitly dynamic_cast
+   //       to a parallel version when the actual type is virtual.
+   //       Since the actual code for both cases is identical,
+   //       we are using a templated 'implementation' function AllocGridFuncImpl
 
-    MFEM_ASSERT(gf != NULL, "Attempted to dereference a null grid function");
-    MFEM_ASSERT(fes != NULL, "Attempted to dereference a null finite element space");
+   MFEM_ASSERT(gf != NULL, "Attempted to dereference a null grid function");
+   MFEM_ASSERT(fes != NULL,
+               "Attempted to dereference a null finite element space");
 
 #ifdef MFEM_USE_MPI
-    ParGridFunction* pgf = dynamic_cast<ParGridFunction*>(gf);
-    ParFiniteElementSpace* pfes = dynamic_cast<ParFiniteElementSpace*>(fes);
+   ParGridFunction* pgf = dynamic_cast<ParGridFunction*>(gf);
+   ParFiniteElementSpace* pfes = dynamic_cast<ParFiniteElementSpace*>(fes);
 
-    if(pgf && pfes)
-    {
-        AllocGridFuncInPlaceImpl(pgf,pfes,srcField,srcVec,offset, dc,fldName,arr_idx);
-    }
-    else
-    {
-        AllocGridFuncInPlaceImpl(gf,fes,srcField, srcVec,offset, dc,fldName,arr_idx);
-    }
+   if (pgf && pfes)
+   {
+      AllocGridFuncInPlaceImpl(pgf,pfes,srcField,srcVec,offset, dc,fldName,arr_idx);
+   }
+   else
+   {
+      AllocGridFuncInPlaceImpl(gf,fes,srcField, srcVec,offset, dc,fldName,arr_idx);
+   }
 
 #else
-    AllocGridFuncInPlaceImpl(gf,fes,srcField, srcVec, offset, dc,fldName,arr_idx);
+   AllocGridFuncInPlaceImpl(gf,fes,srcField, srcVec, offset, dc,fldName,arr_idx);
 #endif
 
-    MFEM_ASSERT( gf->Size() == fes->GetVSize(), "GridFunction only has storage for "
-                 << gf->Size() <<" dofs but its finite element space requires "
-                 << fes->GetVSize() <<" dofs.");
+   MFEM_ASSERT( gf->Size() == fes->GetVSize(), "GridFunction only has storage for "
+                << gf->Size() <<" dofs but its finite element space requires "
+                << fes->GetVSize() <<" dofs.");
 }
 
 

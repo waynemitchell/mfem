@@ -28,20 +28,21 @@ public:
    static const size_t NUM_INDICES = 4;
 
    Quadrilateral() : Element(Geometry::SQUARE, NULL, 4, NULL) {}
-   Quadrilateral(int_ptr_pair p) : Element(Geometry::SQUARE, p.first, 4, p.second) {};
+   Quadrilateral(int_ptr_pair p) : Element(Geometry::SQUARE, p.first, 4,
+                                              p.second) {};
 
 
    /// Constructs quadrilateral by specifying the indices and the attribute.
    /// We also allow an external memory location for the indices to be
    /// Specified.
    Quadrilateral(const int *ind, int attr = 1,
-         int_ptr_pair = int_ptr_pair(NULL, NULL));
+                 int_ptr_pair = int_ptr_pair(NULL, NULL));
 
    /// Constructs quadrilateral by specifying the indices and the attribute.
    /// We also allow an external memory location for the indices to be
    /// Specified.
    Quadrilateral(int ind1, int ind2, int ind3, int ind4, int attr = 1,
-         int_ptr_pair = int_ptr_pair(NULL, NULL));
+                 int_ptr_pair = int_ptr_pair(NULL, NULL));
 
 
    /// Return element's type

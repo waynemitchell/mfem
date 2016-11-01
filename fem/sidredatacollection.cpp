@@ -31,7 +31,7 @@
 #include <cstdio>       // for snprintf()
 
 #ifdef MFEM_USE_MPI
-  #include "spio/IOManager.hpp"
+#include "spio/IOManager.hpp"
 #endif
 
 namespace mfem
@@ -40,45 +40,49 @@ namespace mfem
 // TODO - This code is duplicated from data collection.  It should obviously be changed to a class member of
 // data collection so sidre dc can call it and this code doesn't have to be duplicated.
 // Will change this later, but priority is to get ex9p working right now -- Aaron
-static int create_directory(const std::string &dir_name, const Mesh *mesh, int myid)
+static int create_directory(const std::string &dir_name, const Mesh *mesh,
+                            int myid)
 {
-    // create directories recursively
-    const char path_delim = '/';
-    std::string::size_type pos = 0;
-    int err;
+   // create directories recursively
+   const char path_delim = '/';
+   std::string::size_type pos = 0;
+   int err;
 
-    do {
-        pos = dir_name.find(path_delim, pos+1);
-        std::string subdir = dir_name.substr(0, pos);
+   do
+   {
+      pos = dir_name.find(path_delim, pos+1);
+      std::string subdir = dir_name.substr(0, pos);
 
-    #ifndef MFEM_USE_MPI
-       err = mkdir(subdir.c_str(), 0777);
-       err = (err && (errno != EEXIST)) ? 1 : 0;
-    #else
-       const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
-       if (myid == 0 || pmesh == NULL)
-       {
-          err = mkdir(subdir.c_str(), 0777);
-          err = (err && (errno != EEXIST)) ? 1 : 0;
-          if (pmesh)
-          {
-             MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
-          }
-       }
-       else
-       {
-          // Wait for rank 0 to create the directory
-          MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
-       }
-    #endif
+#ifndef MFEM_USE_MPI
+      err = mkdir(subdir.c_str(), 0777);
+      err = (err && (errno != EEXIST)) ? 1 : 0;
+#else
+      const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
+      if (myid == 0 || pmesh == NULL)
+      {
+         err = mkdir(subdir.c_str(), 0777);
+         err = (err && (errno != EEXIST)) ? 1 : 0;
+         if (pmesh)
+         {
+            MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
+         }
+      }
+      else
+      {
+         // Wait for rank 0 to create the directory
+         MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
+      }
+#endif
 
-    } while( pos != std::string::npos );
+   }
+   while ( pos != std::string::npos );
 
    return err;
 }
 
 // Constructor that will automatically create the sidre data store and necessary data groups for domain and global data.
-SidreDataCollection::SidreDataCollection(const std::string& collection_name, Mesh * mesh, bool own_mesh_data)
+SidreDataCollection::SidreDataCollection(const std::string& collection_name,
+                                         Mesh * mesh, bool own_mesh_data)
    : mfem::DataCollection(collection_name.c_str(), mesh),
      m_owns_datastore(true),
      m_owns_mesh_data(own_mesh_data),
@@ -88,8 +92,10 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name, Mes
    namespace sidre = asctoolkit::sidre;
    m_datastore_ptr = new sidre::DataStore();
 
-   sidre::DataGroup * global_grp = m_datastore_ptr->getRoot()->createGroup(collection_name + "_global");
-   sidre::DataGroup * domain_grp = m_datastore_ptr->getRoot()->createGroup(collection_name);
+   sidre::DataGroup * global_grp = m_datastore_ptr->getRoot()->createGroup(
+                                      collection_name + "_global");
+   sidre::DataGroup * domain_grp = m_datastore_ptr->getRoot()->createGroup(
+                                      collection_name);
 
    parent_datagroup= domain_grp->getParent();
 
@@ -110,12 +116,12 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name,
                                          asctoolkit::sidre::DataGroup* domain_grp,
                                          const std::string meshNodesGFName,
                                          bool own_mesh_data)
-  : mfem::DataCollection(collection_name.c_str()), 
-    m_owns_datastore(false),
-    m_owns_mesh_data(own_mesh_data),
-    m_meshNodesGFName(meshNodesGFName),
-    parent_datagroup( domain_grp->getParent() ),
-    m_loadCalled(false)
+   : mfem::DataCollection(collection_name.c_str()),
+     m_owns_datastore(false),
+     m_owns_mesh_data(own_mesh_data),
+     m_meshNodesGFName(meshNodesGFName),
+     parent_datagroup( domain_grp->getParent() ),
+     m_loadCalled(false)
 {
    bp_grp = domain_grp->createGroup("blueprint");
 
@@ -136,259 +142,271 @@ SidreDataCollection::~SidreDataCollection()
 
 void SidreDataCollection::createMeshBlueprintStubs(bool hasBP)
 {
-    if(!hasBP)
-    {
-        bp_grp->createGroup("state");
-        bp_grp->createGroup("coordsets");
-        bp_grp->createGroup("topologies");
-        bp_grp->createGroup("fields");
-    }
+   if (!hasBP)
+   {
+      bp_grp->createGroup("state");
+      bp_grp->createGroup("coordsets");
+      bp_grp->createGroup("topologies");
+      bp_grp->createGroup("fields");
+   }
 
-    // If rank is 0, set up blueprint index state group.
-    if (myid == 0)
-    {
-       bp_index_grp->createGroup("state");
-       bp_index_grp->createGroup("coordsets");
-       bp_index_grp->createGroup("topologies");
-       bp_index_grp->createGroup("fields");
-    }
+   // If rank is 0, set up blueprint index state group.
+   if (myid == 0)
+   {
+      bp_index_grp->createGroup("state");
+      bp_index_grp->createGroup("coordsets");
+      bp_index_grp->createGroup("topologies");
+      bp_index_grp->createGroup("fields");
+   }
 
 }
 
 void SidreDataCollection::createMeshBlueprintState(bool hasBP)
 {
-    if (!hasBP)
-    {
-       // Set up blueprint state group.
-       bp_grp->createViewScalar("state/cycle", 0);
-       bp_grp->createViewScalar("state/time", 0.);
-       bp_grp->createViewScalar("state/domain", myid);
-       bp_grp->createViewScalar("state/time_step", 0.);
+   if (!hasBP)
+   {
+      // Set up blueprint state group.
+      bp_grp->createViewScalar("state/cycle", 0);
+      bp_grp->createViewScalar("state/time", 0.);
+      bp_grp->createViewScalar("state/domain", myid);
+      bp_grp->createViewScalar("state/time_step", 0.);
 
 
-    }
+   }
 
-    // If rank is 0, set up blueprint index state group.
-    if (myid == 0)
-    {
-       bp_index_grp->createViewScalar("state/cycle", 0);
-       bp_index_grp->createViewScalar("state/time", 0.);
-       bp_index_grp->createViewScalar("state/number_of_domains", num_procs);
-    }
+   // If rank is 0, set up blueprint index state group.
+   if (myid == 0)
+   {
+      bp_index_grp->createViewScalar("state/cycle", 0);
+      bp_index_grp->createViewScalar("state/time", 0.);
+      bp_index_grp->createViewScalar("state/number_of_domains", num_procs);
+   }
 }
 
 void SidreDataCollection::createMeshBlueprintCoordset(bool hasBP)
 {
-    namespace sidre = asctoolkit::sidre;
+   namespace sidre = asctoolkit::sidre;
 
-    int dim = mesh->Dimension();
-    MFEM_ASSERT(dim >=1 && dim <= 3, "invalid mesh dimension");
+   int dim = mesh->Dimension();
+   MFEM_ASSERT(dim >=1 && dim <= 3, "invalid mesh dimension");
 
-    // With the changes I (Tom) made Vertex is POD and we memcpy to and from the
-    // mfem::Vertex mfem::Array requiring a full sized mfem::Vertex per vertex
-    // aka double[3] -> dim always needs to be three
-    // Note: The coordinates in mfem always have three components (regardless of dim)
-    //       but the mesh constructor can handle packed data <- not anymore
-    const int NUM_COORDS = 3;
+   // With the changes I (Tom) made Vertex is POD and we memcpy to and from the
+   // mfem::Vertex mfem::Array requiring a full sized mfem::Vertex per vertex
+   // aka double[3] -> dim always needs to be three
+   // Note: The coordinates in mfem always have three components (regardless of dim)
+   //       but the mesh constructor can handle packed data <- not anymore
+   const int NUM_COORDS = 3;
 
-    const int num_vertices = mesh->GetNV();
-    const int coordset_len = NUM_COORDS * num_vertices;
+   const int num_vertices = mesh->GetNV();
+   const int coordset_len = NUM_COORDS * num_vertices;
 
-    // Add blueprint if not present
-    if( !hasBP )
-    {
-       // Allocate buffer for coord values.
-       sidre::DataBuffer* coordbuf = bp_grp->getDataStore()
-                                           ->createBuffer(sidre::DOUBLE_ID, coordset_len)
-                                           ->allocate();
+   // Add blueprint if not present
+   if ( !hasBP )
+   {
+      // Allocate buffer for coord values.
+      sidre::DataBuffer* coordbuf = bp_grp->getDataStore()
+                                    ->createBuffer(sidre::DOUBLE_ID, coordset_len)
+                                    ->allocate();
 
-       bp_grp->createViewString("coordsets/coords/type", "explicit");
+      bp_grp->createViewString("coordsets/coords/type", "explicit");
 
-       // Set up views for x, y, z values
-       bp_grp->createView("coordsets/coords/values/x")
-             ->attachBuffer(coordbuf)
-             ->apply(sidre::DOUBLE_ID, num_vertices, 0, NUM_COORDS);
+      // Set up views for x, y, z values
+      bp_grp->createView("coordsets/coords/values/x")
+      ->attachBuffer(coordbuf)
+      ->apply(sidre::DOUBLE_ID, num_vertices, 0, NUM_COORDS);
 
-       if(dim >= 2)
-       {
-          bp_grp->createView("coordsets/coords/values/y")
-                ->attachBuffer(coordbuf)
-                ->apply(sidre::DOUBLE_ID, num_vertices, 1, NUM_COORDS);
-       }
-       if(dim >= 3)
-       {
-          bp_grp->createView("coordsets/coords/values/z")
-                ->attachBuffer(coordbuf)
-                ->apply(sidre::DOUBLE_ID, num_vertices, 2, NUM_COORDS);
-       }
-    }
+      if (dim >= 2)
+      {
+         bp_grp->createView("coordsets/coords/values/y")
+         ->attachBuffer(coordbuf)
+         ->apply(sidre::DOUBLE_ID, num_vertices, 1, NUM_COORDS);
+      }
+      if (dim >= 3)
+      {
+         bp_grp->createView("coordsets/coords/values/z")
+         ->attachBuffer(coordbuf)
+         ->apply(sidre::DOUBLE_ID, num_vertices, 2, NUM_COORDS);
+      }
+   }
 
-    // If rank 0, set up blueprint index for coordinate set.
-    if (myid == 0)
-    {
-       bp_index_grp->createViewString("coordsets/coords/path", bp_grp->getPathName() + "/coordsets/coords");
-       bp_index_grp->getGroup("coordsets/coords")->copyView( bp_grp->getView("coordsets/coords/type") );
+   // If rank 0, set up blueprint index for coordinate set.
+   if (myid == 0)
+   {
+      bp_index_grp->createViewString("coordsets/coords/path",
+                                     bp_grp->getPathName() + "/coordsets/coords");
+      bp_index_grp->getGroup("coordsets/coords")->copyView(
+         bp_grp->getView("coordsets/coords/type") );
 
-       std::string coord_system = "unknown";
-       if ( bp_grp->getGroup("coordsets/coords/values")->hasView("x") &&
-            bp_grp->getGroup("coordsets/coords/values")->hasView("y") )
-       {
-          if ( bp_grp->getGroup("coordsets/coords/values")->hasView("z") )
-          {
-             coord_system = "xyz";
-          }
-          else
-          {
-             coord_system = "xy";
-          }
-       }
-       else
-       {
-          MFEM_ABORT("Unknown coordinate system.");
-       }
+      std::string coord_system = "unknown";
+      if ( bp_grp->getGroup("coordsets/coords/values")->hasView("x") &&
+           bp_grp->getGroup("coordsets/coords/values")->hasView("y") )
+      {
+         if ( bp_grp->getGroup("coordsets/coords/values")->hasView("z") )
+         {
+            coord_system = "xyz";
+         }
+         else
+         {
+            coord_system = "xy";
+         }
+      }
+      else
+      {
+         MFEM_ABORT("Unknown coordinate system.");
+      }
 
-       bp_index_grp->createViewString("coordsets/coords/coord_system", coord_system);
-    }
+      bp_index_grp->createViewString("coordsets/coords/coord_system", coord_system);
+   }
 
 
-    // Change ownership of mesh data to sidre
-    double *coord_values = bp_grp->getView("coordsets/coords/values/x")->getBuffer()->getData();
-    if (m_owns_mesh_data)
-    {
-        mesh->ChangeVertexDataOwnership(coord_values,coordset_len,hasBP);
-    }
-    else
-    {
-        mesh->CopyVertexData(coord_values,coordset_len);
-    }
+   // Change ownership of mesh data to sidre
+   double *coord_values =
+      bp_grp->getView("coordsets/coords/values/x")->getBuffer()->getData();
+   if (m_owns_mesh_data)
+   {
+      mesh->ChangeVertexDataOwnership(coord_values,coordset_len,hasBP);
+   }
+   else
+   {
+      mesh->CopyVertexData(coord_values,coordset_len);
+   }
 }
 
-void SidreDataCollection::createMeshBlueprintTopologies(bool hasBP, const std::string& mesh_name)
+void SidreDataCollection::createMeshBlueprintTopologies(bool hasBP,
+                                                        const std::string& mesh_name)
 {
-    namespace sidre = asctoolkit::sidre;
+   namespace sidre = asctoolkit::sidre;
 
-    const bool isBdry = (mesh_name == "boundary")? true : false;
+   const bool isBdry = (mesh_name == "boundary")? true : false;
 
-    const int element_size = !isBdry
-            ? mesh->GetElement(0)->GetNVertices()
-            : mesh->GetBdrElement(0)->GetNVertices();
+   const int element_size = !isBdry
+                            ? mesh->GetElement(0)->GetNVertices()
+                            : mesh->GetBdrElement(0)->GetNVertices();
 
-    const int num_elements = !isBdry
-            ? mesh->GetNE()
-            : mesh->GetNBE();
+   const int num_elements = !isBdry
+                            ? mesh->GetNE()
+                            : mesh->GetNBE();
 
-    const int num_indices = num_elements * element_size;
+   const int num_indices = num_elements * element_size;
 
-    // Find the element shape
-    // Note: Assumes homogeneous elements, so only check the first element
-    const std::string eltTypeStr = !isBdry
-            ? getElementName( static_cast<Element::Type>( mesh->GetElement(0)->GetType() ) )
-            : getElementName( static_cast<Element::Type>( mesh->GetBdrElement(0)->GetType() ) );
+   // Find the element shape
+   // Note: Assumes homogeneous elements, so only check the first element
+   const std::string eltTypeStr = !isBdry
+                                  ? getElementName( static_cast<Element::Type>( mesh->GetElement(0)->GetType() ) )
+                                  : getElementName( static_cast<Element::Type>( mesh->GetBdrElement(
+                                                                                   0)->GetType() ) );
 
-    const std::string mesh_topo_str = "topologies/" + mesh_name;
-    const std::string mesh_attr_str = "fields/"+ mesh_name +"_material_attribute";
+   const std::string mesh_topo_str = "topologies/" + mesh_name;
+   const std::string mesh_attr_str = "fields/"+ mesh_name +"_material_attribute";
 
-    if( !hasBP )
-    {
-       sidre::DataGroup* topology_grp = bp_grp->createGroup(mesh_topo_str);
+   if ( !hasBP )
+   {
+      sidre::DataGroup* topology_grp = bp_grp->createGroup(mesh_topo_str);
 
-       // Add mesh topology
-       topology_grp->createViewString("type", "unstructured");
-       topology_grp->createViewString("elements/shape",eltTypeStr);   // <-- Note: this comes form the mesh
-       topology_grp->createViewAndAllocate("elements/connectivity",sidre::INT_ID,num_indices);
-       topology_grp->createViewString("coordset", "coords");
+      // Add mesh topology
+      topology_grp->createViewString("type", "unstructured");
+      topology_grp->createViewString("elements/shape",
+                                     eltTypeStr);   // <-- Note: this comes form the mesh
+      topology_grp->createViewAndAllocate("elements/connectivity",sidre::INT_ID,
+                                          num_indices);
+      topology_grp->createViewString("coordset", "coords");
 
-       if(!isBdry)
-       {
-           topology_grp->createViewString("mfem_grid_function",m_meshNodesGFName);
-       }
+      if (!isBdry)
+      {
+         topology_grp->createViewString("mfem_grid_function",m_meshNodesGFName);
+      }
 
-       // Add material attribute field to blueprint
-       sidre::DataGroup* attr_grp = bp_grp->createGroup(mesh_attr_str);
-       attr_grp->createViewString("association", "element");
-       attr_grp->createViewAndAllocate("values",sidre::INT_ID,num_elements);
-       attr_grp->createViewString("topology", mesh_name );
-    }
+      // Add material attribute field to blueprint
+      sidre::DataGroup* attr_grp = bp_grp->createGroup(mesh_attr_str);
+      attr_grp->createViewString("association", "element");
+      attr_grp->createViewAndAllocate("values",sidre::INT_ID,num_elements);
+      attr_grp->createViewString("topology", mesh_name );
+   }
 
-    // If rank 0, set up blueprint index for topologies group and material attribute field.
-    if (myid == 0)
-    {
-       const std::string bp_grp_path = bp_grp->getPathName();
+   // If rank 0, set up blueprint index for topologies group and material attribute field.
+   if (myid == 0)
+   {
+      const std::string bp_grp_path = bp_grp->getPathName();
 
-       // Create blueprint index for topologies.
-       if(isBdry)
-       {
-            bp_index_grp->getGroup("topologies/mesh")
-                        ->copyView( bp_grp->getView("topologies/mesh/boundary_topology") );
-       }
+      // Create blueprint index for topologies.
+      if (isBdry)
+      {
+         bp_index_grp->getGroup("topologies/mesh")
+         ->copyView( bp_grp->getView("topologies/mesh/boundary_topology") );
+      }
 
-       sidre::DataGroup * bp_index_topo_grp = bp_index_grp->createGroup(mesh_topo_str);
-       sidre::DataGroup* topology_grp = bp_grp->getGroup(mesh_topo_str);
+      sidre::DataGroup * bp_index_topo_grp = bp_index_grp->createGroup(mesh_topo_str);
+      sidre::DataGroup* topology_grp = bp_grp->getGroup(mesh_topo_str);
 
-       bp_index_topo_grp->createViewString("path", bp_grp_path + "/" + mesh_topo_str);
-       bp_index_topo_grp->copyView( topology_grp->getView("type") );
-       bp_index_topo_grp->copyView( topology_grp->getView("coordset") );
+      bp_index_topo_grp->createViewString("path", bp_grp_path + "/" + mesh_topo_str);
+      bp_index_topo_grp->copyView( topology_grp->getView("type") );
+      bp_index_topo_grp->copyView( topology_grp->getView("coordset") );
 
-       if(!isBdry)
-       {
-           bp_index_topo_grp->copyView( topology_grp->getView("mfem_grid_function") );
-       }
+      if (!isBdry)
+      {
+         bp_index_topo_grp->copyView( topology_grp->getView("mfem_grid_function") );
+      }
 
-       // Create blueprint index for material attributes.
-       sidre::DataGroup * bp_index_field_grp = bp_index_grp->createGroup(mesh_attr_str);
-       sidre::DataGroup * field_grp = bp_grp->getGroup(mesh_attr_str);
+      // Create blueprint index for material attributes.
+      sidre::DataGroup * bp_index_field_grp = bp_index_grp->createGroup(
+                                                 mesh_attr_str);
+      sidre::DataGroup * field_grp = bp_grp->getGroup(mesh_attr_str);
 
-       bp_index_field_grp->createViewString( "path", bp_grp_path + "/" + mesh_attr_str );
-       bp_index_field_grp->copyView( field_grp->getView("association") );
-       bp_index_field_grp->copyView( field_grp->getView("topology") );
+      bp_index_field_grp->createViewString( "path",
+                                            bp_grp_path + "/" + mesh_attr_str );
+      bp_index_field_grp->copyView( field_grp->getView("association") );
+      bp_index_field_grp->copyView( field_grp->getView("topology") );
 
-       int number_of_components = 1;
-       if ( field_grp->hasGroup("values") )
-       {
-          number_of_components = field_grp->getGroup("values")->getNumViews();
-       }
+      int number_of_components = 1;
+      if ( field_grp->hasGroup("values") )
+      {
+         number_of_components = field_grp->getGroup("values")->getNumViews();
+      }
 
-       bp_index_field_grp->createViewScalar("number_of_components", number_of_components);
-    }
+      bp_index_field_grp->createViewScalar("number_of_components",
+                                           number_of_components);
+   }
 
 
 
-    // Finally, change ownership or copy the element arrays into Sidre
-    sidre::DataView* conn_view = bp_grp->getGroup(mesh_topo_str)->getView("elements/connectivity");
-    sidre::DataView* attr_view = bp_grp->getGroup(mesh_attr_str)->getView("values");
-    if (m_owns_mesh_data)
-    {
-       if(!isBdry)
-       {
-           mesh->ChangeElementDataOwnership(conn_view->getArray(),num_indices,
-                                        attr_view->getArray(),num_elements,hasBP);
-       }
-       else
-       {
-           mesh->ChangeBoundaryElementDataOwnership(conn_view->getArray(),num_indices,
-                                                    attr_view->getArray(),num_elements,hasBP);
-       }
-    }
-    else
-    {
-        if(!isBdry)
-        {
-            mesh->CopyElementData(conn_view->getArray(),num_indices,
-                             attr_view->getArray(),num_elements);
-        }
-        else
-        {
-            mesh->CopyBoundaryElementData(conn_view->getArray(),num_indices,
-                                          attr_view->getArray(),num_elements);
-       }
-    }
+   // Finally, change ownership or copy the element arrays into Sidre
+   sidre::DataView* conn_view = bp_grp->getGroup(
+                                   mesh_topo_str)->getView("elements/connectivity");
+   sidre::DataView* attr_view = bp_grp->getGroup(mesh_attr_str)->getView("values");
+   if (m_owns_mesh_data)
+   {
+      if (!isBdry)
+      {
+         mesh->ChangeElementDataOwnership(conn_view->getArray(),num_indices,
+                                          attr_view->getArray(),num_elements,hasBP);
+      }
+      else
+      {
+         mesh->ChangeBoundaryElementDataOwnership(conn_view->getArray(),num_indices,
+                                                  attr_view->getArray(),num_elements,hasBP);
+      }
+   }
+   else
+   {
+      if (!isBdry)
+      {
+         mesh->CopyElementData(conn_view->getArray(),num_indices,
+                               attr_view->getArray(),num_elements);
+      }
+      else
+      {
+         mesh->CopyBoundaryElementData(conn_view->getArray(),num_indices,
+                                       attr_view->getArray(),num_elements);
+      }
+   }
 }
 
 void SidreDataCollection::SetMesh(Mesh *new_mesh)
 {
    namespace sidre = asctoolkit::sidre;
 
-   MFEM_VERIFY( new_mesh->GetNodes() != NULL, "Low order meshes are not supported by the sidre binary output at this time.");
+   MFEM_VERIFY( new_mesh->GetNodes() != NULL,
+                "Low order meshes are not supported by the sidre binary output at this time.");
 
    DataCollection::SetMesh(new_mesh);
 
@@ -406,14 +424,14 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
 
    createMeshBlueprintTopologies(hasBP, "mesh");
 
-   if(has_bnd_elts)
+   if (has_bnd_elts)
    {
-       bp_grp->createViewString("topologies/mesh/boundary_topology", "boundary");
-       createMeshBlueprintTopologies(hasBP, "boundary");
+      bp_grp->createViewString("topologies/mesh/boundary_topology", "boundary");
+      createMeshBlueprintTopologies(hasBP, "boundary");
    }
 
 
-   if( m_meshNodesGFName == "mfem_default_mesh_nodes_gf")
+   if ( m_meshNodesGFName == "mfem_default_mesh_nodes_gf")
    {
       /*
       if (m_owns_mesh_data)
@@ -431,17 +449,21 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
          new_mesh->GetNodes()->NewDataAndSize(gfData, sz);
       }
       */
-      
+
       RegisterField( m_meshNodesGFName.c_str(), new_mesh->GetNodes());
    }
 }
 
-void SidreDataCollection::SetGroupPointers(asctoolkit::sidre::DataGroup * global_grp,
+void SidreDataCollection::SetGroupPointers(asctoolkit::sidre::DataGroup *
+                                           global_grp,
                                            asctoolkit::sidre::DataGroup * domain_grp)
 {
-   MFEM_VERIFY(domain_grp->hasGroup("blueprint"), "Domain group does not contain a blueprint group.");
-   MFEM_VERIFY(global_grp->hasGroup("blueprint_index/" + name), "Global group does not contain a blueprint indexgroup.");
-   MFEM_VERIFY(domain_grp->hasGroup("sim"), "Domain group does not contain a sim group.");
+   MFEM_VERIFY(domain_grp->hasGroup("blueprint"),
+               "Domain group does not contain a blueprint group.");
+   MFEM_VERIFY(global_grp->hasGroup("blueprint_index/" + name),
+               "Global group does not contain a blueprint indexgroup.");
+   MFEM_VERIFY(domain_grp->hasGroup("sim"),
+               "Domain group does not contain a sim group.");
 
    bp_grp = domain_grp->getGroup("blueprint");
    bp_index_grp = global_grp->getGroup("blueprint_index/" + name);
@@ -449,11 +471,14 @@ void SidreDataCollection::SetGroupPointers(asctoolkit::sidre::DataGroup * global
 }
 
 
-void SidreDataCollection::Load(const std::string& path, const std::string& protocol)
+void SidreDataCollection::Load(const std::string& path,
+                               const std::string& protocol)
 {
    if ( m_loadCalled )
    {
-      std::string error_msg( "Attempt to call SidreDataCollection::Load() more than once on collection: " + name );
+      std::string
+      error_msg( "Attempt to call SidreDataCollection::Load() more than once on collection: "
+                 + name );
       MFEM_ABORT( error_msg);
    }
    else
@@ -475,22 +500,22 @@ void SidreDataCollection::Load(const std::string& path, const std::string& proto
    ParMesh *par_mesh = dynamic_cast<ParMesh*>(mesh);
    if (par_mesh)
    {
-//       sidre::DataGroup * domain_file_grp = bp_grp->getParent()->getParent();
-       asctoolkit::spio::IOManager reader(par_mesh->GetComm());
-       reader.read( datastore->getRoot(), path);
+      //       sidre::DataGroup * domain_file_grp = bp_grp->getParent()->getParent();
+      asctoolkit::spio::IOManager reader(par_mesh->GetComm());
+      reader.read( datastore->getRoot(), path);
    }
    else
    {
-       useSerial = true;
+      useSerial = true;
    }
 #endif
 
    // read in serial for debugging, or if MPI unavailable
-   if(useSerial)
+   if (useSerial)
    {
-       datastore->load(path, protocol); //, sidre_dc_group);
+      datastore->load(path, protocol); //, sidre_dc_group);
    }
-   
+
    // If the data collection created the datastore, it knows the layout of where the domain and global
    // groups are, and can restore them after the Load().
    //
@@ -520,20 +545,21 @@ void SidreDataCollection::Save()
    Save(filename, protocol);
 }
 
-void SidreDataCollection::Save(const std::string& filename, const std::string& protocol)
+void SidreDataCollection::Save(const std::string& filename,
+                               const std::string& protocol)
 {
    namespace sidre = asctoolkit::sidre;
 
    create_directory(prefix_path, mesh, myid);
-   
+
    std::stringstream fNameSstr;
 
    // Note: If non-empty, prefix_path has a separator ('/') at the end
    fNameSstr << prefix_path << filename;
 
-   if(GetCycle() >= 0)
+   if (GetCycle() >= 0)
    {
-       fNameSstr << "_" << std::setfill('0') << std::setw(pad_digits) << GetCycle();
+      fNameSstr << "_" << std::setfill('0') << std::setw(pad_digits) << GetCycle();
    }
 
    std::string file_path = fNameSstr.str();
@@ -542,17 +568,17 @@ void SidreDataCollection::Save(const std::string& filename, const std::string& p
    bp_grp->getView("state/time")->setScalar(GetTime());
    bp_grp->getView("state/time_step")->setScalar(GetTimeStep());
 
-   /*  
+   /*
    { // BEGIN debug block
      std::stringstream sstr;
      sstr << "Dumping checkpoint: Registered grid functions: \n";
      for (std::map<std::string,GridFunction*>::iterator it = this->field_map.begin()
             ; it != this->field_map.end(); ++it)
-     { 
+     {
         sstr << "\t" << it->first;
      }
      SLIC_INFO(sstr.str());
-   } // END debug code 
+   } // END debug code
    */
 
    if (myid == 0)
@@ -561,94 +587,96 @@ void SidreDataCollection::Save(const std::string& filename, const std::string& p
       bp_index_grp->getView("state/time")->setScalar(time);
    }
 
-//   sidre::DataGroup * domain_file_grp = bp_grp->getParent()->getParent();
+   //   sidre::DataGroup * domain_file_grp = bp_grp->getParent()->getParent();
 
-//   if (protocol == "sidre_hdf5")
-//   {
+   //   if (protocol == "sidre_hdf5")
+   //   {
 
 #ifdef MFEM_USE_MPI
-      const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
-      asctoolkit::spio::IOManager writer(pmesh->GetComm());
-      sidre::DataStore * datastore = bp_grp->getDataStore(); 
-      writer.write(datastore->getRoot(), num_procs, file_path, protocol);
+   const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
+   asctoolkit::spio::IOManager writer(pmesh->GetComm());
+   sidre::DataStore * datastore = bp_grp->getDataStore();
+   writer.write(datastore->getRoot(), num_procs, file_path, protocol);
+#else
+   // If serial, use sidre group writer.
+   bp_grp->getDataStore()->save( file_path, protocol);//, sidre_dc_group);
+#endif
+
+   if (myid == 0)
+   {
+      sidre::DataGroup * blueprint_indicies_grp = bp_index_grp->getParent();
+#ifdef MFEM_USE_MPI
+      if (protocol == "sidre_hdf5")
+      {
+         writer.writeGroupToRootFile( blueprint_indicies_grp, file_path + ".root"  );
+      }
+      // Root file support only available in hdf5.
+      else
+      {
+         writer.write(blueprint_indicies_grp, 1, file_path + ".root", protocol);
+      }
 #else
       // If serial, use sidre group writer.
-      bp_grp->getDataStore()->save( file_path, protocol);//, sidre_dc_group);
+      blueprint_indicies_grp->getDataStore()->save(file_path + ".root",
+                                                   protocol);//, sidre_dc_group);
 #endif
 
-      if (myid == 0)
-      {
-         sidre::DataGroup * blueprint_indicies_grp = bp_index_grp->getParent();
-#ifdef MFEM_USE_MPI
-         if (protocol == "sidre_hdf5")
-         {
-            writer.writeGroupToRootFile( blueprint_indicies_grp, file_path + ".root"  );
-         }
-         // Root file support only available in hdf5.
-         else
-         {
-            writer.write(blueprint_indicies_grp, 1, file_path + ".root", protocol);
-         }
-#else
-         // If serial, use sidre group writer.
-         blueprint_indicies_grp->getDataStore()->save(file_path + ".root", protocol);//, sidre_dc_group);
-#endif
-
-      }
+   }
 #if 0
-   }
-   // If not hdf5, use sidre group writer for both parallel and serial.  SPIO only supports HDF5.
-   else
+}
+// If not hdf5, use sidre group writer for both parallel and serial.  SPIO only supports HDF5.
+else
+{
+   if (myid == 0)
    {
-      if (myid == 0)
-      {
-         sidre::DataGroup * blueprint_indicies_grp = bp_index_grp->getParent();
-         blueprint_indicies_grp->getDataStore()->save(file_path + ".root", protocol);//, sidre_dc_group);
-      }
-
-      fNameSstr << "_" << myid;
-      file_path = fNameSstr.str();
-      bp_grp->getDataStore()->save(file_path, protocol);//, sidre_dc_group);
-
+      sidre::DataGroup * blueprint_indicies_grp = bp_index_grp->getParent();
+      blueprint_indicies_grp->getDataStore()->save(file_path + ".root",
+                                                   protocol);//, sidre_dc_group);
    }
+
+   fNameSstr << "_" << myid;
+   file_path = fNameSstr.str();
+   bp_grp->getDataStore()->save(file_path, protocol);//, sidre_dc_group);
+
+}
 #endif
 
-   /*
-      std::string _protocol;
-      std::string _filename;
+/*
+   std::string _protocol;
+   std::string _filename;
 
-      _protocol = "conduit_json";
-      _filename = fNameSstr.str() + ".conduit_json";
-      bp_grp->getDataStore()->save(_filename, _protocol);//, sidre_dc_group);
+   _protocol = "conduit_json";
+   _filename = fNameSstr.str() + ".conduit_json";
+   bp_grp->getDataStore()->save(_filename, _protocol);//, sidre_dc_group);
 
-      _protocol = "json";
-      _filename = fNameSstr.str() + ".json";
-      bp_grp->getDataStore()->save(_filename, _protocol);//, sidre_dc_group);
+   _protocol = "json";
+   _filename = fNameSstr.str() + ".json";
+   bp_grp->getDataStore()->save(_filename, _protocol);//, sidre_dc_group);
 
-      _protocol = "sidre_hdf5";
-      _filename = fNameSstr.str() + ".sidre_hdf5";
-      bp_grp->getDataStore()->save(_filename, _protocol);//, sidre_dc_group);
-   */
+   _protocol = "sidre_hdf5";
+   _filename = fNameSstr.str() + ".sidre_hdf5";
+   bp_grp->getDataStore()->save(_filename, _protocol);//, sidre_dc_group);
+*/
 }
 
 bool SidreDataCollection::HasFieldData(const char *field_name)
 {
    namespace sidre = asctoolkit::sidre;
 
-   if( ! simdata_grp->getGroup("array_data")->hasView(field_name) )
+   if ( ! simdata_grp->getGroup("array_data")->hasView(field_name) )
    {
       return false;
    }
 
    sidre::DataView *view = simdata_grp->getGroup("array_data")
-                                 ->getView(field_name);
+                           ->getView(field_name);
 
-   if( view == NULL)
+   if ( view == NULL)
    {
       return false;
    }
 
-   if(! view->isApplied())
+   if (! view->isApplied())
    {
       return false;
    }
@@ -665,11 +693,12 @@ double* SidreDataCollection::GetFieldData(const char *field_name, int sz)
 
    namespace sidre = asctoolkit::sidre;
 
-   MFEM_VERIFY(simdata_grp->hasGroup("array_data") == true, "No group 'array_data' in data collection.  Verify that SetMesh was called to set the mesh in the data collection.");
+   MFEM_VERIFY(simdata_grp->hasGroup("array_data") == true,
+               "No group 'array_data' in data collection.  Verify that SetMesh was called to set the mesh in the data collection.");
    sidre::DataGroup* f = simdata_grp->getGroup("array_data");
-   if( ! f->hasView( field_name ) )
+   if ( ! f->hasView( field_name ) )
    {
-       f->createViewAndAllocate(field_name, sidre::DOUBLE_ID, sz);
+      f->createViewAndAllocate(field_name, sidre::DOUBLE_ID, sz);
    }
    else
    {
@@ -677,16 +706,17 @@ double* SidreDataCollection::GetFieldData(const char *field_name, int sz)
       sidre::DataView* valsView = f->getView( field_name);
       int valSz = valsView->getNumElements();
 
-      if(valSz < sz)
+      if (valSz < sz)
       {
          valsView->reallocate(sz);
       }
    }
 
-    return f->getView(field_name)->getArray();
+   return f->getView(field_name)->getArray();
 }
 
-double* SidreDataCollection::GetFieldData(const char *field_name, int sz, const char *base_field, int offset, int stride)
+double* SidreDataCollection::GetFieldData(const char *field_name, int sz,
+                                          const char *base_field, int offset, int stride)
 {
    namespace sidre = asctoolkit::sidre;
 
@@ -695,9 +725,9 @@ double* SidreDataCollection::GetFieldData(const char *field_name, int sz, const 
    //      with the given sz, stride and offset
 
    sidre::DataGroup* f = simdata_grp->getGroup("array_data");
-   if( ! f->hasView( field_name ) )
+   if ( ! f->hasView( field_name ) )
    {
-      if( f->hasView( base_field) && f->getView(base_field) )
+      if ( f->hasView( base_field) && f->getView(base_field) )
       {
          sidre::DataBuffer* buff = f->getView(base_field)->getBuffer();
          f->createView(field_name, buff )->apply(sidre::DOUBLE_ID, sz, offset, stride);
@@ -711,10 +741,12 @@ double* SidreDataCollection::GetFieldData(const char *field_name, int sz, const 
    return f->getView(field_name)->getArray();
 }
 
-void SidreDataCollection::addScalarBasedGridFunction(const char* field_name, GridFunction *gf)
+void SidreDataCollection::addScalarBasedGridFunction(const char* field_name,
+                                                     GridFunction *gf)
 {
    // This function only makes sense when gf is not null
-   MFEM_ASSERT( gf != NULL, "Attempted to register grid function with a null pointer");
+   MFEM_ASSERT( gf != NULL,
+                "Attempted to register grid function with a null pointer");
 
    namespace sidre = asctoolkit::sidre;
 
@@ -732,22 +764,22 @@ void SidreDataCollection::addScalarBasedGridFunction(const char* field_name, Gri
 
 
    // First check if we already have the data -- e.g. in restart mode
-   if(grp->hasView("values") )
+   if (grp->hasView("values") )
    {
       MFEM_ASSERT( grp->getView("values")->getArray() == gf->GetData(),
                    "Allocated array has different size than gridfunction");
       MFEM_ASSERT( grp->getView("values")->getNumElements() == numDofs,
-                     "Allocated array has different size than gridfunction");
+                   "Allocated array has different size than gridfunction");
    }
    else
    {
       // Otherwise, we must add the view to the blueprint
 
       // If sidre allocated the data (via GetFieldData() ), use that
-      if( HasFieldData(field_name))
+      if ( HasFieldData(field_name))
       {
          sidre::DataView *vals = simdata_grp->getGroup("array_data")
-                                       ->getView(field_name);
+                                 ->getView(field_name);
 
          const sidre::Schema& schema = vals->getSchema();
          int startOffset = schema.dtype().offset() / schema.dtype().element_bytes();
@@ -755,22 +787,24 @@ void SidreDataCollection::addScalarBasedGridFunction(const char* field_name, Gri
          sidre::DataBuffer* buff = vals->getBuffer();
 
          grp->createView("values",buff)
-            ->apply(sidre::DOUBLE_ID, numDofs, startOffset);
+         ->apply(sidre::DOUBLE_ID, numDofs, startOffset);
       }
       else
       {
          // If we are not managing the grid function's data,
          // create a view with the external data
          grp->createView("values", gf->GetData())
-            ->apply(sidre::DOUBLE_ID, numDofs);
+         ->apply(sidre::DOUBLE_ID, numDofs);
       }
    }
 }
 
-void SidreDataCollection::addVectorBasedGridFunction(const char* field_name, GridFunction *gf)
+void SidreDataCollection::addVectorBasedGridFunction(const char* field_name,
+                                                     GridFunction *gf)
 {
    // This function only makes sense when gf is not null
-   MFEM_ASSERT( gf != NULL, "Attempted to register grid function with a null pointer");
+   MFEM_ASSERT( gf != NULL,
+                "Attempted to register grid function with a null pointer");
 
    namespace sidre = asctoolkit::sidre;
 
@@ -796,7 +830,7 @@ void SidreDataCollection::addVectorBasedGridFunction(const char* field_name, Gri
 
 
    // Check if the blueprint is already set up, and verify setup
-   if(grp->hasGroup("values") )
+   if (grp->hasGroup("values") )
    {
       sidre::DataGroup* fv = grp->getGroup("values");
 
@@ -807,12 +841,12 @@ void SidreDataCollection::addVectorBasedGridFunction(const char* field_name, Gri
 
       // Check that we have the right number of coords, each with the right size
       // Note: we are not testing the offsets and strides for each dimension
-      for(int i=0; i<vdim; ++i)
+      for (int i=0; i<vdim; ++i)
       {
          std::snprintf(fidxName, FLD_SZ, "x%d", i);
          MFEM_ASSERT(fv->hasView(fidxName)
                      && fv->getView(fidxName)->getNumElements() == ndof
-                    , "DataCollection organization does not match the blueprint"
+                     , "DataCollection organization does not match the blueprint"
                     );
       }
    }
@@ -823,20 +857,20 @@ void SidreDataCollection::addVectorBasedGridFunction(const char* field_name, Gri
 
       // Otherwise, we need to set up the blueprint
       // If we've already allocated the data, stride and offset the blueprint data appropriately
-      if(HasFieldData(field_name))
+      if (HasFieldData(field_name))
       {
          sidre::DataView *vals = simdata_grp->getGroup("array_data")
-                                       ->getView(field_name);
+                                 ->getView(field_name);
 
          sidre::DataBuffer* buff = vals->getBuffer();
          const sidre::Schema& schema = vals->getSchema();
          int startOffset = schema.dtype().offset() / schema.dtype().element_bytes();
 
-         for(int i=0; i<vdim; ++i)
+         for (int i=0; i<vdim; ++i)
          {
             std::snprintf(fidxName, FLD_SZ, "values/x%d", i);
 
-            switch(ordering)
+            switch (ordering)
             {
                case Ordering::byNODES:
                   offset = startOffset + i * ndof;
@@ -849,7 +883,7 @@ void SidreDataCollection::addVectorBasedGridFunction(const char* field_name, Gri
             }
 
             grp->createView(fidxName, buff)
-               ->apply(sidre::DOUBLE_ID, ndof, offset, stride);
+            ->apply(sidre::DOUBLE_ID, ndof, offset, stride);
          }
       }
       else
@@ -857,11 +891,11 @@ void SidreDataCollection::addVectorBasedGridFunction(const char* field_name, Gri
          // Else (we're not managing its data)
          // set the views up as external pointers
 
-         for(int i=0; i<vdim; ++i)
+         for (int i=0; i<vdim; ++i)
          {
             std::snprintf(fidxName, FLD_SZ, "values/x%d", i);
 
-            switch(ordering)
+            switch (ordering)
             {
                case Ordering::byNODES:
                   offset = i * ndof;
@@ -874,19 +908,21 @@ void SidreDataCollection::addVectorBasedGridFunction(const char* field_name, Gri
             }
 
             grp->createView(fidxName, gf->GetData())
-                ->apply(sidre::DOUBLE_ID, ndof, offset, stride);
+            ->apply(sidre::DOUBLE_ID, ndof, offset, stride);
          }
       }
    }
 }
 
 // Should only be called on mpi rank 0 ( or if serial problem ).
-void SidreDataCollection::DeregisterFieldInBPIndex(const std::string& field_name)
+void SidreDataCollection::DeregisterFieldInBPIndex(const std::string&
+                                                   field_name)
 {
    namespace sidre = asctoolkit::sidre;
 
    sidre::DataGroup * fields_grp = bp_index_grp->getGroup("fields");
-   MFEM_VERIFY(fields_grp->hasGroup(field_name), "No field exists in blueprint index with name " << name);
+   MFEM_VERIFY(fields_grp->hasGroup(field_name),
+               "No field exists in blueprint index with name " << name);
 
    // Note: This will destroy all orphaned views or buffer classes under this group also.  If sidre owns this
    // field data, the memory will be deleted unless it's referenced somewhere else in sidre.
@@ -894,25 +930,28 @@ void SidreDataCollection::DeregisterFieldInBPIndex(const std::string& field_name
 }
 
 // Should only be called on mpi rank 0 ( or if serial problem ).
-void SidreDataCollection::RegisterFieldInBPIndex(asctoolkit::sidre::DataGroup * bp_field_grp)
+void SidreDataCollection::RegisterFieldInBPIndex(asctoolkit::sidre::DataGroup *
+                                                 bp_field_grp)
 {
    namespace sidre = asctoolkit::sidre;
    const std::string& field_name = bp_field_grp->getName();
-   sidre::DataGroup * bp_index_field_grp = bp_index_grp->createGroup("fields/"+field_name);
+   sidre::DataGroup * bp_index_field_grp = bp_index_grp->createGroup("fields/"
+                                                                     +field_name);
 
    bp_index_field_grp->createViewScalar( "path", bp_field_grp->getPathName() );
    bp_index_field_grp->copyView( bp_field_grp->getView("topology") );
-   if(bp_field_grp->hasView("basis"))
+   if (bp_field_grp->hasView("basis"))
    {
       bp_index_field_grp->copyView( bp_field_grp->getView("basis") );
    }
-   else if(bp_field_grp->hasView("association"))
+   else if (bp_field_grp->hasView("association"))
    {
       bp_index_field_grp->copyView( bp_field_grp->getView("association") );
    }
    else
    {
-      std::string errorMessage = " Field " + bp_field_grp->getName() + " is missing association or basis entry in blueprint.";
+      std::string errorMessage = " Field " + bp_field_grp->getName() +
+                                 " is missing association or basis entry in blueprint.";
       MFEM_ABORT( errorMessage );
    }
 
@@ -923,7 +962,8 @@ void SidreDataCollection::RegisterFieldInBPIndex(asctoolkit::sidre::DataGroup * 
       number_of_components = bp_field_grp->getGroup("values")->getNumViews();
    }
 
-   bp_index_field_grp->createViewScalar("number_of_components", number_of_components);
+   bp_index_field_grp->createViewScalar("number_of_components",
+                                        number_of_components);
 
 }
 
@@ -932,7 +972,8 @@ void SidreDataCollection::DeregisterField(const char * field_name)
    namespace sidre = asctoolkit::sidre;
 
    sidre::DataGroup * fields_grp = bp_grp->getGroup("fields");
-   MFEM_VERIFY(fields_grp->hasGroup(field_name), "No field exists in blueprint with name " << field_name);
+   MFEM_VERIFY(fields_grp->hasGroup(field_name),
+               "No field exists in blueprint with name " << field_name);
 
    // Note: This will destroy all orphaned views or buffer classes under this group also.  If sidre owns this
    // field data, the memory will be deleted unless it's referenced somewhere else in sidre.
@@ -944,37 +985,41 @@ void SidreDataCollection::DeregisterField(const char * field_name)
    }
 }
 
-void SidreDataCollection::RegisterField(const char* field_name, GridFunction *gf)
+void SidreDataCollection::RegisterField(const char* field_name,
+                                        GridFunction *gf)
 {
    namespace sidre = asctoolkit::sidre;
    sidre::DataGroup* f = bp_grp->getGroup("fields");
 
-   if( gf != NULL )
+   if ( gf != NULL )
    {
-      MFEM_VERIFY(!f->hasGroup( field_name ), "Blueprint already has field registered with name '" << field_name << "', de-register the old field first.");
+      MFEM_VERIFY(!f->hasGroup( field_name ),
+                  "Blueprint already has field registered with name '" << field_name <<
+                  "', de-register the old field first.");
 
       sidre::DataGroup* grp = f->createGroup( field_name );
 
       // Set the basis string using the gf's finite element space, overwrite if necessary
-      if(!grp->hasView("basis"))
+      if (!grp->hasView("basis"))
       {
          grp->createViewString("basis", gf->FESpace()->FEColl()->Name());
       }
       else
-      {  // overwrite the basis string
+      {
+         // overwrite the basis string
          grp->getView("basis")->setString(gf->FESpace()->FEColl()->Name() );
       }
 
       // Set the topology of the gridfunction.
       // This is always 'mesh' except for a special case with the boundary material attributes field.
-      if(!grp->hasView("topology"))
+      if (!grp->hasView("topology"))
       {
          grp->createViewString("topology", "mesh");
       }
 
       // Set the data views of the grid function -- either scalar-valued or vector-valued
       bool const isScalarValued = (gf->FESpace()->GetVDim() == 1);
-      if(isScalarValued)
+      if (isScalarValued)
       {
          addScalarBasedGridFunction(field_name, gf);
       }
@@ -998,7 +1043,7 @@ std::string SidreDataCollection::getElementName(Element::Type elementEnum)
    //   enum Element::Type { POINT, SEGMENT, TRIANGLE, QUADRILATERAL, TETRAHEDRON, HEXAHEDRON};
    // Note: -- the string names are from conduit's blueprint
 
-   switch(elementEnum)
+   switch (elementEnum)
    {
       case Element::POINT:          return "points";
       case Element::SEGMENT:        return "lines";

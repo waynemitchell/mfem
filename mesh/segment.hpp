@@ -33,7 +33,8 @@ public:
    Segment(const int *ind, int attr = 1, int_ptr_pair = int_ptr_pair(NULL, NULL));
 
    /// Constructs triangle by specifying the indices and the attribute.
-   Segment(int ind1, int ind2, int attr = 1, int_ptr_pair = int_ptr_pair(NULL, NULL));
+   Segment(int ind1, int ind2, int attr = 1, int_ptr_pair = int_ptr_pair(NULL,
+                                                                         NULL));
 
    /// Set the indices the element according to the input.
    virtual void SetVertices(const int *ind);

@@ -38,7 +38,8 @@ public:
    Triangle(const int *ind, int attr = 1, int_ptr_pair = int_ptr_pair(NULL, NULL));
 
    /// Constructs triangle by specifying the indices and the attribute.
-   Triangle(int ind1, int ind2, int ind3, int attr = 1, int_ptr_pair = int_ptr_pair(NULL, NULL));
+   Triangle(int ind1, int ind2, int ind3, int attr = 1,
+            int_ptr_pair = int_ptr_pair(NULL, NULL));
 
    /// Return element's type.
    virtual int GetType() const { return Element::TRIANGLE; }

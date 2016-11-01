@@ -389,18 +389,18 @@ public:
 
    /// The reinit constructor
    Mesh(double *vertices, int num_vertices,
-        int *element_indices, Geometry::Type element_type, 
+        int *element_indices, Geometry::Type element_type,
         int *element_attributes, int num_elements,
         int *boundary_indices, Geometry::Type boundary_type,
         int *boundary_attributes, int num_boundary_elements,
         int dimension, int space_dimension= -1,
-        int generate_edges = 0, int refine = 0, 
+        int generate_edges = 0, int refine = 0,
         bool fix_orientation = true);
 
 
    Mesh(int _Dim, int NVert, int NElem, int NBdrElem = 0, int _spaceDim= -1)
    {
-      
+
       if (_spaceDim == -1)
       {
          _spaceDim = _Dim;
@@ -408,7 +408,8 @@ public:
       InitMesh(_Dim, _spaceDim, NVert, NElem, NBdrElem);
    }
 
-   Element *NewElement(int geom, Element::int_ptr_pair = Element::int_ptr_pair(NULL, NULL));
+   Element *NewElement(int geom,
+                       Element::int_ptr_pair = Element::int_ptr_pair(NULL, NULL));
 
    void AddVertex(const double *);
    void AddTri(const int *vi, int attr = 1);
@@ -456,7 +457,7 @@ public:
    Mesh(int nx, int ny, int nz, Element::Type type, int generate_edges = 0,
         double sx = 1.0, double sy = 1.0, double sz = 1.0)
    {
-      
+
       Make3D(nx, ny, nz, type, generate_edges, sx, sy, sz);
    }
 
@@ -467,14 +468,14 @@ public:
    Mesh(int nx, int ny, Element::Type type, int generate_edges = 0,
         double sx = 1.0, double sy = 1.0)
    {
-      
+
       Make2D(nx, ny, type, generate_edges, sx, sy);
    }
 
    /** Creates 1D mesh , divided into n equal intervals. */
    explicit Mesh(int n, double sx = 1.0)
    {
-      
+
       Make1D(n, sx);
    }
 
@@ -553,29 +554,33 @@ public:
    /// being updated and should not be used!
    double *GetVertex(int i) { return vertices[i](); }
 
-   void CopyElementObjectData(Array<Element*>& array_of_elements, size_t len_array_of_elements,
-         int* indices, size_t len_indices, int* attributes, size_t len_attributes);
+   void CopyElementObjectData(Array<Element*>& array_of_elements,
+                              size_t len_array_of_elements,
+                              int* indices, size_t len_indices, int* attributes, size_t len_attributes);
 
-   void ChangeElementObjectDataOwnership(Array<Element*>& array_of_elements, size_t len_array_of_elements,
-         int* indices, size_t len_indices, int* attributes, size_t len_attributes, 
-         bool zerocopy);
+   void ChangeElementObjectDataOwnership(Array<Element*>& array_of_elements,
+                                         size_t len_array_of_elements,
+                                         int* indices, size_t len_indices, int* attributes, size_t len_attributes,
+                                         bool zerocopy);
 
-   void ChangeElementDataOwnership(int *indices, size_t len_indices, int *attributes, 
-         size_t len_attributes, bool zerocopy = false);
-   
-   void CopyElementData(int *indices, size_t len_indices, int *attributes, 
-         size_t len_attributes);
+   void ChangeElementDataOwnership(int *indices, size_t len_indices,
+                                   int *attributes,
+                                   size_t len_attributes, bool zerocopy = false);
 
-   void ChangeBoundaryElementDataOwnership(int *indices, size_t len_indices, int *attributes,
-         size_t len_attributes, bool zerocopy = false);
+   void CopyElementData(int *indices, size_t len_indices, int *attributes,
+                        size_t len_attributes);
+
+   void ChangeBoundaryElementDataOwnership(int *indices, size_t len_indices,
+                                           int *attributes,
+                                           size_t len_attributes, bool zerocopy = false);
 
    void CopyBoundaryElementData(int *indices, size_t len_indices, int *attributes,
-         size_t len_attributes);
+                                size_t len_attributes);
 
    void CopyVertexData(double* vertices, size_t len_vertices);
 
-   void ChangeVertexDataOwnership(double *vertices, size_t len_vertices, 
-         bool zerocopy = false);
+   void ChangeVertexDataOwnership(double *vertices, size_t len_vertices,
+                                  bool zerocopy = false);
 
    const Element* const *GetElementsArray() const
    { return elements.GetData(); }

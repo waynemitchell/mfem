@@ -27,11 +27,12 @@ public:
    typedef Geometry::Constants<Geometry::CUBE> geom_t;
 
    Hexahedron() : Element(Geometry::CUBE, NULL, 8, NULL) { };
-   Hexahedron(int_ptr_pair p) 
+   Hexahedron(int_ptr_pair p)
       : Element(Geometry::CUBE, p.first, 8, p.second) { };
 
    /// Constructs hexahedron by specifying the indices and the attribute.
-   Hexahedron(const int *ind, int attr = 1, int_ptr_pair = int_ptr_pair(NULL, NULL));
+   Hexahedron(const int *ind, int attr = 1, int_ptr_pair = int_ptr_pair(NULL,
+                                                                        NULL));
 
    /// Constructs hexahedron by specifying the indices and the attribute.
    Hexahedron(int ind1, int ind2, int ind3, int ind4,

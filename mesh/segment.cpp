@@ -15,7 +15,7 @@
 namespace mfem
 {
 
-Segment::Segment( const int *ind, int attr, int_ptr_pair p ) 
+Segment::Segment( const int *ind, int attr, int_ptr_pair p )
    : Element(Geometry::SEGMENT, p.first, 2, p.second)
 {
    attribute = attr;
@@ -25,7 +25,7 @@ Segment::Segment( const int *ind, int attr, int_ptr_pair p )
    }
 }
 
-Segment::Segment( int ind1, int ind2, int attr, int_ptr_pair p ) 
+Segment::Segment( int ind1, int ind2, int attr, int_ptr_pair p )
    : Element(Geometry::SEGMENT, p.first, 2, p.second)
 {
    attribute  = attr;

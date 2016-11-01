@@ -26,7 +26,7 @@ Quadrilateral::Quadrilateral( const int *ind, int attr, int_ptr_pair p )
 }
 
 Quadrilateral::Quadrilateral( int ind1, int ind2, int ind3, int ind4,
-                              int attr, int_ptr_pair p )  
+                              int attr, int_ptr_pair p )
    : Element(Geometry::SQUARE, p.first, 4, p.second)
 {
    SetAttribute(attr);

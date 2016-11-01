@@ -14,7 +14,7 @@
 namespace mfem
 {
 
-Triangle::Triangle(const int *ind, int attr, int_ptr_pair p) 
+Triangle::Triangle(const int *ind, int attr, int_ptr_pair p)
    : Element(Geometry::TRIANGLE, p.first, 3, p.second)
 {
    attribute = attr;
