@@ -25,6 +25,7 @@ if (NOT CMAKE_CXX_COMPILER)
 endif()
 
 project(mfem CXX)
+set(${PROJECT_NAME}_VERSION 3.2)
 
 if (CMAKE_VERSION VERSION_LESS 3.2)
    # This seems to be needed by: find_package(BLAS REQUIRED)
@@ -185,6 +186,9 @@ endif()
 target_compile_definitions(mfem PRIVATE
   "-DMFEM_BUILD_DIR=${PROJECT_BINARY_DIR}")
 
+set_target_properties(${PROJECT_NAME} PROPERTIES
+  PUBLIC_HEADER "mfem.hpp")
+
 # The examples and miniapps are separate
 if (MFEM_ENABLE_TESTING)
   enable_testing()
@@ -222,10 +226,14 @@ endif()
 #-------------------------------------------------------------------------------
 # Installation
 #-------------------------------------------------------------------------------
+string(TOUPPER "${PROJECT_NAME}" PROJECT_NAME_UC)
 
 # Install the library
-install(TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME}
-  DESTINATION lib)
+install(TARGETS ${PROJECT_NAME}
+  EXPORT ${PROJECT_NAME_UC}Targets
+  PUBLIC_HEADER DESTINATION include
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib)
 
 # Install the master header
 install(FILES ${PROJECT_SOURCE_DIR}/mfem.hpp DESTINATION include)
@@ -242,3 +250,52 @@ install(FILES ${PROJECT_BINARY_DIR}/config/_config.hpp DESTINATION include/confi
 
 install(FILES ${PROJECT_SOURCE_DIR}/config/tconfig.hpp
   DESTINATION include/config)
+
+#
+# Package the whole thing up nicely
+#
+include(CMakePackageConfigHelpers)
+
+set(INCLUDE_INSTALL_DIR include)
+set(LIB_INSTALL_DIR lib)
+
+# Add all targets to the build-tree export set
+export(TARGETS ${PROJECT_NAME}
+  FILE "${PROJECT_BINARY_DIR}/MFEMTargets.cmake")
+ 
+# Export the package for use from the build-tree
+# (this registers the build-tree with a global CMake-registry)
+export(PACKAGE ${PROJECT_NAME})
+
+# This is the build-tree version
+set(INCLUDE_INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+set(LIB_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR})
+configure_package_config_file(config/MFEMConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/MFEMConfig.cmake
+  INSTALL_DESTINATION .
+  INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR}
+  PATH_VARS INCLUDE_INSTALL_DIR LIB_INSTALL_DIR)
+
+# This is the version that will be installed
+set(INCLUDE_INSTALL_DIR include)
+set(LIB_INSTALL_DIR lib)
+configure_package_config_file(config/MFEMConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/MFEMConfig.cmake
+  INSTALL_DESTINATION ${LIB_INSTALL_DIR}/cmake/mfem
+  PATH_VARS INCLUDE_INSTALL_DIR LIB_INSTALL_DIR)
+
+# Write the version file (same for build and install tree)
+write_basic_package_version_file(
+  ${CMAKE_CURRENT_BINARY_DIR}/MFEMConfigVersion.cmake
+  VERSION ${${PROJECT_NAME}_VERSION}
+  COMPATIBILITY SameMajorVersion )
+
+# Install the config files
+install(FILES
+  ${CMAKE_CURRENT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/MFEMConfig.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/MFEMConfigVersion.cmake
+  DESTINATION ${LIB_INSTALL_DIR}/cmake/mfem)
+
+# Install the export set for use with the install-tree
+install(EXPORT ${PROJECT_NAME_UC}Targets
+    DESTINATION ${LIB_INSTALL_DIR}/cmake/mfem)
