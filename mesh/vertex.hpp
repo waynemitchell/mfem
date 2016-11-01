@@ -24,17 +24,7 @@ struct Vertex
 {
    double coord[3];
 
-   // only in C++11 can we have user-defined constructors for POD type
-#ifdef CPP11
-   Vertex(double *xx, int dim);
-   Vertex(double x, double y) { coord[0] = x; coord[1] = y; coord[2] = 0.; }
-   Vertex(double x, double y, double z) { coord[0] = x; coord[1] = y; coord[2] = z; }
-#else
-   static Vertex* newVertex(double *xx, int dim);
-   static Vertex* newVertex(double x, double y);
-   static Vertex* newVertex(double x, double y, double z);
    inline void operator=(const Vertex *v) { memcpy(coord, v->coord, 3 * sizeof(double)); }
-#endif
 
    /// Returns pointer to the coordinates of the vertex.
    inline double * operator() () const { return (double*)coord; }
