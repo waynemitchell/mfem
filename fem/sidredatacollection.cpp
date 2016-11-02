@@ -313,6 +313,9 @@ void SidreDataCollection::createMeshBlueprintTopologies(bool hasBP,
 
       if (!isBdry)
       {
+         // NOTE: The view name will be changing
+         //       from 'mfem_grid_function' to 'grid_function'
+         //       in the next release.
          topology_grp->createViewString("mfem_grid_function",m_meshNodesGFName);
       }
 
@@ -659,7 +662,7 @@ else
 */
 }
 
-bool SidreDataCollection::HasFieldData(const char *field_name)
+bool SidreDataCollection::HasFieldData(const std::string& field_name)
 {
    namespace sidre = asctoolkit::sidre;
 
@@ -686,7 +689,7 @@ bool SidreDataCollection::HasFieldData(const char *field_name)
 }
 
 
-double* SidreDataCollection::GetFieldData(const char *field_name, int sz)
+double* SidreDataCollection::GetFieldData(const std::string& field_name, int sz)
 {
    // NOTE: WE only handle scalar fields right now
    //       Need to add support for vector fields as well
@@ -715,8 +718,8 @@ double* SidreDataCollection::GetFieldData(const char *field_name, int sz)
    return f->getView(field_name)->getArray();
 }
 
-double* SidreDataCollection::GetFieldData(const char *field_name, int sz,
-                                          const char *base_field, int offset, int stride)
+double* SidreDataCollection::GetFieldData(const std::string& field_name, int sz,
+                                          const std::string& base_field, int offset, int stride)
 {
    namespace sidre = asctoolkit::sidre;
 
@@ -741,7 +744,7 @@ double* SidreDataCollection::GetFieldData(const char *field_name, int sz,
    return f->getView(field_name)->getArray();
 }
 
-void SidreDataCollection::addScalarBasedGridFunction(const char* field_name,
+void SidreDataCollection::addScalarBasedGridFunction(const std::string& field_name,
                                                      GridFunction *gf)
 {
    // This function only makes sense when gf is not null
@@ -799,7 +802,7 @@ void SidreDataCollection::addScalarBasedGridFunction(const char* field_name,
    }
 }
 
-void SidreDataCollection::addVectorBasedGridFunction(const char* field_name,
+void SidreDataCollection::addVectorBasedGridFunction(const std::string& field_name,
                                                      GridFunction *gf)
 {
    // This function only makes sense when gf is not null
@@ -956,18 +959,14 @@ void SidreDataCollection::RegisterFieldInBPIndex(asctoolkit::sidre::DataGroup *
    }
 
 
-   int number_of_components = 1;
-   if ( bp_field_grp->hasGroup("values") )
-   {
-      number_of_components = bp_field_grp->getGroup("values")->getNumViews();
-   }
-
-   bp_index_field_grp->createViewScalar("number_of_components",
-                                        number_of_components);
-
+   // Note: The bp index requires GridFunction::VectorDim()
+   //       since the GF might be scalar valued and have a vector basis
+   //       (e.g. hdiv and hcurl spaces)
+   const int number_of_components = GetField(field_name.c_str())->VectorDim();
+   bp_index_field_grp->createViewScalar("number_of_components", number_of_components);
 }
 
-void SidreDataCollection::DeregisterField(const char * field_name)
+void SidreDataCollection::DeregisterField(const std::string& field_name)
 {
    namespace sidre = asctoolkit::sidre;
 
@@ -985,7 +984,7 @@ void SidreDataCollection::DeregisterField(const char * field_name)
    }
 }
 
-void SidreDataCollection::RegisterField(const char* field_name,
+void SidreDataCollection::RegisterField(const std::string& field_name,
                                         GridFunction *gf)
 {
    namespace sidre = asctoolkit::sidre;
@@ -1017,7 +1016,8 @@ void SidreDataCollection::RegisterField(const char* field_name,
          grp->createViewString("topology", "mesh");
       }
 
-      // Set the data views of the grid function -- either scalar-valued or vector-valued
+      // Set the data views of the grid function
+      // e.g. the number of coefficients per DoF -- either scalar-valued or vector-valued
       bool const isScalarValued = (gf->FESpace()->GetVDim() == 1);
       if (isScalarValued)
       {

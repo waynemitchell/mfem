@@ -34,10 +34,17 @@ protected:
    std::string prefix_path;
 
    /// The fields and their names (used when saving)
-   std::map<std::string, GridFunction*> field_map;
+   typedef std::map<std::string, GridFunction*> FieldMapType;
+   typedef typename FieldMapType::iterator FieldMapIterator;
+   typedef typename FieldMapType::const_iterator FieldMapConstIterator;
+   FieldMapType field_map;
+
 
    /// Field data that the collection explicitly manages
-   std::map<std::string, double*> managed_field_data_map;
+   typedef std::map<std::string, double*> FieldDataMapType;
+   typedef typename FieldDataMapType::iterator FieldDataMapIterator;
+   typedef typename FieldDataMapType::const_iterator FieldDataMapConstIterator;
+   FieldDataMapType managed_field_data_map;
 
 
    /// The (common) mesh for the collected fields
@@ -85,36 +92,36 @@ protected:
 
 public:
    /// Create an empty collection with the given name.
-   DataCollection(const char *collection_name);
+   DataCollection(const std::string& collection_name);
 
    /// Initialize the collection with its name and Mesh.
-   DataCollection(const char *collection_name, Mesh *_mesh);
+   DataCollection(const std::string& collection_name, Mesh *_mesh);
 
    /// Add a grid function to the collection
-   virtual void RegisterField(const char* field_name, GridFunction *gf);
+   virtual void RegisterField(const std::string& field_name, GridFunction *gf);
 
    /// Add a grid function to the collection
-   virtual void DeregisterField(const char* field_name);
+   virtual void DeregisterField(const std::string& field_name);
 
    /** Get a pointer to a grid function in the collection. Returns NULL if
        'field_name' is not in the collection. */
-   GridFunction *GetField(const char *field_name);
+   GridFunction *GetField(const std::string& field_name);
    /// Check if a grid function is part of the collection
-   bool HasField(const char *name) { return field_map.count(name) == 1; }
+   bool HasField(const std::string& name) { return field_map.count(name) == 1; }
 
    /**
     * Gets a pointer to the data associated with a field
     * If the field (or data) does not exist and sz is greater than zero, it will allocate memory for the field
     * else, it returns a null pointer
     */
-   virtual double* GetFieldData(const char *field_name, int sz = 0);
+   virtual double* GetFieldData(const std::string& field_name, int sz = 0);
 
    /**
     * Gets a pointer to the data of field_name
     * If it does not exist, but base_field does, return pointer relative to base_field's data
     */
-   virtual double* GetFieldData(const char *field_name, int sz,
-                                const char *base_field, int offset = 0, int stride = 1);
+   virtual double* GetFieldData(const std::string& field_name, int sz,
+                                const std::string& base_field, int offset = 0, int stride = 1);
 
 
    /**
@@ -122,7 +129,7 @@ public:
     */
    std::vector<std::string> GetFieldNames() const;
 
-   virtual bool HasFieldData(const char *field_name);
+   virtual bool HasFieldData(const std::string&  field_name);
 
    /// Get a pointer to the mesh in the collection
    Mesh *GetMesh() { return mesh; }
@@ -145,7 +152,7 @@ public:
    double GetTimeStep() { return time_step; }
 
    /// Get the name of the collection
-   const char* GetCollectionName() { return name.c_str(); }
+   const std::string& GetCollectionName() { return name; }
    /// Set the ownership of collection data
    void SetOwnData(bool o) { own_data = o; }
 
@@ -154,10 +161,10 @@ public:
    /// Set the number of digits used for the cycle and MPI rank in filenames
    void SetPadDigits(int digits) { pad_digits = digits; }
    /// Set the path where the DataCollection will be saved.
-   void SetPrefixPath(const char *prefix);
+   void SetPrefixPath(const std::string& prefix);
 
    /// Get the path where the DataCollection will be saved.
-   const char* GetPrefixPath() const { return prefix_path.c_str(); }
+   const std::string& GetPrefixPath() const { return prefix_path; }
 
    /** Save the collection to disk. By default, everything is saved in a
        directory with name "collection_name" or "collection_name_cycle" for
@@ -166,12 +173,10 @@ public:
    /// Save the mesh, creating the collection directory.
    virtual void SaveMesh();
    /// Save one field, assuming the collection directory already exists.
-   virtual void SaveField(const char *field_name);
+   virtual void SaveField(const std::string& field_name);
 
    /// Load the collection
    virtual void Load(int cycle);
-
-   virtual void Load(const std::string& path, const std::string& protocol) {}
 
    /// Delete the mesh and fields if owned by the collection
    virtual ~DataCollection();
@@ -210,25 +215,25 @@ protected:
    /// Prepare the VisIt root file in JSON format for the current collection
    std::string GetVisItRootString();
    /// Read in a VisIt root file in JSON format
-   void ParseVisItRootString(std::string json);
+   void ParseVisItRootString(const std::string& json);
 
    // Helper functions for Load()
-   void LoadVisItRootFile(std::string root_name);
+   void LoadVisItRootFile(const std::string& root_name);
    void LoadMesh();
    void LoadFields();
 
 public:
    /** Create an empty collection with the given name, that will be filled in
        later with the Load() function. Currently this only works in serial! */
-   VisItDataCollection(const char *collection_name);
+   VisItDataCollection(const std::string& collection_name);
    /// Initialize the collection with its mesh, fill-in the extra VisIt data
-   VisItDataCollection(const char *collection_name, Mesh *_mesh);
+   VisItDataCollection(const std::string& collection_name, Mesh *_mesh);
 
    /// Set/change the mesh associated with the collection
    virtual void SetMesh(Mesh *new_mesh);
 
    /// Add a grid function to the collection and update the root file
-   virtual void RegisterField(const char *field_name, GridFunction *gf);
+   virtual void RegisterField(const std::string& field_name, GridFunction *gf);
 
    /// Set VisIt parameter: maximum levels of detail for the MultiresControl
    void SetMaxLevelsOfDetail(int max_levels_of_detail);
