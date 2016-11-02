@@ -82,8 +82,8 @@ static int create_directory(const std::string &dir_name, const Mesh *mesh,
 
 // Constructor that will automatically create the sidre data store and necessary data groups for domain and global data.
 SidreDataCollection::SidreDataCollection(const std::string& collection_name,
-                                         Mesh * mesh, bool own_mesh_data)
-   : mfem::DataCollection(collection_name.c_str(), mesh),
+                                         Mesh * the_mesh, bool own_mesh_data)
+   : mfem::DataCollection(collection_name.c_str(), the_mesh),
      m_owns_datastore(true),
      m_owns_mesh_data(own_mesh_data),
      m_meshNodesGFName("mfem_default_mesh_nodes_gf"),
@@ -104,7 +104,7 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name,
    bp_index_grp = global_grp->createGroup("blueprint_index/" + name);
    simdata_grp = domain_grp->createGroup("sim");
 
-   SetMesh(mesh);
+   SetMesh(the_mesh);
 }
 
 // Second constructor that allows external code to specify data groups to place domain and global data in.

@@ -44,7 +44,7 @@ public:
    typedef int mfem_int_t;
    typedef double mfem_double_t;
 
-   SidreDataCollection(const std::string& collection_name, Mesh *mesh,
+   SidreDataCollection(const std::string& collection_name, Mesh *the_mesh,
                        bool owns_mesh_data=false);
 
    SidreDataCollection(const std::string& collection_name,
