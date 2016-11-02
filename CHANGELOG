@@ -58,11 +58,15 @@ FEM <-> linear system interface for action-only linear operators
 
 New and updated examples and miniapps
 -------------------------------------
-- Added new example code, Example 16/16p, demonstrating the solution of a
+- Added a new example code, Example 16/16p, demonstrating the solution of a
   time-dependent nonlinear heat equation in serial and in parallel.
 
-- Added new example 17/17p, illustrating discontinuous Galerkin (DG)
-  formulations of static linear elasticity.
+- Added a new example code, Example 17/17p, illustrating discontinuous Galerkin
+  (DG) formulations of static linear elasticity.
+
+- Added a new electromagnetic miniapp, Joule, illustrating the simulation of
+  transient magnetics and joule heating. This is a comprehensive miniapp that
+  uses finite element spaces and solvers for the whole de Rham sequence.
 
 - The HPC examples in miniapps/performance now have a -mf/--matrix-free option
   illustrating optimized "partial assembly" operator evaluation. This is now the
@@ -83,6 +87,9 @@ Miscellaneous
 - Added optional support for software-based higher-precision arithmetic with
   the MPFR library. When MFEM_USE_MPFR is enabled, the 1D quadrature rules will
   be computed precisely, at least for rules with up to 65-points.
+
+- Added on-the-fly compression of file streams input and output via gzstream,
+  see the MFEM_USE_GZSTREAM option.
 
 - Better support for METIS version 5 and above.
 

@@ -15,6 +15,7 @@
 #include "general/osockstream.hpp"
 #include "general/socketstream.hpp"
 #include "general/optparser.hpp"
+#include "general/gzstream.hpp"
 
 #ifdef MFEM_USE_SIDRE
 #include "fem/sidredatacollection.hpp"
