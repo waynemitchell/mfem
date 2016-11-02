@@ -23,8 +23,9 @@ namespace mfem
 //    in a data collection
 // -----------------------------------------------
 
-std::string DataCollectionUtility::GenerateFieldName(const std::string& inputFldName,
-                                              int arr_idx)
+std::string DataCollectionUtility::GenerateFieldName(const std::string&
+                                                     inputFldName,
+                                                     int arr_idx)
 {
    if (arr_idx >= 0)
    {

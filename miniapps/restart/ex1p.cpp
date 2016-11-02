@@ -167,8 +167,8 @@ int main(int argc, char *argv[])
                                            -1,
                                            !isRestart);
 
-//   ParGridFunction x(fespace);
-//   x = 0.0;
+   //   ParGridFunction x(fespace);
+   //   x = 0.0;
 
    // Register the solution PGF with the data collection so it will be written out/read in
    // during restart.
@@ -273,7 +273,7 @@ int main(int argc, char *argv[])
       sol_sock.precision(8);
       sol_sock << "solution\n" << *pmesh << x << flush;
    }
-   
+
 #if 0
    // 16. Free the used memory.
    delete pcg;

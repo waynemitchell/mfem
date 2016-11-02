@@ -540,6 +540,19 @@ void SidreDataCollection::UpdateStateFromDS()
    SetTimeStep( bp_grp->getView("state/time_step")->getData<double>() );
 }
 
+void SidreDataCollection::UpdateStateToDS()
+{
+   bp_grp->getView("state/cycle")->setScalar(GetCycle());
+   bp_grp->getView("state/time")->setScalar(GetTime());
+   bp_grp->getView("state/time_step")->setScalar(GetTimeStep());
+
+   if (myid == 0)
+   {
+      bp_index_grp->getView("state/cycle")->setScalar(GetCycle());
+      bp_index_grp->getView("state/time")->setScalar(time);
+   }
+}
+
 void SidreDataCollection::Save()
 {
    std::string filename = name;
@@ -567,33 +580,8 @@ void SidreDataCollection::Save(const std::string& filename,
 
    std::string file_path = fNameSstr.str();
 
-   bp_grp->getView("state/cycle")->setScalar(GetCycle());
-   bp_grp->getView("state/time")->setScalar(GetTime());
-   bp_grp->getView("state/time_step")->setScalar(GetTimeStep());
+   UpdateStateToDS();
 
-   /*
-   { // BEGIN debug block
-     std::stringstream sstr;
-     sstr << "Dumping checkpoint: Registered grid functions: \n";
-     for (std::map<std::string,GridFunction*>::iterator it = this->field_map.begin()
-            ; it != this->field_map.end(); ++it)
-     {
-        sstr << "\t" << it->first;
-     }
-     SLIC_INFO(sstr.str());
-   } // END debug code
-   */
-
-   if (myid == 0)
-   {
-      bp_index_grp->getView("state/cycle")->setScalar(GetCycle());
-      bp_index_grp->getView("state/time")->setScalar(time);
-   }
-
-   //   sidre::DataGroup * domain_file_grp = bp_grp->getParent()->getParent();
-
-   //   if (protocol == "sidre_hdf5")
-   //   {
 
 #ifdef MFEM_USE_MPI
    const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
@@ -744,7 +732,8 @@ double* SidreDataCollection::GetFieldData(const std::string& field_name, int sz,
    return f->getView(field_name)->getArray();
 }
 
-void SidreDataCollection::addScalarBasedGridFunction(const std::string& field_name,
+void SidreDataCollection::addScalarBasedGridFunction(const std::string&
+                                                     field_name,
                                                      GridFunction *gf)
 {
    // This function only makes sense when gf is not null
@@ -802,7 +791,8 @@ void SidreDataCollection::addScalarBasedGridFunction(const std::string& field_na
    }
 }
 
-void SidreDataCollection::addVectorBasedGridFunction(const std::string& field_name,
+void SidreDataCollection::addVectorBasedGridFunction(const std::string&
+                                                     field_name,
                                                      GridFunction *gf)
 {
    // This function only makes sense when gf is not null
@@ -963,7 +953,8 @@ void SidreDataCollection::RegisterFieldInBPIndex(asctoolkit::sidre::DataGroup *
    //       since the GF might be scalar valued and have a vector basis
    //       (e.g. hdiv and hcurl spaces)
    const int number_of_components = GetField(field_name.c_str())->VectorDim();
-   bp_index_field_grp->createViewScalar("number_of_components", number_of_components);
+   bp_index_field_grp->createViewScalar("number_of_components",
+                                        number_of_components);
 }
 
 void SidreDataCollection::DeregisterField(const std::string& field_name)

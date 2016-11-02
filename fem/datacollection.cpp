@@ -28,10 +28,8 @@
 namespace mfem
 {
 
-using namespace std;
-
-
-static int create_directory(const std::string &dir_name, const Mesh *mesh, int myid)
+static int create_directory(const std::string &dir_name,
+                            const Mesh *mesh, int myid)
 {
    // create directories recursively
    const char path_delim = '/';
@@ -86,14 +84,14 @@ std::string to_string(int i)
 std::string to_padded_string(int i, int digits)
 {
    std::ostringstream oss;
-   oss << setw(digits) << setfill('0') << i;
+   oss << std::setw(digits) << std::setfill('0') << i;
    return oss.str();
 }
 
 int to_int(const std::string& str)
 {
    int i;
-   stringstream(str) >> i;
+   std::stringstream(str) >> i;
    return i;
 }
 
@@ -186,7 +184,8 @@ std::vector<std::string> DataCollection::GetFieldNames() const
    std::vector<std::string> res;
    res.reserve(field_map.size());
 
-   for (FieldMapConstIterator it = field_map.begin(), itEnd = field_map.end(); it != itEnd; ++it)
+   for (FieldMapConstIterator it = field_map.begin(), itEnd = field_map.end();
+        it != itEnd; ++it)
    {
       res.push_back( it->first);
    }
@@ -429,8 +428,8 @@ void DataCollection::DeleteData()
    own_data = false;
 
    // Delete data that the data collection explicitly allocated
-   typedef std::map<std::string, double*>::iterator DMIt;
-   for (FieldDataMapIterator it = managed_field_data_map.begin(); it != managed_field_data_map.end(); ++it)
+   for (FieldDataMapIterator it = managed_field_data_map.begin();
+        it != managed_field_data_map.end(); ++it)
    {
       if (it->second != NULL)
       {
@@ -486,7 +485,8 @@ void VisItDataCollection::SetMesh(Mesh *new_mesh)
    topo_dim = mesh->Dimension();
 }
 
-void VisItDataCollection::RegisterField(const std::string& name, GridFunction *gf)
+void VisItDataCollection::RegisterField(const std::string& name,
+                                        GridFunction *gf)
 {
    DataCollection::RegisterField(name, gf);
    field_info_map[name] = VisItFieldInfo("nodes", gf->VectorDim());
@@ -514,7 +514,7 @@ void VisItDataCollection::SaveRootFile()
    if (myid == 0)
    {
       std::string root_name = prefix_path + name + "_" +
-                         to_padded_string(cycle, pad_digits) + ".mfem_root";
+                              to_padded_string(cycle, pad_digits) + ".mfem_root";
       std::ofstream root_file(root_name.c_str());
       root_file << GetVisItRootString();
       if (!root_file)
@@ -530,7 +530,7 @@ void VisItDataCollection::Load(int _cycle)
    DeleteAll();
    cycle = _cycle;
    std::string root_name = prefix_path + name + "_" +
-                      to_padded_string(cycle, pad_digits) + ".mfem_root";
+                           to_padded_string(cycle, pad_digits) + ".mfem_root";
    LoadVisItRootFile(root_name);
    if (!error)
    {
@@ -569,8 +569,8 @@ void VisItDataCollection::LoadVisItRootFile(const std::string& root_name)
 void VisItDataCollection::LoadMesh()
 {
    std::string mesh_fname = prefix_path + name + "_" +
-                       to_padded_string(cycle, pad_digits) +
-                       "/mesh." + to_padded_string(myid, pad_digits);
+                            to_padded_string(cycle, pad_digits) +
+                            "/mesh." + to_padded_string(myid, pad_digits);
    std::ifstream file(mesh_fname.c_str());
    if (!file)
    {
@@ -588,7 +588,7 @@ void VisItDataCollection::LoadMesh()
 void VisItDataCollection::LoadFields()
 {
    std::string path_left = prefix_path + name + "_" +
-                      to_padded_string(cycle, pad_digits) + "/";
+                           to_padded_string(cycle, pad_digits) + "/";
    std::string path_right = "." + to_padded_string(myid, pad_digits);
 
    field_map.clear();
@@ -674,9 +674,9 @@ void VisItDataCollection::ParseVisItRootString(const std::string& json)
    // ... Process "mesh"
 
    // Set the DataCollection::name using the mesh path
-   std::string path = mesh.get("path").get<string>();
+   std::string path = mesh.get("path").get<std::string>();
    size_t right_sep = path.find('_');
-   if (right_sep == string::npos)
+   if (right_sep == std::string::npos)
    {
       error = READ_ERROR;
       MFEM_WARNING("Unable to parse visit root data.");
@@ -684,10 +684,10 @@ void VisItDataCollection::ParseVisItRootString(const std::string& json)
    }
    name = path.substr(0, right_sep);
 
-   spatial_dim = to_int(mesh.get("tags").get("spatial_dim").get<string>());
-   topo_dim = to_int(mesh.get("tags").get("topo_dim").get<string>());
+   spatial_dim = to_int(mesh.get("tags").get("spatial_dim").get<std::string>());
+   topo_dim = to_int(mesh.get("tags").get("topo_dim").get<std::string>());
    visit_max_levels_of_detail =
-      to_int(mesh.get("tags").get("max_lods").get<string>());
+      to_int(mesh.get("tags").get("max_lods").get<std::string>());
 
    // ... Process "fields"
    field_info_map.clear();
@@ -699,8 +699,8 @@ void VisItDataCollection::ParseVisItRootString(const std::string& json)
       {
          picojson::value tags = it->second.get("tags");
          field_info_map[it->first] =
-            VisItFieldInfo(tags.get("assoc").get<string>(),
-                           to_int(tags.get("comps").get<string>()));
+            VisItFieldInfo(tags.get("assoc").get<std::string>(),
+                           to_int(tags.get("comps").get<std::string>()));
       }
    }
 }

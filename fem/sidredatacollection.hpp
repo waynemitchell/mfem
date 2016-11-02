@@ -79,7 +79,18 @@ public:
 
    void Load(const std::string& path, const std::string& protocol);
 
+   /**
+    * Updates the DataCollection's state variables (e.g. cycle,time)
+    * to the values from the data store
+    */
    void UpdateStateFromDS();
+
+   /**
+    * Updates the data store's state variables (e.g. cycle,time)
+    * to the values from the DataCollection
+    */
+   void UpdateStateToDS();
+
    /**
     * Gets a pointer to the associated field's view data (always an array of doubles)
     * If the field does not exist, it will create a view of the appropriate size
@@ -91,7 +102,8 @@ public:
     * Data is relative to the data associated with base_field
     * Returns null if base_field does not exist
     */
-   double* GetFieldData(const std::string& field_name, int sz, const std::string& base_field, int offset = 0, int stride = 1);
+   double* GetFieldData(const std::string& field_name, int sz,
+                        const std::string& base_field, int offset = 0, int stride = 1);
 
 
    bool HasFieldData(const std::string& field_name);
@@ -169,7 +181,8 @@ private:
     *      where the data was allocated by this data collection
     *      and where the gridfunction data is external to sidre
     */
-   void addScalarBasedGridFunction(const std::string& field_name, GridFunction* gf);
+   void addScalarBasedGridFunction(const std::string& field_name,
+                                   GridFunction* gf);
 
 
    /**
@@ -181,7 +194,8 @@ private:
     *      where the data was allocated by this data collection
     *      and where the gridfunction data is external to sidre
     */
-   void addVectorBasedGridFunction(const std::string& field_name, GridFunction* gf);
+   void addVectorBasedGridFunction(const std::string& field_name,
+                                   GridFunction* gf);
 
 
    /**

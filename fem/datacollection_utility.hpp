@@ -39,7 +39,7 @@ namespace mfem
 class DataCollectionUtility
 {
 public:
-    static const int PAD_DIGITS = 3;
+   static const int PAD_DIGITS = 3;
 
    /**
     * Generates a field name, including indexing for fields within an array
@@ -50,7 +50,8 @@ public:
     *            the outputFldName will be 'fld_1'
     * \return A string with a 1-based index appended (when arr_idx != 1)
     */
-   static std::string GenerateFieldName(const std::string& inputFldName, int arr_idx = -1);
+   static std::string GenerateFieldName(const std::string& inputFldName,
+                                        int arr_idx = -1);
 
 
    /**
