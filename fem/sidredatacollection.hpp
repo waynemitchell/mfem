@@ -53,9 +53,9 @@ public:
                        const std::string meshNodesGFName = "mfem_default_mesh_nodes_gf",
                        bool owns_mesh_data=false);
 
-   void DeregisterField(const char* field_name);
+   void DeregisterField(const std::string& field_name);
 
-   void RegisterField(const char* field_name, GridFunction *gf);
+   void RegisterField(const std::string& field_name, GridFunction *gf);
 
    /// Verify we will delete the mesh and fields if we own them
    virtual ~SidreDataCollection();
@@ -84,18 +84,17 @@ public:
     * Gets a pointer to the associated field's view data (always an array of doubles)
     * If the field does not exist, it will create a view of the appropriate size
     */
-   double* GetFieldData(const char *field_name, int sz = 0);
+   double* GetFieldData(const std::string& field_name, int sz = 0);
 
    /**
     * Gets a pointer to the data of field_name (always an array of doubles)
     * Data is relative to the data associated with base_field
     * Returns null if base_field does not exist
     */
-   double* GetFieldData(const char *field_name, int sz, const char *base_field,
-                        int offset = 0, int stride = 1);
+   double* GetFieldData(const std::string& field_name, int sz, const std::string& base_field, int offset = 0, int stride = 1);
 
 
-   bool HasFieldData(const char *field_name);
+   bool HasFieldData(const std::string& field_name);
 
 
    /**
@@ -105,7 +104,7 @@ public:
     * \note This function is not available in base DataCollection class
     */
    template<typename T>
-   T* GetArrayData(const char *field_name, int sz)
+   T* GetArrayData(const std::string& field_name, int sz)
    {
       namespace sidre = asctoolkit::sidre;
 
@@ -170,7 +169,7 @@ private:
     *      where the data was allocated by this data collection
     *      and where the gridfunction data is external to sidre
     */
-   void addScalarBasedGridFunction(const char*field_name, GridFunction* gf);
+   void addScalarBasedGridFunction(const std::string& field_name, GridFunction* gf);
 
 
    /**
@@ -182,7 +181,7 @@ private:
     *      where the data was allocated by this data collection
     *      and where the gridfunction data is external to sidre
     */
-   void addVectorBasedGridFunction(const char*field_name, GridFunction* gf);
+   void addVectorBasedGridFunction(const std::string& field_name, GridFunction* gf);
 
 
    /**

@@ -11,8 +11,8 @@
 
 #include "fem.hpp"
 
-#include <cstdio>      // snprintf, sscanf
 #include <sstream>
+#include <iomanip>
 
 namespace mfem
 {
@@ -23,18 +23,20 @@ namespace mfem
 //    in a data collection
 // -----------------------------------------------
 
-void DataCollectionUtility::GenerateFieldName(const char* inputFldName,
-                                              int arr_idx,
-                                              char* outputFldName, const int sz)
+std::string DataCollectionUtility::GenerateFieldName(const std::string& inputFldName,
+                                              int arr_idx)
 {
    if (arr_idx >= 0)
    {
-      // Use a 1-based indexing for compatibility with Lua
-      std::snprintf(outputFldName, sz, "%s_%03d", inputFldName,arr_idx + 1);
+      // Note: Using a 1-based indexing for compatibility with Lua
+      std::stringstream sstr;
+      sstr << inputFldName << "_"
+           << std::setfill('0') << std::setw(PAD_DIGITS) << (arr_idx + 1);
+      return sstr.str();
    }
    else
    {
-      std::snprintf(outputFldName, sz, "%s", inputFldName);
+      return inputFldName;
    }
 }
 
@@ -62,16 +64,14 @@ std::string DataCollectionUtility::DecomposeFieldName(const std::string&
 void DataCollectionUtility::AllocateVector( Vector* vec,
                                             int sz,
                                             DataCollection* dc,
-                                            const char* fldName,
+                                            const std::string& fldName,
                                             int arr_idx)
 {
    MFEM_ASSERT(vec != NULL, "Attempted to allocate into a null vector pointer");
 
    if ( dc )
    {
-      char name[NAME_SZ];
-      GenerateFieldName(fldName, arr_idx, name, NAME_SZ);
-
+      std::string name = GenerateFieldName(fldName, arr_idx);
       vec->NewDataAndSize(dc->GetFieldData(name, sz), sz);
    }
    else
@@ -94,13 +94,12 @@ namespace
  */
 template<typename GF, typename FES>
 void AllocGridFuncImpl(GF* gf, FES* fes, DataCollection* dc,
-                       const char* fldName, int arr_idx, bool registerGF)
+                       const std::string& fldName, int arr_idx,
+                       bool registerGF)
 {
    if ( dc )
    {
-      const int NAME_SZ = DataCollectionUtility::NAME_SZ;
-      char name[NAME_SZ];
-      DataCollectionUtility::GenerateFieldName(fldName, arr_idx, name, NAME_SZ);
+      std::string name = DataCollectionUtility::GenerateFieldName(fldName, arr_idx);
 
       const int sz = fes->GetVSize();
       Vector v(dc->GetFieldData(name, sz), sz);
@@ -123,14 +122,12 @@ void AllocGridFuncImpl(GF* gf, FES* fes, DataCollection* dc,
  * \see DataCollectionUtility::AllocateGridFuncInPlace()
  */
 template<typename GF, typename FES>
-void AllocGridFuncInPlaceImpl(GF* gf, FES* fes, const char* srcField,
+void AllocGridFuncInPlaceImpl(GF* gf, FES* fes, const std::string& srcField,
                               Vector* srcVec, int offset,
-                              DataCollection* dc,const char* fldName,int arr_idx)
+                              DataCollection* dc,const std::string& fldName,int arr_idx)
 {
    // Compose the field name
-   const int NAME_SZ = DataCollectionUtility::NAME_SZ;
-   char name[NAME_SZ];
-   DataCollectionUtility::GenerateFieldName(fldName, arr_idx, name, NAME_SZ);
+   std::string name = DataCollectionUtility::GenerateFieldName(fldName, arr_idx);
 
    // The data for gf will be offset from that of the srcField data
    if (dc)
@@ -154,7 +151,7 @@ void AllocGridFuncInPlaceImpl(GF* gf, FES* fes, const char* srcField,
 void DataCollectionUtility::AllocateGridFunc( GridFunction* gf,
                                               FiniteElementSpace* fes,
                                               DataCollection* dc,
-                                              const char* fldName,
+                                              const std::string& fldName,
                                               int arr_idx,
                                               bool registerGF)
 {
@@ -193,9 +190,9 @@ void DataCollectionUtility::AllocateGridFunc( GridFunction* gf,
 
 void DataCollectionUtility::AllocateGridFuncInPlace( GridFunction* gf,
                                                      FiniteElementSpace* fes,
-                                                     const char* srcField, Vector* srcVec, int offset,
+                                                     const std::string& srcField, Vector* srcVec, int offset,
                                                      DataCollection* dc,
-                                                     const char* fldName,
+                                                     const std::string& fldName,
                                                      int arr_idx)
 {
    // Note: GridFunction::MakeRef(), GridFunction::SetSpace()

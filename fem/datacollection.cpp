@@ -15,6 +15,9 @@
 #include <limits>      // std::numeric_limits::infinity
 #include <fstream>
 #include <cerrno>      // errno
+#include <sstream>
+#include <fstream>
+
 #ifndef _WIN32
 #include <sys/stat.h>  // mkdir
 #else
@@ -28,7 +31,7 @@ namespace mfem
 using namespace std;
 
 
-static int create_directory(const string &dir_name, const Mesh *mesh, int myid)
+static int create_directory(const std::string &dir_name, const Mesh *mesh, int myid)
 {
    // create directories recursively
    const char path_delim = '/';
@@ -69,25 +72,25 @@ static int create_directory(const string &dir_name, const Mesh *mesh, int myid)
 
 // Helper string functions. Will go away in C++11
 
-string to_string(int i)
+std::string to_string(int i)
 {
-   stringstream ss;
+   std::stringstream ss;
    ss << i;
 
    // trim leading spaces
-   string out_str = ss.str();
+   std::string out_str = ss.str();
    out_str = out_str.substr(out_str.find_first_not_of(" \t"));
    return out_str;
 }
 
-string to_padded_string(int i, int digits)
+std::string to_padded_string(int i, int digits)
 {
-   ostringstream oss;
+   std::ostringstream oss;
    oss << setw(digits) << setfill('0') << i;
    return oss.str();
 }
 
-int to_int(string str)
+int to_int(const std::string& str)
 {
    int i;
    stringstream(str) >> i;
@@ -96,7 +99,7 @@ int to_int(string str)
 
 // class DataCollection implementation
 
-DataCollection::DataCollection(const char *collection_name)
+DataCollection::DataCollection(const std::string& collection_name)
 {
    name = collection_name;
    // leave prefix_path empty
@@ -113,7 +116,7 @@ DataCollection::DataCollection(const char *collection_name)
    error = NO_ERROR;
 }
 
-DataCollection::DataCollection(const char *collection_name, Mesh *_mesh)
+DataCollection::DataCollection(const std::string& collection_name, Mesh *_mesh)
 {
    name = collection_name;
    // leave prefix_path empty
@@ -160,7 +163,7 @@ void DataCollection::SetMesh(Mesh *new_mesh)
 
 }
 
-void DataCollection::DeregisterField(const char* name)
+void DataCollection::DeregisterField(const std::string& name)
 {
    if (own_data)
    {
@@ -169,7 +172,7 @@ void DataCollection::DeregisterField(const char* name)
    field_map.erase(name);
 }
 
-void DataCollection::RegisterField(const char* name, GridFunction *gf)
+void DataCollection::RegisterField(const std::string& name, GridFunction *gf)
 {
    if (own_data && HasField(name))
    {
@@ -183,9 +186,7 @@ std::vector<std::string> DataCollection::GetFieldNames() const
    std::vector<std::string> res;
    res.reserve(field_map.size());
 
-   for (std::map<std::string, GridFunction*>::const_iterator it =
-           field_map.begin(),
-        itEnd = field_map.end(); it != itEnd; ++it)
+   for (FieldMapConstIterator it = field_map.begin(), itEnd = field_map.end(); it != itEnd; ++it)
    {
       res.push_back( it->first);
    }
@@ -193,7 +194,7 @@ std::vector<std::string> DataCollection::GetFieldNames() const
 }
 
 
-GridFunction *DataCollection::GetField(const char *field_name)
+GridFunction *DataCollection::GetField(const std::string& field_name)
 {
    if (HasField(field_name))
    {
@@ -206,7 +207,7 @@ GridFunction *DataCollection::GetField(const char *field_name)
 }
 
 
-double* DataCollection::GetFieldData(const char *field_name, int sz)
+double* DataCollection::GetFieldData(const std::string& field_name, int sz)
 {
    // Check if we already have the grid function, if so, return its data
    if (HasField(field_name))
@@ -232,8 +233,8 @@ double* DataCollection::GetFieldData(const char *field_name, int sz)
    return managed_field_data_map[field_name];
 }
 
-double* DataCollection::GetFieldData(const char *field_name, int sz,
-                                     const char *base_field, int offset, int stride)
+double* DataCollection::GetFieldData(const std::string& field_name, int sz,
+                                     const std::string& base_field, int offset, int stride)
 {
    // If <field_name> is a field, return its pointer
    if (HasField(field_name))
@@ -267,7 +268,7 @@ double* DataCollection::GetFieldData(const char *field_name, int sz,
 }
 
 
-bool DataCollection::HasFieldData(const char *field_name)
+bool DataCollection::HasFieldData(const std::string& field_name)
 {
    if (HasField(field_name))
    {
@@ -283,9 +284,9 @@ bool DataCollection::HasFieldData(const char *field_name)
 }
 
 
-void DataCollection::SetPrefixPath(const char *prefix)
+void DataCollection::SetPrefixPath(const std::string& prefix)
 {
-   if (prefix)
+   if (! prefix.empty() )
    {
       prefix_path = prefix;
       if (!prefix_path.empty() && prefix_path[prefix_path.size()-1] != '/')
@@ -304,20 +305,13 @@ void DataCollection::Load(int cycle)
 
 }
 
-void Load(const std::string& path, const std::string& protocol)
-{
-
-}
-
-
 void DataCollection::Save()
 {
    SaveMesh();
 
    if (error) { return; }
 
-   for (map<string,GridFunction*>::iterator it = field_map.begin();
-        it != field_map.end(); ++it)
+   for (FieldMapIterator it = field_map.begin(); it != field_map.end(); ++it)
    {
       SaveOneField(it);
    }
@@ -338,7 +332,7 @@ void DataCollection::SaveMesh()
       }
    }
 
-   string dir_name = prefix_path;
+   std::string dir_name = prefix_path;
    if (cycle == -1)
    {
       dir_name += name;
@@ -355,7 +349,7 @@ void DataCollection::SaveMesh()
       return; // do not even try to write the mesh
    }
 
-   string mesh_name;
+   std::string mesh_name;
    if (serial)
    {
       mesh_name = dir_name + "/mesh";
@@ -364,7 +358,7 @@ void DataCollection::SaveMesh()
    {
       mesh_name = dir_name + "/mesh." + to_padded_string(myid, pad_digits);
    }
-   ofstream mesh_file(mesh_name.c_str());
+   std::ofstream mesh_file(mesh_name.c_str());
    mesh_file.precision(precision);
    mesh->Print(mesh_file);
    if (!mesh_file)
@@ -377,7 +371,7 @@ void DataCollection::SaveMesh()
 void DataCollection::SaveOneField(
    const std::map<std::string,GridFunction*>::iterator &it)
 {
-   string dir_name = prefix_path;
+   std::string dir_name = prefix_path;
    if (cycle == -1)
    {
       dir_name += name;
@@ -387,7 +381,7 @@ void DataCollection::SaveOneField(
       dir_name += name + "_" + to_padded_string(cycle, pad_digits);
    }
 
-   string file_name;
+   std::string file_name;
    if (serial)
    {
       file_name = dir_name + "/" + it->first;
@@ -397,19 +391,19 @@ void DataCollection::SaveOneField(
       file_name = dir_name + "/" + it->first + "." +
                   to_padded_string(myid, pad_digits);
    }
-   ofstream field_file(file_name.c_str());
+   std::ofstream field_file(file_name.c_str());
    field_file.precision(precision);
    (it->second)->Save(field_file);
    if (!field_file)
    {
       error = WRITE_ERROR;
-      MFEM_WARNING("Error writting field to file: " << it->first);
+      MFEM_WARNING("Error writing field to file: " << it->first);
    }
 }
 
-void DataCollection::SaveField(const char *field_name)
+void DataCollection::SaveField(const std::string& field_name)
 {
-   const map<string,GridFunction*>::iterator it = field_map.find(field_name);
+   FieldMapIterator it = field_map.find(field_name);
    if (it != field_map.end())
    {
       SaveOneField(it);
@@ -424,8 +418,7 @@ void DataCollection::DeleteData()
    }
    mesh = NULL;
 
-   for (map<string,GridFunction*>::iterator it = field_map.begin();
-        it != field_map.end(); ++it)
+   for (FieldMapIterator it = field_map.begin(); it != field_map.end(); ++it)
    {
       if (own_data)
       {
@@ -437,8 +430,7 @@ void DataCollection::DeleteData()
 
    // Delete data that the data collection explicitly allocated
    typedef std::map<std::string, double*>::iterator DMIt;
-   for (DMIt it = managed_field_data_map.begin();
-        it != managed_field_data_map.end(); ++it)
+   for (FieldDataMapIterator it = managed_field_data_map.begin(); it != managed_field_data_map.end(); ++it)
    {
       if (it->second != NULL)
       {
@@ -462,7 +454,7 @@ DataCollection::~DataCollection()
 
 // class VisItDataCollection implementation
 
-VisItDataCollection::VisItDataCollection(const char *collection_name)
+VisItDataCollection::VisItDataCollection(const std::string& collection_name)
    : DataCollection(collection_name)
 {
    serial = false; // always include rank in file names
@@ -473,7 +465,7 @@ VisItDataCollection::VisItDataCollection(const char *collection_name)
    visit_max_levels_of_detail = 32;
 }
 
-VisItDataCollection::VisItDataCollection(const char *collection_name,
+VisItDataCollection::VisItDataCollection(const std::string& collection_name,
                                          Mesh *mesh)
    : DataCollection(collection_name, mesh)
 {
@@ -494,7 +486,7 @@ void VisItDataCollection::SetMesh(Mesh *new_mesh)
    topo_dim = mesh->Dimension();
 }
 
-void VisItDataCollection::RegisterField(const char* name, GridFunction *gf)
+void VisItDataCollection::RegisterField(const std::string& name, GridFunction *gf)
 {
    DataCollection::RegisterField(name, gf);
    field_info_map[name] = VisItFieldInfo("nodes", gf->VectorDim());
@@ -521,9 +513,9 @@ void VisItDataCollection::SaveRootFile()
 {
    if (myid == 0)
    {
-      string root_name = prefix_path + name + "_" +
+      std::string root_name = prefix_path + name + "_" +
                          to_padded_string(cycle, pad_digits) + ".mfem_root";
-      ofstream root_file(root_name.c_str());
+      std::ofstream root_file(root_name.c_str());
       root_file << GetVisItRootString();
       if (!root_file)
       {
@@ -537,7 +529,7 @@ void VisItDataCollection::Load(int _cycle)
 {
    DeleteAll();
    cycle = _cycle;
-   string root_name = prefix_path + name + "_" +
+   std::string root_name = prefix_path + name + "_" +
                       to_padded_string(cycle, pad_digits) + ".mfem_root";
    LoadVisItRootFile(root_name);
    if (!error)
@@ -558,10 +550,10 @@ void VisItDataCollection::Load(int _cycle)
    }
 }
 
-void VisItDataCollection::LoadVisItRootFile(string root_name)
+void VisItDataCollection::LoadVisItRootFile(const std::string& root_name)
 {
-   ifstream root_file(root_name.c_str());
-   stringstream buffer;
+   std::ifstream root_file(root_name.c_str());
+   std::stringstream buffer;
    buffer << root_file.rdbuf();
    if (!buffer)
    {
@@ -576,10 +568,10 @@ void VisItDataCollection::LoadVisItRootFile(string root_name)
 
 void VisItDataCollection::LoadMesh()
 {
-   string mesh_fname = prefix_path + name + "_" +
+   std::string mesh_fname = prefix_path + name + "_" +
                        to_padded_string(cycle, pad_digits) +
                        "/mesh." + to_padded_string(myid, pad_digits);
-   ifstream file(mesh_fname.c_str());
+   std::ifstream file(mesh_fname.c_str());
    if (!file)
    {
       error = READ_ERROR;
@@ -595,16 +587,16 @@ void VisItDataCollection::LoadMesh()
 
 void VisItDataCollection::LoadFields()
 {
-   string path_left = prefix_path + name + "_" +
+   std::string path_left = prefix_path + name + "_" +
                       to_padded_string(cycle, pad_digits) + "/";
-   string path_right = "." + to_padded_string(myid, pad_digits);
+   std::string path_right = "." + to_padded_string(myid, pad_digits);
 
    field_map.clear();
-   for (map<string,VisItFieldInfo>::iterator it = field_info_map.begin();
+   for (std::map<std::string,VisItFieldInfo>::iterator it = field_info_map.begin();
         it != field_info_map.end(); ++it)
    {
-      string fname = path_left + it->first + path_right;
-      ifstream file(fname.c_str());
+      std::string fname = path_left + it->first + path_right;
+      std::ifstream file(fname.c_str());
       if (!file)
       {
          error = READ_ERROR;
@@ -617,16 +609,16 @@ void VisItDataCollection::LoadFields()
    }
 }
 
-string VisItDataCollection::GetVisItRootString()
+std::string VisItDataCollection::GetVisItRootString()
 {
    // Get the path string (relative to where the root file is, i.e. no prefix).
-   string path_str = name + "_" + to_padded_string(cycle, pad_digits) + "/";
+   std::string path_str = name + "_" + to_padded_string(cycle, pad_digits) + "/";
 
    // We have to build the json tree inside out to get all the values in there
    picojson::object top, dsets, main, mesh, fields, field, mtags, ftags;
 
    // Build the mesh data
-   string file_ext_format = ".%0" + to_string(pad_digits) + "d";
+   std::string file_ext_format = ".%0" + to_string(pad_digits) + "d";
    mtags["spatial_dim"] = picojson::value(to_string(spatial_dim));
    mtags["topo_dim"] = picojson::value(to_string(topo_dim));
    mtags["max_lods"] = picojson::value(to_string(visit_max_levels_of_detail));
@@ -634,7 +626,7 @@ string VisItDataCollection::GetVisItRootString()
    mesh["tags"] = picojson::value(mtags);
 
    // Build the fields data entries
-   for (map<string,VisItFieldInfo>::iterator it = field_info_map.begin();
+   for (std::map<std::string,VisItFieldInfo>::iterator it = field_info_map.begin();
         it != field_info_map.end(); ++it)
    {
       ftags["assoc"] = picojson::value((it->second).association);
@@ -659,10 +651,10 @@ string VisItDataCollection::GetVisItRootString()
    return picojson::value(top).serialize(true);
 }
 
-void VisItDataCollection::ParseVisItRootString(string json)
+void VisItDataCollection::ParseVisItRootString(const std::string& json)
 {
    picojson::value top, dsets, main, mesh, fields;
-   string parse_err = picojson::parse(top, json);
+   std::string parse_err = picojson::parse(top, json);
    if (!parse_err.empty())
    {
       error = READ_ERROR;
@@ -682,7 +674,7 @@ void VisItDataCollection::ParseVisItRootString(string json)
    // ... Process "mesh"
 
    // Set the DataCollection::name using the mesh path
-   string path = mesh.get("path").get<string>();
+   std::string path = mesh.get("path").get<string>();
    size_t right_sep = path.find('_');
    if (right_sep == string::npos)
    {
