@@ -24,12 +24,42 @@
 #include "operator.hpp"
 
 #include <cvode/cvode.h>
+#include <cvode/cvode_impl.h>
+
+// This just hides a warning (to be removed after it's fixed in SUNDIALS).
+#ifdef MSG_TIME_INT
+#undef MSG_TIME_INT
+#endif
+
 #include <arkode/arkode.h>
+#include <arkode/arkode_impl.h>
 
 namespace mfem
 {
 class SundialsLinearSolveOperator;
 
+class SundialsLinSolSpecification
+{
+protected:
+   SundialsLinSolSpecification() { }
+   virtual ~SundialsLinSolSpecification() { }
+
+public:
+   // These four functions and their parameters are explained in Section 7 of
+   // http://computation.llnl.gov/sites/default/files/public/cv_guide.pdf
+   // OR Section 7.4 of
+   // http://computation.llnl.gov/sites/default/files/public/ark_guide.pdf
+   // The first argument can be casted to ARKodeMem or CVodeMem (this can be
+   // used by users with deeper SUNDIALS wisdom).
+   virtual int InitSystem(void *sundials_mem) = 0;
+   virtual int SetupSystem(void *sundials_mem, int conv_fail,
+                           Vector &y_pred, Vector &f_pred, int &jac_cur,
+                           Vector &v_temp1, Vector &v_temp2,
+                           Vector &v_temp3) = 0;
+   virtual int SolveSystem(void *sundials_mem, Vector &b, Vector &weight,
+                           Vector &y_cur, Vector &f_cur) = 0;
+   virtual int FreeSystem(void *sundials_mem) = 0;
+};
 
 class SundialsSolver
 {
@@ -82,8 +112,7 @@ public:
        @param[in] iter  Specifies type of solver iteration, the options are
                         CV_FUNCTIONAL (linear problems) or CV_NEWTON (nonlinear
                         problems).
-       For parameter desciption, see the CVodeCreate documentation (cvode.h).
-   */
+       For parameter desciption, see the CVodeCreate documentation (cvode.h). */
    CVODESolver(int lmm, int iter);
 
 #ifdef MFEM_USE_MPI
@@ -95,10 +124,12 @@ public:
        @param[in] iter  Specifies type of solver iteration, the options are
                         CV_FUNCTIONAL (linear problems) or CV_NEWTON (nonlinear
                         problems).
-       For parameter desciption, see the CVodeCreate documentation (cvode.h).
-   */
+       For parameter desciption, see the CVodeCreate documentation (cvode.h). */
    CVODESolver(MPI_Comm comm, int lmm, int iter);
 #endif
+
+   /// Defines a custom Jacobian inversion for non-linear problems.
+   void SetLinearSolve(SundialsLinSolSpecification &ls_spec);
 
    /** @brief CVode supports two modes, specified by itask: CV_NORMAL (default)
        and CV_ONE_STEP.
@@ -106,8 +137,7 @@ public:
        In the CV_NORMAL mode, the solver steps until it reaches or passes
        tout = t + dt, where t and dt are specified in Step(), and then
        interpolates to obtain y(tout). In the CV_ONE_STEP mode, it takes one
-       internal step and returns.
-   */
+       internal step and returns. */
    void SetStepMode(int itask);
 
    /// Return the flag returned by the last call to a CVODE function.
@@ -130,9 +160,6 @@ public:
        @note This method calls CVodeInit(). Some CVODE parameters can be set
        (using the handle returned by SundialsMem()) only after this call. */
    virtual void Init(TimeDependentOperator &f_);
-
-   /// Defines a custom Jacobian inversion for non-linear problems.
-   void SetLinearSolve(SundialsLinearSolveOperator *op);
 
    /// Uses CVODE to integrate over [t, t + dt], using the specified step mode.
    /** Calls CVode(), which is the main driver of the CVODE package.
@@ -166,6 +193,9 @@ public:
    /// exlicit_ specifies whether the time integration is explicit.
    ARKODESolver(Vector &y_, bool parallel, bool explicit_ = true);
 
+   /// Defines a custom Jacobian inversion for non-linear problems.
+   void SetLinearSolve(SundialsLinSolSpecification *ls_spec);
+
    void Init(TimeDependentOperator &f_);
 
    /// Allows changing the operator, starting solution, current time.
@@ -178,9 +208,6 @@ public:
    /// Uses ARKODE to integrate over (t, t + dt).
    /// Calls ARKODE(), which is the main driver of the CVODE package.
    void Step(Vector &x, double &t, double &dt);
-
-   /// Defines a custom Jacobian inversion for non-linear problems.
-   void SetLinearSolve(SundialsLinearSolveOperator *op);
 
    /// Chooses integration order for all explicit / implicit / IMEX methods.
    /// The default is 4, and the allowed ranges are:
@@ -224,8 +251,7 @@ public:
    void SetFuncNormTol(double tol);
    void SetScaledStepTol(double tol);
 
-   void Solve(Vector &mfem_u,
-              Vector &mfem_u_scale, Vector &mfem_f_scale);
+   void Solve(Vector &mfem_u, Vector &mfem_u_scale, Vector &mfem_f_scale);
 };
 
 /// Interface for custom Jacobian inversion in Sundials.

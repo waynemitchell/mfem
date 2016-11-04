@@ -24,15 +24,8 @@
 #include <nvector/nvector_parhyp.h>
 #endif
 
-#include <cvode/cvode_impl.h>
 #include <cvode/cvode_spgmr.h>
 
-// This just hides a warning (to be removed after it's fixed in SUNDIALS).
-#ifdef MSG_TIME_INT
-#undef MSG_TIME_INT
-#endif
-
-#include <arkode/arkode_impl.h>
 #include <arkode/arkode_spgmr.h>
 
 #include <kinsol/kinsol.h>
@@ -43,6 +36,64 @@ using namespace std;
 
 namespace mfem
 {
+
+static inline SundialsLinSolSpecification *get_spec(void *ptr)
+{
+   return static_cast<SundialsLinSolSpecification *>(ptr);
+}
+
+static int LinSysInit(CVodeMem cv_mem)
+{
+   return get_spec(cv_mem->cv_lmem)->InitSystem(cv_mem);
+}
+
+static int LinSysSetup(CVodeMem cv_mem, int convfail,
+                       N_Vector ypred, N_Vector fpred, booleantype *jcurPtr,
+                       N_Vector vtemp1, N_Vector vtemp2, N_Vector vtemp3)
+{
+   Vector yp(ypred), fp(fpred), vt1(vtemp1), vt2(vtemp2), vt3(vtemp3);
+   return get_spec(cv_mem->cv_lmem)->SetupSystem(cv_mem, convfail, yp, fp,
+                                                 *jcurPtr, vt1, vt2, vt3);
+}
+
+static int LinSysSolve(CVodeMem cv_mem, N_Vector b, N_Vector weight,
+                       N_Vector ycur, N_Vector fcur)
+{
+   Vector bb(b), w(weight), yc(ycur), fc(fcur);
+   return get_spec(cv_mem->cv_lmem)->SolveSystem(cv_mem, bb, w, yc, fc);
+}
+
+static int LinSysFree(CVodeMem cv_mem)
+{
+   return get_spec(cv_mem->cv_lmem)->FreeSystem(cv_mem);
+}
+
+static int LinSysInit(ARKodeMem ark_mem)
+{
+   return get_spec(ark_mem->ark_lmem)->InitSystem(ark_mem);
+}
+
+static int LinSysSetup(ARKodeMem ark_mem, int convfail,
+                       N_Vector ypred, N_Vector fpred, booleantype *jcurPtr,
+                       N_Vector vtemp1, N_Vector vtemp2, N_Vector vtemp3)
+{
+   Vector yp(ypred), fp(fpred), vt1(vtemp1), vt2(vtemp2), vt3(vtemp3);
+   return get_spec(ark_mem->ark_lmem)->SetupSystem(ark_mem, convfail, yp, fp,
+                                                   *jcurPtr, vt1, vt2, vt3);
+}
+
+static int LinSysSolve(ARKodeMem ark_mem, N_Vector b, N_Vector weight,
+                       N_Vector ycur, N_Vector fcur)
+{
+   Vector bb(b), w(weight), yc(ycur), fc(fcur);
+   return get_spec(ark_mem->ark_lmem)->SolveSystem(ark_mem, bb, w, yc, fc);
+}
+
+static int LinSysFree(ARKodeMem ark_mem)
+{
+   return get_spec(ark_mem->ark_lmem)->FreeSystem(ark_mem);
+}
+
 
 const double SundialsSolver::default_rel_tol = 1e-4;
 const double SundialsSolver::default_abs_tol = 1e-9;
@@ -78,77 +129,6 @@ int SundialsSolver::GradientMult(N_Vector v, N_Vector Jv, N_Vector u,
 
    Operator &J = static_cast<Operator *>(oper)->GetGradient(mfem_u);
    J.Mult(mfem_v, mfem_Jv);
-   return 0;
-}
-
-
-static int WrapLinearCVSolveInit(CVodeMem cv_mem)
-{
-   return 0;
-}
-
-// Jean: setup may not be needed, since Jacobian is recomputed each iteration
-// ypred is the predicted y at the current time, fpred is f(t,ypred).
-static int WrapLinearCVSolveSetup(CVodeMem cv_mem, int convfail,
-                                  N_Vector ypred, N_Vector fpred,
-                                  booleantype *jcurPtr, N_Vector vtemp1,
-                                  N_Vector vtemp2, N_Vector vtemp3)
-{
-   return 0;
-}
-
-static int WrapLinearCVSolve(CVodeMem cv_mem, N_Vector b,
-                             N_Vector weight, N_Vector ycur,
-                             N_Vector fcur)
-{
-   Vector solve_y(ycur), solve_b(b);
-
-   // TODO
-   mfem::SundialsLinearSolveOperator *op =
-      static_cast<mfem::SundialsLinearSolveOperator *>(cv_mem->cv_lmem);
-   op->SolveJacobian(&solve_b, &solve_y, cv_mem->cv_gamma);
-   return 0;
-}
-
-static int WrapLinearCVSolveFree(CVodeMem cv_mem)
-{
-   return 0;
-}
-
-
-// The purpose of ark_linit is to complete initializations for a
-// specific linear solver, such as counters and statistics.
-static int WrapLinearARKSolveInit(ARKodeMem ark_mem)
-{
-   return 0;
-}
-
-// The job of ark_lsetup is to prepare the linear solver for subsequent calls
-// to ark_lsolve. It may recompute Jacobian-related data as it deems necessary.
-static int WrapLinearARKSolveSetup(ARKodeMem ark_mem, int convfail,
-                                   N_Vector ypred, N_Vector fpred,
-                                   booleantype *jcurPtr, N_Vector vtemp1,
-                                   N_Vector vtemp2, N_Vector vtemp3)
-{
-   return 0;
-}
-
-static int WrapLinearARKSolve(ARKodeMem ark_mem, N_Vector b,
-                              N_Vector weight, N_Vector ycur,
-                              N_Vector fcur)
-{
-   Vector solve_y(ycur), solve_b(b);
-
-   // TODO
-   mfem::SundialsLinearSolveOperator *op =
-      static_cast<mfem::SundialsLinearSolveOperator *>(ark_mem->ark_lmem);
-   op->SolveJacobian(&solve_b, &solve_y, ark_mem->ark_gamma);
-   return 0;
-}
-
-// This should free up any memory allocated by the linear solver.
-static int WrapLinearARKSolveFree(ARKodeMem ark_mem)
-{
    return 0;
 }
 
@@ -210,6 +190,24 @@ CVODESolver::CVODESolver(MPI_Comm comm, int lmm, int iter)
 }
 
 #endif // MFEM_USE_MPI
+
+void CVODESolver::SetLinearSolve(SundialsLinSolSpecification &ls_spec)
+{
+   CVodeMem mem = Mem(this);
+   MFEM_ASSERT(mem->cv_iter == CV_NEWTON,
+               "The function is applicable only to CV_NEWTON iteration type.");
+
+   if (mem->cv_lfree != NULL) { (mem->cv_lfree)(mem); }
+
+   // Set the linear solver function fields in mem.
+   // Note that {linit,lsetup,lfree} can be NULL.
+   mem->cv_linit  = LinSysInit;
+   mem->cv_lsetup = LinSysSetup;
+   mem->cv_lsolve = LinSysSolve;
+   mem->cv_lfree  = LinSysFree;
+   mem->cv_lmem   = &ls_spec;
+   mem->cv_setupNonNull = TRUE;
+}
 
 void CVODESolver::SetSStolerances(double reltol, double abstol)
 {
@@ -309,27 +307,6 @@ void CVODESolver::Init(TimeDependentOperator &f_)
    MFEM_ASSERT(flag >= 0, "CVodeSStolerances() failed!");
 }
 
-void CVODESolver::SetLinearSolve(SundialsLinearSolveOperator *op)
-{
-   CVodeMem mem = Mem(this);
-   MFEM_ASSERT(mem->cv_iter == CV_NEWTON,
-               "The function is applicable only to CV_NEWTON iteration type.");
-
-   if (mem->cv_lfree != NULL)
-   {
-      (mem->cv_lfree)(mem);
-   }
-
-   // Set the linear solver function fields in mem.
-   // Note that {linit,lsetup,lfree} can be NULL.
-   mem->cv_linit  = WrapLinearCVSolveInit;
-   mem->cv_lsetup = WrapLinearCVSolveSetup;
-   mem->cv_lsolve = WrapLinearCVSolve;
-   mem->cv_lfree  = WrapLinearCVSolveFree;
-   mem->cv_lmem   = op;
-   mem->cv_setupNonNull = TRUE;
-}
-
 void CVODESolver::Step(Vector &x, double &t, double &dt)
 {
    CVodeMem mem = Mem(this);
@@ -391,6 +368,10 @@ CVODESolver::~CVODESolver()
    CVodeFree(&sundials_mem);
 }
 
+static inline ARKodeMem Mem(const ARKODESolver *self)
+{
+   return ARKodeMem(self->SundialsMem());
+}
 
 ARKODESolver::ARKODESolver(Vector &y_, bool parallel, bool explicit_)
    : use_explicit(explicit_)
@@ -496,31 +477,24 @@ void ARKODESolver::SetFixedStep(double dt)
    ARKodeSetFixedStep(sundials_mem, static_cast<realtype>(dt));
 }
 
-void ARKODESolver::SetLinearSolve(SundialsLinearSolveOperator *op)
+void ARKODESolver::SetLinearSolve(SundialsLinSolSpecification *ls_spec)
 {
-   MFEM_VERIFY(use_explicit == false,
+   ARKodeMem mem = Mem(this);
+   MFEM_VERIFY(mem->ark_implicit,
                "The function is applicable only to implicit time integration.");
-   MFEM_VERIFY(sundials_mem != NULL, "ARKODE memory error!");
 
-   ARKodeMem ark_mem = static_cast<ARKodeMem>(sundials_mem);
-   if (ark_mem->ark_lfree != NULL)
-   {
-      ark_mem->ark_lfree(ark_mem);
-   }
+   if (mem->ark_lfree != NULL) { mem->ark_lfree(mem); }
 
    // Tell ARKODE that the Jacobian inversion is custom.
-   ark_mem->ark_lsolve_type = 4;
-   // Set four main function fields in ark_mem.
-   ark_mem->ark_linit  = WrapLinearARKSolveInit;
-   ark_mem->ark_lsetup = WrapLinearARKSolveSetup;
-   ark_mem->ark_lsolve = WrapLinearARKSolve;
-   ark_mem->ark_lfree  = WrapLinearARKSolveFree;
-
-   // Maximum number of Newton iterations.
-   ARKodeSetMaxNumSteps(sundials_mem, 10000);
-   SetSStolerances(1e-2,1e-4);
-
-   ark_mem->ark_lmem = op;
+   mem->ark_lsolve_type = 4;
+   // Set the linear solver function fields in mem.
+   // Note that {linit,lsetup,lfree} can be NULL.
+   mem->ark_linit  = LinSysInit;
+   mem->ark_lsetup = LinSysSetup;
+   mem->ark_lsolve = LinSysSolve;
+   mem->ark_lfree  = LinSysFree;
+   mem->ark_lmem   = ls_spec;
+   mem->ark_setupNonNull = TRUE;
 }
 
 ARKODESolver::~ARKODESolver()

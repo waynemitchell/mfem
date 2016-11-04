@@ -118,7 +118,7 @@ OPENMP_LIB =
 POSIX_CLOCKS_LIB = -lrt
 
 # SUNDIALS library configuration
-SUNDIALS_DIR = @MFEM_DIR@/../sundials
+SUNDIALS_DIR = @MFEM_DIR@/../sundials-2.7.0/
 SUNDIALS_OPT = -I$(SUNDIALS_DIR)/include
 SUNDIALS_LIB = -L$(SUNDIALS_DIR)/lib -lsundials_arkode -lsundials_cvode\
   -lsundials_nvecserial -lsundials_kinsol
