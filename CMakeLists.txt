@@ -65,6 +65,12 @@ if (MFEM_USE_MPI)
   include_directories(${METIS_INCLUDE_DIRS})
 endif()
 
+# GZSTREAM -> zlib
+if (MFEM_USE_GZSTREAM)
+  find_package(ZLIB REQUIRED)
+  include_directories(${ZLIB_INCLUDE_DIRS})
+endif()
+
 # Backtrace with libunwind
 if (MFEM_USE_LIBUNWIND)
   set(MFEMBacktrace_REQUIRED_PACKAGES "Libunwind" "LIBDL" "CXXABIDemangle")
@@ -152,7 +158,7 @@ endif()
 
 # List all posible libraries in order of dependencies.
 set(MFEM_TPLS HYPRE OPENMP MEQUITE SuiteSparse SuperLUDist ParMETIS METIS LAPACK
-    BLAS GECKO GNUTLS NETCDF MPFR POSIXCLOCKS MFEMBacktrace)
+    BLAS GECKO GNUTLS NETCDF MPFR POSIXCLOCKS MFEMBacktrace ZLIB)
 # Add all *_FOUND libraries in the variable TPL_LIBRARIES.
 set(TPL_LIBRARIES "")
 foreach(TPL IN LISTS MFEM_TPLS)
@@ -177,10 +183,10 @@ set(_USE_MATH_DEFINES ${WIN32})
 include(MfemCmakeUtilities)
 set(SOURCES "")
 set(HEADERS "")
-add_subdirectory(general)
-add_subdirectory(linalg)
-add_subdirectory(mesh)
-add_subdirectory(fem)
+set(MFEM_SOURCE_DIRS general linalg mesh fem)
+foreach(DIR IN LISTS MFEM_SOURCE_DIRS)
+  add_subdirectory(${DIR})
+endforeach()
 add_subdirectory(config)
 
 # Declaring the library
@@ -193,12 +199,12 @@ else()
   target_link_libraries(mfem ${TPL_LIBRARIES})
 endif()
 
-# Define MFEM_BUILD_DIR to point to the build directory.
-target_compile_definitions(mfem PRIVATE
-  "-DMFEM_BUILD_DIR=${PROJECT_BINARY_DIR}")
-
-set_target_properties(${PROJECT_NAME} PROPERTIES
-  PUBLIC_HEADER "mfem.hpp")
+# If building out of source, define MFEM_BUILD_DIR to point to the build
+# directory.
+if (NOT ("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}"))
+  target_compile_definitions(mfem PRIVATE
+    "-DMFEM_BUILD_DIR=${PROJECT_BINARY_DIR}")
+endif()
 
 # The examples and miniapps are separate
 if (MFEM_ENABLE_TESTING)
@@ -237,36 +243,38 @@ endif()
 #-------------------------------------------------------------------------------
 # Installation
 #-------------------------------------------------------------------------------
+message(STATUS "CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}")
 string(TOUPPER "${PROJECT_NAME}" PROJECT_NAME_UC)
+set(INCLUDE_INSTALL_DIR include)
+set(LIB_INSTALL_DIR lib)
 
 # Install the library
 install(TARGETS ${PROJECT_NAME}
   EXPORT ${PROJECT_NAME_UC}Targets
-  DESTINATION lib)
+  DESTINATION ${LIB_INSTALL_DIR})
 
 # Install the master header
-install(FILES ${PROJECT_SOURCE_DIR}/mfem.hpp DESTINATION include)
-install(FILES ${PROJECT_SOURCE_DIR}/mfem-performance.hpp DESTINATION include)
+install(FILES ${PROJECT_SOURCE_DIR}/mfem.hpp DESTINATION ${INCLUDE_INSTALL_DIR})
+install(FILES ${PROJECT_SOURCE_DIR}/mfem-performance.hpp DESTINATION
+  ${INCLUDE_INSTALL_DIR})
 
 # Install the headers; currently, the miniapps headers are excluded
-install(DIRECTORY fem general linalg mesh
-  DESTINATION include
+install(DIRECTORY ${MFEM_SOURCE_DIRS}
+  DESTINATION ${INCLUDE_INSTALL_DIR}
   FILES_MATCHING PATTERN "*.hpp")
 
 # Install the configure files
-install(FILES ${PROJECT_BINARY_DIR}/config/_config.hpp DESTINATION include/config
+install(FILES ${PROJECT_BINARY_DIR}/config/_config.hpp DESTINATION
+  ${INCLUDE_INSTALL_DIR}/config
   RENAME config.hpp)
 
 install(FILES ${PROJECT_SOURCE_DIR}/config/tconfig.hpp
-  DESTINATION include/config)
+  DESTINATION ${INCLUDE_INSTALL_DIR}/config)
 
 #
 # Package the whole thing up nicely
 #
 include(CMakePackageConfigHelpers)
-
-set(INCLUDE_INSTALL_DIR include)
-set(LIB_INSTALL_DIR lib)
 
 # Add all targets to the build-tree export set
 export(TARGETS ${PROJECT_NAME}
@@ -277,18 +285,17 @@ export(TARGETS ${PROJECT_NAME}
 export(PACKAGE ${PROJECT_NAME})
 
 # This is the build-tree version
-set(INCLUDE_INSTALL_DIRS
-  ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR} ${PROJECT_BINARY_DIR}/config)
-set(LIB_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR})
+set(INCLUDE_INSTALL_DIRS ${PROJECT_BINARY_DIR})
+set(LIB_INSTALL_DIRS ${CMAKE_CURRENT_BINARY_DIR})
 configure_package_config_file(config/MFEMConfig.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/MFEMConfig.cmake
   INSTALL_DESTINATION .
   INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR}
-  PATH_VARS INCLUDE_INSTALL_DIRS LIB_INSTALL_DIR)
+  PATH_VARS INCLUDE_INSTALL_DIRS LIB_INSTALL_DIRS)
 
 # This is the version that will be installed
-set(INCLUDE_INSTALL_DIRS include)
-set(LIB_INSTALL_DIR lib)
+set(INCLUDE_INSTALL_DIRS ${INCLUDE_INSTALL_DIR})
+set(LIB_INSTALL_DIRS ${LIB_INSTALL_DIR})
 configure_package_config_file(config/MFEMConfig.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/MFEMConfig.cmake
   INSTALL_DESTINATION ${LIB_INSTALL_DIR}/cmake/mfem

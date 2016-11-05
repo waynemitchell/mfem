@@ -12,6 +12,7 @@
 list(APPEND SRCS
   array.cpp
   error.cpp
+  gzstream.cpp
   isockstream.cpp
   optparser.cpp
   osockstream.cpp
@@ -25,6 +26,7 @@ list(APPEND SRCS
 list(APPEND HDRS
   array.hpp
   error.hpp
+  gzstream.hpp
   hash.hpp
   isockstream.hpp
   mem_alloc.hpp
