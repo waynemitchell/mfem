@@ -1614,7 +1614,7 @@ void BiQuadPos2DFiniteElement::Project (
 
 
 GaussBiQuad2DFiniteElement::GaussBiQuad2DFiniteElement()
-   : NodalFiniteElement(2, Geometry::SQUARE, 9, 2, GRAD, H_CURL,
+   : NodalFiniteElement(2, Geometry::SQUARE, 9, 2, GRAD, VECTOR, H_CURL,
                         FunctionSpace::Qk)
 {
    const double p1 = 0.5*(1.-sqrt(3./5.));
@@ -1719,7 +1719,7 @@ void GaussBiQuad2DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 }
 
 BiCubic2DFiniteElement::BiCubic2DFiniteElement()
-   : NodalFiniteElement (2, Geometry::SQUARE, 16, 3, GRAD, H_CURL,
+   : NodalFiniteElement (2, Geometry::SQUARE, 16, 3, GRAD, VECTOR, H_CURL,
                          FunctionSpace::Qk)
 {
    Nodes.IntPoint(0).x = 0.;
@@ -2954,7 +2954,7 @@ void RT1TriangleFiniteElement::Project (
 }
 
 RT1QuadFiniteElement::RT1QuadFiniteElement()
-   : VectorFiniteElement(2, Geometry::SQUARE, 12, 2, H_DIV, DIV, VALUE,
+   : VectorFiniteElement(2, Geometry::SQUARE, 12, 2, H_DIV, DIV, SCALAR, VALUE,
                          FunctionSpace::Qk)
 {
    // y = 0
@@ -5398,7 +5398,7 @@ void Nedelec1TetFiniteElement::Project (
 }
 
 RT0HexFiniteElement::RT0HexFiniteElement()
-   : VectorFiniteElement(3, Geometry::CUBE, 6, 1, H_DIV, DIV, VALUE,
+   : VectorFiniteElement(3, Geometry::CUBE, 6, 1, H_DIV, DIV, SCALAR, VALUE,
                          FunctionSpace::Qk)
 {
    // not real nodes ...
@@ -5553,7 +5553,7 @@ void RT0HexFiniteElement::Project (
 }
 
 RT1HexFiniteElement::RT1HexFiniteElement()
-   : VectorFiniteElement(3, Geometry::CUBE, 36, 2, H_DIV, DIV, VALUE,
+   : VectorFiniteElement(3, Geometry::CUBE, 36, 2, H_DIV, DIV, SCALAR, VALUE,
                          FunctionSpace::Qk)
 {
    // z = 0
@@ -6079,7 +6079,8 @@ void RT0TetFiniteElement::Project (
 }
 
 RotTriLinearHexFiniteElement::RotTriLinearHexFiniteElement()
-   : NodalFiniteElement(3, Geometry::CUBE, 6, 2, GRAD, VALUE, FunctionSpace::Qk)
+   : NodalFiniteElement(3, Geometry::CUBE, 6, 2, GRAD, VECTOR, H_CURL,
+			FunctionSpace::Qk)
 {
    Nodes.IntPoint(0).x = 0.5;
    Nodes.IntPoint(0).y = 0.5;
@@ -6608,7 +6609,7 @@ Array2D<int> Poly_1D::binom;
 
 
 H1_SegmentElement::H1_SegmentElement(const int p, const int type)
-   : NodalFiniteElement(1, Geometry::SEGMENT, p + 1, p, GRAD, VALUE,
+   : NodalFiniteElement(1, Geometry::SEGMENT, p + 1, p, GRAD, SCALAR, VALUE,
                         FunctionSpace::Pk),
      pt_type(VerifyClosed(type)),
      basis1d(poly1d.ClosedBasis(p, pt_type)),
@@ -6700,7 +6701,7 @@ void H1_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const
 
 H1_QuadrilateralElement::H1_QuadrilateralElement(const int p, const int type)
    : NodalFiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p,
-                        GRAD, H_CURL, FunctionSpace::Qk),
+                        GRAD, VECTOR, H_CURL, FunctionSpace::Qk),
      pt_type(VerifyClosed(type)),
      basis1d(poly1d.ClosedBasis(p, pt_type)),
      dof_map((p + 1)*(p + 1))
@@ -6850,7 +6851,7 @@ void H1_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
 
 H1_HexahedronElement::H1_HexahedronElement(const int p, const int type)
    : NodalFiniteElement(3, Geometry::CUBE, (p + 1)*(p + 1)*(p + 1), p,
-                        GRAD, H_CURL, FunctionSpace::Qk),
+                        GRAD, VECTOR, H_CURL, FunctionSpace::Qk),
      pt_type(VerifyClosed(type)),
      basis1d(poly1d.ClosedBasis(p, pt_type)),
      dof_map((p + 1)*(p + 1)*(p + 1))
@@ -7460,7 +7461,7 @@ void H1Pos_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
 
 H1_TriangleElement::H1_TriangleElement(const int p, const int type)
    : NodalFiniteElement(2, Geometry::TRIANGLE, ((p + 1)*(p + 2))/2, p,
-                        GRAD, H_CURL, FunctionSpace::Pk)
+                        GRAD, VECTOR, H_CURL, FunctionSpace::Pk)
 {
    const double *cp = poly1d.ClosedPoints(p, VerifyClosed(type));
 
@@ -7579,7 +7580,7 @@ void H1_TriangleElement::CalcDShape(const IntegrationPoint &ip,
 
 H1_TetrahedronElement::H1_TetrahedronElement(const int p, const int type)
    : NodalFiniteElement(3, Geometry::TETRAHEDRON, ((p + 1)*(p + 2)*(p + 3))/6,
-                        p, GRAD, H_CURL, FunctionSpace::Pk)
+                        p, GRAD, VECTOR, H_CURL, FunctionSpace::Pk)
 {
    const double *cp = poly1d.ClosedPoints(p, VerifyClosed(type));
 
@@ -8145,7 +8146,7 @@ void H1Pos_TetrahedronElement::CalcDShape(const IntegrationPoint &ip,
 
 
 L2_SegmentElement::L2_SegmentElement(const int p, const int type)
-   : NodalFiniteElement(1, Geometry::SEGMENT, p + 1, p, GRAD, VALUE,
+   : NodalFiniteElement(1, Geometry::SEGMENT, p + 1, p, GRAD, SCALAR, VALUE,
                         FunctionSpace::Pk),
      type(VerifyOpen(type)),
      basis1d(poly1d.OpenBasis(p, type))
@@ -8251,7 +8252,7 @@ void L2Pos_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const
 
 L2_QuadrilateralElement::L2_QuadrilateralElement(const int p, const int _type)
    : NodalFiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p,
-                        GRAD, VALUE, FunctionSpace::Qk),
+                        GRAD, VECTOR, H_CURL, FunctionSpace::Qk),
      type(VerifyOpen(_type)),
      basis1d(poly1d.OpenBasis(p, type))
 {
@@ -8440,7 +8441,7 @@ void L2Pos_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
 
 L2_HexahedronElement::L2_HexahedronElement(const int p, const int _type)
    : NodalFiniteElement(3, Geometry::CUBE, (p + 1)*(p + 1)*(p + 1), p,
-                        GRAD, VALUE, FunctionSpace::Qk),
+                        GRAD, VECTOR, H_CURL, FunctionSpace::Qk),
      type(VerifyOpen(_type)),
      basis1d(poly1d.OpenBasis(p, type))
 {
@@ -8687,7 +8688,7 @@ void L2Pos_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
 
 L2_TriangleElement::L2_TriangleElement(const int p, const int type)
    : NodalFiniteElement(2, Geometry::TRIANGLE, ((p + 1)*(p + 2))/2, p,
-                        GRAD, VALUE, FunctionSpace::Pk)
+                        GRAD, VECTOR, H_CURL, FunctionSpace::Pk)
 {
    const double *op = poly1d.OpenPoints(p, VerifyOpen(type));
 
@@ -8863,7 +8864,7 @@ void L2Pos_TriangleElement::ProjectDelta(int vertex, Vector &dofs) const
 
 L2_TetrahedronElement::L2_TetrahedronElement(const int p, const int type)
    : NodalFiniteElement(3, Geometry::TETRAHEDRON, ((p + 1)*(p + 2)*(p + 3))/6,
-                        p, GRAD, VALUE, FunctionSpace::Pk)
+                        p, GRAD, VECTOR, H_CURL, FunctionSpace::Pk)
 {
    const double *op = poly1d.OpenPoints(p, VerifyOpen(type));
 
@@ -9065,7 +9066,7 @@ RT_QuadrilateralElement::RT_QuadrilateralElement(const int p,
                                                  const int cp_type,
                                                  const int op_type)
    : VectorFiniteElement(2, Geometry::SQUARE, 2*(p + 1)*(p + 2), p + 1,
-                         H_DIV, DIV, VALUE, FunctionSpace::Qk),
+                         H_DIV, DIV, SCALAR, INTEGRAL, FunctionSpace::Qk),
      cbasis1d(poly1d.ClosedBasis(p + 1, VerifyClosed(cp_type))),
      obasis1d(poly1d.OpenBasis(p, VerifyOpen(op_type))),
      dof_map(Dof), dof2nk(Dof)
@@ -9276,7 +9277,7 @@ RT_HexahedronElement::RT_HexahedronElement(const int p,
                                            const int cp_type,
                                            const int op_type)
    : VectorFiniteElement(3, Geometry::CUBE, 3*(p + 1)*(p + 1)*(p + 2), p + 1,
-                         H_DIV, DIV, VALUE, FunctionSpace::Qk),
+                         H_DIV, DIV, SCALAR, INTEGRAL, FunctionSpace::Qk),
      cbasis1d(poly1d.ClosedBasis(p + 1, VerifyClosed(cp_type))),
      obasis1d(poly1d.OpenBasis(p, VerifyOpen(op_type))),
      dof_map(Dof), dof2nk(Dof)
@@ -9587,7 +9588,8 @@ const double RT_TriangleElement::c = 1./3.;
 
 RT_TriangleElement::RT_TriangleElement(const int p)
    : VectorFiniteElement(2, Geometry::TRIANGLE, (p + 1)*(p + 3), p + 1,
-                         H_DIV, DIV, VALUE, FunctionSpace::Pk), dof2nk(Dof)
+                         H_DIV, DIV, SCALAR, INTEGRAL,
+			 FunctionSpace::Pk), dof2nk(Dof)
 {
    const double *iop = (p > 0) ? poly1d.OpenPoints(p - 1) : NULL;
    const double *bop = poly1d.OpenPoints(p);
@@ -9739,7 +9741,8 @@ const double RT_TetrahedronElement::c = 1./4.;
 
 RT_TetrahedronElement::RT_TetrahedronElement(const int p)
    : VectorFiniteElement(3, Geometry::TETRAHEDRON, (p + 1)*(p + 2)*(p + 4)/2,
-                         p + 1, H_DIV, DIV, VALUE, FunctionSpace::Pk),
+                         p + 1, H_DIV, DIV, SCALAR, INTEGRAL,
+			 FunctionSpace::Pk),
      dof2nk(Dof)
 {
    const double *iop = (p > 0) ? poly1d.OpenPoints(p - 1) : NULL;
@@ -9924,7 +9927,7 @@ const double ND_HexahedronElement::tk[18] =
 ND_HexahedronElement::ND_HexahedronElement(const int p,
                                            const int cp_type, const int op_type)
    : VectorFiniteElement(3, Geometry::CUBE, 3*p*(p + 1)*(p + 1), p,
-                         H_CURL, CURL, H_DIV, FunctionSpace::Qk),
+                         H_CURL, CURL, VECTOR, H_DIV, FunctionSpace::Qk),
      cbasis1d(poly1d.ClosedBasis(p, VerifyClosed(cp_type))),
      obasis1d(poly1d.OpenBasis(p - 1, VerifyOpen(op_type))),
      dof_map(Dof), dof2tk(Dof)
@@ -10296,7 +10299,7 @@ ND_QuadrilateralElement::ND_QuadrilateralElement(const int p,
                                                  const int cp_type,
                                                  const int op_type)
    : VectorFiniteElement(2, Geometry::SQUARE, 2*p*(p + 1), p,
-                         H_CURL, CURL, VALUE, FunctionSpace::Qk),
+                         H_CURL, CURL, SCALAR, INTEGRAL, FunctionSpace::Qk),
      cbasis1d(poly1d.ClosedBasis(p, VerifyClosed(cp_type))),
      obasis1d(poly1d.OpenBasis(p - 1, VerifyOpen(op_type))),
      dof_map(Dof), dof2tk(Dof)
@@ -10486,7 +10489,8 @@ const double ND_TetrahedronElement::c = 1./4.;
 
 ND_TetrahedronElement::ND_TetrahedronElement(const int p)
    : VectorFiniteElement(3, Geometry::TETRAHEDRON, p*(p + 2)*(p + 3)/2, p,
-                         H_CURL, CURL, H_DIV, FunctionSpace::Pk), dof2tk(Dof)
+                         H_CURL, CURL, VECTOR, H_DIV,
+			 FunctionSpace::Pk), dof2tk(Dof)
 {
    const double *eop = poly1d.OpenPoints(p - 1);
    const double *fop = (p > 1) ? poly1d.OpenPoints(p - 2) : NULL;
@@ -10748,7 +10752,8 @@ const double ND_TriangleElement::c = 1./3.;
 
 ND_TriangleElement::ND_TriangleElement(const int p)
    : VectorFiniteElement(2, Geometry::TRIANGLE, p*(p + 2), p,
-                         H_CURL, CURL, VALUE, FunctionSpace::Pk), dof2tk(Dof)
+                         H_CURL, CURL, SCALAR, INTEGRAL,
+			 FunctionSpace::Pk), dof2tk(Dof)
 {
    const double *eop = poly1d.OpenPoints(p - 1);
    const double *iop = (p > 1) ? poly1d.OpenPoints(p - 2) : NULL;
@@ -10907,7 +10912,7 @@ const double ND_SegmentElement::tk[1] = { 1. };
 
 ND_SegmentElement::ND_SegmentElement(const int p, const int op_type)
    : VectorFiniteElement(1, Geometry::SEGMENT, p, p - 1,
-                         H_CURL, NONE, VALUE, FunctionSpace::Pk),
+                         H_CURL, NONE, SCALAR, INTEGRAL, FunctionSpace::Pk),
      obasis1d(poly1d.OpenBasis(p - 1, VerifyOpen(op_type))),
      dof2tk(Dof)
 {
