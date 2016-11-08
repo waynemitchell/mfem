@@ -36,21 +36,21 @@
 
 namespace mfem
 {
-class SundialsLinearSolveOperator;
-
-class SundialsLinSolSpecification
+/// Interface for specifying custom linear solve in SUNDIALS.
+class SundialsLinearSolver
 {
 protected:
-   SundialsLinSolSpecification() { }
-   virtual ~SundialsLinSolSpecification() { }
+   SundialsLinearSolver() { }
+   virtual ~SundialsLinearSolver() { }
 
 public:
-   // These four functions and their parameters are explained in Section 7 of
-   // http://computation.llnl.gov/sites/default/files/public/cv_guide.pdf
-   // OR Section 7.4 of
-   // http://computation.llnl.gov/sites/default/files/public/ark_guide.pdf
-   // The first argument can be casted to ARKodeMem or CVodeMem (this can be
-   // used by users with deeper SUNDIALS wisdom).
+   /** These four functions and their parameters are explained in Section 7 of
+       http://computation.llnl.gov/sites/default/files/public/cv_guide.pdf
+       OR Section 7.4 of
+       http://computation.llnl.gov/sites/default/files/public/ark_guide.pdf
+
+       The first argument can be casted to ARKodeMem or CVodeMem,
+       depending which specific package is used. */
    virtual int InitSystem(void *sundials_mem) = 0;
    virtual int SetupSystem(void *sundials_mem, int conv_fail,
                            Vector &y_pred, Vector &f_pred, int &jac_cur,
@@ -129,7 +129,7 @@ public:
 #endif
 
    /// Defines a custom Jacobian inversion for non-linear problems.
-   void SetLinearSolve(SundialsLinSolSpecification &ls_spec);
+   void SetLinearSolve(SundialsLinearSolver &ls_spec);
 
    /** @brief CVode supports two modes, specified by itask: CV_NORMAL (default)
        and CV_ONE_STEP.
@@ -194,7 +194,7 @@ public:
    ARKODESolver(Vector &y_, bool parallel, bool explicit_ = true);
 
    /// Defines a custom Jacobian inversion for non-linear problems.
-   void SetLinearSolve(SundialsLinSolSpecification *ls_spec);
+   void SetLinearSolve(SundialsLinearSolver &ls_spec);
 
    void Init(TimeDependentOperator &f_);
 
@@ -252,16 +252,6 @@ public:
    void SetScaledStepTol(double tol);
 
    void Solve(Vector &mfem_u, Vector &mfem_u_scale, Vector &mfem_f_scale);
-};
-
-/// Interface for custom Jacobian inversion in Sundials.
-/// The Jacobian problem has the form I - dt inv(M) J(y) = b.
-class SundialsLinearSolveOperator : public Operator
-{
-public:
-   SundialsLinearSolveOperator(int s) : Operator(s)
-   { }
-   virtual void SolveJacobian(Vector* b, Vector* y, double dt) = 0;
 };
 
 }  // namespace mfem

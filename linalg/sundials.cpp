@@ -37,9 +37,9 @@ using namespace std;
 namespace mfem
 {
 
-static inline SundialsLinSolSpecification *get_spec(void *ptr)
+static inline SundialsLinearSolver *get_spec(void *ptr)
 {
-   return static_cast<SundialsLinSolSpecification *>(ptr);
+   return static_cast<SundialsLinearSolver *>(ptr);
 }
 
 static int LinSysInit(CVodeMem cv_mem)
@@ -191,7 +191,7 @@ CVODESolver::CVODESolver(MPI_Comm comm, int lmm, int iter)
 
 #endif // MFEM_USE_MPI
 
-void CVODESolver::SetLinearSolve(SundialsLinSolSpecification &ls_spec)
+void CVODESolver::SetLinearSolve(SundialsLinearSolver &ls_spec)
 {
    CVodeMem mem = Mem(this);
    MFEM_ASSERT(mem->cv_iter == CV_NEWTON,
@@ -477,7 +477,7 @@ void ARKODESolver::SetFixedStep(double dt)
    ARKodeSetFixedStep(sundials_mem, static_cast<realtype>(dt));
 }
 
-void ARKODESolver::SetLinearSolve(SundialsLinSolSpecification *ls_spec)
+void ARKODESolver::SetLinearSolve(SundialsLinearSolver &ls_spec)
 {
    ARKodeMem mem = Mem(this);
    MFEM_VERIFY(mem->ark_implicit,
@@ -493,7 +493,7 @@ void ARKODESolver::SetLinearSolve(SundialsLinSolSpecification *ls_spec)
    mem->ark_lsetup = LinSysSetup;
    mem->ark_lsolve = LinSysSolve;
    mem->ark_lfree  = LinSysFree;
-   mem->ark_lmem   = ls_spec;
+   mem->ark_lmem   = &ls_spec;
    mem->ark_setupNonNull = TRUE;
 }
 
