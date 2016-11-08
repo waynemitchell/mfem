@@ -9,7 +9,7 @@
 # terms of the GNU Lesser General Public License (as published by the Free
 # Software Foundation) version 2.1 dated February 1999.
 
-add_mfem_executable(display-basis
+add_mfem_miniapp(display-basis
   MAIN display-basis.cpp
   EXTRA_HEADERS ${MFEM_MINIAPPS_COMMON_HEADERS}
   LIBRARIES mfem mfem_miniapps_common)

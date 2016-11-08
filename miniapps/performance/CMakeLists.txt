@@ -30,7 +30,7 @@ elseif (${CMAKE_CXX_COMPILER_ID} MATCHES "GNU")
     "--param" "max-completely-peel-times=3")
 endif()
 
-add_mfem_executable(performance_ex1
+add_mfem_miniapp(performance_ex1
   MAIN ex1.cpp
   LIBRARIES mfem
   EXTRA_OPTIONS ${PERFORMANCE_CXX_OPTIONS})
@@ -40,7 +40,7 @@ add_test(NAME performance_ex1_ser
   WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/miniapps)
 
 if (MFEM_USE_MPI)
-  add_mfem_executable(performance_ex1p
+  add_mfem_miniapp(performance_ex1p
     MAIN ex1p.cpp
     LIBRARIES mfem
     EXTRA_OPTIONS ${PERFORMANCE_CXX_OPTIONS})

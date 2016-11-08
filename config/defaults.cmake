@@ -40,8 +40,8 @@ option(MFEM_USE_MPFR "Enable MPFR usage." OFF)
 # stuff adds unnecessary overhead). To match "makefile" behavior, they
 # are all enabled by default.
 option(MFEM_ENABLE_TESTING "Enable the ctest framework for testing" ON)
-option(MFEM_ENABLE_EXAMPLES "Build all of the examples" ON)
-option(MFEM_ENABLE_MINIAPPS "Build all of the miniapps" ON)
+option(MFEM_ENABLE_EXAMPLES "Build all of the examples" OFF)
+option(MFEM_ENABLE_MINIAPPS "Build all of the miniapps" OFF)
 
 # Setting CXX/MPICXX on the command line or in user.cmake will overwrite the
 # autodetected C++ compiler.

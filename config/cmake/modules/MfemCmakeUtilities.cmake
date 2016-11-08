@@ -19,12 +19,26 @@ function(convert_filenames_to_full_paths NAMES)
   set(${NAMES} ${tmp_names} PARENT_SCOPE)
 endfunction()
 
+# Simple shortcut to add_custom_target() with option to add the target to the
+# main target.
+function(add_mfem_target TARGET_NAME ADD_TO_ALL)
+  if (ADD_TO_ALL)
+    # add TARGET_NAME to the main target
+    add_custom_target(${TARGET_NAME} ALL)
+  else()
+    # do not add TARGET_NAME to the main target
+    add_custom_target(${TARGET_NAME})
+  endif()
+endfunction()
+
+# Add mfem examples
 function(add_mfem_examples EXE_SRCS)
   foreach(SRC_FILE IN LISTS ${EXE_SRCS})
     get_filename_component(SRC_FILENAME ${SRC_FILE} NAME)
 
     string(REPLACE ".cpp" "" EXE_NAME ${SRC_FILENAME})
     add_executable(${EXE_NAME} ${SRC_FILE})
+    add_dependencies(${MFEM_ALL_EXAMPLES_TARGET_NAME} ${EXE_NAME})
 
     target_link_libraries(${EXE_NAME} mfem)
     if (MFEM_USE_MPI)
@@ -46,8 +60,8 @@ function(add_mfem_examples EXE_SRCS)
   endforeach(SRC_FILE)
 endfunction()
 
-# A slightly more versitile function for adding executables to MFEM
-function(add_mfem_executable MFEM_EXE_NAME)
+# A slightly more versitile function for adding miniapps to MFEM
+function(add_mfem_miniapp MFEM_EXE_NAME)
   # Parse the input arguments looking for the things we need
   set(POSSIBLE_ARGS "MAIN" "EXTRA_SOURCES" "EXTRA_HEADERS" "EXTRA_OPTIONS" "EXTRA_DEFINES" "LIBRARIES")
   set(CURRENT_ARG)
@@ -61,9 +75,10 @@ function(add_mfem_executable MFEM_EXE_NAME)
     endif()
   endforeach()
 
-  # Actually add the test
+  # Actually add the executable
   add_executable(${MFEM_EXE_NAME} ${MAIN_LIST}
     ${EXTRA_SOURCES_LIST} ${EXTRA_HEADERS_LIST})
+  add_dependencies(${MFEM_ALL_MINIAPPS_TARGET_NAME} ${MFEM_EXE_NAME})
 
   # Append the additional libraries and options
   if (LIBRARIES_LIST)

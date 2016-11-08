@@ -12,8 +12,6 @@
 #ifndef MFEM_FEM_EXTRAS
 #define MFEM_FEM_EXTRAS
 
-#include "../../config/config.hpp"
-
 #include "mfem.hpp"
 #include <cstddef>
 

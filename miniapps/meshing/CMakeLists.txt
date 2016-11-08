@@ -9,15 +9,15 @@
 # terms of the GNU Lesser General Public License (as published by the Free
 # Software Foundation) version 2.1 dated February 1999.
 
-add_mfem_executable(klein-bottle
+add_mfem_miniapp(klein-bottle
   MAIN klein-bottle.cpp
   LIBRARIES mfem)
 
-add_mfem_executable(mesh-explorer
+add_mfem_miniapp(mesh-explorer
   MAIN mesh-explorer.cpp
   LIBRARIES mfem)
 
-add_mfem_executable(mobius-strip
+add_mfem_miniapp(mobius-strip
   MAIN mobius-strip.cpp
   LIBRARIES mfem)
 

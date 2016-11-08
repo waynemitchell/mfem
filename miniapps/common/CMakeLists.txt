@@ -25,6 +25,5 @@ if (MFEM_USE_MPI)
     pfem_extras.hpp)
 endif()
 
-add_library(mfem_miniapps_common ${MFEM_MINIAPPS_COMMON_SOURCES} ${MFEM_MINIAPPS_COMMON_HEADERS})
-target_compile_definitions(mfem_miniapps_common PUBLIC
-    "-DMFEM_BUILD_DIR=${PROJECT_BINARY_DIR}")
+add_library(mfem_miniapps_common ${MFEM_MINIAPPS_COMMON_SOURCES}
+            ${MFEM_MINIAPPS_COMMON_HEADERS})
