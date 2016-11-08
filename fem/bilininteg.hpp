@@ -376,6 +376,13 @@ class MixedVectorProductIntegrator : public MixedScalarVectorIntegrator
 public:
    MixedVectorProductIntegrator(VectorCoefficient &vq)
       : MixedScalarVectorIntegrator(vq) {}
+
+   inline virtual int GetIntegrationOrder(const FiniteElement & trial_fe,
+                                          const FiniteElement & test_fe,
+                                          ElementTransformation &Trans)
+   { return 1 + MixedScalarVectorIntegrator::GetIntegrationOrder(trial_fe,
+								 test_fe,
+								 Trans); }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (Q D u, v) in 1D
@@ -644,11 +651,18 @@ public:
       return "Trial space must be a vector field "
              "and the test space must be a scalar field";
    }
+
+   inline virtual int GetIntegrationOrder(const FiniteElement & trial_fe,
+                                          const FiniteElement & test_fe,
+                                          ElementTransformation &Trans)
+   { return 1 + MixedScalarVectorIntegrator::GetIntegrationOrder(trial_fe,
+								 test_fe,
+								 Trans); }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (V . u, Div v) in 2D or 3D
-    and where V is a vector coefficient u is in H(Curl) or H(Div) and v is
-    in RT.
+/** Class for integrating the bilinear form a(u,v) := (V . u, Div v) in 2D
+    or 3D and where V is a vector coefficient u is in H(Curl) or H(Div) and
+    v is in RT.
  */
 class MixedDotDivIntegrator : public MixedScalarVectorIntegrator
 {

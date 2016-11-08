@@ -35,7 +35,7 @@ void   VcrossF3(const Vector & x, Vector & vf);
 
 int main(int argc, char ** argv)
 {
-  int order = 2, w = 32, n = 1;
+  int order = 2, w = 34, n = 1;
   
   OptionsParser args(argc, argv);
   args.AddOption(&order, "-o", "--order",
@@ -470,22 +470,31 @@ int main(int argc, char ** argv)
   {
     FiniteElementCollection * fec_h1  = new H1_FECollection(order, 3);
     FiniteElementCollection * fec_nd  = new ND_FECollection(order, 3);
-    FiniteElementCollection * fec_ndp = new ND_FECollection(order + 1, 3);
     FiniteElementCollection * fec_rt  = new RT_FECollection(order - 1, 3);
     FiniteElementCollection * fec_l2  = new L2_FECollection(order - 1, 3);
 
+    FiniteElementCollection * fec_h1p = new H1_FECollection(order + 1, 3);
+    FiniteElementCollection * fec_ndp = new ND_FECollection(order + 1, 3);
+    FiniteElementCollection * fec_rtp = new RT_FECollection(order, 3);
+
     FiniteElementSpace fespace_h1(&mesh3d, fec_h1);
     FiniteElementSpace fespace_nd(&mesh3d, fec_nd);
-    FiniteElementSpace fespace_ndp(&mesh3d, fec_ndp);
     FiniteElementSpace fespace_rt(&mesh3d, fec_rt);
     FiniteElementSpace fespace_l2(&mesh3d, fec_l2);
+
+    FiniteElementSpace fespace_h1p(&mesh3d, fec_h1p);
+    FiniteElementSpace fespace_ndp(&mesh3d, fec_ndp);
+    FiniteElementSpace fespace_rtp(&mesh3d, fec_rtp);
 
     cout << endl << "3D" << endl;
     cout << "Number H1 DoFs:   " << fespace_h1.GetNDofs()  << endl;
     cout << "Number ND DoFs:   " << fespace_nd.GetNDofs()  << endl;
-    cout << "Number NDp DoFs:  " << fespace_ndp.GetNDofs() << endl;
     cout << "Number RT DoFs:   " << fespace_rt.GetNDofs()  << endl;
     cout << "Number L2 DoFs:   " << fespace_l2.GetNDofs()  << endl << endl;
+
+    cout << "Number H1p DoFs:  " << fespace_h1p.GetNDofs() << endl;
+    cout << "Number NDp DoFs:  " << fespace_ndp.GetNDofs() << endl;
+    cout << "Number RTp DoFs:  " << fespace_rtp.GetNDofs() << endl << endl;
 
     BilinearForm m_h1(&fespace_h1);
     m_h1.AddDomainIntegrator(new MassIntegrator());
@@ -497,11 +506,6 @@ int main(int argc, char ** argv)
     m_nd.Assemble();
     m_nd.Finalize();
     
-    BilinearForm m_ndp(&fespace_ndp);
-    m_ndp.AddDomainIntegrator(new VectorFEMassIntegrator());
-    m_ndp.Assemble();
-    m_ndp.Finalize();
-    
     BilinearForm m_rt(&fespace_rt);
     m_rt.AddDomainIntegrator(new VectorFEMassIntegrator());
     m_rt.Assemble();
@@ -512,11 +516,29 @@ int main(int argc, char ** argv)
     m_l2.Assemble();
     m_l2.Finalize();
 
+    BilinearForm m_h1p(&fespace_h1p);
+    m_h1p.AddDomainIntegrator(new MassIntegrator());
+    m_h1p.Assemble();
+    m_h1p.Finalize();
+    
+    BilinearForm m_ndp(&fespace_ndp);
+    m_ndp.AddDomainIntegrator(new VectorFEMassIntegrator());
+    m_ndp.Assemble();
+    m_ndp.Finalize();
+    
+    BilinearForm m_rtp(&fespace_rtp);
+    m_rtp.AddDomainIntegrator(new VectorFEMassIntegrator());
+    m_rtp.Assemble();
+    m_rtp.Finalize();
+    
     Vector tmp_h1(fespace_h1.GetNDofs());
     Vector tmp_nd(fespace_nd.GetNDofs());
-    Vector tmp_ndp(fespace_ndp.GetNDofs());
     Vector tmp_rt(fespace_rt.GetNDofs());
     Vector tmp_l2(fespace_l2.GetNDofs());
+
+    Vector tmp_h1p(fespace_h1p.GetNDofs());
+    Vector tmp_ndp(fespace_ndp.GetNDofs());
+    Vector tmp_rtp(fespace_rtp.GetNDofs());
 
     FunctionCoefficient       f3_coef(f3);
     VectorFunctionCoefficient F3_coef(3, F3);
@@ -528,6 +550,7 @@ int main(int argc, char ** argv)
     VectorFunctionCoefficient V3_coef(3, V3);
     VectorFunctionCoefficient Vf3_coef(3, Vf3);
     FunctionCoefficient       VdotF3_coef(VdotF3);
+    VectorFunctionCoefficient VcrossF3_coef(3, VcrossF3);
 
     GridFunction f3_h1(&fespace_h1); f3_h1.ProjectCoefficient(f3_coef);
     GridFunction f3_nd(&fespace_nd); f3_nd.ProjectCoefficient(F3_coef);
@@ -536,23 +559,43 @@ int main(int argc, char ** argv)
 
     GridFunction g3_h1(&fespace_h1);
     GridFunction g3_nd(&fespace_nd);
-    GridFunction g3_ndp(&fespace_ndp);
     GridFunction g3_rt(&fespace_rt);
     GridFunction g3_l2(&fespace_l2);
 
-     cout << setw(w) << setiosflags(std::ios::left)
-	   << "Error in H1 projection:  " << f3_h1.ComputeL2Error(f3_coef)
-	   << endl;
-     cout << setw(w) << setiosflags(std::ios::left)
-	   << "Error in ND projection:  " << f3_nd.ComputeL2Error(F3_coef)
-	   << endl;
-     cout << setw(w) << setiosflags(std::ios::left)
-	   << "Error in RT projection:  " << f3_rt.ComputeL2Error(F3_coef)
-	   << endl;
-     cout << setw(w) << setiosflags(std::ios::left)
-	   << "Error in L2 projection:  " << f3_l2.ComputeL2Error(f3_coef)
-	   << endl;
+    GridFunction g3_h1p(&fespace_h1p); g3_h1p.ProjectCoefficient(VdotF3_coef);
+    GridFunction g3_ndp(&fespace_ndp); g3_ndp.ProjectCoefficient(Vf3_coef);
+    GridFunction g3_rtp(&fespace_rtp);
+    g3_rtp.ProjectCoefficient(VcrossF3_coef);
 
+     cout << setw(w) << setiosflags(std::ios::left)
+	  << "Error in H1 projection of f3:  "
+	  << f3_h1.ComputeL2Error(f3_coef)
+	  << endl;
+     cout << setw(w) << setiosflags(std::ios::left)
+	  << "Error in ND projection of F3:  "
+	  << f3_nd.ComputeL2Error(F3_coef)
+	  << endl;
+     cout << setw(w) << setiosflags(std::ios::left)
+	  << "Error in RT projection of F3:  "
+	  << f3_rt.ComputeL2Error(F3_coef)
+	  << endl;
+     cout << setw(w) << setiosflags(std::ios::left)
+	  << "Error in L2 projection of f3:  "
+	  << f3_l2.ComputeL2Error(f3_coef)
+	  << endl;
+
+     cout << setw(w) << setiosflags(std::ios::left)
+	  << "Error in H1p projection of V.F3:  "
+	  << g3_h1p.ComputeL2Error(VdotF3_coef)
+	  << endl;
+     cout << setw(w) << setiosflags(std::ios::left)
+	  << "Error in NDp projection of Vf3:  "
+	  << g3_ndp.ComputeL2Error(Vf3_coef)
+	  << endl;
+     cout << setw(w) << setiosflags(std::ios::left)
+	  << "Error in RTp projection of VxF3:  "
+	  << g3_rtp.ComputeL2Error(VcrossF3_coef)
+	  << endl;
      {
        // cout << "Testing Scalar Mass Integrator in 3D" << endl;
       MixedBilinearForm blf(&fespace_h1, &fespace_l2);
@@ -726,17 +769,33 @@ int main(int argc, char ** argv)
     }
     {
       // cout << "Testing Divergence Integrator in 2D" << endl;
-      MixedBilinearForm blf(&fespace_nd, &fespace_h1);
+      MixedBilinearForm blf(&fespace_nd, &fespace_h1p);
       blf.AddDomainIntegrator(new MixedDotProductIntegrator(V3_coef));
       blf.Assemble();
       blf.Finalize();
       // blf.Print(cout);
 
-      blf.Mult(f3_nd,tmp_h1); g3_h1 = 0.0;
-      CG(m_h1, tmp_h1, g3_h1, 0, 200, 1e-12, 0.0);
+      blf.Mult(f3_nd,tmp_h1p); g3_h1p = 0.0;
+      CG(m_h1p, tmp_h1p, g3_h1p, 0, 200, 1e-12, 0.0);
 
       cout << setw(w) << setiosflags(std::ios::left)
-	   << "Error in Dot Product:  " << g3_h1.ComputeL2Error(VdotF3_coef)
+	   << "Error in Dot Product:  " << g3_h1p.ComputeL2Error(VdotF3_coef)
+	   << endl;
+    }
+    {
+      // cout << "Testing Divergence Integrator in 2D" << endl;
+      MixedBilinearForm blf(&fespace_nd, &fespace_rtp);
+      blf.AddDomainIntegrator(new MixedCrossProductIntegrator(V3_coef));
+      blf.Assemble();
+      blf.Finalize();
+      // blf.Print(cout);
+
+      blf.Mult(f3_nd,tmp_rtp); g3_rtp = 0.0;
+      CG(m_rtp, tmp_rtp, g3_rtp, 0, 200, 1e-12, 0.0);
+
+      cout << setw(w) << setiosflags(std::ios::left)
+	   << "Error in Cross Product:  "
+	   << g3_rtp.ComputeL2Error(VcrossF3_coef)
 	   << endl;
     }
   }
