@@ -247,6 +247,10 @@ if (MFEM_ENABLE_TESTING)
   enable_testing()
 endif()
 
+# Define a target that all examples and miniapps will depend on.
+set(MFEM_EXEC_PREREQUISITES_TARGET_NAME exec_prerequisites)
+add_custom_target(${MFEM_EXEC_PREREQUISITES_TARGET_NAME})
+
 # Create a target for all examples and, optionally, enable it.
 set(MFEM_ALL_EXAMPLES_TARGET_NAME examples)
 add_mfem_target(${MFEM_ALL_EXAMPLES_TARGET_NAME} ${MFEM_ENABLE_EXAMPLES})
@@ -265,6 +269,15 @@ add_dependencies(exec
 # 'test' (and other built-in targets) can not be added with add_dependencies():
 #  - https://gitlab.kitware.com/cmake/cmake/issues/8438
 #  - https://cmake.org/Bug/view.php?id=8438
+
+# Add a target to copy the mfem data directory to the build directory
+add_custom_command(OUTPUT data_is_copied
+  COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_SOURCE_DIR}/data data
+  COMMAND ${CMAKE_COMMAND} -E touch data_is_copied
+  COMMENT "Copying the data directory ...")
+add_custom_target(copy_data DEPENDS data_is_copied)
+# Add 'copy_data' as a prerequisite for all executables.
+add_dependencies(${MFEM_EXEC_PREREQUISITES_TARGET_NAME} copy_data)
 
 # Add 'check' target - quick test
 if (NOT MFEM_USE_MPI)

@@ -36,8 +36,7 @@ add_mfem_miniapp(performance_ex1
   EXTRA_OPTIONS ${PERFORMANCE_CXX_OPTIONS})
 
 add_test(NAME performance_ex1_ser
-  COMMAND performance_ex1 -no-vis
-  WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/miniapps)
+  COMMAND performance_ex1 -no-vis)
 
 if (MFEM_USE_MPI)
   add_mfem_miniapp(performance_ex1p
@@ -48,6 +47,5 @@ if (MFEM_USE_MPI)
   add_test(NAME performance_ex1p_np=4
     COMMAND ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 4
     ${MPIEXEC_PREFLAGS} $<TARGET_FILE:performance_ex1p> -no-vis
-    ${MPIEXEC_POSTFLAGS}
-    WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/miniapps)
+    ${MPIEXEC_POSTFLAGS})
 endif()
