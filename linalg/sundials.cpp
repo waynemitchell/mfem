@@ -137,16 +137,11 @@ static inline CVodeMem Mem(const CVODESolver *self)
    return CVodeMem(self->SundialsMem());
 }
 
-void CVODESolver::SetStepMode(int itask)
-{
-   Mem(this)->cv_taskc = itask;
-}
-
 CVODESolver::CVODESolver(int lmm, int iter)
 {
    // Allocate an empty serial N_Vector wrapper in y.
    y = N_VNewEmpty_Serial(0);
-   MFEM_ASSERT(y, "error in N_VNew_Serial()");
+   MFEM_ASSERT(y, "error in N_VNewEmpty_Serial()");
 
    // Create the solver memory.
    sundials_mem = CVodeCreate(lmm, iter);
@@ -168,7 +163,7 @@ CVODESolver::CVODESolver(MPI_Comm comm, int lmm, int iter)
    {
       // Allocate an empty serial N_Vector wrapper in y.
       y = N_VNewEmpty_Serial(0);
-      MFEM_ASSERT(y, "error in N_VNew_Serial()");
+      MFEM_ASSERT(y, "error in N_VNewEmpty_Serial()");
    }
    else
    {
@@ -191,6 +186,15 @@ CVODESolver::CVODESolver(MPI_Comm comm, int lmm, int iter)
 
 #endif // MFEM_USE_MPI
 
+void CVODESolver::SetSStolerances(double reltol, double abstol)
+{
+   CVodeMem mem = Mem(this);
+   // For now store the values in mem:
+   mem->cv_reltol = reltol;
+   mem->cv_Sabstol = abstol;
+   // The call to CVodeSStolerances() is done after CVodeInit() in Init().
+}
+
 void CVODESolver::SetLinearSolve(SundialsLinearSolver &ls_spec)
 {
    CVodeMem mem = Mem(this);
@@ -209,13 +213,9 @@ void CVODESolver::SetLinearSolve(SundialsLinearSolver &ls_spec)
    mem->cv_setupNonNull = TRUE;
 }
 
-void CVODESolver::SetSStolerances(double reltol, double abstol)
+void CVODESolver::SetStepMode(int itask)
 {
-   CVodeMem mem = Mem(this);
-   // For now store the values in cv_mem:
-   mem->cv_reltol = reltol;
-   mem->cv_Sabstol = abstol;
-   // The call to CVodeSStolerances() is done after CVodeInit() in Step()
+   Mem(this)->cv_taskc = itask;
 }
 
 void CVODESolver::SetMaxOrder(int max_order)
@@ -227,6 +227,7 @@ void CVODESolver::SetMaxOrder(int max_order)
    }
 }
 
+// Has to copy all fields that can be set by the MFEM interface !!
 static inline void cvCopyInit(CVodeMem src, CVodeMem dest)
 {
    dest->cv_linit  = src->cv_linit;
@@ -373,114 +374,92 @@ static inline ARKodeMem Mem(const ARKODESolver *self)
    return ARKodeMem(self->SundialsMem());
 }
 
-ARKODESolver::ARKODESolver(Vector &y_, bool parallel, bool explicit_)
-   : use_explicit(explicit_)
+//ARKODESolver::ARKODESolver(Vector &y_, bool implicit)
+//{
+//   // Create the NVector y.
+//   y = y_.ToNVector();
+
+//   // Create the solver memory.
+//   sundials_mem = ARKodeCreate();
+
+//   // Initialize the integrator memory, specify the user's
+//   // RHS function in x' = f(t, x), the initial time, initial condition.
+//   int flag = use_explicit ?
+//              ARKodeInit(sundials_mem, ODEMult, NULL, 0.0, y) :
+//              ARKodeInit(sundials_mem, NULL, ODEMult, 0.0, y);
+//   MFEM_ASSERT(flag >= 0, "ARKodeInit() failed!");
+
+//   SetSStolerances(default_rel_tol, default_abs_tol);
+
+//   // When implicit method is chosen, one should specify the linear solver.
+//   if (use_explicit == false)
+//   {
+//      ARKSpgmr(sundials_mem, PREC_NONE, 0);
+//   }
+//}
+
+ARKODESolver::ARKODESolver(bool implicit)
+   : use_implicit(implicit), irk_table(-1), erk_table(-1)
 {
-   // Create the NVector y.
-   y = y_.ToNVector();
+   // Allocate an empty serial N_Vector wrapper in y.
+   y = N_VNewEmpty_Serial(0);
+   MFEM_ASSERT(y, "error in N_VNewEmpty_Serial()");
 
    // Create the solver memory.
    sundials_mem = ARKodeCreate();
+   MFEM_ASSERT(sundials_mem, "error in ARKodeCreate()");
 
-   // Initialize the integrator memory, specify the user's
-   // RHS function in x' = f(t, x), the initial time, initial condition.
-   int flag = use_explicit ?
-              ARKodeInit(sundials_mem, ODEMult, NULL, 0.0, y) :
-              ARKodeInit(sundials_mem, NULL, ODEMult, 0.0, y);
-   MFEM_ASSERT(flag >= 0, "ARKodeInit() failed!");
+   SetStepMode(ARK_NORMAL);
 
+   // Replace the zero defaults with some positive numbers.
    SetSStolerances(default_rel_tol, default_abs_tol);
 
-   // When implicit method is chosen, one should specify the linear solver.
-   if (use_explicit == false)
-   {
-      ARKSpgmr(sundials_mem, PREC_NONE, 0);
-   }
+   flag = ARK_SUCCESS;
 }
 
-void ARKODESolver::Init(TimeDependentOperator &f_)
+#ifdef MFEM_USE_MPI
+ARKODESolver::ARKODESolver(MPI_Comm comm, bool implicit)
+   : use_implicit(implicit), irk_table(-1), erk_table(-1)
 {
-   f = &f_;
-   // Set the pointer to user-defined data.
-   int flag = ARKodeSetUserData(sundials_mem, this->f);
-   MFEM_ASSERT(flag >= 0, "ARKodeSetUserData() failed!");
-}
-
-void ARKODESolver::ReInit(TimeDependentOperator &f_, Vector &y_, double &t_)
-{
-   f = &f_;
-   y_.ToNVector(y);
-
-   // Re-init memory, time and solution.
-   int flag = use_explicit ?
-              ARKodeReInit(sundials_mem, ODEMult, NULL, t_, y) :
-              ARKodeReInit(sundials_mem, NULL, ODEMult, t_, y);
-   MFEM_ASSERT(flag >= 0, "ARKodeReInit() failed!");
-
-   // Set the pointer to user-defined data.
-   flag = ARKodeSetUserData(sundials_mem, this->f);
-   MFEM_ASSERT(flag >= 0, "ARKodeSetUserData() failed!");
-
-   // When implicit method is chosen, one should specify the linear solver.
-   if (use_explicit == false)
+   if (comm == MPI_COMM_NULL)
    {
-      ARKSpgmr(sundials_mem, PREC_NONE, 0);
+      // Allocate an empty serial N_Vector wrapper in y.
+      y = N_VNewEmpty_Serial(0);
+      MFEM_ASSERT(y, "error in N_VNew_Serial()");
    }
+   else
+   {
+      // Allocate an empty parallel N_Vector wrapper in y.
+      y = N_VNewEmpty_Parallel(comm, 0, 0); // calls MPI_Allreduce()
+      MFEM_ASSERT(y, "error in N_VNewEmpty_Parallel()");
+   }
+
+   // Create the solver memory.
+   sundials_mem = ARKodeCreate();
+   MFEM_ASSERT(sundials_mem, "error in ARKodeCreate()");
+
+   SetStepMode(ARK_NORMAL);
+
+   // Replace the zero defaults with some positive numbers.
+   SetSStolerances(default_rel_tol, default_abs_tol);
+
+   flag = ARK_SUCCESS;
 }
+#endif
 
 void ARKODESolver::SetSStolerances(realtype reltol, realtype abstol)
 {
-   // Specify the scalar relative tolerance and scalar absolute tolerance.
-   int flag = ARKodeSStolerances(sundials_mem, reltol, abstol);
-   MFEM_ASSERT(flag >= 0, "ARKodeSStolerances() failed!");
-}
-
-void ARKODESolver::Step(Vector &x, double &t, double &dt)
-{
-   x.ToNVector(y);
-
-   realtype tout = t + dt;
-
-   // Don't allow stepping over tout (then it interpolates in time).
-   ARKodeSetStopTime(sundials_mem, tout);
-   // Step.
-   // ARK_NORMAL - take many steps until reaching tout.
-   // ARK_ONE_STEP - take one step and return (might be before tout).
-   int flag = ARKode(sundials_mem, tout, y, &t, ARK_NORMAL);
-   MFEM_ASSERT(flag >= 0, "ARKode() failed!");
-
-   // Record last incremental step size.
-   flag = ARKodeGetLastStep(sundials_mem, &dt);
-}
-
-void ARKODESolver::SetOrder(int order)
-{
-   int flag = ARKodeSetOrder(sundials_mem, order);
-   if (flag == ARK_ILL_INPUT)
-   {
-      MFEM_WARNING("ARKodeSetOrder() did not change the order!");
-   }
-}
-
-void ARKODESolver::SetERKTableNum(int table_num)
-{
-   ARKodeSetERKTableNum(sundials_mem, table_num);
-}
-
-void ARKODESolver::SetIRKTableNum(int table_num)
-{
-   ARKodeSetIRKTableNum(sundials_mem, table_num);
-}
-
-void ARKODESolver::SetFixedStep(double dt)
-{
-   ARKodeSetFixedStep(sundials_mem, static_cast<realtype>(dt));
+   ARKodeMem mem = Mem(this);
+   // For now store the values in mem:
+   mem->ark_reltol  = reltol;
+   mem->ark_Sabstol = abstol;
+   // The call to ARKodeSStolerances() is done after ARKodeInit() in Init().
 }
 
 void ARKODESolver::SetLinearSolve(SundialsLinearSolver &ls_spec)
 {
    ARKodeMem mem = Mem(this);
-   MFEM_VERIFY(mem->ark_implicit,
+   MFEM_VERIFY(use_implicit,
                "The function is applicable only to implicit time integration.");
 
    if (mem->ark_lfree != NULL) { mem->ark_lfree(mem); }
@@ -497,10 +476,194 @@ void ARKODESolver::SetLinearSolve(SundialsLinearSolver &ls_spec)
    mem->ark_setupNonNull = TRUE;
 }
 
+void ARKODESolver::SetStepMode(int itask)
+{
+   Mem(this)->ark_taskc = itask;
+}
+
+void ARKODESolver::SetOrder(int order)
+{
+   ARKodeMem mem = Mem(this);
+   // For now store the values in mem:
+   mem->ark_q = order;
+   // The call to ARKodeSetOrder() is done after ARKodeInit() in Init().
+
+   flag = ARKodeSetOrder(sundials_mem, order);
+   MFEM_ASSERT(flag >= 0, "ARKodeSetOrder() failed!");
+}
+
+void ARKODESolver::SetIRKTableNum(int table_num)
+{
+   // The call to ARKodeSetIRKTableNum() is done after ARKodeInit() in Init().
+   irk_table = table_num;
+}
+
+void ARKODESolver::SetERKTableNum(int table_num)
+{
+   // The call to ARKodeSetERKTableNum() is done after ARKodeInit() in Init().
+   erk_table = table_num;
+}
+
+void ARKODESolver::SetFixedStep(double dt)
+{
+   flag = ARKodeSetFixedStep(sundials_mem, dt);
+   MFEM_ASSERT(flag >= 0, "ARKodeSetFixedStep() failed!");
+}
+
+// Copy fields that can be set by the MFEM interface.
+static inline void arkCopyInit(ARKodeMem src, ARKodeMem dest)
+{
+   dest->ark_lsolve_type  = src->ark_lsolve_type;
+   dest->ark_linit        = src->ark_linit;
+   dest->ark_lsetup       = src->ark_lsetup;
+   dest->ark_lsolve       = src->ark_lsolve;
+   dest->ark_lfree        = src->ark_lfree;
+   dest->ark_lmem         = src->ark_lmem;
+   dest->ark_setupNonNull = src->ark_setupNonNull;
+
+   dest->ark_reltol  = src->ark_reltol;
+   dest->ark_Sabstol = src->ark_Sabstol;
+
+   dest->ark_taskc     = src->ark_taskc;
+   dest->ark_q         = src->ark_q;
+   dest->ark_fixedstep = src->ark_fixedstep;
+   dest->ark_hin       = src->ark_hin;
+}
+
+void ARKODESolver::Init(TimeDependentOperator &f_)
+{
+   ARKodeMem mem = Mem(this);
+   ARKodeMemRec backup;
+
+   // Check if ARKodeInit() has already been called.
+   if (mem->ark_MallocDone == TRUE)
+   {
+      // TODO: preserve more options.
+      arkCopyInit(mem, &backup);
+      ARKodeFree(&sundials_mem);
+      sundials_mem = ARKodeCreate();
+      MFEM_ASSERT(sundials_mem, "Error in ARKodeCreate()!");
+      arkCopyInit(&backup, mem);
+   }
+
+   ODESolver::Init(f_);
+
+   // Set actual size and data in the N_Vector y.
+   int loc_size = f_.Height();
+   if (!Parallel())
+   {
+      NV_LENGTH_S(y) = loc_size;
+      NV_DATA_S(y) = new double[loc_size](); // value-initizalize
+   }
+   else
+   {
+#ifdef MFEM_USE_MPI
+      long local_size = loc_size, global_size;
+      MPI_Allreduce(&local_size, &global_size, 1, MPI_LONG, MPI_SUM,
+                    NV_COMM_P(y));
+      NV_LOCLENGTH_P(y) = local_size;
+      NV_GLOBLENGTH_P(y) = global_size;
+      NV_DATA_P(y) = new double[loc_size](); // value-initalize
+#endif
+   }
+
+   // Call ARKodeInit().
+   arkCopyInit(mem, &backup);
+   double t = f_.GetTime();
+   // TODO: IMEX interface and example.
+   flag = (use_implicit) ? ARKodeInit(sundials_mem, NULL, ODEMult, t, y)
+                         : ARKodeInit(sundials_mem, ODEMult, NULL, t, y);
+   MFEM_ASSERT(flag >= 0, "CVodeInit() failed!");
+   arkCopyInit(&backup, mem);
+
+   // Delete the allocated data in y.
+   if (!Parallel())
+   {
+      delete [] NV_DATA_S(y);
+      NV_DATA_S(y) = NULL;
+   }
+   else
+   {
+#ifdef MFEM_USE_MPI
+      delete [] NV_DATA_P(y);
+      NV_DATA_P(y) = NULL;
+#endif
+   }
+
+   // The TimeDependentOperator pointer, f, will be the user-defined data.
+   flag = ARKodeSetUserData(sundials_mem, f);
+   MFEM_ASSERT(flag >= 0, "ARKodeSetUserData() failed!");
+
+   flag = ARKodeSStolerances(mem, mem->ark_reltol, mem->ark_Sabstol);
+   MFEM_ASSERT(flag >= 0, "CVodeSStolerances() failed!");
+
+   flag = ARKodeSetOrder(sundials_mem, mem->ark_q);
+   MFEM_ASSERT(flag >= 0, "ARKodeSetOrder() failed!");
+
+   if (irk_table >= 0) { ARKodeSetIRKTableNum(sundials_mem, irk_table); }
+   if (erk_table >= 0) { ARKodeSetERKTableNum(sundials_mem, erk_table); }
+}
+
+void ARKODESolver::Step(Vector &x, double &t, double &dt)
+{
+   ARKodeMem mem = Mem(this);
+
+   if (!Parallel())
+   {
+      NV_DATA_S(y) = x.GetData();
+      MFEM_VERIFY(NV_LENGTH_S(y) == x.Size(), "");
+   }
+   else
+   {
+#ifdef MFEM_USE_MPI
+      NV_DATA_P(y) = x.GetData();
+      MFEM_VERIFY(NV_LOCLENGTH_P(y) == x.Size(), "");
+#endif
+   }
+
+   if (mem->ark_nst == 0)
+   {
+      // Set default linear solver, if not already set.
+      if (mem->ark_implicit && mem->ark_linit == NULL)
+      {
+         flag = ARKSpgmr(sundials_mem, PREC_NONE, 0);
+      }
+      // Set the actual t0 and y0.
+      mem->ark_tn = t;
+      mem->ark_tnew = t;
+
+      N_VScale(ONE, y, mem->ark_ycur);
+   }
+
+   double tout = t + dt;
+   // The actual time integration.
+   flag = ARKode(sundials_mem, tout, y, &t, mem->ark_taskc);
+   MFEM_ASSERT(flag >= 0, "ARKode() failed!");
+
+   // Return the last incremental step size.
+   dt = mem->ark_h;
+}
+
+void ARKODESolver::PrintInfo() const
+{
+   ARKodeMem mem = Mem(this);
+
+   cout <<
+        "ARKODE:\n  "
+        "num steps: " << mem->ark_nst << ", "
+        "num evals: " << mem->ark_nfe << ", "
+        "num lin setups: " << mem->ark_nsetups << ", "
+        "num nonlin sol iters: " << mem->ark_nni << "\n  "
+        "method order: " << mem->ark_q << ", "
+        "last dt: " << mem->ark_h << ", "
+        "next dt: " << mem->ark_next_h
+        << endl;
+}
+
 ARKODESolver::~ARKODESolver()
 {
-   if (y) { N_VDestroy(y); }
-   if (sundials_mem) { ARKodeFree(&sundials_mem); }
+   N_VDestroy(y);
+   ARKodeFree(&sundials_mem);
 }
 
 KinSolver::KinSolver(Operator &oper, Vector &mfem_u,

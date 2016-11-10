@@ -105,8 +105,8 @@ protected:
 #endif
 
 public:
-   /// Construct a serial CVODESolver, a wrapper for SUNDIALS' CVODE solver.
-   /** @param[in] lmm   Specifies the linear multistep method, the options are
+   /** Construct a serial CVODESolver, a wrapper for SUNDIALS' CVODE solver.
+       @param[in] lmm   Specifies the linear multistep method, the options are
                         CV_ADAMS (explicit problems) or CV_BDF (implicit
                         problems).
        @param[in] iter  Specifies type of solver iteration, the options are
@@ -116,8 +116,8 @@ public:
    CVODESolver(int lmm, int iter);
 
 #ifdef MFEM_USE_MPI
-   /// Construct a parallel CVODESolver, a wrapper for SUNDIALS' CVODE solver.
-   /** @param[in] comm  The MPI communicator used to partition the ODE system.
+   /** Construct a parallel CVODESolver, a wrapper for SUNDIALS' CVODE solver.
+       @param[in] comm  The MPI communicator used to partition the ODE system.
        @param[in] lmm   Specifies the linear multistep method, the options are
                         CV_ADAMS (explicit problems) or CV_BDF (implicit
                         problems).
@@ -127,6 +127,10 @@ public:
        For parameter desciption, see the CVodeCreate documentation (cvode.h). */
    CVODESolver(MPI_Comm comm, int lmm, int iter);
 #endif
+
+   /** Specify the scalar relative tolerance and scalar absolute tolerance.
+       @note This method can be called before Init(). */
+   void SetSStolerances(double reltol, double abstol);
 
    /// Defines a custom Jacobian inversion for non-linear problems.
    void SetLinearSolve(SundialsLinearSolver &ls_spec);
@@ -142,10 +146,6 @@ public:
 
    /// Return the flag returned by the last call to a CVODE function.
    int GetFlag() const { return flag; }
-
-   /// Specify the scalar relative tolerance and scalar absolute tolerance.
-   /** @note This method can be called before Init(). */
-   void SetSStolerances(double reltol, double abstol);
 
    /// Sets the maximum order of the linear multistep method.
    /** The default is 12 (CV_ADAMS) or 5 (CV_BDF).
@@ -185,47 +185,83 @@ class ARKODESolver: public ODESolver, public SundialsSolver
 {
 protected:
    N_Vector y;
-   bool use_explicit;
+   int flag;
+   bool use_implicit;
+   int irk_table, erk_table;
+
+#ifdef MFEM_USE_MPI
+   bool Parallel() { return (y->ops->nvgetvectorid != N_VGetVectorID_Serial); }
+#else
+   bool Parallel() { return false; }
+#endif
 
 public:
-   /// ARKODE needs the initial condition (first argument).
-   /// parallel specifies whether the calling code is parallel or not.
-   /// exlicit_ specifies whether the time integration is explicit.
-   ARKODESolver(Vector &y_, bool parallel, bool explicit_ = true);
+   /** Construct a serial ARKODESolver, a wrapper for SUNDIALS' ARKODE solver.
+       @param[in] implicit  Specifies if the time integrator is implicit. */
+   ARKODESolver(bool implicit = false);
+
+#ifdef MFEM_USE_MPI
+   /** Construct a serial ARKODESolver, a wrapper for SUNDIALS' ARKODE solver.
+       @param[in] implicit  Specifies if the time integrator is implicit. */
+   ARKODESolver(MPI_Comm comm, bool implicit = false);
+#endif
+
+   /** Specify the scalar relative tolerance and scalar absolute tolerance.
+       @note This method can be called before Init(). */
+   void SetSStolerances(realtype reltol, realtype abstol);
 
    /// Defines a custom Jacobian inversion for non-linear problems.
    void SetLinearSolve(SundialsLinearSolver &ls_spec);
 
-   void Init(TimeDependentOperator &f_);
+   /** @brief ARKode supports two modes, specified by itask:
+       ARK_NORMAL(default) and ARK_ONE_STEP.
 
-   /// Allows changing the operator, starting solution, current time.
-   /// Note that the linear solver set previously remains in effect.
-   void ReInit(TimeDependentOperator &f_, Vector &y_, double &t_);
+       In the ARK_NORMAL mode, the solver steps until it reaches or passes
+       tout = t + dt, where t and dt are specified in Step(), and then
+       interpolates to obtain y(tout). In the ARK_ONE_STEP mode, it takes one
+       internal step and returns. */
+   void SetStepMode(int itask);
 
-   /// Note that this MUST be called before the first call to Step().
-   void SetSStolerances(realtype reltol, realtype abstol);
-
-   /// Uses ARKODE to integrate over (t, t + dt).
-   /// Calls ARKODE(), which is the main driver of the CVODE package.
-   void Step(Vector &x, double &t, double &dt);
-
-   /// Chooses integration order for all explicit / implicit / IMEX methods.
-   /// The default is 4, and the allowed ranges are:
-   /// [2, 8] for explicit; [2, 5] for implicit; [3, 5] for IMEX.
+   /** Chooses integration order for all explicit / implicit / IMEX methods.
+       The default is 4, and the allowed ranges are:
+       [2, 8] for explicit; [2, 5] for implicit; [3, 5] for IMEX. */
    void SetOrder(int order);
 
-   /// Chooses a specific Butcher table for an explicit or implicit RK method.
-   /// See the documentation for all possible options, stability regions, etc.
-   /// For example, table_num = ARK548L2SA_DIRK_8_4_5 is 8-stage 5th order.
-   void SetERKTableNum(int table_num);
+   /** Chooses a specific Butcher table for an explicit or implicit RK method.
+       See the documentation for all possible options, stability regions, etc.
+       For example, table_num = ARK548L2SA_DIRK_8_4_5 is 8-stage 5th order. */
    void SetIRKTableNum(int table_num);
+   void SetERKTableNum(int table_num);
 
-   /// Specifies to use a fixed time step size instead of performing any form
-   /// of temporal adaptivity.
-   /// Use  of  this  function  is  not  recommended, since may there is no
-   /// assurance  of  the  validity  of  the  computed solutions.
-   /// It is primarily provided for code-to-code verification testing purposes.
+   /** Specifies to use a fixed time step size instead of performing any form
+       of temporal adaptivity. Use  of  this  function  is  not  recommended,
+       since may there is no assurance  of  the  validity  of  the  computed
+       solutions. It is primarily provided for code-to-code verification
+       testing purposes. */
    void SetFixedStep(double dt);
+
+   /// Return the flag returned by the last call to a ARKODE function.
+   int GetFlag() const { return flag; }
+
+   /** Set the ODE right-hand-side operator.
+       The start time of ARKODE is initialized from the current time of @a f_.
+       @note This method calls ARKodeInit(). Some ARKODE parameters can be set
+       (using the handle returned by SundialsMem()) only after this call. */
+   void Init(TimeDependentOperator &f_);
+
+   /** Uses ARKODE to integrate over [t, t + dt], using the specified step mode.
+       Calls ARKode(), which is the main driver of the ARKODE package.
+       @param[in,out] x  Solution vector to advance. On input/output x=x(t)
+                         for t corresponding to the input/output value of t,
+                         respectively.
+       @param[in,out] t  Input: the starting time value. Output: the time value
+                         of the solution output, as returned by CVode().
+       @param[in,out] dt Input: desired time step. Output: the last incremental
+                         time step used. */
+   void Step(Vector &x, double &t, double &dt);
+
+   /// Print ARKODE statistics.
+   void PrintInfo() const;
 
    /// Destroys the associated ARKODE memory.
    ~ARKODESolver();

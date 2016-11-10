@@ -260,7 +260,8 @@ int main(int argc, char *argv[])
    //    singly diagonal implicit Runge-Kutta (SDIRK) methods, as well as
    //    explicit Runge-Kutta methods are available.
    ODESolver *ode_solver;
-   CVODESolver *cvode;
+   CVODESolver *cvode = NULL;
+   ARKODESolver *arkode = NULL;
    SundialsJacSolver *sjsolver = NULL;
    switch (ode_solver_type)
    {
@@ -270,26 +271,35 @@ int main(int argc, char *argv[])
       case 3:  ode_solver = new SDIRK33Solver; break;
       case 4:
       {
-         cvode = new CVODESolver(CV_BDF, CV_NEWTON);
+         ode_solver = cvode = new CVODESolver(CV_BDF, CV_NEWTON);
          cvode->SetSStolerances(1.0, 1.0);
          CVodeSetMaxStep(cvode->SundialsMem(), dt);
-         ode_solver = cvode;
          break;
       }
       case 5:
       {
-         cvode = new CVODESolver(CV_BDF, CV_NEWTON);
+         ode_solver = cvode = new CVODESolver(CV_BDF, CV_NEWTON);
          cvode->SetSStolerances(1.0e-2, 1.0e-2);
          CVodeSetMaxStep(cvode->SundialsMem(), dt);
-         ode_solver = cvode;
          sjsolver = new SundialsJacSolver(SundialsJacSolver::CVODE);
          cvode->SetLinearSolve(*sjsolver);
          break;
       }
-      // SUNDIALS time integrators can be initialized only after the
-      // initial condition is known.
       case 6:
-      case 7: break;
+      {
+         ode_solver = arkode = new ARKODESolver(true);
+         arkode->SetSStolerances(1.0e-2, 1.0e-2);
+         break;
+      }
+      case 7:
+      {
+         ode_solver = arkode = new ARKODESolver(true);
+         arkode->SetSStolerances(1.0e-2, 1.0e-2);
+         // Custom Jacobian inversion.
+         sjsolver = new SundialsJacSolver(SundialsJacSolver::ARKODE);
+         arkode->SetLinearSolve(*sjsolver);
+         break;
+      }
       // Explicit methods
       case 11: ode_solver = new ForwardEulerSolver; break;
       case 12: ode_solver = new RK2Solver(0.5); break; // midpoint method
@@ -297,15 +307,17 @@ int main(int argc, char *argv[])
       case 14: ode_solver = new RK4Solver; break;
       case 15:
       {
-         cvode = new CVODESolver(CV_ADAMS, CV_FUNCTIONAL);
-         cvode->SetSStolerances(1.0, 1.0);
+         ode_solver = cvode = new CVODESolver(CV_ADAMS, CV_FUNCTIONAL);
+         cvode->SetSStolerances(1.0e-2, 1.0e-2);
          CVodeSetMaxStep(cvode->SundialsMem(), dt);
-         ode_solver = cvode;
          break;
       }
-      // SUNDIALS time integrators can be initialized only after the
-      // initial condition is known.
-      case 16: break;
+      case 16:
+      {
+         ode_solver = arkode = new ARKODESolver(false);
+         arkode->SetSStolerances(1.0e-2, .01e-2);
+         break;
+      }
       // Implicit A-stable methods (not L-stable)
       case 22: ode_solver = new ImplicitMidpointSolver; break;
       case 23: ode_solver = new SDIRK23Solver; break;
@@ -366,7 +378,7 @@ int main(int argc, char *argv[])
    //    the initial energies.
    HyperelasticOperator oper(fespace, ess_bdr, visc, mu, K, use_kinsol);
 
-   if (ode_solver_type == 5)
+   if (ode_solver_type == 5 || ode_solver_type == 7)
    {
       oper.InitSundialsSpecification(*sjsolver);
    }
@@ -394,24 +406,6 @@ int main(int argc, char *argv[])
    cout << "initial kinetic energy (KE) = " << ke0 << endl;
    cout << "initial   total energy (TE) = " << (ee0 + ke0) << endl;
 
-   // Initialization of SUNDIALS time integrators.
-   ARKODESolver *arkode_solver;
-   switch (ode_solver_type)
-   {
-      case 6:
-         ode_solver = new ARKODESolver(vx, false, false); break;
-      case 7:
-         ode_solver = arkode_solver = new ARKODESolver(vx, false, false);
-         arkode_solver->SetSStolerances(1.0e-2, 1.0e-2);
-         // Custom Jacobian inversion.
-         sjsolver = new SundialsJacSolver(SundialsJacSolver::ARKODE);
-         arkode_solver->SetLinearSolve(*sjsolver);
-         oper.InitSundialsSpecification(*sjsolver);
-         break;
-      case 16:
-         ode_solver = new ARKODESolver(vx, false, true); break;
-   }
-
    double t = 0.0;
    oper.SetTime(t);
    ode_solver->Init(oper);
@@ -435,6 +429,7 @@ int main(int argc, char *argv[])
               << ke << ", ΔTE = " << (ee+ke)-(ee0+ke0) << endl;
 
          if (cvode) { cvode->PrintInfo(); }
+         else if (arkode) { arkode->PrintInfo(); }
 
          if (visualization)
          {

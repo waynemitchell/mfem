@@ -273,7 +273,8 @@ int main(int argc, char *argv[])
    //    singly diagonal implicit Runge-Kutta (SDIRK) methods, as well as
    //    explicit Runge-Kutta methods are available.
    ODESolver *ode_solver;
-   CVODESolver *cvode;
+   CVODESolver *cvode = NULL;
+   ARKODESolver *arkode = NULL;
    SundialsJacSolver *sjsolver = NULL;
    switch (ode_solver_type)
    {
@@ -292,10 +293,21 @@ int main(int argc, char *argv[])
          cvode->SetLinearSolve(*sjsolver);
          break;
       }
-      // SUNDIALS time integrators can be initialized only after the
-      // initial condition is known.
       case 6:
-      case 7: break;
+      {
+         ode_solver = arkode = new ARKODESolver(MPI_COMM_WORLD, true);
+         arkode->SetSStolerances(1.0e-2, 1.0e-2);
+         break;
+      }
+      case 7:
+      {
+         ode_solver = arkode = new ARKODESolver(MPI_COMM_WORLD, true);
+         arkode->SetSStolerances(1.0e-2, 1.0e-2);
+         // Custom Jacobian inversion.
+         sjsolver = new SundialsJacSolver(SundialsJacSolver::ARKODE);
+         arkode->SetLinearSolve(*sjsolver);
+         break;
+      }
       // Explicit methods
       case 11: ode_solver = new ForwardEulerSolver; break;
       case 12: ode_solver = new RK2Solver(0.5); break; // midpoint method
@@ -304,14 +316,17 @@ int main(int argc, char *argv[])
       case 15:
       {
          cvode = new CVODESolver(MPI_COMM_WORLD, CV_ADAMS, CV_FUNCTIONAL);
-         cvode->SetSStolerances(1.0, 1.0);
+         cvode->SetSStolerances(1.0e-2, 1.0e-2);
          CVodeSetMaxStep(cvode->SundialsMem(), dt);
          ode_solver = cvode;
          break;
       }
-      // SUNDIALS time integrators can be initialized only after the
-      // initial condition is known.
-      case 16: break;
+      case 16:
+      {
+         ode_solver = arkode = new ARKODESolver(MPI_COMM_WORLD, false);
+         arkode->SetSStolerances(1.0e-2, 1.0e-2);
+         break;
+      }
       // Implicit A-stable methods (not L-stable)
       case 22: ode_solver = new ImplicitMidpointSolver; break;
       case 23: ode_solver = new SDIRK23Solver; break;
@@ -391,7 +406,7 @@ int main(int argc, char *argv[])
    //    the initial energies.
    HyperelasticOperator oper(fespace, ess_bdr, visc, mu, K, use_kinsol);
 
-   if (ode_solver_type == 5)
+   if (ode_solver_type == 5 || ode_solver_type == 7)
    {
       oper.InitSundialsSpecification(*sjsolver);
    }
@@ -425,50 +440,9 @@ int main(int argc, char *argv[])
       cout << "initial   total energy (TE) = " << (ee0 + ke0) << endl;
    }
 
-   // Initialization of SUNDIALS time integrators.
-   // SUNDIALS needs the Vector's partitioning to setup its parallel structures.
-   // This is not available in BlockVector, so here we create an auxiliary
-   // HypreParVector that corresponds to vx.
-   int part_size = (HYPRE_AssumedPartitionCheck()) ? 2 : num_procs + 1;
-   HYPRE_Int *par1 = v_gf.GetTrueDofs()->Partitioning();
-   HYPRE_Int *par2 = x_gf.GetTrueDofs()->Partitioning();
-   HYPRE_Int *par3 = new HYPRE_Int[part_size+1];
-   for (int i = 0; i < part_size; i++)
-   {
-      par3[i] = par1[i] + par2[i];
-   }
-   int gsize = x_gf.GetTrueDofs()->GlobalSize() +
-               v_gf.GetTrueDofs()->GlobalSize();
-   HypreParVector *vx_hyp = new HypreParVector(pmesh->GetComm(),
-                                               gsize, vx.GetData(), par3);
-   ARKODESolver *arkode_solver;
-   switch (ode_solver_type)
-   {
-      case 6:
-         ode_solver = new ARKODESolver(*vx_hyp, true, false); break;
-      case 7:
-         ode_solver = arkode_solver = new ARKODESolver(*vx_hyp, true, false);
-         arkode_solver->SetSStolerances(1.0e-2, 1.0e-2);
-         // Custom Jacobian inversion.
-         sjsolver = new SundialsJacSolver(SundialsJacSolver::ARKODE);
-         arkode_solver->SetLinearSolve(*sjsolver);
-         oper.InitSundialsSpecification(*sjsolver);
-         break;
-      case 16:
-         ode_solver = new ARKODESolver(*vx_hyp, true); break;
-   }
-
    double t = 0.0;
    oper.SetTime(t);
    ode_solver->Init(oper);
-
-   switch (ode_solver_type)
-   {
-      case 5:
-         // Custom Jacobian inversion.
-         //cvode->SetLinearSolve(oper.backward_euler_oper);
-         break;
-   }
 
    // 10. Perform time-integration
    //     (looping over the time iterations, ti, with a time-step dt).
@@ -476,7 +450,7 @@ int main(int argc, char *argv[])
    for (int ti = 1; !last_step; ti++)
    {
       double dt_real = min(dt, t_final - t);
-      ode_solver->Step(*vx_hyp, t, dt_real);
+      ode_solver->Step(vx, t, dt_real);
 
       last_step = (t >= t_final - 1e-8*dt);
 
@@ -494,6 +468,7 @@ int main(int argc, char *argv[])
                  << ", KE = " << ke << ", ΔTE = " << (ee+ke)-(ee0+ke0) << endl;
 
             if (cvode) { cvode->PrintInfo(); }
+            else if (arkode) { arkode->PrintInfo(); }
          }
 
          if (visualization)
@@ -535,8 +510,6 @@ int main(int argc, char *argv[])
    // 12. Free the used memory.
    delete ode_solver;
    delete sjsolver;
-   delete vx_hyp;
-   delete [] par3;
    delete pmesh;
 
    MPI_Finalize();
@@ -599,43 +572,6 @@ void BackwardEulerOperator::Mult(const Vector &k, Vector &y) const
    M->TrueAddMult(k, y);
    S->TrueAddMult(w, y);
 }
-
-//void BackwardEulerOperator::SolveJacobian(Vector* b, Vector* y, double dt)
-//{
-//   int sc = b->Size()/2;
-//   Vector x(y->GetData() + sc, sc);
-//   Vector b_v(b->GetData() +  0, sc);
-//   Vector b_x(b->GetData() + sc, sc);
-//   Vector sltn(2 * sc);
-//   Vector v_hat(sltn.GetData() +  0, sc);
-//   Vector x_hat(sltn.GetData() + sc, sc);
-//   Vector rhs(sc);
-
-//   delete Jacobian;
-//   SparseMatrix *localJ = Add(1.0, M->SpMat(), dt, S->SpMat());
-//   localJ->Add(dt*dt, H->GetLocalGradient(x));
-//   Jacobian = M->ParallelAssemble(localJ);
-//   delete localJ;
-
-//   H->GetGradient(x).Mult(b_x, rhs);
-//   rhs *= -dt;
-//   M->TrueAddMult(b_v, rhs);
-
-//   HypreSmoother J_hypreSmoother;
-//   J_hypreSmoother.SetType(HypreSmoother::l1Jacobi);
-//   MINRESSolver J_minres(M->ParFESpace()->GetComm());
-//   J_minres.SetRelTol(1e-8);
-//   J_minres.SetAbsTol(0.0);
-//   J_minres.SetMaxIter(300);
-//   J_minres.SetPrintLevel(-1);
-//   J_minres.SetPreconditioner(J_hypreSmoother);
-//   J_minres.SetOperator(*Jacobian);
-//   J_minres.iterative_mode = false;
-
-//   J_minres.Mult(rhs, v_hat);
-//   add(b_x, dt, v_hat, x_hat);
-//   *b = sltn;
-//}
 
 Operator &BackwardEulerOperator::GetGradient(const Vector &k) const
 {
