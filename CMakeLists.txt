@@ -164,8 +164,8 @@ if (NOT DEFINED MFEM_TIMER_TYPE)
 endif()
 
 # List all posible libraries in order of dependencies.
-set(MFEM_TPLS HYPRE OPENMP MEQUITE SuiteSparse SuperLUDist ParMETIS METIS LAPACK
-    BLAS GECKO GNUTLS NETCDF MPFR POSIXCLOCKS MFEMBacktrace ZLIB)
+set(MFEM_TPLS HYPRE OPENMP MESQUITE SuiteSparse SuperLUDist ParMETIS METIS
+    LAPACK BLAS GECKO GNUTLS NETCDF MPFR POSIXCLOCKS MFEMBacktrace ZLIB)
 # Add all *_FOUND libraries in the variable TPL_LIBRARIES.
 set(TPL_LIBRARIES "")
 foreach(TPL IN LISTS MFEM_TPLS)
@@ -276,8 +276,11 @@ add_custom_command(OUTPUT data_is_copied
   COMMAND ${CMAKE_COMMAND} -E touch data_is_copied
   COMMENT "Copying the data directory ...")
 add_custom_target(copy_data DEPENDS data_is_copied)
-# Add 'copy_data' as a prerequisite for all executables.
-add_dependencies(${MFEM_EXEC_PREREQUISITES_TARGET_NAME} copy_data)
+# Add 'copy_data' as a prerequisite for all executables, if the source and the
+# build directories are not the same.
+if (NOT ("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}"))
+  add_dependencies(${MFEM_EXEC_PREREQUISITES_TARGET_NAME} copy_data)
+endif()
 
 # Add 'check' target - quick test
 if (NOT MFEM_USE_MPI)

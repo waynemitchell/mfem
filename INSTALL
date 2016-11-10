@@ -18,11 +18,12 @@ requires an MPI C++ compiler, as well as the following external libraries:
 - METIS (a family of multilevel partitioning algorithms)
   http://glaros.dtc.umn.edu/gkhome/metis/metis/overview
 
-The build system is based on GNU make, as described below.
+The library supports two build systems: one based on GNU make, and second one
+based on CMake. They are both described below.
 
 
-Quick start
-===========
+Quick start with GNU make
+=========================
 Serial build:
    make serial -j 4
 
@@ -38,6 +39,34 @@ Example codes (serial/parallel, depending on the build):
 
 Build everything (library, examples and miniapps) with current configuration:
    make all -j 4
+
+Quick-check the build by running Example 1/1p (optional):
+   make check
+
+
+Quick start with CMake
+======================
+Serial build:
+   mkdir <mfem-build-dir> ; cd <mfem-build-dir>
+   cmake <mfem-source-dir>
+   make -j 4   (assuming "Unix Makefiles" generator)
+
+Parallel build:
+   (download hypre 2.10.0b and METIS 4 from above URLs)
+   (build METIS 4 in <metis-dir>)
+   (build hypre 2.10.0b in <hypre-dir>, result is in <hypre-dir>/src/hypre)
+   mkdir <mfem-build-dir> ; cd <mfem-build-dir>
+   cmake <mfem-source-dir> \
+      -DMFEM_USE_MPI=YES \
+      -DHYPRE_DIR=<hypre-dir>/src/hypre \
+      -DMETIS_DIR=<metis-dir>
+   make -j 4
+
+Example codes (serial/parallel, depending on the build):
+   make examples -j 4
+
+Build everything (library, examples and miniapps) with current configuration:
+   make exec -j 4
 
 Quick-check the build by running Example 1/1p (optional):
    make check
@@ -63,7 +92,7 @@ specified with an input file:
 Note that config/user.mk, if present, is loaded after config/defaults.mk and
 its path/name can be changed with
 
-   make config USER_CONFIG=user_config_file
+   make config USER_CONFIG=<user_config_file>
 
 Once configured, the library can be built simply with
 
@@ -128,8 +157,8 @@ obtain information about the MFEM configuration, see e.g. the makefile in the
 examples/ directory.
 
 
-Configuration options
-=====================
+Configuration options (GNU make)
+================================
 Compilers:
    CXX    - C++ compiler, serial build
    MPICXX - MPI C++ compiler, parallel build
@@ -146,8 +175,8 @@ Installation options:
              the configuration makefile (config.mk) in $(PREFIX).
    INSTALL - Specify the install program, e.g /usr/bin/install
 
-MFEM library features/options
------------------------------
+MFEM library features/options (GNU make)
+----------------------------------------
 MFEM_USE_MPI = YES/NO
    Choose parallel/serial build. The parallel build requires proper setup of the
    HYPRE_* and METIS_* library options, see below.
@@ -248,8 +277,8 @@ MFEM_BUILD_TAG = (any value)
 VERBOSE = YES/NO
    Print some informational messages when building.
 
-External libraries:
--------------------
+External libraries (GNU make):
+------------------------------
 Two types of library configuration options are used:
    <LIBNAME>_OPT - for compiler options which usually specify an include path,
                    e.g.: -I/home/user/hypre/include
@@ -322,8 +351,145 @@ The specific libraries and their options are:
   Options: LIBUNWIND_OPT, LIBUNWIND_LIB.
 
 
-Building without GNU make
-=========================
+Building with CMake
+===================
+The MFEM build system consists of two steps: configuration and compilation.
+
+The configuration step can be used to adjust paths to external libraries,
+compilers, flags, etc, similar to any CMake build system. It is performed by
+running
+
+   mkdir <mfem-build-dir> ; cd <mfem-build-dir>
+   cmake <mfem-source-dir> [OPTIONS] ...
+
+The OPTIONS are of the form -D<VARIABLE>=<VALUE>, e.g. -DMFEM_USE_MPI=YES.
+Detailed description of the configuration options is given below. Alternatively,
+the options can be specified with an input file:
+
+   cd <mfem-source-dir>/config
+   cp defaults.cmake user.cmake
+   (edit user.cmake)
+   cd <mfem-build-dir>
+   cmake <mfem-source-dir>
+
+Note that user.cmake, if present, is loaded before defaults.cmake (and thus the
+former takes precedence over the latter) and its path/name can be changed with
+
+   cmake <mfem-source-dir> -DUSER_CONFIG=<user_config_file>
+
+Note that debug and optimization options are controlled through the CMake
+variable CMAKE_BUILD_TYPE which can be set to standard values like "Debug",
+and "Release" (default).
+
+Once configured, the library can be built simply with (assuming a unix type
+system, where the default is to generate "Unix Makefiles")
+
+   make -j 4
+
+The build can be quick-tested by running
+
+   make check
+
+which will simply compile and run Example 1/1p. For more extensive tests that
+check the results from all the serial/parallel MFEM examples and miniapps use:
+
+   make test
+
+Note that running all the tests may take a while.
+
+Installation prefix can be configured by setting the standard CMake variable
+CMAKE_INSTALL_PREFIX. To install the library, use
+
+   make install
+
+The library will be installed in <PREFIX>/lib, the headers in <PREFIX>/include,
+and the configuration CMake files in <PREFIX>/lib/cmake/mfem.
+
+
+Configuration variables (CMake)
+===============================
+Non-standard CMake variables for compilers:
+   CXX    - If set, overwrite the auto-detected C++ compiler, serial build
+   MPICXX - If set, overwrite the auto-detected MPI C++ compiler, parallel build
+
+The compiler options for the various build types can be controlled using
+standard CMake variables like CMAKE_CXX_FLAGS_RELEASE and CMAKE_CXX_FLAGS_DEBUG.
+
+MFEM library features/options (CMake)
+-------------------------------------
+The following options are equivalent to the GNU make options with the same name:
+[see "MFEM library features/options (GNU make)" above]
+
+MFEM_USE_MPI
+MFEM_USE_LIBUNWIND
+MFEM_USE_LAPACK
+MFEM_THREAD_SAFE
+MFEM_USE_OPENMP
+MFEM_USE_MEMALLOC
+MFEM_TIMER_TYPE - Set automatically, can be overwritten.
+MFEM_USE_MESQUITE
+MFEM_USE_SUITESPARSE
+MFEM_USE_SUPERLU
+MFEM_USE_GNUTLS
+MFEM_USE_NETCDF
+MFEM_USE_MPFR
+MFEM_USE_GZSTREAM
+
+The following options are CMake specific:
+
+MFEM_ENABLE_TESTING  - Enable the ctest framework for testing.
+MFEM_ENABLE_EXAMPLES - Build all of the examples by default.
+MFEM_ENABLE_MINIAPPS - Build all of the miniapps by default.
+
+External libraries (CMake):
+---------------------------
+For details about the external libraries, see the "External libraries (GNU
+make)" section above.
+
+The MFEM CMake build system provides auto-detection for some packages/libraries,
+as listed below. The following configuration options are used/defined:
+   <LIBNAME>_DIR
+      Directory to search for <LIBNAME> first. The exact subdirectories
+      searched, for headers and libraries, are chosen based on <LIBNAME>. If the
+      library is not found in this location, then standard locations are
+      searched.
+   <LIBNAME>_REQUIRED_PACKAGES
+      Specifies a list of package names that have to be explicitly added when
+      linking with <LIBNAME> in addition to its main library, e.g. ParMETIS
+      requires METIS, so we set ParMETIS_REQUIRED_PACKAGES to "METIS", see
+      defaults.cmake.
+   <LIBNAME>_INCLUDE_DIRS
+      Location of the <LIBNAME> headers. Set by auto-detection, if successful.
+      Can be set explicitly, e.g. if auto-detection fails.
+   <LIBNAME>_LIBRARIES
+      List of the <LIBNAME> library files/names/link-options. Set by
+      auto-detection, if successful. Can be set explicitly, e.g. if
+      auto-detection fails.
+
+The CMake build system adds auto-detection for the following packages/libraries:
+
+ - HYPRE
+ - METIS - The option MFEM_USE_METIS_5 is auto-detected.
+ - MESQUITE
+ - SuiteSparse
+ - SuperLUDist
+ - ParMETIS
+ - GNUTLS - Extends the built-in CMake support, to search GNUTLS_DIR as well.
+ - NETCDF
+ - MPFR
+ - LIBUNWIND
+ - POSIXCLOCKS
+
+The following built-in CMake packages are also used:
+
+ - MPI, OpenMP, ZLIB
+ - LAPACK, BLAS - Both are enabled via MFEM_USE_LAPACK. If auto-detection fails,
+      set the <LIBNAME>_LIBRARIES option directly; the configuration option
+      <LIBNAME>_DIR is not supported.
+
+
+Building without GNU make or CMake
+==================================
 Before using another build system (e.g. Visual Studio) it is necessary to create
 a proper configuration header file, config/config.hpp, using the template from
 config/config.hpp.in:
