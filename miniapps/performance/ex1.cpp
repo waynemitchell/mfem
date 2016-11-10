@@ -2,26 +2,17 @@
 //
 // Compile with: make ex1
 //
-// Sample runs:  ex1 -perf -m ../../data/fichera.mesh
-//               ex1 -perf -m ../../data/amr-hex.mesh -sc
-//               ex1 -perf -m ../../data/ball-nurbs.mesh -sc
-//               ex1 -perf -m ../../data/pipe-nurbs.mesh
-//               ex1 -std -m ../../data/square-disc.mesh
-//               ex1 -std -m ../../data/star.mesh
-//               ex1 -std -m ../../data/escher.mesh
-//               ex1 -std -m ../../data/square-disc-p2.vtk -o 2
-//               ex1 -std -m ../../data/square-disc-p3.mesh -o 3
-//               ex1 -std -m ../../data/square-disc-nurbs.mesh -o -1
-//               ex1 -std -m ../../data/disc-nurbs.mesh -o -1
-//               ex1 -std -m ../../data/pipe-nurbs.mesh -o -1
-//               ex1 -std -m ../../data/star-surf.mesh
-//               ex1 -std -m ../../data/square-disc-surf.mesh
-//               ex1 -std -m ../../data/inline-segment.mesh
-//               ex1 -std -m ../../data/amr-quad.mesh
-//               ex1 -std -m ../../data/amr-hex.mesh
-//               ex1 -std -m ../../data/fichera-amr.mesh
-//               ex1 -std -m ../../data/mobius-strip.mesh
-//               ex1 -std -m ../../data/mobius-strip.mesh -o -1 -sc
+// Sample runs:  ex1 -m ../../data/fichera.mesh -perf
+//               ex1 -m ../../data/fichera.mesh -perf -asm
+//               ex1 -m ../../data/fichera.mesh -perf -asm -sc
+//               ex1 -m ../../data/fichera.mesh -std
+//               ex1 -m ../../data/fichera.mesh -std -sc
+//               ex1 -m ../../data/amr-hex.mesh -perf -asm -sc
+//               ex1 -m ../../data/amr-hex.mesh -std -sc
+//               ex1 -m ../../data/ball-nurbs.mesh -perf -asm -sc
+//               ex1 -m ../../data/ball-nurbs.mesh -std -sc
+//               ex1 -m ../../data/pipe-nurbs.mesh -perf
+//               ex1 -m ../../data/pipe-nurbs.mesh -std
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               simple finite element discretization of the Laplace problem

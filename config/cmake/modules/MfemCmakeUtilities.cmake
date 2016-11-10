@@ -1,3 +1,14 @@
+# Copyright (c) 2010, Lawrence Livermore National Security, LLC. Produced at the
+# Lawrence Livermore National Laboratory. LLNL-CODE-443211. All Rights reserved.
+# See file COPYRIGHT for details.
+#
+# This file is part of the MFEM library. For more information and source code
+# availability see http://mfem.org.
+#
+# MFEM is free software; you can redistribute it and/or modify it under the
+# terms of the GNU Lesser General Public License (as published by the Free
+# Software Foundation) version 2.1 dated February 1999.
+
 # A handy function to add the current source directory to a local
 # filename. To be used for creating a list of sources.
 function(convert_filenames_to_full_paths NAMES)
@@ -8,12 +19,27 @@ function(convert_filenames_to_full_paths NAMES)
   set(${NAMES} ${tmp_names} PARENT_SCOPE)
 endfunction()
 
+# Simple shortcut to add_custom_target() with option to add the target to the
+# main target.
+function(add_mfem_target TARGET_NAME ADD_TO_ALL)
+  if (ADD_TO_ALL)
+    # add TARGET_NAME to the main target
+    add_custom_target(${TARGET_NAME} ALL)
+  else()
+    # do not add TARGET_NAME to the main target
+    add_custom_target(${TARGET_NAME})
+  endif()
+endfunction()
+
+# Add mfem examples
 function(add_mfem_examples EXE_SRCS)
   foreach(SRC_FILE IN LISTS ${EXE_SRCS})
     get_filename_component(SRC_FILENAME ${SRC_FILE} NAME)
 
     string(REPLACE ".cpp" "" EXE_NAME ${SRC_FILENAME})
     add_executable(${EXE_NAME} ${SRC_FILE})
+    add_dependencies(${MFEM_ALL_EXAMPLES_TARGET_NAME} ${EXE_NAME})
+    add_dependencies(${EXE_NAME} ${MFEM_EXEC_PREREQUISITES_TARGET_NAME})
 
     target_link_libraries(${EXE_NAME} mfem)
     if (MFEM_USE_MPI)
@@ -35,8 +61,8 @@ function(add_mfem_examples EXE_SRCS)
   endforeach(SRC_FILE)
 endfunction()
 
-# A slightly more versitile function for adding executables to MFEM
-function(add_mfem_executable MFEM_EXE_NAME)
+# A slightly more versitile function for adding miniapps to MFEM
+function(add_mfem_miniapp MFEM_EXE_NAME)
   # Parse the input arguments looking for the things we need
   set(POSSIBLE_ARGS "MAIN" "EXTRA_SOURCES" "EXTRA_HEADERS" "EXTRA_OPTIONS" "EXTRA_DEFINES" "LIBRARIES")
   set(CURRENT_ARG)
@@ -50,9 +76,11 @@ function(add_mfem_executable MFEM_EXE_NAME)
     endif()
   endforeach()
 
-  # Actually add the test
+  # Actually add the executable
   add_executable(${MFEM_EXE_NAME} ${MAIN_LIST}
     ${EXTRA_SOURCES_LIST} ${EXTRA_HEADERS_LIST})
+  add_dependencies(${MFEM_ALL_MINIAPPS_TARGET_NAME} ${MFEM_EXE_NAME})
+  add_dependencies(${MFEM_EXE_NAME} ${MFEM_EXEC_PREREQUISITES_TARGET_NAME})
 
   # Append the additional libraries and options
   if (LIBRARIES_LIST)

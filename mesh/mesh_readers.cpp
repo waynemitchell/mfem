@@ -9,7 +9,7 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#include "mesh.hpp"
+#include "mesh_headers.hpp"
 #include "../fem/fem.hpp"
 
 #include <iostream>
@@ -60,7 +60,7 @@ void Mesh::ReadMFEMMesh(std::istream &input, bool mfem_v11, int &curved)
    skip_comment_lines(input, '#');
    input >> ident;
 
-   if (ident == "vertex_parents" && mfem_v11)
+   if (mfem_v11 && ident == "vertex_parents")
    {
       ncmesh = new NCMesh(this, &input);
       // NOTE: the constructor above will call LoadVertexParents
@@ -1262,7 +1262,7 @@ void Mesh::ReadGmshMesh(std::istream &input)
 
 
 #ifdef MFEM_USE_NETCDF
-void Mesh::ReadCubit(named_ifstream &input, int &curved, int &read_gf)
+void Mesh::ReadCubit(const char *filename, int &curved, int &read_gf)
 {
    read_gf = 0;
 
@@ -1330,7 +1330,6 @@ void Mesh::ReadCubit(named_ifstream &input, int &curved, int &read_gf)
 
    // open the file.
    int ncid;
-   const char* filename = input.filename;
    if ((retval = nc_open(filename, NC_NOWRITE, &ncid)))
    {
       MFEM_ABORT("Fatal NetCDF error: " << nc_strerror(retval));

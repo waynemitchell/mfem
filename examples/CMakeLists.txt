@@ -1,3 +1,14 @@
+# Copyright (c) 2010, Lawrence Livermore National Security, LLC. Produced at the
+# Lawrence Livermore National Laboratory. LLNL-CODE-443211. All Rights reserved.
+# See file COPYRIGHT for details.
+#
+# This file is part of the MFEM library. For more information and source code
+# availability see http://mfem.org.
+#
+# MFEM is free software; you can redistribute it and/or modify it under the
+# terms of the GNU Lesser General Public License (as published by the Free
+# Software Foundation) version 2.1 dated February 1999.
+
 list(APPEND ALL_EXE_SRCS
   ex1.cpp
   ex2.cpp
@@ -55,14 +66,12 @@ foreach(SRC_FILE ${ALL_EXE_SRCS})
 
   if (is_parallel_test EQUAL -1)
     add_test(NAME ${TEST_NAME}_ser
-      COMMAND ${TEST_NAME} ${THIS_TEST_OPTIONS}
-      WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
+      COMMAND ${TEST_NAME} ${THIS_TEST_OPTIONS})
   else()
     add_test(NAME ${TEST_NAME}_np=4
       COMMAND ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 4
       ${MPIEXEC_PREFLAGS}
       $<TARGET_FILE:${TEST_NAME}> ${THIS_TEST_OPTIONS}
-      ${MPIEXEC_POSTFLAGS}
-      WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
+      ${MPIEXEC_POSTFLAGS})
   endif()
 endforeach()

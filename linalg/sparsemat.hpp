@@ -111,7 +111,7 @@ public:
    void Clear() { Destroy(); SetEmpty(); }
 
    /// Check if the SparseMatrix is empty.
-   bool Empty() { return (A == NULL) && (Rows == NULL); }
+   bool Empty() const { return (A == NULL) && (Rows == NULL); }
 
    /// Return the array I
    inline int *GetI() const { return I; }
@@ -348,6 +348,9 @@ public:
    /// Prints a sparse matrix to stream out in CSR format.
    void PrintCSR2(std::ostream &out) const;
 
+   /// Print various sparse matrix staticstics.
+   void PrintInfo(std::ostream &out) const;
+
    /// Walks the sparse matrix
    int Walk(int &i, int &j, double &a);
 
@@ -362,8 +365,11 @@ public:
 
    double MaxNorm() const;
 
-   /// Count the number of entries with |a_ij| < tol
+   /// Count the number of entries with |a_ij| <= tol.
    int CountSmallElems(double tol) const;
+
+   /// Count the number of entries that are NOT finite, i.e. Inf or Nan.
+   int CheckFinite() const;
 
    /// Set the graph ownership flag (I and J arrays).
    void SetGraphOwner(bool ownij) { ownGraph = ownij; }
