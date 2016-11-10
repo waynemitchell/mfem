@@ -465,6 +465,31 @@ public:
    operator SNES() const { return (SNES)obj; }
 };
 
+/// Abstract class for PETSC's ODE solvers
+class PetscODESolver : public PetscSolver
+{
+public:
+   PetscODESolver(MPI_Comm comm, std::string prefix = std::string());
+
+   PetscODESolver(MPI_Comm comm, Operator &op, std::string prefix = std::string());
+
+   /// virtual methods for base classes
+   virtual void SetOperator(const Operator &op);
+   virtual ~PetscODESolver();
+
+   /// Typecasting to PETSc's TS
+   operator TS() const { return (TS)obj; }
+
+   /// For compatibility with the ODESolver class
+   void Init(TimeDependentOperator &_f)
+   {
+      SetOperator(_f);
+   }
+
+   /// For compatibility with the ODESolver class
+   void Step(Vector &x, double &t, double &dt);
+};
+
 /// Abstract class for monitoring PETSc's solvers
 class PetscSolverMonitorCtx
 {

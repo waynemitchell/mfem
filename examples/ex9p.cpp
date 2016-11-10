@@ -14,6 +14,7 @@
 //    mpirun -np 4 ex9p -m ../data/disc-nurbs.mesh -p 2 -rp 1 -dt 0.005 -tf 9
 //    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 3 -rp 2 -dt 0.0025 -tf 9 -vs 20
 //    mpirun -np 4 ex9p -m ../data/periodic-cube.mesh -p 0 -o 2 -rp 1 -dt 0.01 -tf 8
+//    mpirun -np 4 ex9p -m ../data/periodic-cube.mesh --usepetsc --petscopts .petsc_rc_ex9p
 //
 // Description:  This example code solves the time-dependent advection equation
 //               du/dt + v.grad(u) = 0, where v is a given fluid velocity, and
@@ -26,6 +27,8 @@
 //               for persistent visualization of a time-evolving solution. The
 //               saving of time-dependent data files for external visualization
 //               with VisIt (visit.llnl.gov) is also illustrated.
+//               When using PETSc ODE solvers, the default solver with .petsc_rc_ex9p is
+//               RK4. Other solvers can be choosen via options.
 
 #include "mfem.hpp"
 #include <fstream>
@@ -95,6 +98,10 @@ int main(int argc, char *argv[])
    bool visualization = true;
    bool visit = false;
    int vis_steps = 5;
+   bool use_petsc = false;
+#ifdef MFEM_USE_PETSC
+   const char *petscrc_file = "";
+#endif
 
    int precision = 8;
    cout.precision(precision);
@@ -125,6 +132,13 @@ int main(int argc, char *argv[])
                   "Save data files for VisIt (visit.llnl.gov) visualization.");
    args.AddOption(&vis_steps, "-vs", "--visualization-steps",
                   "Visualize every n-th timestep.");
+#ifdef MFEM_USE_PETSC
+   args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "no-petsc",
+                  "--no-petsc",
+                  "Use or not PETSc to solve the linear system.");
+   args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
+                  "PetscOptions file to use.");
+#endif
    args.Parse();
    if (!args.Good())
    {
@@ -139,6 +153,10 @@ int main(int argc, char *argv[])
    {
       args.PrintOptions(cout);
    }
+   // 2b. We initialize PETSc
+#ifdef MFEM_USE_PETSC
+   if (use_petsc) { PetscInitialize(NULL,NULL,petscrc_file,NULL); }
+#endif
 
    // 3. Read the serial mesh from the given mesh file on all processors. We can
    //    handle geometrically periodic meshes in this code.
@@ -148,20 +166,30 @@ int main(int argc, char *argv[])
    // 4. Define the ODE solver used for time integration. Several explicit
    //    Runge-Kutta methods are available.
    ODESolver *ode_solver = NULL;
-   switch (ode_solver_type)
+#ifdef MFEM_USE_PETSC
+   PetscODESolver *pode_solver = NULL;
+#endif
+   if (!use_petsc)
    {
-      case 1: ode_solver = new ForwardEulerSolver; break;
-      case 2: ode_solver = new RK2Solver(1.0); break;
-      case 3: ode_solver = new RK3SSPSolver; break;
-      case 4: ode_solver = new RK4Solver; break;
-      case 6: ode_solver = new RK6Solver; break;
-      default:
-         if (myid == 0)
-         {
-            cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
-         }
-         MPI_Finalize();
-         return 3;
+      switch (ode_solver_type)
+      {
+         case 1: ode_solver = new ForwardEulerSolver; break;
+         case 2: ode_solver = new RK2Solver(1.0); break;
+         case 3: ode_solver = new RK3SSPSolver; break;
+         case 4: ode_solver = new RK4Solver; break;
+         case 6: ode_solver = new RK6Solver; break;
+         default:
+            if (myid == 0)
+            {
+               cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
+            }
+            MPI_Finalize();
+            return 3;
+      }
+   }
+   else
+   {
+      pode_solver = new PetscODESolver(MPI_COMM_WORLD);
    }
 
    // 5. Refine the mesh in serial to increase the resolution. In this example
@@ -292,8 +320,16 @@ int main(int argc, char *argv[])
    //     right-hand side, and perform time-integration (looping over the time
    //     iterations, ti, with a time-step dt).
    FE_Evolution adv(*M, *K, *B);
-   ode_solver->Init(adv);
-
+#ifdef MFEM_USE_PETSC
+   if (use_petsc)
+   {
+     pode_solver->Init(adv);
+   }
+   else
+#endif
+   {
+     ode_solver->Init(adv);
+   }
    double t = 0.0;
    for (int ti = 0; true; )
    {
@@ -302,7 +338,16 @@ int main(int argc, char *argv[])
          break;
       }
 
-      ode_solver->Step(*U, t, dt);
+#ifdef MFEM_USE_PETSC
+      if (use_petsc)
+      {
+         pode_solver->Step(*U, t, dt);
+      }
+      else
+#endif
+      {
+         ode_solver->Step(*U, t, dt);
+      }
       ti++;
 
       if (ti % vis_steps == 0)
@@ -354,7 +399,10 @@ int main(int argc, char *argv[])
    delete fes;
    delete pmesh;
    delete ode_solver;
-
+#ifdef MFEM_USE_PETSC
+   delete pode_solver;
+   if (use_petsc) { PetscFinalize(); }
+#endif
    MPI_Finalize();
    return 0;
 }

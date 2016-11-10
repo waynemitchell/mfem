@@ -45,6 +45,7 @@
 
 // prototype for auxiliary functions
 static PetscErrorCode ksp_monitor_mfem(KSP,PetscInt,PetscReal,void*);
+static PetscErrorCode ts_function_apply(TS,PetscReal,Vec,Vec,void*);
 static PetscErrorCode snes_jacobian(SNES,Vec,Mat,Mat,void*);
 static PetscErrorCode snes_function_apply(SNES,Vec,Vec,void*);
 static PetscErrorCode mat_shell_apply(Mat,Vec,Vec);
@@ -971,6 +972,7 @@ PetscSolver::~PetscSolver()
 
 void PetscSolver::Customize() const
 {
+   if (clcustom) return;
    if (cid == KSP_CLASSID)
    {
       KSP ksp = (KSP)obj;
@@ -1016,6 +1018,22 @@ void PetscSolver::Customize() const
       {
          ierr = SNESSetFromOptions(snes);
          PCHKERRQ(snes,ierr);
+         clcustom = true;
+      }
+   }
+   else if (cid == TS_CLASSID)
+   {
+      TS ts = (TS)obj;
+      if (!_prset && _prefix.size())
+      {
+         ierr = TSSetOptionsPrefix(ts,_prefix.c_str());
+         PCHKERRQ(ts,ierr);
+         _prset = true;
+      }
+      if (!clcustom)
+      {
+         ierr = TSSetFromOptions(ts);
+         PCHKERRQ(ts,ierr);
          clcustom = true;
       }
    }
@@ -1946,6 +1964,97 @@ void PetscNonlinearSolver::SetOperator(const Operator &op)
    PCHKERRQ(snes,ierr);
 }
 
+// PetscODESolver methods
+
+PetscODESolver::PetscODESolver(MPI_Comm comm,
+                                           std::string prefix) : PetscSolver()
+{
+   SetPrefix(prefix);
+
+   TS ts;
+   ierr = TSCreate(comm,&ts); CCHKERRQ(comm,ierr);
+   obj  = (PetscObject)ts;
+   ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
+
+   // some defaults, to comply with the current interface to ODESolver
+   ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_STEPOVER);
+   PCHKERRQ(ts,ierr);
+   TSAdapt tsad;
+   ierr = TSGetAdapt(ts,&tsad);
+   PCHKERRQ(ts,ierr);
+   ierr = TSAdaptSetType(tsad,TSADAPTNONE);
+   PCHKERRQ(ts,ierr);
+}
+
+PetscODESolver::PetscODESolver(MPI_Comm comm, Operator &op,
+                                           std::string prefix) : PetscSolver()
+{
+   SetPrefix(prefix);
+
+   TS ts;
+   ierr = TSCreate(comm,&ts); CCHKERRQ(comm,ierr);
+   obj  = (PetscObject)ts;
+   ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
+
+   // some defaults, to comply with the current interface to ODESolver
+   ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_STEPOVER);
+   PCHKERRQ(ts,ierr);
+   TSAdapt tsad;
+   ierr = TSGetAdapt(ts,&tsad);
+   PCHKERRQ(ts,ierr);
+   ierr = TSAdaptSetType(tsad,TSADAPTNONE);
+   PCHKERRQ(ts,ierr);
+
+   SetOperator(op);
+}
+
+PetscODESolver::~PetscODESolver()
+{
+   MPI_Comm comm;
+   TS ts = (TS)obj;
+   ierr = PetscObjectGetComm(obj,&comm); PCHKERRQ(obj,ierr);
+   ierr = TSDestroy(&ts); CCHKERRQ(comm,ierr);
+}
+
+void PetscODESolver::SetOperator(const Operator &op)
+{
+   TimeDependentOperator *td = const_cast<TimeDependentOperator *>
+                               (dynamic_cast<const TimeDependentOperator *>(&op));
+   MFEM_VERIFY(td,"Should be a TimeDependentOperator");
+   height = op.Height();
+   width  = op.Width();
+
+   TS ts = (TS)obj;
+   ierr = TSSetRHSFunction(ts,NULL,ts_function_apply,(void *)&op);
+   PCHKERRQ(ts,ierr);
+}
+
+// This function is for compatibility with the ODESolver class
+// PETSc ODE solvers can be also used with the Mult method to solve
+// for a given time interval
+void PetscODESolver::Step(Vector &x, double &t, double &dt)
+{
+   Customize();
+   if (!X) X = new PetscParVector(PetscObjectComm(obj),*this,false);
+   X->SetData(x.GetData());
+
+   TS ts = (TS)obj;
+   ierr = TSSetSolution(ts,*X);
+   PCHKERRQ(ts,ierr);
+   ierr = TSSetTimeStep(ts,dt);
+   PCHKERRQ(ts,ierr);
+   ierr = TSSetTime(ts,t);
+   PCHKERRQ(ts,ierr);
+   ierr = TSStep(ts);
+   PCHKERRQ(ts,ierr);
+   X->ResetData();
+
+   PetscReal pt;
+   ierr = TSGetTime(ts,&pt);
+   PCHKERRQ(ts,ierr);
+   t = pt;
+}
+
 }  // namespace mfem
 
 // auxiliary functions
@@ -1971,6 +2080,19 @@ static PetscErrorCode ksp_monitor_mfem(KSP ksp, PetscInt it, PetscReal res, void
       mfem::PetscParVector V(x,true);
       monitor_ctx->MonitorResidual(it,res,V);
    }
+   PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "ts_function_apply"
+static PetscErrorCode ts_function_apply(TS ts, PetscReal t, Vec x, Vec f, void *ctx)
+{
+   PetscFunctionBeginUser;
+   mfem::PetscParVector xx(x,true);
+   mfem::PetscParVector ff(f,true);
+   mfem::TimeDependentOperator *op = (mfem::TimeDependentOperator*)ctx;
+   op->SetTime(t);
+   op->Mult(xx,ff);
    PetscFunctionReturn(0);
 }
 
