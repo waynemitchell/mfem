@@ -21,7 +21,7 @@
 #endif
 
 #include "ode.hpp"
-#include "operator.hpp"
+#include "solvers.hpp"
 
 #include <cvode/cvode.h>
 #include <cvode/cvode_impl.h>
@@ -33,6 +33,9 @@
 
 #include <arkode/arkode.h>
 #include <arkode/arkode_impl.h>
+
+#include <kinsol/kinsol.h>
+#include <kinsol/kinsol_impl.h>
 
 namespace mfem
 {
@@ -65,6 +68,15 @@ class SundialsSolver
 {
 protected:
    void *sundials_mem;
+   mutable int flag;
+
+   N_Vector y;
+#ifdef MFEM_USE_MPI
+   bool Parallel() const
+   { return (y->ops->nvgetvectorid != N_VGetVectorID_Serial); }
+#else
+   bool Parallel() const { return false; }
+#endif
 
    static const double default_rel_tol;
    static const double default_abs_tol;
@@ -88,22 +100,15 @@ protected:
 public:
    /// Access the underlying SUNDIALS object.
    void *SundialsMem() const { return sundials_mem; }
+
+   /// Return the flag returned by the last call to a SUNDIALS function.
+   int GetFlag() const { return flag; }
 };
 
 /// Wrapper for the CVODE library.
 /// http://computation.llnl.gov/sites/default/files/public/cv_guide.pdf
 class CVODESolver : public ODESolver, public SundialsSolver
 {
-protected:
-   N_Vector y;
-   int flag;
-
-#ifdef MFEM_USE_MPI
-   bool Parallel() { return (y->ops->nvgetvectorid != N_VGetVectorID_Serial); }
-#else
-   bool Parallel() { return false; }
-#endif
-
 public:
    /** Construct a serial CVODESolver, a wrapper for SUNDIALS' CVODE solver.
        @param[in] lmm   Specifies the linear multistep method, the options are
@@ -144,9 +149,6 @@ public:
        internal step and returns. */
    void SetStepMode(int itask);
 
-   /// Return the flag returned by the last call to a CVODE function.
-   int GetFlag() const { return flag; }
-
    /// Sets the maximum order of the linear multistep method.
    /** The default is 12 (CV_ADAMS) or 5 (CV_BDF).
        CVODE uses adaptive-order integration, based on the local truncation
@@ -184,16 +186,8 @@ public:
 class ARKODESolver: public ODESolver, public SundialsSolver
 {
 protected:
-   N_Vector y;
-   int flag;
    bool use_implicit;
    int irk_table, erk_table;
-
-#ifdef MFEM_USE_MPI
-   bool Parallel() { return (y->ops->nvgetvectorid != N_VGetVectorID_Serial); }
-#else
-   bool Parallel() { return false; }
-#endif
 
 public:
    /** Construct a serial ARKODESolver, a wrapper for SUNDIALS' ARKODE solver.
@@ -240,9 +234,6 @@ public:
        testing purposes. */
    void SetFixedStep(double dt);
 
-   /// Return the flag returned by the last call to a ARKODE function.
-   int GetFlag() const { return flag; }
-
    /** Set the ODE right-hand-side operator.
        The start time of ARKODE is initialized from the current time of @a f_.
        @note This method calls ARKodeInit(). Some ARKODE parameters can be set
@@ -269,25 +260,56 @@ public:
 
 /// Wraps the KINSOL library.
 /// http://computation.llnl.gov/sites/default/files/public/kin_guide.pdf
-class KinSolver : public SundialsSolver
+class KinSolver : public NewtonSolver, public SundialsSolver
 {
 private:
-   N_Vector u, u_scale, f_scale;
+   bool use_oper_grad;
+   mutable N_Vector y_scale, f_scale;
 
 public:
-   /// Specifies the initial condition and non-linear operator.
-   /// parallel specifies whether the calling code is parallel or not.
-   /// use_oper_grad = true will use oper.GetGradient() to determine
-   /// the action of the Jacobian.
-   KinSolver(Operator &oper, Vector &mfem_u,
-             bool parallel, bool use_oper_grad = false);
+   /** Construct a serial KinSolver, a wrapper for SUNDIALS' KINSOL solver.
+
+       @param[in] strategy   Specifies the nonlinear solver strategy:
+                             KIN_NONE / KIN_LINESEARCH / KIN_PICARD / KIN_FP.
+       @param[in] oper_grad  Specifies whether the solver should use its
+                             Operator's GetGradient() method to compute action
+                             of the system's Jacobian. */
+   KinSolver(int strategy, bool oper_grad = true);
+
+#ifdef MFEM_USE_MPI
+   /** Construct a parallel KinSolver, a wrapper for SUNDIALS' KINSOL solver.
+
+       @param[in] strategy   Specifies the nonlinear solver strategy:
+                             KIN_NONE / KIN_LINESEARCH / KIN_PICARD / KIN_FP.
+       @param[in] oper_grad  Specifies whether the solver should use its
+                             Operator's GetGradient() method to compute action
+                             of the system's Jacobian. */
+   KinSolver(MPI_Comm comm, int strategy, bool oper_grad = true);
+#endif
+
    ~KinSolver();
 
-   void SetPrintLevel(int level);
-   void SetFuncNormTol(double tol);
-   void SetScaledStepTol(double tol);
+   virtual void SetSolver(Solver &solver)
+   { MFEM_ABORT("This option is not implemented in class KinSolver yet."); }
+   virtual void SetPreconditioner(Solver &pr)
+   { MFEM_ABORT("This option is not implemented in class KinSolver yet."); }
 
-   void Solve(Vector &mfem_u, Vector &mfem_u_scale, Vector &mfem_f_scale);
+   /** Sets the problem size, the action of the nonlinear system and
+       the action of its Jacobian. This method calls KINInit(). */
+   virtual void SetOperator(const Operator &op);
+
+   /** Corresponds to the NewtonSolver's interface; calls the other
+       Mult() method with u_scale = f_scale = 1.
+       @note The parameter @a b is not used, KINSol always assumes no RHS. */
+   virtual void Mult(const Vector &b, Vector &x) const;
+
+   /** @brief Calls KINSol() to solve the nonlinear system.
+
+       Before calling KINSol(), this functions uses its fields, see class
+       IterativeSolver, to set various KINSOL options.
+       @note The functions SetRelTol() and SetAbsTol() influence KINSOL's
+       "scaled step" and "function norm" tolerances, respectively. */
+   void Mult(Vector &x, Vector &x_scale, Vector &fx_scale) const;
 };
 
 }  // namespace mfem

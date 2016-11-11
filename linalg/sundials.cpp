@@ -28,7 +28,6 @@
 
 #include <arkode/arkode_spgmr.h>
 
-#include <kinsol/kinsol.h>
 #include <kinsol/kinsol_spgmr.h>
 
 
@@ -374,30 +373,6 @@ static inline ARKodeMem Mem(const ARKODESolver *self)
    return ARKodeMem(self->SundialsMem());
 }
 
-//ARKODESolver::ARKODESolver(Vector &y_, bool implicit)
-//{
-//   // Create the NVector y.
-//   y = y_.ToNVector();
-
-//   // Create the solver memory.
-//   sundials_mem = ARKodeCreate();
-
-//   // Initialize the integrator memory, specify the user's
-//   // RHS function in x' = f(t, x), the initial time, initial condition.
-//   int flag = use_explicit ?
-//              ARKodeInit(sundials_mem, ODEMult, NULL, 0.0, y) :
-//              ARKodeInit(sundials_mem, NULL, ODEMult, 0.0, y);
-//   MFEM_ASSERT(flag >= 0, "ARKodeInit() failed!");
-
-//   SetSStolerances(default_rel_tol, default_abs_tol);
-
-//   // When implicit method is chosen, one should specify the linear solver.
-//   if (use_explicit == false)
-//   {
-//      ARKSpgmr(sundials_mem, PREC_NONE, 0);
-//   }
-//}
-
 ARKODESolver::ARKODESolver(bool implicit)
    : use_implicit(implicit), irk_table(-1), erk_table(-1)
 {
@@ -553,7 +528,7 @@ void ARKODESolver::Init(TimeDependentOperator &f_)
    if (!Parallel())
    {
       NV_LENGTH_S(y) = loc_size;
-      NV_DATA_S(y) = new double[loc_size](); // value-initizalize
+      NV_DATA_S(y) = new double[loc_size](); // value-initialize
    }
    else
    {
@@ -563,7 +538,7 @@ void ARKODESolver::Init(TimeDependentOperator &f_)
                     NV_COMM_P(y));
       NV_LOCLENGTH_P(y) = local_size;
       NV_GLOBLENGTH_P(y) = global_size;
-      NV_DATA_P(y) = new double[loc_size](); // value-initalize
+      NV_DATA_P(y) = new double[loc_size](); // value-initialize
 #endif
    }
 
@@ -666,73 +641,160 @@ ARKODESolver::~ARKODESolver()
    ARKodeFree(&sundials_mem);
 }
 
-KinSolver::KinSolver(Operator &oper, Vector &mfem_u,
-                     bool parallel, bool use_oper_grad)
+static inline KINMem Mem(const KinSolver *self)
 {
-   sundials_mem = KINCreate();
+   return KINMem(self->SundialsMem());
+}
 
-   u = mfem_u.ToNVector();
-   KINInit(sundials_mem, SundialsSolver::Mult, u);
+KinSolver::KinSolver(int strategy, bool oper_grad)
+   : use_oper_grad(oper_grad), y_scale(NULL), f_scale(NULL)
+{
+   // Allocate an empty serial N_Vector wrapper in y.
+   y = N_VNewEmpty_Serial(0);
+   MFEM_ASSERT(y, "Error in N_VNewEmpty_Serial().");
+   y_scale = N_VNewEmpty_Serial(0);
+   f_scale = N_VNewEmpty_Serial(0);
+
+   sundials_mem = KINCreate();
+   MFEM_ASSERT(sundials_mem, "Error in KINCreate().");
+
+   Mem(this)->kin_globalstrategy = strategy;
+
+   flag = KIN_SUCCESS;
+}
+
+#ifdef MFEM_USE_MPI
+
+KinSolver::KinSolver(MPI_Comm comm, int strategy, bool oper_grad)
+   : use_oper_grad(oper_grad), y_scale(NULL), f_scale(NULL)
+{
+   if (comm == MPI_COMM_NULL)
+   {
+      // Allocate an empty serial N_Vector wrapper in y.
+      y = N_VNewEmpty_Serial(0);
+      MFEM_ASSERT(y, "Error in N_VNewEmpty_Serial().");
+      y_scale = N_VNewEmpty_Serial(0);
+      f_scale = N_VNewEmpty_Serial(0);
+   }
+   else
+   {
+      // Allocate an empty parallel N_Vector wrapper in y.
+      y = N_VNewEmpty_Parallel(comm, 0, 0);
+      MFEM_ASSERT(y, "Error in N_VNewEmpty_Parallel().");
+      y_scale = N_VNewEmpty_Parallel(comm, 0, 0);
+      f_scale = N_VNewEmpty_Parallel(comm, 0, 0);
+   }
+
+   sundials_mem = KINCreate();
+   MFEM_ASSERT(sundials_mem, "Error in KINCreate().");
+
+   Mem(this)->kin_globalstrategy = strategy;
+
+   flag = KIN_SUCCESS;
+}
+
+#endif
+
+void KinSolver::SetOperator(const Operator &op)
+{
+   NewtonSolver::SetOperator(op);
+   r = 1.0; c = 1.0;
+
+   // Set actual size and data in the N_Vector y.
+   if (!Parallel())
+   {
+      NV_LENGTH_S(y) = height;
+      NV_DATA_S(y) = NULL;
+      NV_LENGTH_S(y_scale) = height;
+      NV_LENGTH_S(f_scale) = height;
+   }
+   else
+   {
+#ifdef MFEM_USE_MPI
+      long local_size = height, global_size;
+      MPI_Allreduce(&local_size, &global_size, 1, MPI_LONG, MPI_SUM,
+                    NV_COMM_P(y));
+      NV_LOCLENGTH_P(y) = local_size;
+      NV_GLOBLENGTH_P(y) = global_size;
+      NV_DATA_P(y) = NULL;
+      NV_LOCLENGTH_P(y_scale) = local_size;
+      NV_GLOBLENGTH_P(y_scale) = global_size;
+      NV_LOCLENGTH_P(f_scale) = local_size;
+      NV_GLOBLENGTH_P(f_scale) = global_size;
+#endif
+   }
+
+   flag = KINInit(sundials_mem, SundialsSolver::Mult, y);
+   MFEM_ASSERT(flag >= 0, "KINInit() failed!");
 
    // Set void pointer to user data.
-   KINSetUserData(sundials_mem, static_cast<void *>(&oper));
+   flag = KINSetUserData(sundials_mem, const_cast<Operator *>(oper));
+   MFEM_ASSERT(flag >= 0, "KINSetUserData() failed!");
 
    // Set scaled preconditioned GMRES linear solver.
-   KINSpgmr(sundials_mem, 0);
+   flag = KINSpgmr(sundials_mem, 0);
+   MFEM_ASSERT(flag >= 0, "KINSpgmr() failed!");
 
    // Define the Jacobian action.
    if (use_oper_grad)
    {
-      KINSpilsSetJacTimesVecFn(sundials_mem, GradientMult);
+      flag = KINSpilsSetJacTimesVecFn(sundials_mem, GradientMult);
+      MFEM_ASSERT(flag >= 0, "KINSpilsSetJacTimesVecFn() failed!");
    }
 }
 
-void KinSolver::SetPrintLevel(int level)
+void KinSolver::Mult(const Vector &b, Vector &x) const
 {
-   KINSetPrintLevel(sundials_mem, level);
+   // Note r = c = 1.
+   Mult(x, r, c);
 }
 
-void KinSolver::SetFuncNormTol(double tol)
+void KinSolver::Mult(Vector &x, Vector &x_scale, Vector &fx_scale) const
 {
-   KINSetFuncNormTol(sundials_mem, tol);
-}
+   KINMem mem = Mem(this);
 
-void KinSolver::SetScaledStepTol(double tol)
-{
-   KINSetScaledStepTol(sundials_mem, tol);
-}
+   flag = KINSetPrintLevel(sundials_mem, print_level);
+   MFEM_ASSERT(flag >= 0, "KINSetPrintLevel() failed!");
 
-void KinSolver::Solve(Vector &mfem_u,
-                      Vector &mfem_u_scale, Vector &mfem_f_scale)
-{
-   mfem_u.ToNVector(u);
-   if (!u_scale)
+   flag = KINSetNumMaxIters(sundials_mem, max_iter);
+   MFEM_ASSERT(flag >= 0, "KINSetNumMaxIters() failed!");
+
+   flag = KINSetScaledStepTol(sundials_mem, rel_tol);
+   MFEM_ASSERT(flag >= 0, "KINSetScaledStepTol() failed!");
+
+   flag = KINSetFuncNormTol(sundials_mem, abs_tol);
+   MFEM_ASSERT(flag >= 0, "KINSetFuncNormTol() failed!");
+
+   if (!Parallel())
    {
-      u_scale = mfem_u_scale.ToNVector();
-      f_scale = mfem_f_scale.ToNVector();
+      NV_DATA_S(y) = x.GetData();
+      MFEM_VERIFY(NV_LENGTH_S(y) == x.Size(), "");
+      NV_DATA_S(y_scale) = x_scale.GetData();
+      NV_DATA_S(f_scale) = fx_scale.GetData();
    }
    else
    {
-      mfem_u_scale.ToNVector(u_scale);
-      mfem_f_scale.ToNVector(f_scale);
+#ifdef MFEM_USE_MPI
+      NV_DATA_P(y) = x.GetData();
+      MFEM_VERIFY(NV_LOCLENGTH_P(y) == x.Size(), "");
+      NV_DATA_P(y_scale) = x_scale.GetData();
+      NV_DATA_P(f_scale) = fx_scale.GetData();
+#endif
    }
 
-   // [VAD] Make 'strategy' a settable parameter.
-   // LINESEARCH might be fancier, but more fragile near convergence.
-   int strategy = KIN_LINESEARCH;
-   //   int strategy = KIN_NONE;
-   int flag = KINSol(sundials_mem, u, strategy, u_scale, f_scale);
-   MFEM_VERIFY(flag == KIN_SUCCESS || flag == KIN_INITIAL_GUESS_OK,
-               "KINSol returned " << flag << " that indicated a problem!");
+   flag = KINSol(sundials_mem, y, mem->kin_globalstrategy, y_scale, f_scale);
+
+   converged  = (flag == KIN_MAXITER_REACHED) ? false : true;
+   final_iter = mem->kin_nni;
+   final_norm = mem->kin_fnorm;
 }
 
 KinSolver::~KinSolver()
 {
-   if (u) { N_VDestroy(u); }
-   if (u_scale) { N_VDestroy(u_scale); }
-   if (f_scale) { N_VDestroy(f_scale); }
-
-   if (sundials_mem) { KINFree(&sundials_mem); }
+   N_VDestroy(y);
+   N_VDestroy(y_scale);
+   N_VDestroy(f_scale);
+   KINFree(&sundials_mem);
 }
 
 } // namespace mfem

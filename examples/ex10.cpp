@@ -75,7 +75,7 @@ protected:
    BackwardEulerOperator *backward_euler_oper;
 
    /// Newton solver for the backward Euler equation
-   NewtonSolver newton_solver;
+   NewtonSolver *newton_solver;
    /// Solver and preconditioner for the Jacobian solve in the Newton method.
    Solver *J_solver, *J_prec;
 
@@ -649,13 +649,22 @@ HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
    J_prec = NULL;
 #endif
 
-   newton_solver.iterative_mode = false;
-   newton_solver.SetSolver(*J_solver);
-   newton_solver.SetOperator(*backward_euler_oper);
-   newton_solver.SetPrintLevel(1); // print Newton iterations
-   newton_solver.SetRelTol(rel_tol);
-   newton_solver.SetAbsTol(0.0);
-   newton_solver.SetMaxIter(10);
+   if (use_kinsol)
+   {
+      newton_solver = new KinSolver(KIN_NONE, true);
+      newton_solver->SetMaxIter(200);
+   }
+   else
+   {
+      newton_solver = new NewtonSolver();
+      newton_solver->iterative_mode = false;
+      newton_solver->SetSolver(*J_solver);
+      newton_solver->SetMaxIter(10);
+   }
+   newton_solver->SetOperator(*backward_euler_oper);
+   newton_solver->SetPrintLevel(1); // print Newton iterations
+   newton_solver->SetRelTol(rel_tol);
+   newton_solver->SetAbsTol(0.0);
 }
 
 void HyperelasticOperator::Mult(const Vector &vx, Vector &dvx_dt) const
@@ -694,21 +703,9 @@ void HyperelasticOperator::ImplicitSolve(const double dt,
    // backward_euler_oper. This equation is solved with the newton_solver
    // object (using J_solver and J_prec internally).
    backward_euler_oper->SetParameters(dt, &v, &x);
-   if (use_kinsol)
-   {
-      KinSolver kinsol(*backward_euler_oper, v, false);
-      // The scalings for KinSol can be done better.
-      Vector one(sc); one = 1.0;
-      kinsol.Solve(dv_dt, one, one);
-   }
-   else
-   {
-      Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
-      newton_solver.Mult(zero, dv_dt);
-      MFEM_VERIFY(newton_solver.GetConverged(),
-                  "Newton Solver didn't converge.");
-   }
-
+   Vector zero;
+   newton_solver->Mult(zero, dv_dt);
+   MFEM_VERIFY(newton_solver->GetConverged(), "Newton Solver didn't converge.");
    add(v, dt, dv_dt, dx_dt);
 }
 
@@ -736,12 +733,12 @@ void HyperelasticOperator::GetElasticEnergyDensity(
 
 HyperelasticOperator::~HyperelasticOperator()
 {
-   delete model;
-   delete backward_euler_oper;
+   delete newton_solver;
    delete J_solver;
    delete J_prec;
+   delete backward_euler_oper;
+   delete model;
 }
-
 
 double ElasticEnergyCoefficient::Eval(ElementTransformation &T,
                                       const IntegrationPoint &ip)

@@ -72,7 +72,7 @@ protected:
    HypreSmoother M_prec; // Preconditioner for the mass matrix M
 
    /// Newton solver for the backward Euler equation
-   NewtonSolver newton_solver;
+   NewtonSolver *newton_solver;
    /// Preconditioner for the Jacobian
    Solver *J_prec;
 
@@ -653,7 +653,7 @@ HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
    : TimeDependentOperator(2*f.TrueVSize(), 0.0), fespace(f),
      M(&fespace), S(&fespace), H(&fespace),
      viscosity(visc), use_kinsol(kinsol),
-     M_solver(f.GetComm()), newton_solver(f.GetComm()), z(height/2)
+     M_solver(f.GetComm()), z(height/2)
 {
    const double rel_tol = 1e-8;
    const int skip_zero_entries = 0;
@@ -699,13 +699,22 @@ HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
    J_minres->SetPreconditioner(*J_prec);
    J_solver = J_minres;
 
-   newton_solver.iterative_mode = false;
-   newton_solver.SetSolver(*J_solver);
-   newton_solver.SetOperator(*backward_euler_oper);
-   newton_solver.SetPrintLevel(1); // print Newton iterations
-   newton_solver.SetRelTol(rel_tol);
-   newton_solver.SetAbsTol(0.0);
-   newton_solver.SetMaxIter(10);
+   if (use_kinsol)
+   {
+      newton_solver = new KinSolver(f.GetComm(), KIN_NONE, true);
+      newton_solver->SetMaxIter(200);
+   }
+   else
+   {
+      newton_solver = new NewtonSolver(f.GetComm());
+      newton_solver->iterative_mode = false;
+      newton_solver->SetSolver(*J_solver);
+      newton_solver->SetMaxIter(10);
+   }
+   newton_solver->SetOperator(*backward_euler_oper);
+   newton_solver->SetPrintLevel(1); // print Newton iterations
+   newton_solver->SetRelTol(rel_tol);
+   newton_solver->SetAbsTol(0.0);
 }
 
 void HyperelasticOperator::Mult(const Vector &vx, Vector &dvx_dt) const
@@ -744,28 +753,9 @@ void HyperelasticOperator::ImplicitSolve(const double dt,
    // backward_euler_oper. This equation is solved with the newton_solver
    // object (using J_solver and J_prec internally).
    backward_euler_oper->SetParameters(dt, &v, &x);
-   if (use_kinsol)
-   {
-      HypreParVector *dv_dt_h =
-         new HypreParVector(M.ParFESpace()->GetComm(),
-                            M.ParFESpace()->GlobalTrueVSize(),
-                            dv_dt.GetData(),
-                            M.ParFESpace()->GetTrueDofOffsets());
-      KinSolver kinsol(*backward_euler_oper, *dv_dt_h, true);
-      // The scalings for KinSol can be done better.
-      HypreParVector one(M.ParFESpace()); one = 1.0;
-      *dv_dt_h = 0.0;
-      kinsol.Solve(*dv_dt_h, one, one);
-      delete dv_dt_h;
-   }
-   else
-   {
-      Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
-      newton_solver.Mult(zero, dv_dt);
-      MFEM_VERIFY(newton_solver.GetConverged(),
-                  "Newton Solver did not converge.");
-   }
-
+   Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
+   newton_solver->Mult(zero, dv_dt);
+   MFEM_VERIFY(newton_solver->GetConverged(), "Newton Solver did not converge.");
    add(v, dt, dv_dt, dx_dt);
 }
 
@@ -797,10 +787,11 @@ void HyperelasticOperator::GetElasticEnergyDensity(
 
 HyperelasticOperator::~HyperelasticOperator()
 {
-   delete model;
-   delete backward_euler_oper;
+   delete newton_solver;
    delete J_solver;
    delete J_prec;
+   delete backward_euler_oper;
+   delete model;
    delete Mmat;
 }
 
