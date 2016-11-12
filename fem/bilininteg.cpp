@@ -162,7 +162,7 @@ void MixedScalarIntegrator::AssembleElementMatrix2(
       this->CalcTrialShape(trial_fe, Trans, trial_shape);
 
       double w = Trans.Weight() * ip.weight;
-
+      
       if (Q)
       {
          w *= Q->Eval(Trans, ip);
