@@ -56,7 +56,10 @@ public:
                            Vector &y_cur, Vector &f_cur) = 0;
    virtual int FreeSystem(void *sundials_mem) = 0;
 
+   /// Get the current scaled time step, gamma, from @a sundials_mem.
    double GetTimeStep(void *sundials_mem);
+   /// Get the TimeDependentOperator associated with @a sundials_mem.
+   TimeDependentOperator *GetTimeDependentOperator(void *sundials_mem);
 };
 
 class SundialsSolver

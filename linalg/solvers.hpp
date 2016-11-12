@@ -269,8 +269,12 @@ public:
 #endif
    virtual void SetOperator(const Operator &op);
 
+   /// Set the linear solver for inverting the Jacobian.
+   /** This is method is equivalent to calling SetPreconditioner(). */
    virtual void SetSolver(Solver &solver) { prec = &solver; }
 
+   /// Solve the nonlinear system with r.h.s. @a b.
+   /** If `b.Size() != Height()`, assumes that @a b is 0. */
    virtual void Mult(const Vector &b, Vector &x) const;
 };
 

@@ -46,8 +46,18 @@ namespace mfem
 
 double SundialsLinearSolver::GetTimeStep(void *sundials_mem)
 {
-   return (type == CVODE) ? ((CVodeMem)sundials_mem)->cv_gamma
-                          : ((ARKodeMem)sundials_mem)->ark_gamma;
+   return (type == CVODE) ?
+          ((CVodeMem)sundials_mem)->cv_gamma :
+          ((ARKodeMem)sundials_mem)->ark_gamma;
+}
+
+TimeDependentOperator *
+SundialsLinearSolver::GetTimeDependentOperator(void *sundials_mem)
+{
+   void *user_data = (type == CVODE) ?
+                     ((CVodeMem)sundials_mem)->cv_user_data :
+                     ((ARKodeMem)sundials_mem)->ark_user_data;
+   return (TimeDependentOperator *)user_data;
 }
 
 static inline SundialsLinearSolver *get_spec(void *ptr)
@@ -244,6 +254,9 @@ void CVODESolver::SetMaxOrder(int max_order)
 // Has to copy all fields that can be set by the MFEM interface !!
 static inline void cvCopyInit(CVodeMem src, CVodeMem dest)
 {
+   dest->cv_lmm  = src->cv_lmm;
+   dest->cv_iter = src->cv_iter;
+
    dest->cv_linit  = src->cv_linit;
    dest->cv_lsetup = src->cv_lsetup;
    dest->cv_lsolve = src->cv_lsolve;
@@ -562,8 +575,9 @@ void ARKODESolver::Init(TimeDependentOperator &f_)
    arkCopyInit(mem, &backup);
    double t = f_.GetTime();
    // TODO: IMEX interface and example.
-   flag = (use_implicit) ? ARKodeInit(sundials_mem, NULL, ODEMult, t, y)
-                         : ARKodeInit(sundials_mem, ODEMult, NULL, t, y);
+   flag = (use_implicit) ?
+          ARKodeInit(sundials_mem, NULL, ODEMult, t, y) :
+          ARKodeInit(sundials_mem, ODEMult, NULL, t, y);
    MFEM_ASSERT(flag >= 0, "CVodeInit() failed!");
    arkCopyInit(&backup, mem);
 

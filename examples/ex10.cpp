@@ -90,7 +90,7 @@ public:
        This is the only requirement for high-order SDIRK implicit integration.*/
    virtual void ImplicitSolve(const double dt, const Vector &x, Vector &k);
 
-   void InitSundialsSpecification(SundialsJacSolver &sjsolv);
+   void InitSundialsJacSolver(SundialsJacSolver &sjsolv);
 
    double ElasticEnergy(Vector &x) const;
    double KineticEnergy(Vector &v) const;
@@ -134,12 +134,12 @@ class SundialsJacSolver : public SundialsLinearSolver
 private:
    BilinearForm *M, *S;
    NonlinearForm *H;
-   SparseMatrix *Jacobian;
+   SparseMatrix *grad_H, *Jacobian;
    Solver *J_solver;
 
 public:
    SundialsJacSolver()
-      : M(NULL), S(NULL), H(NULL), Jacobian(NULL), J_solver(NULL) { }
+      : M(), S(), H(), grad_H(), Jacobian(), J_solver() { }
 
    void SetOperators(BilinearForm &M_, BilinearForm &S_,
                      NonlinearForm &H_, Solver &solver)
@@ -375,11 +375,6 @@ int main(int argc, char *argv[])
    //    the initial energies.
    HyperelasticOperator oper(fespace, ess_bdr, visc, mu, K, use_kinsol);
 
-   if (ode_solver_type == 5 || ode_solver_type == 7)
-   {
-      oper.InitSundialsSpecification(*sjsolver);
-   }
-
    socketstream vis_v, vis_w;
    if (visualization)
    {
@@ -538,6 +533,15 @@ BackwardEulerOperator::~BackwardEulerOperator()
 
 int SundialsJacSolver::InitSystem(void *sundials_mem)
 {
+   TimeDependentOperator *td_oper = GetTimeDependentOperator(sundials_mem);
+   HyperelasticOperator *he_oper;
+#ifdef MFEM_DEBUG
+   he_oper = dynamic_cast<HyperelasticOperator*>(td_oper);
+   MFEM_VERIFY(he_oper, "operator is not HyperelasticOperator");
+#else
+   he_oper= static_cast<HyperelasticOperator*>(td_oper);
+#endif
+   he_oper->InitSundialsJacSolver(*this);
    return 0;
 }
 
@@ -550,9 +554,12 @@ int SundialsJacSolver::SetupSystem(void *sundials_mem, int conv_fail,
    Vector x(y_pred.GetData() + sc, sc);
    double dt = GetTimeStep(sundials_mem);
 
+   delete Jacobian;
    Jacobian = Add(1.0, M->SpMat(), dt, S->SpMat());
-   SparseMatrix *grad_H = dynamic_cast<SparseMatrix *>(&H->GetGradient(x));
+   grad_H = dynamic_cast<SparseMatrix *>(&H->GetGradient(x));
    Jacobian->Add(dt * dt, *grad_H);
+
+   J_solver->SetOperator(*Jacobian);
 
    jac_cur = 1;
    return 0;
@@ -563,7 +570,7 @@ int SundialsJacSolver::SolveSystem(void *sundials_mem, Vector &b,
                                       Vector &f_cur)
 {
    int sc = b.Size() / 2;
-   Vector x(y_cur.GetData() + sc, sc);
+   // Vector x(y_cur.GetData() + sc, sc);
    Vector b_v(b.GetData() +  0, sc);
    Vector b_x(b.GetData() + sc, sc);
    Vector sltn(2 * sc);
@@ -573,12 +580,11 @@ int SundialsJacSolver::SolveSystem(void *sundials_mem, Vector &b,
 
    double dt = GetTimeStep(sundials_mem);
 
-   SparseMatrix *grad_H = dynamic_cast<SparseMatrix *>(&H->GetGradient(x));
    grad_H->Mult(b_x, rhs);
    rhs *= -dt;
    M->AddMult(b_v, rhs);
 
-   J_solver->SetOperator(*Jacobian);
+   J_solver->iterative_mode = false;
    J_solver->Mult(rhs, v_hat);
 
    add(b_x, dt, v_hat, x_hat);
@@ -704,7 +710,7 @@ void HyperelasticOperator::ImplicitSolve(const double dt,
    add(v, dt, dv_dt, dx_dt);
 }
 
-void HyperelasticOperator::InitSundialsSpecification(SundialsJacSolver &sjsolv)
+void HyperelasticOperator::InitSundialsJacSolver(SundialsJacSolver &sjsolv)
 {
    sjsolv.SetOperators(M, S, H, *J_solver);
 }

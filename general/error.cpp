@@ -115,10 +115,11 @@ void mfem_error(const char *msg)
 #endif // MFEM_USE_LIBUNWIND
 
 #ifdef MFEM_USE_MPI
-   MPI_Abort(MPI_COMM_WORLD, 1);
-#else
-   std::abort(); // force crash by calling abort
+   int flag;
+   MPI_Initialized(&flag);
+   if (flag) { MPI_Abort(MPI_COMM_WORLD, 1); }
 #endif
+   std::abort(); // force crash by calling abort
 }
 
 void mfem_warning(const char *msg)
