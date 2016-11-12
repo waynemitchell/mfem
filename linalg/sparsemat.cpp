@@ -19,6 +19,7 @@
 #include <iomanip>
 #include <cmath>
 #include <algorithm>
+#include <limits>
 #include <cstring>
 
 namespace mfem
@@ -387,8 +388,6 @@ const double &SparseMatrix::Elem(int i, int j) const
 
 double &SparseMatrix::operator()(int i, int j)
 {
-   int k, end;
-
    MFEM_ASSERT(i < height && i >= 0 && j < width && j >= 0,
                "Trying to access element outside of the matrix.  "
                << "height = " << height << ", "
@@ -398,12 +397,13 @@ double &SparseMatrix::operator()(int i, int j)
 
    MFEM_VERIFY(Finalized(), "Matrix must be finalized.");
 
-   end = I[i+1];
-   for (k = I[i]; k < end; k++)
+   for (int k = I[i], end = I[i+1]; k < end; k++)
+   {
       if (J[k] == j)
       {
          return A[k];
       }
+   }
 
    MFEM_ABORT("Did not find i = " << i << ", j = " << j << " in matrix.");
    return A[0];
@@ -411,7 +411,6 @@ double &SparseMatrix::operator()(int i, int j)
 
 const double &SparseMatrix::operator()(int i, int j) const
 {
-   int k, end;
    static const double zero = 0.0;
 
    MFEM_ASSERT(i < height && i >= 0 && j < width && j >= 0,
@@ -421,13 +420,26 @@ const double &SparseMatrix::operator()(int i, int j) const
                << "i = " << i << ", "
                << "j = " << j);
 
-   MFEM_VERIFY(Finalized(), "Matrix must be finalized.");
-   end = I[i+1];
-   for (k = I[i]; k < end; k++)
-      if (J[k] == j)
+   if (Finalized())
+   {
+      for (int k = I[i], end = I[i+1]; k < end; k++)
       {
-         return A[k];
+         if (J[k] == j)
+         {
+            return A[k];
+         }
       }
+   }
+   else
+   {
+      for (RowNode *node_p = Rows[i]; node_p != NULL; node_p = node_p->Prev)
+      {
+         if (node_p->Column == j)
+         {
+            return node_p->Value;
+         }
+      }
+   }
 
    return zero;
 }
@@ -891,24 +903,44 @@ void SparseMatrix::GetBlocks(Array2D<SparseMatrix *> &blocks) const
 
 double SparseMatrix::IsSymmetric() const
 {
-   MFEM_VERIFY(Finalized(), "Matrix must be finalized.");
+   if (height != width)
+   {
+      return std::numeric_limits<double>::infinity();
+   }
 
-   int i, j;
-   double a, max;
-
-   max = 0.0;
-   for (i = 1; i < height; i++)
-      for (j = I[i]; j < I[i+1]; j++)
-         if (J[j] < i)
+   double symm = 0.0;
+   if (Empty())
+   {
+      // return 0.0;
+   }
+   else if (Finalized())
+   {
+      for (int i = 1; i < height; i++)
+      {
+         for (int j = I[i]; j < I[i+1]; j++)
          {
-            a = fabs ( A[j] - (*this)(J[j],i) );
-            if (max < a)
+            if (J[j] < i)
             {
-               max = a;
+               symm = std::max(symm, std::abs(A[j]-(*this)(J[j],i)));
             }
          }
-
-   return max;
+      }
+   }
+   else
+   {
+      for (int i = 0; i < height; i++)
+      {
+         for (RowNode *node_p = Rows[i]; node_p != NULL; node_p = node_p->Prev)
+         {
+            int col = node_p->Column;
+            if (col < i)
+            {
+               symm = std::max(symm, std::abs(node_p->Value-(*this)(col,i)));
+            }
+         }
+      }
+   }
+   return symm;
 }
 
 void SparseMatrix::Symmetrize()
@@ -937,10 +969,12 @@ int SparseMatrix::NumNonZeroElems() const
       int nnz = 0;
 
       for (int i = 0; i < height; i++)
+      {
          for (RowNode *node_p = Rows[i]; node_p != NULL; node_p = node_p->Prev)
          {
             nnz++;
          }
+      }
 
       return nnz;
    }
@@ -955,7 +989,7 @@ double SparseMatrix::MaxNorm() const
       int nnz = I[height];
       for (int j = 0; j < nnz; j++)
       {
-         m = std::max(m, fabs(A[j]));
+         m = std::max(m, std::abs(A[j]));
       }
    }
    else
@@ -963,7 +997,7 @@ double SparseMatrix::MaxNorm() const
       for (int i = 0; i < height; i++)
          for (RowNode *n_p = Rows[i]; n_p != NULL; n_p = n_p->Prev)
          {
-            m = std::max(m, fabs(n_p->Value));
+            m = std::max(m, std::abs(n_p->Value));
          }
    }
    return m;
@@ -971,32 +1005,54 @@ double SparseMatrix::MaxNorm() const
 
 int SparseMatrix::CountSmallElems(double tol) const
 {
-   int i, counter = 0;
+   int counter = 0;
 
    if (A)
    {
-      int nz = I[height];
-      double *Ap = A;
+      const int nz = I[height];
+      const double *Ap = A;
 
-      for (i = 0; i < nz; i++)
-         if (fabs(Ap[i]) < tol)
-         {
-            counter++;
-         }
+      for (int i = 0; i < nz; i++)
+      {
+         counter += (std::abs(Ap[i]) <= tol);
+      }
    }
    else
    {
-      RowNode *aux;
-
-      for (i = 0; i < height; i++)
-         for (aux = Rows[i]; aux != NULL; aux = aux->Prev)
-            if (fabs(aux -> Value) < tol)
-            {
-               counter++;
-            }
+      for (int i = 0; i < height; i++)
+      {
+         for (RowNode *aux = Rows[i]; aux != NULL; aux = aux->Prev)
+         {
+            counter += (std::abs(aux->Value) <= tol);
+         }
+      }
    }
 
    return counter;
+}
+
+int SparseMatrix::CheckFinite() const
+{
+   if (Empty())
+   {
+      return 0;
+   }
+   else if (Finalized())
+   {
+      return mfem::CheckFinite(A, I[height]);
+   }
+   else
+   {
+      int counter = 0;
+      for (int i = 0; i < height; i++)
+      {
+         for (RowNode *aux = Rows[i]; aux != NULL; aux = aux->Prev)
+         {
+            counter += !IsFinite(aux->Value);
+         }
+      }
+      return counter;
+   }
 }
 
 MatrixInverse *SparseMatrix::Inverse() const
@@ -2396,6 +2452,57 @@ void SparseMatrix::PrintCSR2(std::ostream & out) const
    for (i = 0; i < I[height]; i++)
    {
       out << A[i] << '\n';
+   }
+}
+
+void SparseMatrix::PrintInfo(std::ostream &out) const
+{
+   const double MiB = 1024.*1024;
+   int nnz = NumNonZeroElems();
+   double pz = 100./nnz;
+   int nz = CountSmallElems(0.0);
+   double max_norm = MaxNorm();
+   double symm = IsSymmetric();
+   int nnf = CheckFinite();
+   int ns12 = CountSmallElems(1e-12*max_norm);
+   int ns15 = CountSmallElems(1e-15*max_norm);
+   int ns18 = CountSmallElems(1e-18*max_norm);
+
+   out <<
+       "SparseMatrix statistics:\n"
+       "  Format                      : " <<
+       (Empty() ? "(empty)" : (Finalized() ? "CSR" : "LIL")) << "\n"
+       "  Dimensions                  : " << height << " x " << width << "\n"
+       "  Number of entries (total)   : " << nnz << "\n"
+       "  Number of entries (per row) : " << 1.*nnz/Height() << "\n"
+       "  Number of stored zeros      : " << nz*pz << "% (" << nz << ")\n"
+       "  Number of Inf/Nan entries   : " << nnf*pz << "% ("<< nnf << ")\n"
+       "  Norm, max |a_ij|            : " << max_norm << "\n"
+       "  Symmetry, max |a_ij-a_ji|   : " << symm << "\n"
+       "  Number of small entries:\n"
+       "    |a_ij| <= 1e-12*Norm      : " << ns12*pz << "% (" << ns12 << ")\n"
+       "    |a_ij| <= 1e-15*Norm      : " << ns15*pz << "% (" << ns15 << ")\n"
+       "    |a_ij| <= 1e-18*Norm      : " << ns18*pz << "% (" << ns18 << ")\n";
+   if (Finalized())
+   {
+      out << "  Memory used by CSR          : " <<
+          (sizeof(int)*(height+1+nnz)+sizeof(double)*nnz)/MiB << " MiB\n";
+   }
+   if (Rows != NULL)
+   {
+      size_t used_mem = sizeof(RowNode*)*height;
+#ifdef MFEM_USE_MEMALLOC
+      used_mem += NodesMem->MemoryUsage();
+#else
+      for (int i = 0; i < height; i++)
+      {
+         for (RowNode *aux = Rows[i]; aux != NULL; aux = aux->Prev)
+         {
+            used_mem += sizeof(RowNode);
+         }
+      }
+#endif
+      out << "  Memory used by LIL          : " << used_mem/MiB << " MiB\n";
    }
 }
 
