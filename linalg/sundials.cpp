@@ -24,10 +24,18 @@
 #include <nvector/nvector_parhyp.h>
 #endif
 
+#include <cvode/cvode_impl.h>
 #include <cvode/cvode_spgmr.h>
 
+// This just hides a warning (to be removed after it's fixed in SUNDIALS).
+#ifdef MSG_TIME_INT
+#undef MSG_TIME_INT
+#endif
+
+#include <arkode/arkode_impl.h>
 #include <arkode/arkode_spgmr.h>
 
+#include <kinsol/kinsol_impl.h>
 #include <kinsol/kinsol_spgmr.h>
 
 
@@ -35,6 +43,12 @@ using namespace std;
 
 namespace mfem
 {
+
+double SundialsLinearSolver::GetTimeStep(void *sundials_mem)
+{
+   return (type == CVODE) ? ((CVodeMem)sundials_mem)->cv_gamma
+                          : ((ARKodeMem)sundials_mem)->ark_gamma;
+}
 
 static inline SundialsLinearSolver *get_spec(void *ptr)
 {
@@ -210,6 +224,7 @@ void CVODESolver::SetLinearSolve(SundialsLinearSolver &ls_spec)
    mem->cv_lfree  = LinSysFree;
    mem->cv_lmem   = &ls_spec;
    mem->cv_setupNonNull = TRUE;
+   ls_spec.type = SundialsLinearSolver::CVODE;
 }
 
 void CVODESolver::SetStepMode(int itask)
@@ -449,6 +464,7 @@ void ARKODESolver::SetLinearSolve(SundialsLinearSolver &ls_spec)
    mem->ark_lfree  = LinSysFree;
    mem->ark_lmem   = &ls_spec;
    mem->ark_setupNonNull = TRUE;
+   ls_spec.type = SundialsLinearSolver::ARKODE;
 }
 
 void ARKODESolver::SetStepMode(int itask)

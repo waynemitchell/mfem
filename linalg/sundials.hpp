@@ -24,24 +24,17 @@
 #include "solvers.hpp"
 
 #include <cvode/cvode.h>
-#include <cvode/cvode_impl.h>
-
-// This just hides a warning (to be removed after it's fixed in SUNDIALS).
-#ifdef MSG_TIME_INT
-#undef MSG_TIME_INT
-#endif
-
 #include <arkode/arkode.h>
-#include <arkode/arkode_impl.h>
-
 #include <kinsol/kinsol.h>
-#include <kinsol/kinsol_impl.h>
 
 namespace mfem
 {
 /// Interface for specifying custom linear solve in SUNDIALS.
 class SundialsLinearSolver
 {
+public:
+   enum {CVODE, ARKODE} type;
+
 protected:
    SundialsLinearSolver() { }
    virtual ~SundialsLinearSolver() { }
@@ -62,6 +55,8 @@ public:
    virtual int SolveSystem(void *sundials_mem, Vector &b, Vector &weight,
                            Vector &y_cur, Vector &f_cur) = 0;
    virtual int FreeSystem(void *sundials_mem) = 0;
+
+   double GetTimeStep(void *sundials_mem);
 };
 
 class SundialsSolver

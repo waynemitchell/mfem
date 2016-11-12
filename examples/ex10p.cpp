@@ -127,18 +127,15 @@ public:
 /// Custom Jacobian inversion for the SUNDIALS time integrators.
 class SundialsJacSolver : public SundialsLinearSolver
 {
-public: enum SunType {CVODE, ARKODE};
 private:
-   SunType type;
    ParBilinearForm *M, *S;
    ParNonlinearForm *H;
    HypreParMatrix *Jacobian;
    Solver *J_solver;
 
 public:
-   SundialsJacSolver(SunType type)
-      : type(type),
-        M(NULL), S(NULL), H(NULL), Jacobian(NULL), J_solver(NULL) { }
+   SundialsJacSolver()
+      : M(NULL), S(NULL), H(NULL), Jacobian(NULL), J_solver(NULL) { }
 
    void SetOperators(ParBilinearForm &M_, ParBilinearForm &S_,
                      ParNonlinearForm &H_, Solver &solver)
@@ -289,7 +286,7 @@ int main(int argc, char *argv[])
          cvode->SetSStolerances(1.0e-2, 1.0e-2);
          CVodeSetMaxStep(cvode->SundialsMem(), dt);
          ode_solver = cvode;
-         sjsolver = new SundialsJacSolver(SundialsJacSolver::CVODE);
+         sjsolver = new SundialsJacSolver;
          cvode->SetLinearSolve(*sjsolver);
          break;
       }
@@ -304,7 +301,7 @@ int main(int argc, char *argv[])
          ode_solver = arkode = new ARKODESolver(MPI_COMM_WORLD, true);
          arkode->SetSStolerances(1.0e-2, 1.0e-2);
          // Custom Jacobian inversion.
-         sjsolver = new SundialsJacSolver(SundialsJacSolver::ARKODE);
+         sjsolver = new SundialsJacSolver;
          arkode->SetLinearSolve(*sjsolver);
          break;
       }
@@ -602,8 +599,7 @@ int SundialsJacSolver::SetupSystem(void *sundials_mem, int conv_fail,
 {
    int sc = y_pred.Size() / 2;
    Vector x(y_pred.GetData() + sc, sc);
-   double dt = (type == CVODE) ? ((CVodeMem)sundials_mem)->cv_gamma :
-                                 ((ARKodeMem)sundials_mem)->ark_gamma;
+   double dt = GetTimeStep(sundials_mem);
 
    SparseMatrix *localJ = Add(1.0, M->SpMat(), dt, S->SpMat());
    localJ->Add(dt*dt, H->GetLocalGradient(x));
@@ -625,9 +621,8 @@ int SundialsJacSolver::SolveSystem(void *sundials_mem, Vector &b,
    Vector v_hat(sltn.GetData() +  0, sc);
    Vector x_hat(sltn.GetData() + sc, sc);
    Vector rhs(sc);
+   double dt = GetTimeStep(sundials_mem);
 
-   double dt = (type == CVODE) ? ((CVodeMem)sundials_mem)->cv_gamma :
-                                 ((ARKodeMem)sundials_mem)->ark_gamma;
    H->GetGradient(x).Mult(b_x, rhs);
    rhs *= -dt;
    M->TrueAddMult(b_v, rhs);
