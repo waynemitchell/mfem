@@ -557,12 +557,14 @@ void PetscParMatrix::MakeWrapper(MPI_Comm comm, const Operator* op, Mat *A)
 
 void PetscParMatrix::ConvertOperator(MPI_Comm comm, const Operator &op, Mat* A)
 {
-   PetscParMatrix *pA = const_cast<PetscParMatrix *>
-                        (dynamic_cast<const PetscParMatrix *>(&op));
-   HypreParMatrix *pH = const_cast<HypreParMatrix *>
-                        (dynamic_cast<const HypreParMatrix *>(&op));
-   BlockOperator  *pB = const_cast<BlockOperator *>
-                        (dynamic_cast<const BlockOperator *>(&op));
+   PetscParMatrix   *pA = const_cast<PetscParMatrix *>
+                         (dynamic_cast<const PetscParMatrix *>(&op));
+   HypreParMatrix   *pH = const_cast<HypreParMatrix *>
+                         (dynamic_cast<const HypreParMatrix *>(&op));
+   BlockOperator    *pB = const_cast<BlockOperator *>
+                         (dynamic_cast<const BlockOperator *>(&op));
+   IdentityOperator *pI = const_cast<IdentityOperator *>
+                         (dynamic_cast<const IdentityOperator *>(&op));
    if (pA)
    {
       ierr = PetscObjectReference((PetscObject)(pA->A)); PCHKERRQ(pA->A,ierr);
@@ -594,6 +596,25 @@ void PetscParMatrix::ConvertOperator(MPI_Comm comm, const Operator &op, Mat* A)
       ierr = MatCreateNest(comm,nr,NULL,nc,NULL,mats,A); CCHKERRQ(comm,ierr);
       for (i=0; i<nr*nc; i++) { ierr = MatDestroy(&mats[i]); CCHKERRQ(comm,ierr); }
       ierr = PetscFree(mats); CCHKERRQ(PETSC_COMM_SELF,ierr);
+   }
+   else if (pI)
+   {
+      PetscInt rst;
+
+      ierr = MatCreate(comm,A); CCHKERRQ(comm,ierr);
+      ierr = MatSetSizes(*A,pI->Height(),pI->Width(),PETSC_DECIDE,PETSC_DECIDE);
+      PCHKERRQ(A,ierr);
+      ierr = MatSetType(*A,MATAIJ); PCHKERRQ(*A,ierr);
+      ierr = MatMPIAIJSetPreallocation(*A,1,NULL,0,NULL); PCHKERRQ(*A,ierr);
+      ierr = MatSeqAIJSetPreallocation(*A,1,NULL); PCHKERRQ(*A,ierr);
+      ierr = MatSetOption(*A,MAT_NO_OFF_PROC_ENTRIES,PETSC_TRUE); PCHKERRQ(*A,ierr);
+      ierr = MatGetOwnershipRange(*A,&rst,NULL); PCHKERRQ(*A,ierr);
+      for (PetscInt i = rst; i < rst+pI->Height(); i++)
+      {
+         ierr = MatSetValue(*A,i,i,1.,INSERT_VALUES); PCHKERRQ(*A,ierr);
+      }
+      ierr = MatAssemblyBegin(*A,MAT_FINAL_ASSEMBLY); PCHKERRQ(*A,ierr);
+      ierr = MatAssemblyEnd(*A,MAT_FINAL_ASSEMBLY); PCHKERRQ(*A,ierr);
    }
    else
    {
