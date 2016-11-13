@@ -506,6 +506,8 @@ protected:
 
    /// l1 norms of the rows of A
    double *l1_norms;
+   /// If set, take absolute values of the computed l1_norms.
+   bool pos_l1_norms;
    /// Maximal eigenvalue estimate for polynomial smoothing
    double max_eig_est;
    /// Minimal eigenvalue estimate for polynomial smoothing
@@ -553,6 +555,11 @@ public:
    void SetWindowParameters(double a, double b, double c);
    /// Compute window and Chebyshev coefficients for given polynomial order.
    void SetFIRCoefficients(double max_eig);
+
+   /// After computing l1-norms, replace them with their absolute values.
+   /** By default, the l1-norms take their sign from the corresponding diagonal
+       entries in the associated matrix. */
+   void SetPositiveDiagonal(bool pos = true) { pos_l1_norms = pos; }
 
    /** Set/update the associated operator. Must be called after setting the
        HypreSmoother type and options. */

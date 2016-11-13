@@ -128,7 +128,7 @@ public:
    virtual ~BackwardEulerOperator();
 };
 
-/// Custom Jacobian inversion for the SUNDIALS time integrators.
+/// Custom Jacobian system solver for the SUNDIALS time integrators.
 class SundialsJacSolver : public SundialsLinearSolver
 {
 private:
@@ -554,6 +554,11 @@ int SundialsJacSolver::SetupSystem(void *sundials_mem, int conv_fail,
    Vector x(y_pred.GetData() + sc, sc);
    double dt = GetTimeStep(sundials_mem);
 
+#ifdef MFEM_DEBUG
+   cout << "\033[0;35m" "SundialsJacSolver::SetupSystem" "\033[0m"
+        << " gamma = " << dt << endl;
+#endif
+
    delete Jacobian;
    Jacobian = Add(1.0, M->SpMat(), dt, S->SpMat());
    grad_H = dynamic_cast<SparseMatrix *>(&H->GetGradient(x));
@@ -573,22 +578,29 @@ int SundialsJacSolver::SolveSystem(void *sundials_mem, Vector &b,
    // Vector x(y_cur.GetData() + sc, sc);
    Vector b_v(b.GetData() +  0, sc);
    Vector b_x(b.GetData() + sc, sc);
-   Vector sltn(2 * sc);
-   Vector v_hat(sltn.GetData() +  0, sc);
-   Vector x_hat(sltn.GetData() + sc, sc);
    Vector rhs(sc);
 
    double dt = GetTimeStep(sundials_mem);
+
+#ifdef MFEM_DEBUG
+   cout << "\033[0;36m" "SundialsJacSolver::SolveSystem" "\033[0m" << flush;
+#endif
 
    grad_H->Mult(b_x, rhs);
    rhs *= -dt;
    M->AddMult(b_v, rhs);
 
    J_solver->iterative_mode = false;
-   J_solver->Mult(rhs, v_hat);
+   J_solver->Mult(rhs, b_v);
 
-   add(b_x, dt, v_hat, x_hat);
-   b = sltn;
+#ifdef MFEM_DEBUG
+   cout << " iter = "
+        << static_cast<MINRESSolver*>(J_solver)->GetNumIterations()
+        << ", final norm = "
+        << static_cast<MINRESSolver*>(J_solver)->GetFinalNorm() << endl;
+#endif
+
+   b_x.Add(dt, b_v);
 
    return 0;
 }

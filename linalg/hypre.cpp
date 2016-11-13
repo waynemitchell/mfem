@@ -1623,6 +1623,7 @@ HypreSmoother::HypreSmoother() : Solver()
    taubin_iter = 40;
 
    l1_norms = NULL;
+   pos_l1_norms = false;
    B = X = V = Z = NULL;
    X0 = X1 = NULL;
    fir_coeffs = NULL;
@@ -1640,6 +1641,7 @@ HypreSmoother::HypreSmoother(HypreParMatrix &_A, int _type,
    poly_fraction = _poly_fraction;
 
    l1_norms = NULL;
+   pos_l1_norms = false;
    B = X = V = Z = NULL;
    X0 = X1 = NULL;
    fir_coeffs = NULL;
@@ -1734,6 +1736,13 @@ void HypreSmoother::SetOperator(const Operator &op)
    else
    {
       l1_norms = NULL;
+   }
+   if (l1_norms && pos_l1_norms)
+   {
+      for (int i = 0; i < height; i++)
+      {
+         l1_norms[i] = std::abs(l1_norms[i]);
+      }
    }
 
    if (type == 16)

@@ -73,8 +73,8 @@ protected:
 
    /// Newton solver for the backward Euler equation
    NewtonSolver *newton_solver;
-   /// Preconditioner for the Jacobian
-   Solver *J_prec;
+   /// Solver and preconditioner for the Jacobian solve in the Newton method.
+   Solver *J_solver, *J_prec;
 
    mutable Vector z; // auxiliary vector
 
@@ -82,8 +82,6 @@ public:
    /** Nonlinear operator defining the reduced backward Euler equation for the
        velocity. Used in the implementation of method ImplicitSolve. */
    BackwardEulerOperator *backward_euler_oper;
-   /// Solver for the Jacobian solve in the Newton method
-   Solver *J_solver;
    HyperelasticOperator(ParFiniteElementSpace &f, Array<int> &ess_bdr,
                         double visc, double mu, double K, bool kinsol);
 
@@ -92,7 +90,7 @@ public:
        This is the only requirement for high-order SDIRK implicit integration.*/
    virtual void ImplicitSolve(const double dt, const Vector &x, Vector &k);
 
-   void InitSundialsSpecification(SundialsJacSolver &sjsolv);
+   void InitSundialsJacSolver(SundialsJacSolver &sjsolv);
 
    double ElasticEnergy(ParGridFunction &x) const;
    double KineticEnergy(ParGridFunction &v) const;
@@ -124,18 +122,19 @@ public:
    virtual ~BackwardEulerOperator();
 };
 
-/// Custom Jacobian inversion for the SUNDIALS time integrators.
+/// Custom Jacobian system solver for the SUNDIALS time integrators.
 class SundialsJacSolver : public SundialsLinearSolver
 {
 private:
    ParBilinearForm *M, *S;
    ParNonlinearForm *H;
+   const SparseMatrix *local_grad_H;
    HypreParMatrix *Jacobian;
    Solver *J_solver;
 
 public:
    SundialsJacSolver()
-      : M(NULL), S(NULL), H(NULL), Jacobian(NULL), J_solver(NULL) { }
+      : M(), S(), H(), local_grad_H(), Jacobian(), J_solver() { }
 
    void SetOperators(ParBilinearForm &M_, ParBilinearForm &S_,
                      ParNonlinearForm &H_, Solver &solver)
@@ -403,11 +402,6 @@ int main(int argc, char *argv[])
    //    the initial energies.
    HyperelasticOperator oper(fespace, ess_bdr, visc, mu, K, use_kinsol);
 
-   if (ode_solver_type == 5 || ode_solver_type == 7)
-   {
-      oper.InitSundialsSpecification(*sjsolver);
-   }
-
    socketstream vis_v, vis_w;
    if (visualization)
    {
@@ -589,6 +583,15 @@ BackwardEulerOperator::~BackwardEulerOperator()
 
 int SundialsJacSolver::InitSystem(void *sundials_mem)
 {
+   TimeDependentOperator *td_oper = GetTimeDependentOperator(sundials_mem);
+   HyperelasticOperator *he_oper;
+#ifdef MFEM_DEBUG
+   he_oper = dynamic_cast<HyperelasticOperator*>(td_oper);
+   MFEM_VERIFY(he_oper, "operator is not HyperelasticOperator");
+#else
+   he_oper= static_cast<HyperelasticOperator*>(td_oper);
+#endif
+   he_oper->InitSundialsJacSolver(*this);
    return 0;
 }
 
@@ -601,9 +604,20 @@ int SundialsJacSolver::SetupSystem(void *sundials_mem, int conv_fail,
    Vector x(y_pred.GetData() + sc, sc);
    double dt = GetTimeStep(sundials_mem);
 
+#ifdef MFEM_DEBUG
+   cout << "\033[0;35m" "SundialsJacSolver::SetupSystem" "\033[0m"
+        << " gamma = " << dt << endl;
+#endif
+
+   // J = M + dt*(S + dt*grad(H))
+   delete Jacobian;
    SparseMatrix *localJ = Add(1.0, M->SpMat(), dt, S->SpMat());
-   localJ->Add(dt*dt, H->GetLocalGradient(x));
+   local_grad_H = &H->GetLocalGradient(x);
+   localJ->Add(dt*dt, *local_grad_H);
    Jacobian = M->ParallelAssemble(localJ);
+   delete localJ;
+
+   J_solver->SetOperator(*Jacobian);
 
    jac_cur = 1;
    return 0;
@@ -614,24 +628,36 @@ int SundialsJacSolver::SolveSystem(void *sundials_mem, Vector &b,
                                       Vector &f_cur)
 {
    int sc = b.Size() / 2;
-   Vector x(y_cur.GetData() + sc, sc);
+   ParFiniteElementSpace *fes = H->ParFESpace();
+   // Vector x(y_cur.GetData() + sc, sc);
    Vector b_v(b.GetData() +  0, sc);
    Vector b_x(b.GetData() + sc, sc);
-   Vector sltn(2 * sc);
-   Vector v_hat(sltn.GetData() +  0, sc);
-   Vector x_hat(sltn.GetData() + sc, sc);
    Vector rhs(sc);
    double dt = GetTimeStep(sundials_mem);
 
-   H->GetGradient(x).Mult(b_x, rhs);
+#ifdef MFEM_DEBUG
+   cout << "\033[0;36m" "SundialsJacSolver::SolveSystem" "\033[0m" << flush;
+#endif
+
+   // rhs = M b_v - dt*grad(H) b_x
+   ParGridFunction lb_x(fes), lrhs(fes);
+   lb_x.Distribute(b_x);
+   local_grad_H->Mult(lb_x, lrhs);
+   lrhs.ParallelAssemble(rhs);
    rhs *= -dt;
    M->TrueAddMult(b_v, rhs);
 
-   J_solver->SetOperator(*Jacobian);
-   J_solver->Mult(rhs, v_hat);
+   J_solver->iterative_mode = false;
+   J_solver->Mult(rhs, b_v);
 
-   add(b_x, dt, v_hat, x_hat);
-   b = sltn;
+#ifdef MFEM_DEBUG
+   cout << " iter = "
+        << static_cast<MINRESSolver*>(J_solver)->GetNumIterations()
+        << ", final norm = "
+        << static_cast<MINRESSolver*>(J_solver)->GetFinalNorm() << endl;
+#endif
+
+   b_x.Add(dt, b_v);
 
    return 0;
 }
@@ -684,6 +710,7 @@ HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
 
    HypreSmoother *J_hypreSmoother = new HypreSmoother;
    J_hypreSmoother->SetType(HypreSmoother::l1Jacobi);
+   J_hypreSmoother->SetPositiveDiagonal(true);
    J_prec = J_hypreSmoother;
 
    MINRESSolver *J_minres = new MINRESSolver(f.GetComm());
@@ -754,7 +781,7 @@ void HyperelasticOperator::ImplicitSolve(const double dt,
    add(v, dt, dv_dt, dx_dt);
 }
 
-void HyperelasticOperator::InitSundialsSpecification(SundialsJacSolver &sjsolv)
+void HyperelasticOperator::InitSundialsJacSolver(SundialsJacSolver &sjsolv)
 {
    sjsolv.SetOperators(M, S, H, *J_solver);
 }

@@ -29,24 +29,34 @@
 
 namespace mfem
 {
-/// Interface for specifying custom linear solve in SUNDIALS.
+
+/// Abstract base class, wrapping the custom linear solvers interface in
+/// SUNDIALS' CVODE and ARKODE solvers.
 class SundialsLinearSolver
 {
 public:
-   enum {CVODE, ARKODE} type;
+   enum {CVODE, ARKODE} type; ///< Is CVODE or ARKODE using this object?
 
 protected:
    SundialsLinearSolver() { }
    virtual ~SundialsLinearSolver() { }
 
+   /// Get the current scaled time step, gamma, from @a sundials_mem.
+   double GetTimeStep(void *sundials_mem);
+   /// Get the TimeDependentOperator associated with @a sundials_mem.
+   TimeDependentOperator *GetTimeDependentOperator(void *sundials_mem);
+
 public:
-   /** These four functions and their parameters are explained in Section 7 of
+   /** @name Linear solver interface methods.
+       These four functions and their parameters are explained in Section 7 of
        http://computation.llnl.gov/sites/default/files/public/cv_guide.pdf
-       OR Section 7.4 of
+       or Section 7.4 of
        http://computation.llnl.gov/sites/default/files/public/ark_guide.pdf
 
-       The first argument can be casted to ARKodeMem or CVodeMem,
-       depending which specific package is used. */
+       The first argument, @a sundials_mem, is one of the pointer types,
+       CVodeMem or ARKodeMem, depending on the value of the data member @a type.
+   */
+   ///@{
    virtual int InitSystem(void *sundials_mem) = 0;
    virtual int SetupSystem(void *sundials_mem, int conv_fail,
                            Vector &y_pred, Vector &f_pred, int &jac_cur,
@@ -55,11 +65,7 @@ public:
    virtual int SolveSystem(void *sundials_mem, Vector &b, Vector &weight,
                            Vector &y_cur, Vector &f_cur) = 0;
    virtual int FreeSystem(void *sundials_mem) = 0;
-
-   /// Get the current scaled time step, gamma, from @a sundials_mem.
-   double GetTimeStep(void *sundials_mem);
-   /// Get the TimeDependentOperator associated with @a sundials_mem.
-   TimeDependentOperator *GetTimeDependentOperator(void *sundials_mem);
+   ///@}
 };
 
 class SundialsSolver
@@ -176,7 +182,7 @@ public:
    void PrintInfo() const;
 
    /// Destroys the associated CVODE memory.
-   ~CVODESolver();
+   virtual ~CVODESolver();
 };
 
 /// Wraps the ARKODE library.
@@ -236,7 +242,7 @@ public:
        The start time of ARKODE is initialized from the current time of @a f_.
        @note This method calls ARKodeInit(). Some ARKODE parameters can be set
        (using the handle returned by SundialsMem()) only after this call. */
-   void Init(TimeDependentOperator &f_);
+   virtual void Init(TimeDependentOperator &f_);
 
    /** Uses ARKODE to integrate over [t, t + dt], using the specified step mode.
        Calls ARKode(), which is the main driver of the ARKODE package.
@@ -247,13 +253,13 @@ public:
                          of the solution output, as returned by CVode().
        @param[in,out] dt Input: desired time step. Output: the last incremental
                          time step used. */
-   void Step(Vector &x, double &t, double &dt);
+   virtual void Step(Vector &x, double &t, double &dt);
 
    /// Print ARKODE statistics.
    void PrintInfo() const;
 
    /// Destroys the associated ARKODE memory.
-   ~ARKODESolver();
+   virtual ~ARKODESolver();
 };
 
 /// Wraps the KINSOL library.
@@ -285,7 +291,7 @@ public:
    KinSolver(MPI_Comm comm, int strategy, bool oper_grad = true);
 #endif
 
-   ~KinSolver();
+   virtual ~KinSolver();
 
    virtual void SetSolver(Solver &solver)
    { MFEM_ABORT("This option is not implemented in class KinSolver yet."); }
