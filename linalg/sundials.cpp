@@ -44,7 +44,7 @@ using namespace std;
 namespace mfem
 {
 
-double SundialsLinearSolver::GetTimeStep(void *sundials_mem)
+double SundialsODELinearSolver::GetTimeStep(void *sundials_mem)
 {
    return (type == CVODE) ?
           ((CVodeMem)sundials_mem)->cv_gamma :
@@ -52,7 +52,7 @@ double SundialsLinearSolver::GetTimeStep(void *sundials_mem)
 }
 
 TimeDependentOperator *
-SundialsLinearSolver::GetTimeDependentOperator(void *sundials_mem)
+SundialsODELinearSolver::GetTimeDependentOperator(void *sundials_mem)
 {
    void *user_data = (type == CVODE) ?
                      ((CVodeMem)sundials_mem)->cv_user_data :
@@ -60,14 +60,14 @@ SundialsLinearSolver::GetTimeDependentOperator(void *sundials_mem)
    return (TimeDependentOperator *)user_data;
 }
 
-static inline SundialsLinearSolver *get_spec(void *ptr)
+static inline SundialsODELinearSolver *to_solver(void *ptr)
 {
-   return static_cast<SundialsLinearSolver *>(ptr);
+   return static_cast<SundialsODELinearSolver *>(ptr);
 }
 
 static int LinSysInit(CVodeMem cv_mem)
 {
-   return get_spec(cv_mem->cv_lmem)->InitSystem(cv_mem);
+   return to_solver(cv_mem->cv_lmem)->InitSystem(cv_mem);
 }
 
 static int LinSysSetup(CVodeMem cv_mem, int convfail,
@@ -75,25 +75,25 @@ static int LinSysSetup(CVodeMem cv_mem, int convfail,
                        N_Vector vtemp1, N_Vector vtemp2, N_Vector vtemp3)
 {
    Vector yp(ypred), fp(fpred), vt1(vtemp1), vt2(vtemp2), vt3(vtemp3);
-   return get_spec(cv_mem->cv_lmem)->SetupSystem(cv_mem, convfail, yp, fp,
-                                                 *jcurPtr, vt1, vt2, vt3);
+   return to_solver(cv_mem->cv_lmem)->SetupSystem(cv_mem, convfail, yp, fp,
+                                                  *jcurPtr, vt1, vt2, vt3);
 }
 
 static int LinSysSolve(CVodeMem cv_mem, N_Vector b, N_Vector weight,
                        N_Vector ycur, N_Vector fcur)
 {
    Vector bb(b), w(weight), yc(ycur), fc(fcur);
-   return get_spec(cv_mem->cv_lmem)->SolveSystem(cv_mem, bb, w, yc, fc);
+   return to_solver(cv_mem->cv_lmem)->SolveSystem(cv_mem, bb, w, yc, fc);
 }
 
 static int LinSysFree(CVodeMem cv_mem)
 {
-   return get_spec(cv_mem->cv_lmem)->FreeSystem(cv_mem);
+   return to_solver(cv_mem->cv_lmem)->FreeSystem(cv_mem);
 }
 
 static int LinSysInit(ARKodeMem ark_mem)
 {
-   return get_spec(ark_mem->ark_lmem)->InitSystem(ark_mem);
+   return to_solver(ark_mem->ark_lmem)->InitSystem(ark_mem);
 }
 
 static int LinSysSetup(ARKodeMem ark_mem, int convfail,
@@ -101,20 +101,20 @@ static int LinSysSetup(ARKodeMem ark_mem, int convfail,
                        N_Vector vtemp1, N_Vector vtemp2, N_Vector vtemp3)
 {
    Vector yp(ypred), fp(fpred), vt1(vtemp1), vt2(vtemp2), vt3(vtemp3);
-   return get_spec(ark_mem->ark_lmem)->SetupSystem(ark_mem, convfail, yp, fp,
-                                                   *jcurPtr, vt1, vt2, vt3);
+   return to_solver(ark_mem->ark_lmem)->SetupSystem(ark_mem, convfail, yp, fp,
+                                                    *jcurPtr, vt1, vt2, vt3);
 }
 
 static int LinSysSolve(ARKodeMem ark_mem, N_Vector b, N_Vector weight,
                        N_Vector ycur, N_Vector fcur)
 {
    Vector bb(b), w(weight), yc(ycur), fc(fcur);
-   return get_spec(ark_mem->ark_lmem)->SolveSystem(ark_mem, bb, w, yc, fc);
+   return to_solver(ark_mem->ark_lmem)->SolveSystem(ark_mem, bb, w, yc, fc);
 }
 
 static int LinSysFree(ARKodeMem ark_mem)
 {
-   return get_spec(ark_mem->ark_lmem)->FreeSystem(ark_mem);
+   return to_solver(ark_mem->ark_lmem)->FreeSystem(ark_mem);
 }
 
 
@@ -135,23 +135,29 @@ int SundialsSolver::ODEMult(realtype t, N_Vector y,
 }
 
 // static method
-int SundialsSolver::Mult(N_Vector u, N_Vector fu, void *oper)
+int SundialsSolver::Mult(N_Vector u, N_Vector fu, void *user_data)
 {
    Vector mfem_u(u), mfem_fu(fu);
 
    // Computes the non-linear action F(u).
-   static_cast<Operator *>(oper)->Mult(mfem_u, mfem_fu);
+   static_cast<UserData*>(user_data)->oper->Mult(mfem_u, mfem_fu);
    return 0;
 }
 
 // static method
 int SundialsSolver::GradientMult(N_Vector v, N_Vector Jv, N_Vector u,
-                                 booleantype *new_u, void *oper)
+                                 booleantype *new_u, void *user_data)
 {
-   Vector mfem_u(u), mfem_v(v), mfem_Jv(Jv);
+   Vector mfem_v(v), mfem_Jv(Jv);
 
-   Operator &J = static_cast<Operator *>(oper)->GetGradient(mfem_u);
-   J.Mult(mfem_v, mfem_Jv);
+   UserData &ud = *static_cast<UserData*>(user_data);
+   if (*new_u)
+   {
+      Vector mfem_u(u);
+      ud.jacobian = &ud.oper->GetGradient(mfem_u);
+      *new_u = FALSE;
+   }
+   ud.jacobian->Mult(mfem_v, mfem_Jv);
    return 0;
 }
 
@@ -218,7 +224,7 @@ void CVODESolver::SetSStolerances(double reltol, double abstol)
    // The call to CVodeSStolerances() is done after CVodeInit() in Init().
 }
 
-void CVODESolver::SetLinearSolve(SundialsLinearSolver &ls_spec)
+void CVODESolver::SetLinearSolve(SundialsODELinearSolver &ls_spec)
 {
    CVodeMem mem = Mem(this);
    MFEM_ASSERT(mem->cv_iter == CV_NEWTON,
@@ -234,7 +240,7 @@ void CVODESolver::SetLinearSolve(SundialsLinearSolver &ls_spec)
    mem->cv_lfree  = LinSysFree;
    mem->cv_lmem   = &ls_spec;
    mem->cv_setupNonNull = TRUE;
-   ls_spec.type = SundialsLinearSolver::CVODE;
+   ls_spec.type = SundialsODELinearSolver::CVODE;
 }
 
 void CVODESolver::SetStepMode(int itask)
@@ -450,7 +456,7 @@ ARKODESolver::ARKODESolver(MPI_Comm comm, bool implicit)
 }
 #endif
 
-void ARKODESolver::SetSStolerances(realtype reltol, realtype abstol)
+void ARKODESolver::SetSStolerances(double reltol, double abstol)
 {
    ARKodeMem mem = Mem(this);
    // For now store the values in mem:
@@ -459,7 +465,7 @@ void ARKODESolver::SetSStolerances(realtype reltol, realtype abstol)
    // The call to ARKodeSStolerances() is done after ARKodeInit() in Init().
 }
 
-void ARKODESolver::SetLinearSolve(SundialsLinearSolver &ls_spec)
+void ARKODESolver::SetLinearSolve(SundialsODELinearSolver &ls_spec)
 {
    ARKodeMem mem = Mem(this);
    MFEM_VERIFY(use_implicit,
@@ -477,7 +483,7 @@ void ARKODESolver::SetLinearSolve(SundialsLinearSolver &ls_spec)
    mem->ark_lfree  = LinSysFree;
    mem->ark_lmem   = &ls_spec;
    mem->ark_setupNonNull = TRUE;
-   ls_spec.type = SundialsLinearSolver::ARKODE;
+   ls_spec.type = SundialsODELinearSolver::ARKODE;
 }
 
 void ARKODESolver::SetStepMode(int itask)
@@ -491,9 +497,6 @@ void ARKODESolver::SetOrder(int order)
    // For now store the values in mem:
    mem->ark_q = order;
    // The call to ARKodeSetOrder() is done after ARKodeInit() in Init().
-
-   flag = ARKodeSetOrder(sundials_mem, order);
-   MFEM_ASSERT(flag >= 0, "ARKodeSetOrder() failed!");
 }
 
 void ARKODESolver::SetIRKTableNum(int table_num)
@@ -605,8 +608,16 @@ void ARKODESolver::Init(TimeDependentOperator &f_)
    flag = ARKodeSetOrder(sundials_mem, mem->ark_q);
    MFEM_ASSERT(flag >= 0, "ARKodeSetOrder() failed!");
 
-   if (irk_table >= 0) { ARKodeSetIRKTableNum(sundials_mem, irk_table); }
-   if (erk_table >= 0) { ARKodeSetERKTableNum(sundials_mem, erk_table); }
+   if (irk_table >= 0)
+   {
+      flag = ARKodeSetIRKTableNum(sundials_mem, irk_table);
+      MFEM_ASSERT(flag >= 0, "ARKodeSetIRKTableNum() failed!");
+   }
+   if (erk_table >= 0)
+   {
+      flag = ARKodeSetERKTableNum(sundials_mem, erk_table);
+      MFEM_ASSERT(flag >= 0, "ARKodeSetERKTableNum() failed!");
+   }
 }
 
 void ARKODESolver::Step(Vector &x, double &t, double &dt)
@@ -677,7 +688,7 @@ static inline KINMem Mem(const KinSolver *self)
 }
 
 KinSolver::KinSolver(int strategy, bool oper_grad)
-   : use_oper_grad(oper_grad), y_scale(NULL), f_scale(NULL)
+   : use_oper_grad(oper_grad), y_scale(NULL), f_scale(NULL), user_data()
 {
    // Allocate an empty serial N_Vector wrapper in y.
    y = N_VNewEmpty_Serial(0);
@@ -696,7 +707,7 @@ KinSolver::KinSolver(int strategy, bool oper_grad)
 #ifdef MFEM_USE_MPI
 
 KinSolver::KinSolver(MPI_Comm comm, int strategy, bool oper_grad)
-   : use_oper_grad(oper_grad), y_scale(NULL), f_scale(NULL)
+   : use_oper_grad(oper_grad), y_scale(NULL), f_scale(NULL), user_data()
 {
    if (comm == MPI_COMM_NULL)
    {
@@ -757,8 +768,10 @@ void KinSolver::SetOperator(const Operator &op)
    flag = KINInit(sundials_mem, SundialsSolver::Mult, y);
    MFEM_ASSERT(flag >= 0, "KINInit() failed!");
 
-   // Set void pointer to user data.
-   flag = KINSetUserData(sundials_mem, const_cast<Operator *>(oper));
+   // The 'user_data' in KINSOL will be the data member with the same name.
+   user_data.oper = oper;
+   user_data.jacobian = NULL;
+   flag = KINSetUserData(sundials_mem, &user_data);
    MFEM_ASSERT(flag >= 0, "KINSetUserData() failed!");
 
    // Set scaled preconditioned GMRES linear solver.
@@ -812,9 +825,11 @@ void KinSolver::Mult(Vector &x, Vector &x_scale, Vector &fx_scale) const
 #endif
    }
 
+   if (!iterative_mode) { x = 0.0; }
+
    flag = KINSol(sundials_mem, y, mem->kin_globalstrategy, y_scale, f_scale);
 
-   converged  = (flag == KIN_MAXITER_REACHED) ? false : true;
+   converged  = (flag >= 0);
    final_iter = mem->kin_nni;
    final_norm = mem->kin_fnorm;
 }

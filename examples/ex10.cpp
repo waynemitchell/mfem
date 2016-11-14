@@ -129,7 +129,7 @@ public:
 };
 
 /// Custom Jacobian system solver for the SUNDIALS time integrators.
-class SundialsJacSolver : public SundialsLinearSolver
+class SundialsJacSolver : public SundialsODELinearSolver
 {
 private:
    BilinearForm *M, *S;
@@ -571,8 +571,8 @@ int SundialsJacSolver::SetupSystem(void *sundials_mem, int conv_fail,
 }
 
 int SundialsJacSolver::SolveSystem(void *sundials_mem, Vector &b,
-                                      Vector &weight, Vector &y_cur,
-                                      Vector &f_cur)
+                                   Vector &weight, Vector &y_cur,
+                                   Vector &f_cur)
 {
    int sc = b.Size() / 2;
    // Vector x(y_cur.GetData() + sc, sc);
