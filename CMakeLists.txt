@@ -48,8 +48,8 @@ if (CMAKE_VERSION VERSION_LESS 3.2)
 endif()
 
 # CMake needs to know where to find things
-set(MFEM_CMAKE_PATH ${PROJECT_SOURCE_DIR}/config/cmake)
-set(CMAKE_MODULE_PATH ${MFEM_CMAKE_PATH}/modules)
+set(MFEM_CMAKE_PATH ${PROJECT_SOURCE_DIR}/config)
+set(CMAKE_MODULE_PATH ${MFEM_CMAKE_PATH}/cmake-modules)
 
 #-------------------------------------------------------------------------------
 # Process configuration options
