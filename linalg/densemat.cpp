@@ -3444,7 +3444,8 @@ void AddMult_a_ABt(double a, const DenseMatrix &A, const DenseMatrix &B,
 
 #ifdef MFEM_USE_LAPACK
    static char transa = 'N', transb = 'T';
-   static double alpha = a, beta = 1.0;
+   double alpha = a;
+   static double beta = 1.0;
    int m = A.Height(), n = B.Height(), k = A.Width();
 
    dgemm_(&transa, &transb, &m, &n, &k, &alpha, A.Data(), &m,
@@ -3462,10 +3463,10 @@ void AddMult_a_ABt(double a, const DenseMatrix &A, const DenseMatrix &B,
       double *cp = cd;
       for (int j = 0; j < bh; j++)
       {
-         const double bjk = bd[j];
+         const double bjk = a * bd[j];
          for (int i = 0; i < ah; i++)
          {
-            cp[i] += a * ad[i] * bjk;
+            cp[i] += ad[i] * bjk;
          }
          cp += ah;
       }
