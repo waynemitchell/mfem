@@ -130,18 +130,11 @@ PetscParVector::~PetscParVector()
 PetscParVector::PetscParVector(MPI_Comm comm, PetscInt glob_size,
                                PetscScalar *_data, PetscInt *col) : Vector()
 {
-   if (col)
-   {
-      PetscMPIInt myid;
-      MPI_Comm_rank(comm, &myid);
-      ierr = VecCreateMPIWithArray(comm,1,col[myid+1]-col[myid],PETSC_DECIDE,_data,
-                                   &x); CCHKERRQ(comm,ierr)
-   }
-   else
-   {
-      ierr = VecCreateMPIWithArray(comm,1,PETSC_DECIDE,glob_size,_data,&x);
-      CCHKERRQ(comm,ierr)
-   }
+   MFEM_VERIFY(col,"Missing distribution");
+   PetscMPIInt myid;
+   MPI_Comm_rank(comm, &myid);
+   ierr = VecCreateMPIWithArray(comm,1,col[myid+1]-col[myid],PETSC_DECIDE,_data,
+                                &x); CCHKERRQ(comm,ierr)
    _SetDataAndSize_();
 }
 
