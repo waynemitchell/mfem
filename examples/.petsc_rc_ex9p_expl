@@ -1,0 +1,18 @@
+-ts_dt 0.01
+-ts_final_time 10.0
+
+# RK4 (MFEM ode_solver_type 4)
+#-ts_type rk
+#-ts_rk_type 4
+
+# Forward euler (MFEM ode_solver_type 1)
+#-ts_type euler
+
+# Dormand-Prince 5th order with adaptive time step
+-ts_type rk
+-ts_rk_type 5dp
+-ts_adapt_type basic
+
+# Valid if using the Mult method for the ODE
+-ts_view
+-ts_monitor

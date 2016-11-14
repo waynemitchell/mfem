@@ -27,7 +27,11 @@ protected:
 public:
    ODESolver() : f(NULL) { }
 
-   virtual void Init(TimeDependentOperator &_f) { f = &_f; }
+   virtual void Init(TimeDependentOperator &_f)
+   {
+      MFEM_VERIFY(!_f.HasLHS(),"Unsupported TimeDependentOperator")
+      f = &_f;
+   }
 
    virtual void Step(Vector &x, double &t, double &dt) = 0;
 

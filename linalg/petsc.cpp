@@ -45,7 +45,10 @@
 
 // prototype for auxiliary functions
 static PetscErrorCode ksp_monitor_mfem(KSP,PetscInt,PetscReal,void*);
-static PetscErrorCode ts_function_apply(TS,PetscReal,Vec,Vec,void*);
+static PetscErrorCode ts_rhs_function(TS,PetscReal,Vec,Vec,void*);
+static PetscErrorCode ts_rhsjacobian_function(TS,PetscReal,Vec,Mat,Mat,void*);
+static PetscErrorCode ts_i_function(TS,PetscReal,Vec,Vec,Vec,void*);
+static PetscErrorCode ts_ijacobian_function(TS,PetscReal,Vec,Vec,PetscReal,Mat,Mat,void*);
 static PetscErrorCode snes_jacobian(SNES,Vec,Mat,Mat,void*);
 static PetscErrorCode snes_function_apply(SNES,Vec,Vec,void*);
 static PetscErrorCode mat_shell_apply(Mat,Vec,Vec);
@@ -1189,12 +1192,12 @@ void PetscSolver::Mult(const PetscParVector &b, PetscParVector &x) const
       KSP ksp = (KSP)obj;
       ierr = KSPSetInitialGuessNonzero(ksp,PetscBool(iterative_mode));
       PCHKERRQ(ksp,ierr);
-      ierr = KSPSolve(ksp,b.x,x.x); PCHKERRQ(obj,ierr);
+      ierr = KSPSolve(ksp,b.x,x.x); PCHKERRQ(ksp,ierr);
    }
    else if (cid == PC_CLASSID)
    {
       PC pc = (PC)obj;
-      ierr = PCApply(pc,b.x,x.x); PCHKERRQ(obj,ierr);
+      ierr = PCApply(pc,b.x,x.x); PCHKERRQ(pc,ierr);
    }
    else if (cid == SNES_CLASSID)
    {
@@ -1203,7 +1206,13 @@ void PetscSolver::Mult(const PetscParVector &b, PetscParVector &x) const
       {
          ierr = VecSet(x.x,0.); PCHKERRQ(x.x,ierr);
       }
-      ierr = SNESSolve(snes,b.x,x.x); PCHKERRQ(obj,ierr);
+      ierr = SNESSolve(snes,b.x,x.x); PCHKERRQ(snes,ierr);
+   }
+   else if (cid == TS_CLASSID)
+   {
+      TS ts = (TS)obj;
+      ierr = VecCopy(b.x,x.x); PCHKERRQ(ts,ierr);
+      ierr = TSSolve(ts,x.x); PCHKERRQ(ts,ierr);
    }
    else
    {
@@ -1995,7 +2004,7 @@ void PetscNonlinearSolver::SetOperator(const Operator &op)
 // PetscODESolver methods
 
 PetscODESolver::PetscODESolver(MPI_Comm comm,
-                                           std::string prefix) : PetscSolver()
+                               std::string prefix) : PetscSolver()
 {
    SetPrefix(prefix);
 
@@ -2053,7 +2062,16 @@ void PetscODESolver::SetOperator(const Operator &op)
    width  = op.Width();
 
    TS ts = (TS)obj;
-   ierr = TSSetRHSFunction(ts,NULL,ts_function_apply,(void *)&op);
+   if (td->HasLHS())
+   {
+      ierr = TSSetIFunction(ts,NULL,ts_i_function,(void *)&op);
+      PCHKERRQ(ts,ierr);
+      ierr = TSSetIJacobian(ts,NULL,NULL,ts_ijacobian_function,(void *)&op);
+      PCHKERRQ(ts,ierr);
+   }
+   ierr = TSSetRHSFunction(ts,NULL,ts_rhs_function,(void *)&op);
+   PCHKERRQ(ts,ierr);
+   ierr = TSSetRHSJacobian(ts,NULL,NULL,ts_rhsjacobian_function,(void *)&op);
    PCHKERRQ(ts,ierr);
 }
 
@@ -2067,23 +2085,23 @@ void PetscODESolver::Step(Vector &x, double &t, double &dt)
    X->SetData(x.GetData());
 
    TS ts = (TS)obj;
-   ierr = TSSetSolution(ts,*X);
-   PCHKERRQ(ts,ierr);
-   ierr = TSSetTimeStep(ts,dt);
-   PCHKERRQ(ts,ierr);
-   ierr = TSSetTime(ts,t);
-   PCHKERRQ(ts,ierr);
-   ierr = TSStep(ts);
-   PCHKERRQ(ts,ierr);
+   ierr = TSSetSolution(ts,*X); PCHKERRQ(ts,ierr);
+   ierr = TSSetTimeStep(ts,dt); PCHKERRQ(ts,ierr);
+   ierr = TSSetTime(ts,t); PCHKERRQ(ts,ierr);
+   ierr = TSStep(ts); PCHKERRQ(ts,ierr);
    X->ResetData();
 
+   /* update time */
    PetscReal pt;
-   ierr = TSGetTime(ts,&pt);
-   PCHKERRQ(ts,ierr);
+   ierr = TSGetTime(ts,&pt); PCHKERRQ(ts,ierr);
    t = pt;
+   ierr = TSGetTimeStep(ts,&pt); PCHKERRQ(ts,ierr);
+   dt = pt;
 }
 
 }  // namespace mfem
+
+#include "petsc/private/petscimpl.h"
 
 // auxiliary functions
 #undef __FUNCT__
@@ -2112,15 +2130,127 @@ static PetscErrorCode ksp_monitor_mfem(KSP ksp, PetscInt it, PetscReal res, void
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "ts_function_apply"
-static PetscErrorCode ts_function_apply(TS ts, PetscReal t, Vec x, Vec f, void *ctx)
+#define __FUNCT__ "ts_i_function"
+static PetscErrorCode ts_i_function(TS ts, PetscReal t, Vec x, Vec xp, Vec f, void *ctx)
 {
+   PetscErrorCode ierr;
+
+   PetscFunctionBeginUser;
+   mfem::PetscParVector xx(x,true);
+   mfem::PetscParVector yy(xp,true);
+   mfem::PetscParVector ff(f,true);
+
+   mfem::TimeDependentOperator *op = (mfem::TimeDependentOperator*)ctx;
+   op->SetTime(t);
+
+   // use the Mult method of the class
+   op->Mult(xx,yy,ff);
+
+   // need to tell PETSc the Vec has been updated
+   ierr = PetscObjectStateIncrease((PetscObject)f); CHKERRQ(ierr);
+   PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "ts_rhs_function"
+static PetscErrorCode ts_rhs_function(TS ts, PetscReal t, Vec x, Vec f, void *ctx)
+{
+   PetscErrorCode ierr;
+
    PetscFunctionBeginUser;
    mfem::PetscParVector xx(x,true);
    mfem::PetscParVector ff(f,true);
-   mfem::TimeDependentOperator *op = (mfem::TimeDependentOperator*)ctx;
-   op->SetTime(t);
+
+   mfem::TimeDependentOperator *top = (mfem::TimeDependentOperator*)ctx;
+   top->SetTime(t);
+
+   // use the Mult method of the base class
+   mfem::Operator *op = (mfem::Operator*)ctx;
    op->Mult(xx,ff);
+
+   // need to tell PETSc the Vec has been updated
+   ierr = PetscObjectStateIncrease((PetscObject)f); CHKERRQ(ierr);
+   PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "ts_ijacobian_function"
+static PetscErrorCode ts_ijacobian_function(TS ts, PetscReal t, Vec x, Vec xp, PetscReal shift, Mat A, Mat P, void *ctx)
+{
+   PetscScalar    *array;
+   PetscInt       n;
+   PetscBool      assembled;
+   PetscErrorCode ierr;
+
+   PetscFunctionBeginUser;
+   // wrap Vecs with Vectors
+   ierr = VecGetLocalSize(x,&n); CHKERRQ(ierr);
+   ierr = VecGetArrayRead(x,(const PetscScalar**)&array); CHKERRQ(ierr);
+   mfem::Vector xx(array,n);
+   ierr = VecRestoreArrayRead(x,(const PetscScalar**)&array); CHKERRQ(ierr);
+   ierr = VecGetArrayRead(xp,(const PetscScalar**)&array); CHKERRQ(ierr);
+   mfem::Vector yy(array,n);
+   ierr = VecRestoreArrayRead(xp,(const PetscScalar**)&array); CHKERRQ(ierr);
+
+   mfem::TimeDependentOperator *op = (mfem::TimeDependentOperator*)ctx;
+   // update time
+   op->SetTime(t);
+   // Use TimeDependentOperator::GetGradient(x,y,s)
+   mfem::PetscParMatrix pA(PetscObjectComm((PetscObject)ts),
+                           &op->GetGradient(xx,yy,shift),false);
+
+
+   // Optimized copy
+   ierr = MatAssembled(A,&assembled); CHKERRQ(ierr);
+   if (assembled)
+   {
+      ierr = MatCopy(pA,A,SUBSET_NONZERO_PATTERN); CHKERRQ(ierr);
+   }
+   else
+   {
+      ierr = MatCopy(pA,A,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
+   }
+   ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+   ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+   PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "ts_rhsjacobian_function"
+static PetscErrorCode ts_rhsjacobian_function(TS ts, PetscReal t, Vec x, Mat A, Mat P, void *ctx)
+{
+   PetscScalar    *array;
+   PetscInt       n;
+   PetscBool      assembled;
+   PetscErrorCode ierr;
+
+   PetscFunctionBeginUser;
+   // wrap Vec with Vector
+   ierr = VecGetLocalSize(x,&n); CHKERRQ(ierr);
+   ierr = VecGetArrayRead(x,(const PetscScalar**)&array); CHKERRQ(ierr);
+   mfem::Vector xx(array,n);
+   ierr = VecRestoreArrayRead(x,(const PetscScalar**)&array); CHKERRQ(ierr);
+
+   // update time
+   mfem::TimeDependentOperator *top = (mfem::TimeDependentOperator*)ctx;
+   top->SetTime(t);
+
+   // Use Operator::GetGradient(x)
+   mfem::Operator *op = (mfem::Operator*)ctx;
+   mfem::PetscParMatrix pA(PetscObjectComm((PetscObject)ts),&op->GetGradient(xx),false);
+
+   // Optimized copy
+   ierr = MatAssembled(A,&assembled); CHKERRQ(ierr);
+   if (assembled)
+   {
+      ierr = MatCopy(pA,A,SUBSET_NONZERO_PATTERN); CHKERRQ(ierr);
+   }
+   else
+   {
+      ierr = MatCopy(pA,A,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
+   }
+   ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+   ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
    PetscFunctionReturn(0);
 }
 
@@ -2128,17 +2258,22 @@ static PetscErrorCode ts_function_apply(TS ts, PetscReal t, Vec x, Vec f, void *
 #define __FUNCT__ "snes_jacobian"
 static PetscErrorCode snes_jacobian(SNES snes, Vec x, Mat A, Mat P, void *ctx)
 {
-   PetscScalar *array;
-   PetscInt    n;
+   PetscScalar    *array;
+   PetscInt       n;
+   PetscErrorCode ierr;
 
    PetscFunctionBeginUser;
+   // wrap Vec with Vector
    ierr = VecGetLocalSize(x,&n); CHKERRQ(ierr);
    ierr = VecGetArrayRead(x,(const PetscScalar**)&array); CHKERRQ(ierr);
    mfem::Vector xx(array,n);
    ierr = VecRestoreArrayRead(x,(const PetscScalar**)&array); CHKERRQ(ierr);
 
+   // Use Operator::GetGradient(x)
    mfem::Operator *op = (mfem::Operator*)ctx;
    mfem::PetscParMatrix pA(PetscObjectComm((PetscObject)snes),&op->GetGradient(xx),false);
+
+   // No need to copy to A, we can update the snes matrices
    ierr = SNESSetJacobian(snes,pA,pA,snes_jacobian,ctx); CHKERRQ(ierr);
    PetscFunctionReturn(0);
 }
@@ -2152,6 +2287,8 @@ static PetscErrorCode snes_function_apply(SNES snes, Vec x, Vec f, void *ctx)
    mfem::PetscParVector ff(f,true);
    mfem::Operator *op = (mfem::Operator*)ctx;
    op->Mult(xx,ff);
+   // need to tell PETSc the Vec has been updated
+   ierr = PetscObjectStateIncrease((PetscObject)f); CHKERRQ(ierr);
    PetscFunctionReturn(0);
 }
 
@@ -2167,6 +2304,8 @@ static PetscErrorCode mat_shell_apply(Mat A, Vec x, Vec y)
    mfem::PetscParVector xx(x,true);
    mfem::PetscParVector yy(y,true);
    ctx->op->Mult(xx,yy);
+   // need to tell PETSc the Vec has been updated
+   ierr = PetscObjectStateIncrease((PetscObject)y); CHKERRQ(ierr);
    PetscFunctionReturn(0);
 }
 
@@ -2182,6 +2321,8 @@ static PetscErrorCode mat_shell_apply_transpose(Mat A, Vec x, Vec y)
    mfem::PetscParVector xx(x,true);
    mfem::PetscParVector yy(y,true);
    ctx->op->MultTranspose(xx,yy);
+   // need to tell PETSc the Vec has been updated
+   ierr = PetscObjectStateIncrease((PetscObject)y); CHKERRQ(ierr);
    PetscFunctionReturn(0);
 }
 
@@ -2210,6 +2351,8 @@ static PetscErrorCode pc_shell_apply(PC pc, Vec x, Vec y)
    mfem::PetscParVector xx(x,true);
    mfem::PetscParVector yy(y,true);
    ctx->op->Mult(xx,yy);
+   // need to tell PETSc the Vec has been updated
+   ierr = PetscObjectStateIncrease((PetscObject)y); CHKERRQ(ierr);
    PetscFunctionReturn(0);
 }
 
@@ -2225,6 +2368,8 @@ static PetscErrorCode pc_shell_apply_transpose(PC pc, Vec x, Vec y)
    mfem::PetscParVector xx(x,true);
    mfem::PetscParVector yy(y,true);
    ctx->op->MultTranspose(xx,yy);
+   // need to tell PETSc the Vec has been updated
+   ierr = PetscObjectStateIncrease((PetscObject)y); CHKERRQ(ierr);
    PetscFunctionReturn(0);
 }
 

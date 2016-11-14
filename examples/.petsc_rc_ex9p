@@ -1,7 +1,0 @@
-# Forward euler (ode_solver_type 1)
-#-ts_type euler
-
-# RK4 (ode_solver_type 4)
--ts_type rk
--ts_rk_type 4
-

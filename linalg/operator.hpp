@@ -64,22 +64,37 @@ public:
 };
 
 
-/// Base abstract class for time dependent operators: (x,t) -> f(x,t)
+/// Base abstract class for time dependent operators:
+/// a) (x,t) -> f(x,t) or b) F(x,xdot,t) = G(x,t)
+/// In case a): f(x,t) is implemented with the Mult method of the base class
+/// In case b): G(x,t) is implemented with the Mult method of the base class
+///             and F(x,xdot,t) by TimeDependentOperator::Mult
 class TimeDependentOperator : public Operator
 {
 protected:
    double t;
+   bool has_lhs;
 
 public:
+   using Operator::Mult;
+
    /** Construct a "square" time dependent Operator y = f(x,t), where x and y
        have the same dimension 'n'. */
-   explicit TimeDependentOperator(int n = 0, double _t = 0.0)
-      : Operator(n) { t = _t; }
+   explicit TimeDependentOperator(int n = 0, double _t = 0.0, bool _lhs = false)
+      : Operator(n) { t = _t; has_lhs = _lhs; }
+
+   /** Construct a "square" time dependent Operator y = f(x,t), where x and y
+       have the same dimension 'n'. */
+   explicit TimeDependentOperator(int n = 0, bool _lhs = false)
+      : Operator(n) { t = 0.0; has_lhs = _lhs; }
 
    /** Construct a time dependent Operator y = f(x,t), where x and y have
        dimensions 'w' and 'h', respectively. */
-   TimeDependentOperator(int h, int w, double _t = 0.0)
-      : Operator(h, w) { t = _t; }
+   TimeDependentOperator(int h, int w, double _t = 0.0, bool _lhs = false)
+      : Operator(h, w) { t = _t; has_lhs = _lhs; }
+
+   /** Returns true if the Operator has a non-trivial left-hand side */
+   bool HasLHS() const { return has_lhs; }
 
    virtual double GetTime() const { return t; }
 
@@ -94,9 +109,23 @@ public:
       mfem_error("TimeDependentOperator::ImplicitSolve() is not overloaded!");
    }
 
+   /** implements F(x,dxdt,t) */
+   virtual void Mult(const Vector &x, const Vector &dxdt, Vector &k) const
+   {
+      mfem_error("TimeDependentOperator::Mult(y,dydt,k) is not overloaded!");
+   }
+
+   /** Implements F_dxdt(y,dydt) * shift + F_x(y,dydt), with F_dxdt and F_x the jacobians of
+       F with respect to dx/dt and x evaluated at y and dydt.
+       For more details, see PETSc Manual */
+   virtual Operator& GetGradient(const Vector &y, const Vector &dydt, double shift) const
+   {
+      mfem_error("TimeDependentOperator::GetGradient(y,dydt,shift) is not overloaded!");
+      return const_cast<Operator &>(dynamic_cast<const Operator &>(*this));
+   }
+
    virtual ~TimeDependentOperator() { }
 };
-
 
 /// Base class for solvers
 class Solver : public Operator
