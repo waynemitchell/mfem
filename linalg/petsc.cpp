@@ -269,13 +269,20 @@ void PetscParVector::Randomize(PetscInt seed)
    ierr = PetscRandomDestroy(&rctx); PCHKERRQ(x,ierr);
 }
 
-void PetscParVector::Print(const char *fname) const
+void PetscParVector::Print(const char *fname, bool binary) const
 {
    if (fname)
    {
       PetscViewer view;
 
-      ierr = PetscViewerASCIIOpen(PetscObjectComm((PetscObject)x),fname,&view);
+      if (binary)
+      {
+         ierr = PetscViewerBinaryOpen(PetscObjectComm((PetscObject)x),fname,FILE_MODE_WRITE,&view);
+      }
+      else
+      {
+         ierr = PetscViewerASCIIOpen(PetscObjectComm((PetscObject)x),fname,&view);
+      }
       PCHKERRQ(x,ierr);
       ierr = VecView(x,view); PCHKERRQ(x,ierr);
       ierr = PetscViewerDestroy(&view); PCHKERRQ(x,ierr);
@@ -780,13 +787,20 @@ void PetscParMatrix::MultTranspose(double a, const Vector &x, double b,
    YY->ResetData();
 }
 
-void PetscParMatrix::Print(const char *fname) const
+void PetscParMatrix::Print(const char *fname, bool binary) const
 {
    if (fname)
    {
       PetscViewer view;
 
-      ierr = PetscViewerASCIIOpen(PetscObjectComm((PetscObject)A),fname,&view);
+      if (binary)
+      {
+         ierr = PetscViewerBinaryOpen(PetscObjectComm((PetscObject)A),fname,FILE_MODE_WRITE,&view);
+      }
+      else
+      {
+         ierr = PetscViewerASCIIOpen(PetscObjectComm((PetscObject)A),fname,&view);
+      }
       PCHKERRQ(A,ierr);
       ierr = MatView(A,view); PCHKERRQ(A,ierr);
       ierr = PetscViewerDestroy(&view); PCHKERRQ(A,ierr);

@@ -101,7 +101,7 @@ public:
    void Randomize(PetscInt seed);
 
    /// Prints the vector (to stdout if fname is NULL)
-   void Print(const char *fname = NULL) const;
+   void Print(const char *fname = NULL, bool binary = false) const;
 };
 
 /// Wrapper for PETSc's matrix class
@@ -199,6 +199,9 @@ public:
    /// Typecasting to PETSc's Mat
    operator Mat() { return A; }
 
+   /// Typecasting to PETSc's Mat (const version)
+   operator Mat() const { return A; }
+
    /// Returns the local number of rows
    PetscInt GetNumRows();
 
@@ -234,7 +237,7 @@ public:
    PetscParMatrix* Transpose(bool action = false);
 
    /// Prints the matrix (to stdout if fname is NULL)
-   void Print(const char *fname = NULL) const;
+   void Print(const char *fname = NULL, bool binary = false) const;
 
    /// Scale all entries by s: A_scaled = s*A.
    void operator*=(double s);
