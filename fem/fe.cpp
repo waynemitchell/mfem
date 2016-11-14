@@ -6080,7 +6080,7 @@ void RT0TetFiniteElement::Project (
 
 RotTriLinearHexFiniteElement::RotTriLinearHexFiniteElement()
    : NodalFiniteElement(3, Geometry::CUBE, 6, 2, GRAD, VECTOR, H_CURL,
-			FunctionSpace::Qk)
+                        FunctionSpace::Qk)
 {
    Nodes.IntPoint(0).x = 0.5;
    Nodes.IntPoint(0).y = 0.5;
@@ -9589,7 +9589,7 @@ const double RT_TriangleElement::c = 1./3.;
 RT_TriangleElement::RT_TriangleElement(const int p)
    : VectorFiniteElement(2, Geometry::TRIANGLE, (p + 1)*(p + 3), p + 1,
                          H_DIV, DIV, SCALAR, INTEGRAL,
-			 FunctionSpace::Pk), dof2nk(Dof)
+                         FunctionSpace::Pk), dof2nk(Dof)
 {
    const double *iop = (p > 0) ? poly1d.OpenPoints(p - 1) : NULL;
    const double *bop = poly1d.OpenPoints(p);
@@ -9742,7 +9742,7 @@ const double RT_TetrahedronElement::c = 1./4.;
 RT_TetrahedronElement::RT_TetrahedronElement(const int p)
    : VectorFiniteElement(3, Geometry::TETRAHEDRON, (p + 1)*(p + 2)*(p + 4)/2,
                          p + 1, H_DIV, DIV, SCALAR, INTEGRAL,
-			 FunctionSpace::Pk),
+                         FunctionSpace::Pk),
      dof2nk(Dof)
 {
    const double *iop = (p > 0) ? poly1d.OpenPoints(p - 1) : NULL;
@@ -10490,7 +10490,7 @@ const double ND_TetrahedronElement::c = 1./4.;
 ND_TetrahedronElement::ND_TetrahedronElement(const int p)
    : VectorFiniteElement(3, Geometry::TETRAHEDRON, p*(p + 2)*(p + 3)/2, p,
                          H_CURL, CURL, VECTOR, H_DIV,
-			 FunctionSpace::Pk), dof2tk(Dof)
+                         FunctionSpace::Pk), dof2tk(Dof)
 {
    const double *eop = poly1d.OpenPoints(p - 1);
    const double *fop = (p > 1) ? poly1d.OpenPoints(p - 2) : NULL;
@@ -10753,7 +10753,7 @@ const double ND_TriangleElement::c = 1./3.;
 ND_TriangleElement::ND_TriangleElement(const int p)
    : VectorFiniteElement(2, Geometry::TRIANGLE, p*(p + 2), p,
                          H_CURL, CURL, SCALAR, INTEGRAL,
-			 FunctionSpace::Pk), dof2tk(Dof)
+                         FunctionSpace::Pk), dof2tk(Dof)
 {
    const double *eop = poly1d.OpenPoints(p - 1);
    const double *iop = (p > 1) ? poly1d.OpenPoints(p - 2) : NULL;

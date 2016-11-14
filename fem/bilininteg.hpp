@@ -365,7 +365,7 @@ class MixedScalarMassIntegrator : public MixedScalarIntegrator
 public:
    MixedScalarMassIntegrator() {}
    MixedScalarMassIntegrator(Coefficient &q)
-     : MixedScalarIntegrator(q) {}
+      : MixedScalarIntegrator(q) {}
 };
 
 /** Class for integrating the bilinear form a(u,v) := (Q u, v) in
@@ -388,7 +388,7 @@ class MixedScalarDerivativeIntegrator : public MixedScalarIntegrator
 public:
    MixedScalarDerivativeIntegrator() {}
    MixedScalarDerivativeIntegrator(Coefficient &q)
-     : MixedScalarIntegrator(q) {}
+      : MixedScalarIntegrator(q) {}
 
 protected:
    inline virtual bool VerifyFiniteElementTypes(
@@ -424,7 +424,7 @@ class MixedScalarWeakDerivativeIntegrator : public MixedScalarIntegrator
 public:
    MixedScalarWeakDerivativeIntegrator() {}
    MixedScalarWeakDerivativeIntegrator(Coefficient &q)
-     : MixedScalarIntegrator(q) {}
+      : MixedScalarIntegrator(q) {}
 
 protected:
    inline virtual bool VerifyFiniteElementTypes(
@@ -462,7 +462,7 @@ class MixedScalarDivergenceIntegrator : public MixedScalarIntegrator
 public:
    MixedScalarDivergenceIntegrator() {}
    MixedScalarDivergenceIntegrator(Coefficient &q)
-     : MixedScalarIntegrator(q) {}
+      : MixedScalarIntegrator(q) {}
 
 protected:
    inline virtual bool VerifyFiniteElementTypes(
@@ -499,7 +499,7 @@ class MixedScalarWeakGradientIntegrator : public MixedScalarIntegrator
 public:
    MixedScalarWeakGradientIntegrator() {}
    MixedScalarWeakGradientIntegrator(Coefficient &q)
-     : MixedScalarIntegrator(q) {}
+      : MixedScalarIntegrator(q) {}
 
 protected:
    inline virtual bool VerifyFiniteElementTypes(
@@ -534,7 +534,7 @@ class MixedScalarCurlIntegrator : public MixedScalarIntegrator
 public:
    MixedScalarCurlIntegrator() {}
    MixedScalarCurlIntegrator(Coefficient &q)
-     : MixedScalarIntegrator(q) {}
+      : MixedScalarIntegrator(q) {}
 
 protected:
    inline virtual bool VerifyFiniteElementTypes(
@@ -575,7 +575,7 @@ class MixedScalarWeakCurlIntegrator : public MixedScalarIntegrator
 public:
    MixedScalarWeakCurlIntegrator() {}
    MixedScalarWeakCurlIntegrator(Coefficient &q)
-     : MixedScalarIntegrator(q) {}
+      : MixedScalarIntegrator(q) {}
 
 protected:
    inline virtual bool VerifyFiniteElementTypes(
