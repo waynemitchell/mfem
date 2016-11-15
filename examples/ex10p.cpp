@@ -9,6 +9,8 @@
 //    mpirun -np 4 ex10p -m ../data/beam-tet.mesh -s 2 -rs 1 -dt 3
 //    mpirun -np 4 ex10p -m ../data/beam-quad.mesh -s 14 -rs 2 -dt 0.03 -vs 20
 //    mpirun -np 4 ex10p -m ../data/beam-hex.mesh -s 14 -rs 1 -dt 0.05 -vs 20
+//    mpirun -np 4 ex10p -m ../data/beam-quad.mesh --usepetsc --petscopts .petsc_rc_ex10p
+//                       -s 3 -rs 2 -dt 3
 //
 // Description:  This examples solves a time dependent nonlinear elasticity
 //               problem of the form dv/dt = H(x) + S v, dx/dt = v, where H is a
@@ -29,6 +31,9 @@
 //               (preconditioned) inner solver. Note that implementing the
 //               method HyperelasticOperator::ImplicitSolve is the only
 //               requirement for high-order implicit (SDIRK) time integration.
+//               Is using PETSc to solve the nonlinear problem, use the option
+//               file provided (.petsc_rc_ex10p) that customizes the
+//               Newton-Krylov method.
 //
 //               We recommend viewing examples 2 and 9 before viewing this
 //               example.
@@ -582,6 +587,8 @@ HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
 #ifdef MFEM_USE_PETSC
    else
    {
+      // if using PETSc, we create the same solver (NEWTON+MINRES+Jacobi)
+      // by command line options (see .petsc_rc_ex10p)
       J_solver = NULL;
       J_prec = NULL;
       pnewton_solver = new PetscNonlinearSolver(f.GetComm(),
