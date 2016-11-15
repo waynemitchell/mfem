@@ -626,7 +626,6 @@ void PetscParMatrix::ConvertOperator(MPI_Comm comm, const Operator &op, Mat* A)
    }
 }
 
-
 void PetscParMatrix::Destroy()
 {
    MPI_Comm comm = MPI_COMM_NULL;
@@ -2329,10 +2328,25 @@ static PetscErrorCode snes_jacobian(SNES snes, Vec x, Mat A, Mat P, void *ctx)
 
    // Use Operator::GetGradient(x)
    mfem::Operator *op = (mfem::Operator*)ctx;
-   mfem::PetscParMatrix pA(PetscObjectComm((PetscObject)snes),&op->GetGradient(xx),false);
+   mfem::Operator& J = op->GetGradient(xx);
 
-   // No need to copy to A, we can update the snes matrices
-   ierr = SNESSetJacobian(snes,pA,pA,snes_jacobian,ctx); CHKERRQ(ierr);
+   // Avoid unneeded copy of the matrix by hacking
+   Mat B;
+   mfem::PetscParMatrix *pA = const_cast<mfem::PetscParMatrix *>
+                           (dynamic_cast<const mfem::PetscParMatrix *>(&J));
+   if (pA)
+   {
+      B = pA->ReleaseMat(false);
+   }
+   else
+   {
+      mfem::PetscParMatrix p2A(PetscObjectComm((PetscObject)snes),&J,false);
+      B = p2A.ReleaseMat(false);
+   }
+   ierr = MatHeaderReplace(A,&B);CHKERRQ(ierr);
+   //// No need to copy to A, we can update the snes matrices
+   //mfem::PetscParMatrix pA(PetscObjectComm((PetscObject)snes),&op->GetGradient(xx),false);
+   //ierr = SNESSetJacobian(snes,pA,pA,snes_jacobian,ctx); CHKERRQ(ierr);
    PetscFunctionReturn(0);
 }
 
