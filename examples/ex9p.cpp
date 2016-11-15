@@ -14,9 +14,9 @@
 //    mpirun -np 4 ex9p -m ../data/disc-nurbs.mesh -p 2 -rp 1 -dt 0.005 -tf 9
 //    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 3 -rp 2 -dt 0.0025 -tf 9 -vs 20
 //    mpirun -np 4 ex9p -m ../data/periodic-cube.mesh -p 0 -o 2 -rp 1 -dt 0.01 -tf 8
-//    mpirun -np 4 ex9p -m ../data/periodic-cube.mesh --usepetsc
+//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh --usepetsc
 //                      --petscopts .petsc_rc_ex9p_expl
-//    mpirun -np 4 ex9p -m ../data/periodic-cube.mesh --usepetsc
+//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh --usepetsc
 //                      --petscopts .petsc_rc_ex9p_impl -implicit
 //
 // Description:  This example code solves the time-dependent advection equation
@@ -32,7 +32,8 @@
 //               with VisIt (visit.llnl.gov) is also illustrated.
 //               The example also demonstrates how to use PETSc ODE solvers and
 //               customize them by command line (see .petsc_rc_ex9p_expl and
-//               .petsc_rc_ex9p_impl).
+//               .petsc_rc_ex9p_impl). We also show how to monitor the solution
+//               inside a call to PetscODESolver:Mult.
 
 #include "mfem.hpp"
 #include <fstream>
@@ -93,6 +94,41 @@ public:
    virtual ~FE_Evolution() { delete iJacobian; delete rJacobian; }
 };
 
+#ifdef MFEM_USE_PETSC
+// we monitor the solution at time step "step"
+// as it is done explicitly in the time loop
+class UserMonitor : public PetscSolverMonitorCtx
+{
+private:
+   socketstream&    sout;
+   ParMesh*         pmesh;
+   ParGridFunction* u;
+   bool             pause;
+
+public:
+   UserMonitor(socketstream& _s, ParMesh* _m, ParGridFunction* _u) :
+               PetscSolverMonitorCtx(true,false), sout(_s), pmesh(_m), u(_u), pause(true) {}
+
+   void MonitorSolution(PetscInt step, PetscReal norm, Vector &X)
+   {
+      int  num_procs, myid;
+
+      *u = X;
+      MPI_Comm_size(pmesh->GetComm(),&num_procs);
+      MPI_Comm_rank(pmesh->GetComm(),&myid);
+      sout << "parallel " << num_procs << " " << myid << "\n";
+      sout << "solution\n" << *pmesh << *u;
+      if (pause) sout << "pause\n";
+      sout << flush;
+      if (pause && myid == 0)
+      {
+         pause = false;
+         cout << "GLVis visualization paused."
+             << " Press space (in the GLVis window) to resume it.\n";
+      }
+   }
+};
+#endif
 
 int main(int argc, char *argv[])
 {
@@ -313,6 +349,9 @@ int main(int argc, char *argv[])
       visit_dc.Save();
    }
 
+#ifdef MFEM_USE_PETSC
+   UserMonitor *pmon = NULL;
+#endif
    socketstream sout;
    if (visualization)
    {
@@ -330,7 +369,7 @@ int main(int argc, char *argv[])
             cout << "GLVis visualization disabled.\n";
          }
       }
-      else
+      else if (use_step)
       {
          sout << "parallel " << num_procs << " " << myid << "\n";
          sout.precision(precision);
@@ -341,6 +380,14 @@ int main(int argc, char *argv[])
             cout << "GLVis visualization paused."
                  << " Press space (in the GLVis window) to resume it.\n";
       }
+#ifdef MFEM_USE_PETSC
+      else
+      {
+         // create the UserMonitor
+         sout.precision(precision);
+         pmon = new UserMonitor(sout,pmesh,u);
+      }
+#endif
    }
 
    // 10. Define the time-dependent evolution operator describing the ODE
@@ -348,12 +395,17 @@ int main(int argc, char *argv[])
 #ifdef MFEM_USE_PETSC
    if (use_petsc)
    {
-     pode_solver->Init(*adv);
+      pode_solver->Init(*adv);
+      if (pmon)
+      {
+         // Set the monitoring routine for the PETScODESolver
+         pode_solver->SetMonitor(pmon);
+      }
    }
    else
 #endif
    {
-     ode_solver->Init(*adv);
+      ode_solver->Init(*adv);
    }
    // Explicitly perform time-integration (looping over the time iterations,
    // ti, with a time-step dt), or use the Mult method of the solver class.
@@ -407,6 +459,8 @@ int main(int argc, char *argv[])
    {
 #ifdef MFEM_USE_PETSC
       pode_solver->Mult(*U,*U);
+#else
+      ode_solver.Mult(*U,*U);
 #endif
    }
 
@@ -436,6 +490,7 @@ int main(int argc, char *argv[])
    delete adv;
 #ifdef MFEM_USE_PETSC
    delete pode_solver;
+   delete pmon;
    if (use_petsc) { PetscFinalize(); }
 #endif
    MPI_Finalize();
@@ -520,12 +575,12 @@ Operator& FE_Evolution::GetGradient(const Vector &x, const Vector &xp, double sh
    if (HasLHS())
    {
       iJacobian = new PetscParMatrix(&M, false);
+      *iJacobian *= shift;
    }
    else
    {
       mfem_error("FE_Evolution::GetGradient(x,xp,shift): Capability not coded!");
    }
-   *iJacobian *= shift;
    return *iJacobian;
 }
 #endif
