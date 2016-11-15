@@ -491,10 +491,20 @@ public:
    void Init(TimeDependentOperator &_f)
    {
       SetOperator(_f);
+      SetTime(_f.GetTime());
    }
 
    /// For compatibility with the ODESolver class
    void Step(Vector &x, double &t, double &dt);
+
+   /// Set final time (valid when using the Mult method to solve the ODE)
+   void SetFinalTime(double t);
+
+   /// Set time step
+   void SetTimeStep(double dt);
+
+   /// Set time
+   void SetTime(double t);
 };
 
 /// Abstract class for monitoring PETSc's solvers

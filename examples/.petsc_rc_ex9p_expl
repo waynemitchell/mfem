@@ -1,5 +1,6 @@
--ts_dt 0.01
--ts_final_time 10.0
+# Initial time step and final time can be customized
+#-ts_dt 0.01
+#-ts_final_time 10.0
 
 # RK4 (MFEM ode_solver_type 4)
 #-ts_type rk
@@ -19,7 +20,7 @@
 -ts_view
 
 # Prints the time and dt at each time step
-#-ts_monitor
+-ts_monitor
 
 # Prints extra information on the adaptive step selection
 #-ts_adapt_monitor

@@ -1104,6 +1104,11 @@ void PetscSolver::SetRelTol(double tol)
       SNES snes = (SNES)obj;
       ierr = SNESSetTolerances(snes,PETSC_DEFAULT,tol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);
    }
+   else if (cid == TS_CLASSID)
+   {
+      TS ts = (TS)obj;
+      ierr = TSSetTolerances(ts,PETSC_DECIDE,NULL,tol,NULL);
+   }
    else
    {
       MFEM_ABORT("SetRelTol() to be implemented!");
@@ -1123,6 +1128,11 @@ void PetscSolver::SetAbsTol(double tol)
       SNES snes = (SNES)obj;
       ierr = SNESSetTolerances(snes,tol,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT);
    }
+   else if (cid == TS_CLASSID)
+   {
+      TS ts = (TS)obj;
+      ierr = TSSetTolerances(ts,tol,NULL,PETSC_DECIDE,NULL);
+   }
    else
    {
       MFEM_ABORT("SetAbsTol() to be implemented!");
@@ -1141,6 +1151,11 @@ void PetscSolver::SetMaxIter(int max_iter)
    {
       SNES snes = (SNES)obj;
       ierr = SNESSetTolerances(snes,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT,max_iter,PETSC_DEFAULT);
+   }
+   else if (cid == TS_CLASSID)
+   {
+      TS ts = (TS)obj;
+      ierr = TSSetDuration(ts,max_iter,PETSC_DEFAULT);
    }
    else
    {
@@ -1328,6 +1343,14 @@ int PetscSolver::GetConverged()
       PCHKERRQ(snes,ierr);
       return reason > 0 ? 1 : 0;
    }
+   else if (cid == TS_CLASSID)
+   {
+      TS ts = (TS)obj;
+      TSConvergedReason reason;
+      ierr = TSGetConvergedReason(ts,&reason);
+      PCHKERRQ(ts,ierr);
+      return reason > 0 ? 1 : 0;
+   }
    else
    {
       MFEM_WARNING("GetConverged to be implemented!");
@@ -1351,6 +1374,14 @@ int PetscSolver::GetNumIterations()
       PetscInt its;
       ierr = SNESGetIterationNumber(snes,&its);
       PCHKERRQ(snes,ierr);
+      return its;
+   }
+   else if (cid == TS_CLASSID)
+   {
+      TS ts = (TS)obj;
+      PetscInt its;
+      ierr = TSGetTotalSteps(ts,&its);
+      PCHKERRQ(ts,ierr);
       return its;
    }
    else
@@ -2117,22 +2148,47 @@ void PetscODESolver::SetOperator(const Operator &op)
 void PetscODESolver::Step(Vector &x, double &t, double &dt)
 {
    Customize();
-   if (!X) X = new PetscParVector(PetscObjectComm(obj),*this,false);
-   X->SetData(x.GetData());
 
    TS ts = (TS)obj;
+   if (!X) X = new PetscParVector(PetscObjectComm(obj),*this,false);
+   X->SetData(x.GetData());
    ierr = TSSetSolution(ts,*X); PCHKERRQ(ts,ierr);
-   ierr = TSSetTimeStep(ts,dt); PCHKERRQ(ts,ierr);
-   ierr = TSSetTime(ts,t); PCHKERRQ(ts,ierr);
+
+   SetTime(t);
+   SetTimeStep(dt);
+
    ierr = TSStep(ts); PCHKERRQ(ts,ierr);
+
    X->ResetData();
 
-   /* update time */
+   /* get back time and time step to caller */
    PetscReal pt;
    ierr = TSGetTime(ts,&pt); PCHKERRQ(ts,ierr);
    t = pt;
    ierr = TSGetTimeStep(ts,&pt); PCHKERRQ(ts,ierr);
    dt = pt;
+}
+
+void PetscODESolver::SetFinalTime(double t)
+{
+   TS ts = (TS)obj;
+   ierr = TSSetDuration(ts,PETSC_DECIDE,t); PCHKERRQ(ts,ierr);
+   ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_INTERPOLATE);
+   PCHKERRQ(ts,ierr);
+}
+
+void PetscODESolver::SetTimeStep(double dt)
+{
+   TS ts = (TS)obj;
+   ierr = TSSetTimeStep(ts,dt); PCHKERRQ(ts,ierr);
+   PCHKERRQ(ts,ierr);
+}
+
+void PetscODESolver::SetTime(double t)
+{
+   TS ts = (TS)obj;
+   ierr = TSSetTime(ts,t); PCHKERRQ(ts,ierr);
+   PCHKERRQ(ts,ierr);
 }
 
 }  // namespace mfem

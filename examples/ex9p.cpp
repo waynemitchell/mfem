@@ -458,6 +458,10 @@ int main(int argc, char *argv[])
    else
    {
 #ifdef MFEM_USE_PETSC
+      // we set the final time for the simulation and the initial time step
+      // these values can be altered by options in the .petsc_rc_ex9p_* files
+      pode_solver->SetFinalTime(t_final);
+      pode_solver->SetTimeStep(dt);
       pode_solver->Mult(*U,*U);
 #else
       ode_solver.Mult(*U,*U);
