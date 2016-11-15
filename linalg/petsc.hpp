@@ -500,7 +500,7 @@ public:
    bool _msol;
    bool _mres;
    PetscSolverMonitorCtx(bool msol = false, bool mres = true) : _msol(msol), _mres(mres) {};
-   ~PetscSolverMonitorCtx() {};
+   virtual ~PetscSolverMonitorCtx() {};
 
    /// Monitor the solution vector x
    virtual void MonitorSolution(PetscInt it, PetscReal norm, Vector &x)
