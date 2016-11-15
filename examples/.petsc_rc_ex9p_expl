@@ -13,6 +13,16 @@
 -ts_rk_type 5dp
 -ts_adapt_type basic
 
-# Valid if using the Mult method for the ODE
+# Valid options only when using the Mult method for the ODE
+
+# Prints details of the TS object at the end of Mult method
 -ts_view
--ts_monitor
+
+# Prints the time and dt at each time step
+#-ts_monitor
+
+# Prints extra information on the adaptive step selection
+#-ts_adapt_monitor
+
+# Draw an X window with dt as a function of time
+#-ts_monitor_lg_timestep
