@@ -44,7 +44,8 @@
   }
 
 // prototype for auxiliary functions
-static PetscErrorCode ksp_monitor_mfem(KSP,PetscInt,PetscReal,void*);
+static PetscErrorCode __mfem_ksp_monitor(KSP,PetscInt,PetscReal,void*);
+static PetscErrorCode __mfem_ts_monitor(TS,PetscInt,PetscReal,Vec,void*);
 static PetscErrorCode ts_rhs_function(TS,PetscReal,Vec,Vec,void*);
 static PetscErrorCode ts_rhsjacobian_function(TS,PetscReal,Vec,Mat,Mat,void*);
 static PetscErrorCode ts_i_function(TS,PetscReal,Vec,Vec,Vec,void*);
@@ -1160,7 +1161,10 @@ void PetscSolver::SetPrintLevel(int plev)
    {
       // there are many other options, see KSPSetFromOptions at src/ksp/ksp/interface/itcl.c
       KSP ksp = (KSP)obj;
-      ierr = KSPMonitorCancel(ksp); PCHKERRQ(ksp,ierr);
+      if (plev >= 0)
+      {
+         ierr = KSPMonitorCancel(ksp); PCHKERRQ(ksp,ierr);
+      }
       if (plev == 1)
       {
          ierr = KSPMonitorSet(ksp,(PetscErrorCode (*)(KSP,PetscInt,PetscReal,void*))KSPMonitorDefault,vf,(PetscErrorCode (*)(void**))PetscViewerAndFormatDestroy); PCHKERRQ(ksp,ierr);
@@ -1178,14 +1182,33 @@ void PetscSolver::SetPrintLevel(int plev)
       // user defined monitor
       if (monitor_ctx)
       {
-         ierr = KSPMonitorSet(ksp,ksp_monitor_mfem,monitor_ctx,NULL); PCHKERRQ(ksp,ierr);
+         ierr = KSPMonitorSet(ksp,__mfem_ksp_monitor,monitor_ctx,NULL); PCHKERRQ(ksp,ierr);
       }
    }
    else if (cid == SNES_CLASSID)
    {
       SNES snes = (SNES)obj;
-      ierr = SNESMonitorCancel(snes); PCHKERRQ(snes,ierr);
-      ierr = SNESMonitorSet(snes,(PetscErrorCode (*)(SNES,PetscInt,PetscReal,void*))SNESMonitorDefault,vf,(PetscErrorCode (*)(void**))PetscViewerAndFormatDestroy); PCHKERRQ(snes,ierr);
+      if (plev >= 0)
+      {
+         ierr = SNESMonitorCancel(snes); PCHKERRQ(snes,ierr);
+      }
+      if (plev > 0)
+      {
+         ierr = SNESMonitorSet(snes,(PetscErrorCode (*)(SNES,PetscInt,PetscReal,void*))SNESMonitorDefault,vf,(PetscErrorCode (*)(void**))PetscViewerAndFormatDestroy); PCHKERRQ(snes,ierr);
+      }
+   }
+   else if (cid == TS_CLASSID)
+   {
+      TS ts = (TS)obj;
+      if (plev >= 0)
+      {
+         ierr = TSMonitorCancel(ts); PCHKERRQ(ts,ierr);
+      }
+      // user defined monitor
+      if (monitor_ctx)
+      {
+         ierr = TSMonitorSet(ts,__mfem_ts_monitor,monitor_ctx,NULL); PCHKERRQ(ts,ierr);
+      }
    } else {
       MFEM_ABORT("SetPrintLevel() to be implemented!");
    }
@@ -1194,6 +1217,7 @@ void PetscSolver::SetPrintLevel(int plev)
 void PetscSolver::SetMonitor(PetscSolverMonitorCtx *ctx)
 {
    monitor_ctx = ctx;
+   SetPrintLevel(-1);
 }
 
 void PetscSolver::Mult(const PetscParVector &b, PetscParVector &x) const
@@ -2118,8 +2142,28 @@ void PetscODESolver::Step(Vector &x, double &t, double &dt)
 
 // auxiliary functions
 #undef __FUNCT__
-#define __FUNCT__ "ksp_monitor_mfem"
-static PetscErrorCode ksp_monitor_mfem(KSP ksp, PetscInt it, PetscReal res, void* ctx)
+#define __FUNCT__ "__mfem_ts_monitor"
+static PetscErrorCode __mfem_ts_monitor(TS ts, PetscInt it, PetscReal t, Vec x, void* ctx)
+{
+   mfem::PetscSolverMonitorCtx *monitor_ctx = (mfem::PetscSolverMonitorCtx *)ctx;
+
+   PetscFunctionBeginUser;
+   if (!ctx) SETERRQ(PETSC_COMM_SELF,PETSC_ERR_USER,"No monitor context provided");
+   if (monitor_ctx->_msol)
+   {
+      mfem::PetscParVector V(x,true);
+      monitor_ctx->MonitorSolution(it,t,V);
+   }
+   if (monitor_ctx->_mres)
+   {
+      SETERRQ(PetscObjectComm((PetscObject)ts),PETSC_ERR_SUP,"Cannot monitor the residual with TS");
+   }
+   PetscFunctionReturn(0);
+}
+
+#undef __FUNCT__
+#define __FUNCT__ "__mfem_ksp_monitor"
+static PetscErrorCode __mfem_ksp_monitor(KSP ksp, PetscInt it, PetscReal res, void* ctx)
 {
    mfem::PetscSolverMonitorCtx *monitor_ctx = (mfem::PetscSolverMonitorCtx *)ctx;
    Vec x;
