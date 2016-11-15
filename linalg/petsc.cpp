@@ -972,6 +972,19 @@ void EliminateBC(PetscParMatrix &A, PetscParMatrix &Ae,
    ierr = VecRestoreArrayRead(diag,&array); PCHKERRQ(diag,ierr);
 }
 
+Mat PetscParMatrix::ReleaseMat(bool dereference)
+{
+
+   Mat B = A;
+   if (dereference)
+   {
+      MPI_Comm comm = GetComm();
+      ierr = PetscObjectDereference((PetscObject)A); CCHKERRQ(comm,ierr);
+   }
+   A = NULL;
+   return B;
+}
+
 // PetscSolver methods
 
 void PetscSolver::Init()

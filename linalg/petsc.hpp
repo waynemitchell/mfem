@@ -255,6 +255,10 @@ public:
    /// Takes a reference to another PetscParMatrix
    void MakeRef(const PetscParMatrix &master);
 
+   /// Releases the Mat object. If dereference is true, it decrement
+   /// the refcount of the Mat.
+   Mat ReleaseMat(bool dereference);
+
 };
 
 /// Returns the matrix Rt^t * A * P
