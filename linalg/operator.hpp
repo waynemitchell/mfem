@@ -74,27 +74,31 @@ class TimeDependentOperator : public Operator
 protected:
    double t;
    bool has_lhs;
+   bool has_rhs;
 
 public:
    using Operator::Mult;
 
    /** Construct a "square" time dependent Operator y = f(x,t), where x and y
        have the same dimension 'n'. */
-   explicit TimeDependentOperator(int n = 0, double _t = 0.0, bool _lhs = false)
-      : Operator(n) { t = _t; has_lhs = _lhs; }
+   explicit TimeDependentOperator(int n = 0, double _t = 0.0, bool _lhs = false, bool _rhs = true)
+      : Operator(n) { t = _t; has_lhs = _lhs; has_rhs = _rhs; }
 
    /** Construct a "square" time dependent Operator y = f(x,t), where x and y
        have the same dimension 'n'. */
-   explicit TimeDependentOperator(int n = 0, bool _lhs = false)
-      : Operator(n) { t = 0.0; has_lhs = _lhs; }
+   explicit TimeDependentOperator(int n = 0, bool _lhs = false, bool _rhs = true)
+      : Operator(n) { t = 0.0; has_lhs = _lhs; has_rhs = _rhs; }
 
    /** Construct a time dependent Operator y = f(x,t), where x and y have
        dimensions 'w' and 'h', respectively. */
-   TimeDependentOperator(int h, int w, double _t = 0.0, bool _lhs = false)
-      : Operator(h, w) { t = _t; has_lhs = _lhs; }
+   TimeDependentOperator(int h, int w, double _t = 0.0, bool _lhs = false, bool _rhs = true)
+      : Operator(h, w) { t = _t; has_lhs = _lhs; has_rhs = _rhs; }
 
    /** Returns true if the Operator has a non-trivial left-hand side */
    bool HasLHS() const { return has_lhs; }
+
+   /** Returns true if the Operator has a non-zero right-hand side */
+   bool HasRHS() const { return has_rhs; }
 
    virtual double GetTime() const { return t; }
 

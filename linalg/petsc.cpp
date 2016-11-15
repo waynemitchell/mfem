@@ -2180,11 +2180,16 @@ void PetscODESolver::SetOperator(const Operator &op)
       PCHKERRQ(ts,ierr);
       ierr = TSSetIJacobian(ts,NULL,NULL,ts_ijacobian_function,(void *)&op);
       PCHKERRQ(ts,ierr);
+      ierr = TSSetEquationType(ts,TS_EQ_IMPLICIT);
+      PCHKERRQ(ts,ierr);
    }
-   ierr = TSSetRHSFunction(ts,NULL,ts_rhs_function,(void *)&op);
-   PCHKERRQ(ts,ierr);
-   ierr = TSSetRHSJacobian(ts,NULL,NULL,ts_rhsjacobian_function,(void *)&op);
-   PCHKERRQ(ts,ierr);
+   if (td->HasRHS())
+   {
+      ierr = TSSetRHSFunction(ts,NULL,ts_rhs_function,(void *)&op);
+      PCHKERRQ(ts,ierr);
+      ierr = TSSetRHSJacobian(ts,NULL,NULL,ts_rhsjacobian_function,(void *)&op);
+      PCHKERRQ(ts,ierr);
+   }
 }
 
 // This function is for compatibility with the ODESolver class
