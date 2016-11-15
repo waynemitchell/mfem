@@ -32,7 +32,11 @@
 //               with VisIt (visit.llnl.gov) is also illustrated.
 //               The example also demonstrates how to use PETSc ODE solvers and
 //               customize them by command line (see .petsc_rc_ex9p_expl and
-//               .petsc_rc_ex9p_impl). We also show how to monitor the solution
+//               .petsc_rc_ex9p_impl). The split in left-hand side and right-hand
+//               side of the TimeDependentOperator is amenable for IMEX methods.
+//               When using fully implicit methods, just one side of the
+//               operator should be provided due to efficiency reasons
+//               We also show how to monitor the time dependent solution
 //               inside a call to PetscODESolver:Mult.
 
 #include "mfem.hpp"
