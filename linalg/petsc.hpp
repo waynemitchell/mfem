@@ -181,6 +181,11 @@ public:
                   PetscInt global_num_cols, PetscInt *row_starts,
                   PetscInt *col_starts, SparseMatrix *diag, bool assembled = true);
 
+   // Assignment operators
+   PetscParMatrix& operator=(const PetscParMatrix& B);
+   PetscParMatrix& operator=(const HypreParMatrix& B);
+   PetscParMatrix& operator+=(const PetscParMatrix& B);
+
    // MatMultAdd operations
    void Mult(double a, const Vector &x, double b, Vector &y) const;
 
