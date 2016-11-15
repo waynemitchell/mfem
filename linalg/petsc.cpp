@@ -2236,7 +2236,6 @@ static PetscErrorCode ts_ijacobian_function(TS ts, PetscReal t, Vec x, Vec xp, P
 {
    PetscScalar    *array;
    PetscInt       n;
-   PetscBool      assembled;
    PetscErrorCode ierr;
 
    PetscFunctionBeginUser;
@@ -2249,26 +2248,27 @@ static PetscErrorCode ts_ijacobian_function(TS ts, PetscReal t, Vec x, Vec xp, P
    mfem::Vector yy(array,n);
    ierr = VecRestoreArrayRead(xp,(const PetscScalar**)&array); CHKERRQ(ierr);
 
-   mfem::TimeDependentOperator *op = (mfem::TimeDependentOperator*)ctx;
    // update time
+   mfem::TimeDependentOperator *op = (mfem::TimeDependentOperator*)ctx;
    op->SetTime(t);
+
    // Use TimeDependentOperator::GetGradient(x,y,s)
-   mfem::PetscParMatrix pA(PetscObjectComm((PetscObject)ts),
-                           &op->GetGradient(xx,yy,shift),false);
+   mfem::Operator& J = op->GetGradient(xx,yy,shift);
 
-
-   // Optimized copy
-   ierr = MatAssembled(A,&assembled); CHKERRQ(ierr);
-   if (assembled)
+   // Avoid unneeded copy of the matrix by hacking
+   Mat B;
+   mfem::PetscParMatrix *pA = const_cast<mfem::PetscParMatrix *>
+                           (dynamic_cast<const mfem::PetscParMatrix *>(&J));
+   if (pA)
    {
-      ierr = MatCopy(pA,A,SUBSET_NONZERO_PATTERN); CHKERRQ(ierr);
+      B = pA->ReleaseMat(false);
    }
    else
    {
-      ierr = MatCopy(pA,A,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
+      mfem::PetscParMatrix p2A(PetscObjectComm((PetscObject)ts),&J,false);
+      B = p2A.ReleaseMat(false);
    }
-   ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
-   ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+   ierr = MatHeaderReplace(A,&B);CHKERRQ(ierr);
    PetscFunctionReturn(0);
 }
 
@@ -2278,7 +2278,6 @@ static PetscErrorCode ts_rhsjacobian_function(TS ts, PetscReal t, Vec x, Mat A, 
 {
    PetscScalar    *array;
    PetscInt       n;
-   PetscBool      assembled;
    PetscErrorCode ierr;
 
    PetscFunctionBeginUser;
@@ -2294,20 +2293,22 @@ static PetscErrorCode ts_rhsjacobian_function(TS ts, PetscReal t, Vec x, Mat A, 
 
    // Use Operator::GetGradient(x)
    mfem::Operator *op = (mfem::Operator*)ctx;
-   mfem::PetscParMatrix pA(PetscObjectComm((PetscObject)ts),&op->GetGradient(xx),false);
+   mfem::Operator& J = op->GetGradient(xx);
 
-   // Optimized copy
-   ierr = MatAssembled(A,&assembled); CHKERRQ(ierr);
-   if (assembled)
+   // Avoid unneeded copy of the matrix by hacking
+   Mat B;
+   mfem::PetscParMatrix *pA = const_cast<mfem::PetscParMatrix *>
+                           (dynamic_cast<const mfem::PetscParMatrix *>(&J));
+   if (pA)
    {
-      ierr = MatCopy(pA,A,SUBSET_NONZERO_PATTERN); CHKERRQ(ierr);
+      B = pA->ReleaseMat(false);
    }
    else
    {
-      ierr = MatCopy(pA,A,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
+      mfem::PetscParMatrix p2A(PetscObjectComm((PetscObject)ts),&J,false);
+      B = p2A.ReleaseMat(false);
    }
-   ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
-   ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+   ierr = MatHeaderReplace(A,&B);CHKERRQ(ierr);
    PetscFunctionReturn(0);
 }
 
