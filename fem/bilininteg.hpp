@@ -958,8 +958,8 @@ public:
    {
       return (trial_fe.GetDim() == 3 && test_fe.GetDim() == 3 &&
               trial_fe.GetRangeType() == mfem::FiniteElement::VECTOR &&
-              test_fe.GetRangeType()  == mfem::FiniteElement::VECTOR &&
-              test_fe.GetDerivType()  == mfem::FiniteElement::CURL );
+              trial_fe.GetDerivType() == mfem::FiniteElement::CURL   &&
+              test_fe.GetRangeType()  == mfem::FiniteElement::VECTOR );
    }
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
@@ -982,7 +982,7 @@ class MixedDirectionalDerivativeIntegrator : public MixedScalarVectorIntegrator
 {
 public:
    MixedDirectionalDerivativeIntegrator(VectorCoefficient &vq)
-      : MixedScalarVectorIntegrator(vq, false) {}
+      : MixedScalarVectorIntegrator(vq, true) {}
 
    inline virtual bool VerifyFiniteElementTypes(
       const FiniteElement & trial_fe,
