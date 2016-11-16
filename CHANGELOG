@@ -100,11 +100,11 @@ Miscellaneous
 - Added on-the-fly compression of file streams input and output via gzstream,
   see the MFEM_USE_GZSTREAM option.
 
-- Added support for a new mesh blueprint binary file format for visualization or
-  restart capability.  This functionality is aimed primarily at customers of the
-  ASC Toolkit (HPC physics codes) that run problems at extreme scales.  Customers
-  desiring a small scale binary format may want to look at the gzstream
-  functionality instead.
+- Added support for an HDF5-based file format following the Conduit mesh
+  blueprint specification, for visualization or restart capability.  Thia
+  functionality is aimed primarily at customers of the ASC Toolkit (HPC physics
+  codes) that run problems at extreme scales.  Customers desiring a small scale
+  binary format may want to look at the gzstream functionality instead.
 
   This is an early capability and does not support extensions to the native
   MFEM high order mesh structures, such as NURBs.  The following libraries are
