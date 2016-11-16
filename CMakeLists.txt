@@ -10,7 +10,6 @@
 # Software Foundation) version 2.1 dated February 1999.
 
 cmake_minimum_required(VERSION 2.8.11)
-
 set(USER_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/config/user.cmake" CACHE PATH
   "Path to optional user configuration file.")
 
@@ -41,6 +40,12 @@ endif()
 
 project(mfem CXX)
 set(${PROJECT_NAME}_VERSION 3.2)
+
+# Prohibit in-source build
+if (${PROJECT_SOURCE_DIR} STREQUAL ${PROJECT_BINARY_DIR})
+  message(FATAL_ERROR
+    "MFEM does not support in-source CMake builds at this time.")
+endif (${PROJECT_SOURCE_DIR} STREQUAL ${PROJECT_BINARY_DIR})
 
 if (CMAKE_VERSION VERSION_LESS 3.2)
    # This seems to be needed by: find_package(BLAS REQUIRED)
