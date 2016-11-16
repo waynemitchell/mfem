@@ -238,26 +238,6 @@ int main(int argc, char *argv[])
          MPI_Barrier(MPI_COMM_WORLD);
          time += MPI_Wtime();
          if (myid == 0) { cout << "PETSc assembly timing : " << time << endl; }
-
-         // Check the assembly procedure
-         PetscReal       error;
-         PetscErrorCode  ierr;
-         PetscParMatrix  hA(&A,false);
-         PetscParMatrix  *diffmat;
-         if (use_nonoverlapping)
-         {
-            Mat B;
-            ierr = MatISGetMPIXAIJ(pA,MAT_INITIAL_MATRIX,&B); CHKERRQ(ierr);
-            diffmat = new PetscParMatrix(B,false);
-         }
-         else
-         {
-            diffmat = &pA;
-         }
-         ierr = MatAXPY(*diffmat,-1.,hA,DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
-         ierr = MatNorm(*diffmat,NORM_INFINITY,&error); CHKERRQ(ierr);
-         if (myid == 0) { cout << "Error between PETSc and HYPRE : " << error << endl; }
-         if (use_nonoverlapping) { delete diffmat; }
       }
 #endif
 
