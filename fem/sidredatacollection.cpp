@@ -86,7 +86,7 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name,
    : mfem::DataCollection(collection_name.c_str(), the_mesh),
      m_owns_datastore(true),
      m_owns_mesh_data(own_mesh_data),
-     m_meshNodesGFName("mfem_default_mesh_nodes_gf"),
+     m_meshNodesGFName(""),
      m_loadCalled(false)
 {
    namespace sidre = asctoolkit::sidre;
@@ -311,7 +311,7 @@ void SidreDataCollection::createMeshBlueprintTopologies(bool hasBP,
                                           num_indices);
       topology_grp->createViewString("coordset", "coords");
 
-      if (!isBdry)
+      if (!isBdry && !m_meshNodesGFName.empty() )
       {
          // NOTE: The view name will be changing
          //       from 'mfem_grid_function' to 'grid_function'
@@ -345,7 +345,7 @@ void SidreDataCollection::createMeshBlueprintTopologies(bool hasBP,
       bp_index_topo_grp->copyView( topology_grp->getView("type") );
       bp_index_topo_grp->copyView( topology_grp->getView("coordset") );
 
-      if (!isBdry)
+      if (!isBdry && !m_meshNodesGFName.empty())
       {
          bp_index_topo_grp->copyView( topology_grp->getView("mfem_grid_function") );
       }
@@ -369,8 +369,6 @@ void SidreDataCollection::createMeshBlueprintTopologies(bool hasBP,
       bp_index_field_grp->createViewScalar("number_of_components",
                                            number_of_components);
    }
-
-
 
    // Finally, change ownership or copy the element arrays into Sidre
    sidre::DataView* conn_view = bp_grp->getGroup(
@@ -408,9 +406,6 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
 {
    namespace sidre = asctoolkit::sidre;
 
-   MFEM_VERIFY( new_mesh->GetNodes() != NULL,
-                "Low order meshes are not supported by the sidre binary output at this time.");
-
    DataCollection::SetMesh(new_mesh);
 
    if ( !simdata_grp->hasGroup("array_data") )
@@ -434,8 +429,9 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
    }
 
 
-   if ( m_meshNodesGFName == "mfem_default_mesh_nodes_gf")
+   if ( new_mesh->GetNodes() != NULL && m_meshNodesGFName == "")
    {
+      m_meshNodesGFName = "_mesh_nodes_gf";
       /*
       if (m_owns_mesh_data)
       {
