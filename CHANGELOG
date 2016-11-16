@@ -32,16 +32,18 @@ Coordinated general quadrature and nodal finite element basis types
 - Added support for different numerical quadrature schemes and finite element
   basis points. Different basis points can be selected via optional integer
   argument(s) to the finite element collection constructor of type BasisType:
-  * H1 elements can use GaussLobatto (default) or ClosedUniform;
+  * H1 elements can use GaussLobatto (default), Positive, or ClosedUniform;
   * L2 elements can use GaussLegendre (default), GaussLobatto, Positive,
-       UniformClosed, or UniformOpen;
-  * RT can now use open basis that is GaussLegendre (default) or UniformOpen
-       and closed basis that is GaussLobatto (default) or UniformClosed;
-  * ND elements can use the same type of basis points as RT elements.
+       ClosedUniform, OpenUniform or OpenHalfUniform;
+  * RT can now use open basis that is GaussLegendre (default), GaussLobatto,
+       ClosedUniform, OpenUniform, or OpenHalfUniform, and closed basis that is
+       GaussLobatto (default) or ClosedUniform;
+  * ND elements can use the same BasisType's as RT elements.
 
-- GaussLegendre, GaussLobatto, UniformClosed and UniformOpen integration rules
-  can be directly constructed with an optional parameter of type Quadrature1D:
-     IntegrationRules gl(0 , Quadrature1D::GaussLobatto);
+- GaussLegendre, GaussLobatto, ClosedUniform, OpenUniform, and OpenHalfUniform
+  integration rules can be directly constructed with an optional parameter of
+  type Quadrature1D:
+     IntegrationRules gl(0, Quadrature1D::GaussLobatto);
      const IntegrationRule *ir = gl(Geometry::SEGMENT, 5); // 4pt 1D rule
   The global IntRules object continues to use GaussLegendre.
 
