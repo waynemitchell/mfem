@@ -272,13 +272,23 @@ int main(int argc, char *argv[])
       {
          ParFiniteElementSpace *prec_fespace =
             (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);
-         PetscBDDCSolverParams opts;
-         opts.SetSpace(prec_fespace);
-         opts.SetEssBdrDofs(&ess_tdof_list);
 
+         // Auxiliary class for BDDC customization
+         PetscBDDCSolverParams opts;
+         // Inform the solver about the finite element space
+         opts.SetSpace(prec_fespace);
+         // Inform the solver about essential dofs
+         opts.SetEssBdrDofs(&ess_tdof_list);
+         // Create a BDDC solver with parameters
          prec = new PetscBDDCSolver(A,opts);
-         pcg->SetPreconditioner(*prec);
       }
+      else
+      {
+         // Create an empty preconditioner object that can
+         // be customized at runtime
+         prec = new PetscPreconditioner(A,"solver_");
+      }
+      pcg->SetPreconditioner(*prec);
       pcg->Mult(B, X);
       delete prec;
    }
