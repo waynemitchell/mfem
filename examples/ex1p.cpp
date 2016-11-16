@@ -78,7 +78,8 @@ public:
       socketstream sol_sock(vishost, visport);
       sol_sock << "parallel " << num_procs << " " << myid << "\n";
       sol_sock.precision(8);
-      sol_sock << "solution\n" << *mesh << _x << flush;
+      sol_sock << "solution\n" << *mesh << _x <<
+                  "window_title 'Iteration no " << it << "'" << flush;
    }
 };
 #endif
