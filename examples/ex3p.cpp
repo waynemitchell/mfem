@@ -17,6 +17,10 @@
 //               mpirun -np 4 ex3p -m ../data/star-surf.mesh -o 2
 //               mpirun -np 4 ex3p -m ../data/mobius-strip.mesh -o 2 -f 0.1
 //               mpirun -np 4 ex3p -m ../data/klein-bottle.mesh -o 2 -f 0.1
+//               mpirun -np 4 ex3p -m ../data/klein-bottle.mesh -o 2 -f 0.1
+//                                 --usepetsc --nonoverlapping --petscopts .petsc_rc_ex3p_bddc
+//               mpirun -np 4 ex3p -m ../data/klein-bottle.mesh -o 2 -f 0.1
+//                                 --usepetsc --petscopts .petsc_rc_ex3p
 //
 // Description:  This example code solves a simple electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell
@@ -30,6 +34,10 @@
 //               bilinear form, as well as the computation of discretization
 //               error when the exact solution is known. Static condensation is
 //               also illustrated.
+//
+//               The example also show how to use the non-overlapping feature of
+//               the ParBilinearForm class to obtain the linear operator in
+//               a format suitable for the BDDC preconditioner in PETSc.
 //
 //               We recommend viewing examples 1-2 before viewing this example.
 
@@ -248,13 +256,19 @@ int main(int argc, char *argv[])
       pcg->SetPrintLevel(2); //TODO
       if (use_nonoverlapping)
       {
+         // Auxiliary class for BDDC customization
          PetscBDDCSolverParams opts;
+         // Inform the solver about the finite element space
          opts.SetSpace(prec_fespace);
+         // Inform the solver about essential dofs
          opts.SetEssBdrDofs(&ess_tdof_list);
+         // Create a BDDC solver with parameters
          prec = new PetscBDDCSolver(A,opts);
       }
       else
       {
+         // Create an empty preconditioner object that can
+         // be customized at runtime
          prec = new PetscPreconditioner(A,"solver_");
       }
       pcg->SetPreconditioner(*prec);
