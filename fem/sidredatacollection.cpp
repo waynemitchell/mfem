@@ -311,6 +311,7 @@ void SidreDataCollection::createMeshBlueprintTopologies(bool hasBP,
                                           num_indices);
       topology_grp->createViewString("coordset", "coords");
 
+      // If the nodes GF name is empty, then the user has not provided one AND one doesn't exist in the mfem mesh.
       if (!isBdry && !m_meshNodesGFName.empty() )
       {
          // NOTE: The view name will be changing
@@ -345,6 +346,7 @@ void SidreDataCollection::createMeshBlueprintTopologies(bool hasBP,
       bp_index_topo_grp->copyView( topology_grp->getView("type") );
       bp_index_topo_grp->copyView( topology_grp->getView("coordset") );
 
+      // If the nodes GF name is empty, then the user has not provided one AND one doesn't exist in the mfem mesh.
       if (!isBdry && !m_meshNodesGFName.empty())
       {
          bp_index_topo_grp->copyView( topology_grp->getView("mfem_grid_function") );
@@ -399,6 +401,21 @@ void SidreDataCollection::createMeshBlueprintTopologies(bool hasBP,
          mesh->CopyBoundaryElementData(conn_view->getArray(),num_indices,
                                        attr_view->getArray(),num_elements);
       }
+   }
+}
+
+void SidreDataCollection::verifyMeshBlueprint()
+{
+   // Conduit will have a verify mesh blueprint capability in the future.
+   // Add call to that when it's available to check actual contents in sidre.
+   
+   // If a nodes GF name was set, verify a field with that name was registered.
+   if (!m_meshNodesGFName.empty())
+   {
+      MFEM_VERIFY( HasField( m_meshNodesGFName ), 
+         "A nodes' position GF was not found with the name '" <<
+         m_meshNodesGFName
+         << "'.  Either the field was not registered, or the wrong mesh nodes GF name was provided in the Sidre DC constructor.");
    }
 }
 
@@ -561,6 +578,8 @@ void SidreDataCollection::Save(const std::string& filename,
                                const std::string& protocol)
 {
    namespace sidre = asctoolkit::sidre;
+
+   verifyMeshBlueprint();
 
    create_directory(prefix_path, mesh, myid);
 
