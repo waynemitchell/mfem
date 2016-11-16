@@ -191,7 +191,7 @@ ifeq ($(MFEM_USE_GZSTREAM),YES)
    ALL_LIBS += -lz
 endif
 
-# List of all defines that may be enabled in config.hpp and config.mk:
+# List of all defines that may be enabled in _config.hpp and config.mk:
 MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_USE_GZSTREAM\
  MFEM_USE_LIBUNWIND MFEM_USE_LAPACK MFEM_THREAD_SAFE MFEM_USE_OPENMP\
  MFEM_USE_MEMALLOC MFEM_TIMER_TYPE MFEM_USE_MESQUITE MFEM_USE_SUITESPARSE\

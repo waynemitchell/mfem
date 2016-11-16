@@ -48,8 +48,8 @@ if (CMAKE_VERSION VERSION_LESS 3.2)
 endif()
 
 # CMake needs to know where to find things
-set(MFEM_CMAKE_PATH ${PROJECT_SOURCE_DIR}/config/cmake)
-set(CMAKE_MODULE_PATH ${MFEM_CMAKE_PATH}/modules)
+set(MFEM_CMAKE_PATH ${PROJECT_SOURCE_DIR}/config)
+set(CMAKE_MODULE_PATH ${MFEM_CMAKE_PATH}/cmake-modules)
 
 #-------------------------------------------------------------------------------
 # Process configuration options
@@ -164,8 +164,8 @@ if (NOT DEFINED MFEM_TIMER_TYPE)
 endif()
 
 # List all posible libraries in order of dependencies.
-set(MFEM_TPLS HYPRE OPENMP MEQUITE SuiteSparse SuperLUDist ParMETIS METIS LAPACK
-    BLAS GECKO GNUTLS NETCDF MPFR POSIXCLOCKS MFEMBacktrace ZLIB)
+set(MFEM_TPLS HYPRE OPENMP MESQUITE SuiteSparse SuperLUDist ParMETIS METIS
+    LAPACK BLAS GECKO GNUTLS NETCDF MPFR POSIXCLOCKS MFEMBacktrace ZLIB)
 # Add all *_FOUND libraries in the variable TPL_LIBRARIES.
 set(TPL_LIBRARIES "")
 foreach(TPL IN LISTS MFEM_TPLS)
@@ -247,6 +247,10 @@ if (MFEM_ENABLE_TESTING)
   enable_testing()
 endif()
 
+# Define a target that all examples and miniapps will depend on.
+set(MFEM_EXEC_PREREQUISITES_TARGET_NAME exec_prerequisites)
+add_custom_target(${MFEM_EXEC_PREREQUISITES_TARGET_NAME})
+
 # Create a target for all examples and, optionally, enable it.
 set(MFEM_ALL_EXAMPLES_TARGET_NAME examples)
 add_mfem_target(${MFEM_ALL_EXAMPLES_TARGET_NAME} ${MFEM_ENABLE_EXAMPLES})
@@ -266,6 +270,18 @@ add_dependencies(exec
 #  - https://gitlab.kitware.com/cmake/cmake/issues/8438
 #  - https://cmake.org/Bug/view.php?id=8438
 
+# Add a target to copy the mfem data directory to the build directory
+add_custom_command(OUTPUT data_is_copied
+  COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_SOURCE_DIR}/data data
+  COMMAND ${CMAKE_COMMAND} -E touch data_is_copied
+  COMMENT "Copying the data directory ...")
+add_custom_target(copy_data DEPENDS data_is_copied)
+# Add 'copy_data' as a prerequisite for all executables, if the source and the
+# build directories are not the same.
+if (NOT ("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}"))
+  add_dependencies(${MFEM_EXEC_PREREQUISITES_TARGET_NAME} copy_data)
+endif()
+
 # Add 'check' target - quick test
 if (NOT MFEM_USE_MPI)
   add_custom_target(check
@@ -283,8 +299,13 @@ endif()
 
 message(STATUS "CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}")
 string(TOUPPER "${PROJECT_NAME}" PROJECT_NAME_UC)
-set(INCLUDE_INSTALL_DIR include)
-set(LIB_INSTALL_DIR lib)
+set(INSTALL_INCLUDE_DIR include
+  CACHE PATH "Relative path for installing header files.")
+set(INSTALL_LIB_DIR lib
+  CACHE PATH "Relative path for installing the library.")
+# other options: "share/mfem/cmake", "lib/mfem/cmake"
+set(INSTALL_CMAKE_DIR lib/cmake/mfem
+  CACHE PATH "Relative path for installing cmake config files.")
 
 # The 'install' target will not depend on 'all'.
 # set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY TRUE)
@@ -294,14 +315,14 @@ set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME Development)
 # Install the library
 install(TARGETS ${PROJECT_NAME}
   EXPORT ${PROJECT_NAME_UC}Targets
-  DESTINATION ${LIB_INSTALL_DIR})
+  DESTINATION ${INSTALL_LIB_DIR})
 
 # Install the master headers
-install(FILES ${MASTER_HEADERS} DESTINATION ${INCLUDE_INSTALL_DIR})
+install(FILES ${MASTER_HEADERS} DESTINATION ${INSTALL_INCLUDE_DIR})
 
 # Install the headers; currently, the miniapps headers are excluded
 install(DIRECTORY ${MFEM_SOURCE_DIRS}
-  DESTINATION ${INCLUDE_INSTALL_DIR}
+  DESTINATION ${INSTALL_INCLUDE_DIR}
   FILES_MATCHING PATTERN "*.hpp")
 
 # Install ${HEADERS}
@@ -309,16 +330,16 @@ install(DIRECTORY ${MFEM_SOURCE_DIRS}
 # foreach (HDR ${HEADERS})
 #   file(RELATIVE_PATH REL_HDR ${PROJECT_SOURCE_DIR} ${HDR})
 #   get_filename_component(DIR ${REL_HDR} PATH)
-#   install(FILES ${REL_HDR} DESTINATION ${INCLUDE_INSTALL_DIR}/${DIR})
+#   install(FILES ${REL_HDR} DESTINATION ${INSTALL_INCLUDE_DIR}/${DIR})
 # endforeach()
 
 # Install the configuration header files
 install(FILES ${PROJECT_BINARY_DIR}/config/_config.hpp
-  DESTINATION ${INCLUDE_INSTALL_DIR}/config
+  DESTINATION ${INSTALL_INCLUDE_DIR}/config
   RENAME config.hpp)
 
 install(FILES ${PROJECT_SOURCE_DIR}/config/tconfig.hpp
-  DESTINATION ${INCLUDE_INSTALL_DIR}/config)
+  DESTINATION ${INSTALL_INCLUDE_DIR}/config)
 
 #
 # Package the whole thing up nicely
@@ -335,18 +356,18 @@ export(PACKAGE ${PROJECT_NAME})
 
 # This is the build-tree version
 set(INCLUDE_INSTALL_DIRS ${PROJECT_BINARY_DIR})
-set(LIB_INSTALL_DIRS ${CMAKE_CURRENT_BINARY_DIR})
+set(LIB_INSTALL_DIR ${PROJECT_BINARY_DIR})
 configure_package_config_file(config/MFEMConfig.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/MFEMConfig.cmake
   INSTALL_DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
-  PATH_VARS INCLUDE_INSTALL_DIRS LIB_INSTALL_DIRS)
+  PATH_VARS INCLUDE_INSTALL_DIRS LIB_INSTALL_DIR)
 
 # This is the version that will be installed
-set(INCLUDE_INSTALL_DIRS ${INCLUDE_INSTALL_DIR})
-set(LIB_INSTALL_DIRS ${LIB_INSTALL_DIR})
+set(INCLUDE_INSTALL_DIRS ${INSTALL_INCLUDE_DIR})
+set(LIB_INSTALL_DIR ${INSTALL_LIB_DIR})
 configure_package_config_file(config/MFEMConfig.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/MFEMConfig.cmake
-  INSTALL_DESTINATION ${LIB_INSTALL_DIR}/cmake/mfem
+  INSTALL_DESTINATION ${INSTALL_CMAKE_DIR}
   PATH_VARS INCLUDE_INSTALL_DIRS LIB_INSTALL_DIR)
 
 # Write the version file (same for build and install tree)
@@ -359,8 +380,8 @@ write_basic_package_version_file(
 install(FILES
   ${CMAKE_CURRENT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/MFEMConfig.cmake
   ${CMAKE_CURRENT_BINARY_DIR}/MFEMConfigVersion.cmake
-  DESTINATION ${LIB_INSTALL_DIR}/cmake/mfem)
+  DESTINATION ${INSTALL_CMAKE_DIR})
 
 # Install the export set for use with the install-tree
 install(EXPORT ${PROJECT_NAME_UC}Targets
-    DESTINATION ${LIB_INSTALL_DIR}/cmake/mfem)
+    DESTINATION ${INSTALL_CMAKE_DIR})

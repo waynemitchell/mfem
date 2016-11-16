@@ -39,6 +39,7 @@ function(add_mfem_examples EXE_SRCS)
     string(REPLACE ".cpp" "" EXE_NAME ${SRC_FILENAME})
     add_executable(${EXE_NAME} ${SRC_FILE})
     add_dependencies(${MFEM_ALL_EXAMPLES_TARGET_NAME} ${EXE_NAME})
+    add_dependencies(${EXE_NAME} ${MFEM_EXEC_PREREQUISITES_TARGET_NAME})
 
     target_link_libraries(${EXE_NAME} mfem)
     if (MFEM_USE_MPI)
@@ -79,6 +80,7 @@ function(add_mfem_miniapp MFEM_EXE_NAME)
   add_executable(${MFEM_EXE_NAME} ${MAIN_LIST}
     ${EXTRA_SOURCES_LIST} ${EXTRA_HEADERS_LIST})
   add_dependencies(${MFEM_ALL_MINIAPPS_TARGET_NAME} ${MFEM_EXE_NAME})
+  add_dependencies(${MFEM_EXE_NAME} ${MFEM_EXEC_PREREQUISITES_TARGET_NAME})
 
   # Append the additional libraries and options
   if (LIBRARIES_LIST)
