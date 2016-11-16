@@ -25,27 +25,20 @@
 # verbose output
 #-prec_pc_bddc_check_level 1
 
-# local solvers (needs MUMPS or UMFPACK)
-# default solvers may fail
-# MUMPS
--prec_pc_bddc_neumann_pc_type cholesky
--prec_pc_bddc_neumann_pc_factor_mat_solver_package mumps
--prec_pc_bddc_dirichlet_pc_type cholesky
--prec_pc_bddc_dirichlet_pc_factor_mat_solver_package mumps
+# local solvers (needs PETSc compiled with support for SuiteSparse)
+# default solvers will fail
+-prec_pc_bddc_neumann_pc_type lu
+-prec_pc_bddc_neumann_pc_factor_mat_solver_package umfpack
+-prec_pc_bddc_dirichlet_pc_type lu
+-prec_pc_bddc_dirichlet_pc_factor_mat_solver_package umfpack
 
-# UMFPACK
-#-prec_pc_bddc_neumann_pc_type lu 
-#-prec_pc_bddc_neumann_pc_factor_mat_solver_package umfpack 
-#-prec_pc_bddc_dirichlet_pc_type lu
-#-prec_pc_bddc_dirichlet_pc_factor_mat_solver_package umfpack
-
-# coarse solver (needs MUMPS)
+# coarse solver (needs PETSc compiled with support for MUMPS)
 # default solver may fail
 -prec_pc_bddc_coarse_pc_factor_mat_solver_package mumps
 -prec_pc_bddc_coarse_pc_type cholesky
 
-# deluxe scaling (needs MUMPS)
--prec_pc_bddc_use_deluxe_scaling
+# deluxe scaling (needs PETSc compiled with support for MUMPS)
+#-prec_pc_bddc_use_deluxe_scaling
 -prec_pc_bddc_deluxe_zerorows
 -sub_schurs_mat_mumps_icntl_14 500
 

@@ -8,6 +8,10 @@
 //               mpirun -np 4 ex5p -m ../data/beam-hex.mesh
 //               mpirun -np 4 ex5p -m ../data/escher.mesh
 //               mpirun -np 4 ex5p -m ../data/fichera.mesh
+//               mpirun -np 4 ex5p -m ../data/beam-tet.mesh --usepetsc
+//                                 --petscopts .petsc_rc_ex5p_fieldsplit
+//               mpirun -np 4 ex5p -m ../data/star.mesh --usepetsc
+//                                 --petscopts .petsc_rc_ex5p_bddc --nonoverlapping
 //
 // Description:  This example code solves a simple 2D/3D mixed Darcy problem
 //               corresponding to the saddle point system
@@ -22,6 +26,11 @@
 //               The example demonstrates the use of the BlockMatrix class, as
 //               well as the collective saving of several grid functions in a
 //               VisIt (visit.llnl.gov) visualization format.
+//
+//               Two types of PETSc solvers can be used: BDDC or fieldsplit.
+//               When using BDDC, the nonoverlapping assembly feature should be
+//               used. This specific example needs PETSc compiled with support
+//               for SuiteSparse and/or MUMPS for using BDDC.
 //
 //               We recommend viewing examples 1-4 before viewing this example.
 
@@ -317,14 +326,13 @@ int main(int argc, char *argv[])
          {
             Array<int> bdr(pmesh->bdr_attributes.Max());
             bdr = 1;
-#if 0
+
             R_space->GetEssentialTrueDofs(bdr, bdr_tdof_list);
             local = false;
-#else
-            R_space->GetEssentialVDofs(bdr, bdr_tdof_list);
-            bdr_tdof_list.SetSize(R_space->GetVSize()+W_space->GetVSize(),0);
-            local = true;
-#endif
+            // Alternatively, you can also provide the list of dofs in local ordering
+            //R_space->GetEssentialVDofs(bdr, bdr_tdof_list);
+            //bdr_tdof_list.SetSize(R_space->GetVSize()+W_space->GetVSize(),0);
+            //local = true;
          }
          else
          {
