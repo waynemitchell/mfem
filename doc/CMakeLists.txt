@@ -27,12 +27,24 @@ if (DOXYGEN_FOUND)
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
       COMMENT "Generating API documentation with Doxygen to CodeDocumentation.html"
       VERBATIM)
+
+    add_custom_target(clean-doc
+      COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_CURRENT_BINARY_DIR}/CodeDocumentation.html
+      COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_BINARY_DIR}/CodeDocumentation
+      COMMENT "Removing API documentation"
+      VERBATIM)
+      
   else (UNIX)
     add_custom_target(doc
       COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/CodeDocumentation.conf
       BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/CodeDocumentation/html/index.html
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
       COMMENT "Generating API documentation with Doxygen to CodeDocumentation/html/index.html"
+      VERBATIM)
+
+    add_custom_target(clean-doc
+      COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_BINARY_DIR}/CodeDocumentation
+      COMMENT "Removing API documentation"
       VERBATIM)
   endif (UNIX)
 endif (DOXYGEN_FOUND)
