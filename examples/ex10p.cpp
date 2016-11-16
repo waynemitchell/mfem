@@ -340,7 +340,8 @@ int main(int argc, char *argv[])
 
    // 9. Initialize the hyperelastic operator, the GLVis visualization and print
    //    the initial energies.
-   HyperelasticOperator *oper = new HyperelasticOperator(fespace, ess_bdr, visc, mu, K, use_petsc);
+   HyperelasticOperator *oper = new HyperelasticOperator(fespace, ess_bdr, visc,
+                                                         mu, K, use_petsc);
 
    socketstream vis_v, vis_w;
    if (visualization)

@@ -81,7 +81,8 @@ public:
 
    /** Construct a "square" time dependent Operator y = f(x,t), where x and y
        have the same dimension 'n'. */
-   explicit TimeDependentOperator(int n = 0, double _t = 0.0, bool _lhs = false, bool _rhs = true)
+   explicit TimeDependentOperator(int n = 0, double _t = 0.0, bool _lhs = false,
+                                  bool _rhs = true)
       : Operator(n) { t = _t; has_lhs = _lhs; has_rhs = _rhs; }
 
    /** Construct a "square" time dependent Operator y = f(x,t), where x and y
@@ -91,7 +92,8 @@ public:
 
    /** Construct a time dependent Operator y = f(x,t), where x and y have
        dimensions 'w' and 'h', respectively. */
-   TimeDependentOperator(int h, int w, double _t = 0.0, bool _lhs = false, bool _rhs = true)
+   TimeDependentOperator(int h, int w, double _t = 0.0, bool _lhs = false,
+                         bool _rhs = true)
       : Operator(h, w) { t = _t; has_lhs = _lhs; has_rhs = _rhs; }
 
    /** Returns true if the Operator has a non-trivial left-hand side */
@@ -122,7 +124,8 @@ public:
    /** Implements F_dxdt(y,dydt) * shift + F_x(y,dydt), with F_dxdt and F_x the jacobians of
        F with respect to dx/dt and x evaluated at y and dydt.
        For more details, see PETSc Manual */
-   virtual Operator& GetGradient(const Vector &y, const Vector &dydt, double shift) const
+   virtual Operator& GetGradient(const Vector &y, const Vector &dydt,
+                                 double shift) const
    {
       mfem_error("TimeDependentOperator::GetGradient(y,dydt,shift) is not overloaded!");
       return const_cast<Operator &>(dynamic_cast<const Operator &>(*this));

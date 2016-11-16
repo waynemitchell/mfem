@@ -461,7 +461,8 @@ class PetscNonlinearSolver : public PetscSolver
 public:
    PetscNonlinearSolver(MPI_Comm comm, std::string prefix = std::string());
 
-   PetscNonlinearSolver(MPI_Comm comm, Operator &op, std::string prefix = std::string());
+   PetscNonlinearSolver(MPI_Comm comm, Operator &op,
+                        std::string prefix = std::string());
 
    /// virtual methods for base classes
    virtual void SetOperator(const Operator &op);
@@ -518,7 +519,8 @@ class PetscSolverMonitorCtx
 public:
    bool _msol;
    bool _mres;
-   PetscSolverMonitorCtx(bool msol = false, bool mres = true) : _msol(msol), _mres(mres) {};
+   PetscSolverMonitorCtx(bool msol = false, bool mres = true) : _msol(msol),
+      _mres(mres) {};
    virtual ~PetscSolverMonitorCtx() {};
 
    /// Monitor the solution vector x

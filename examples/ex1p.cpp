@@ -57,12 +57,13 @@ private:
    ParLinearForm *_b;
 
 public:
-   UserMonitor(ParBilinearForm *a, ParLinearForm *b) : PetscSolverMonitorCtx(true,false), _a(a), _b(b) {}
+   UserMonitor(ParBilinearForm *a, ParLinearForm *b) :
+      PetscSolverMonitorCtx(true,false), _a(a), _b(b) {}
 
    void MonitorSolution(PetscInt it, PetscReal norm, Vector &X)
    {
       // we plot the first 5 iterates
-      if (!it || it > 5) return;
+      if (!it || it > 5) { return; }
       ParFiniteElementSpace *fespace = _a->ParFESpace();
       ParMesh *mesh = fespace->GetParMesh();
       ParGridFunction _x(fespace);
@@ -115,7 +116,8 @@ int main(int argc, char *argv[])
                   "Use or not PETSc to solve the linear system.");
    args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
                   "PetscOptions file to use.");
-   args.AddOption(&petscmonitor, "-petscmonitor", "--petscmonitor", "-no-petscmonitor",
+   args.AddOption(&petscmonitor, "-petscmonitor", "--petscmonitor",
+                  "-no-petscmonitor",
                   "--no-petscmonitor",
                   "Enable or disable GLVis visualization of residual.");
 

@@ -246,12 +246,15 @@ int main(int argc, char *argv[])
       pcg->SetTol(1e-10);
       pcg->SetMaxIter(500);
       pcg->SetPrintLevel(2); //TODO
-      if (use_nonoverlapping) {
+      if (use_nonoverlapping)
+      {
          PetscBDDCSolverParams opts;
          opts.SetSpace(prec_fespace);
          opts.SetEssBdrDofs(&ess_tdof_list);
          prec = new PetscBDDCSolver(A,opts);
-      } else {
+      }
+      else
+      {
          prec = new PetscPreconditioner(A,"solver_");
       }
       pcg->SetPreconditioner(*prec);

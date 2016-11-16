@@ -34,8 +34,10 @@
 //               customize them by command line (see .petsc_rc_ex9p_expl and
 //               .petsc_rc_ex9p_impl). The split in left-hand side and right-hand
 //               side of the TimeDependentOperator is amenable for IMEX methods.
-//               When using fully implicit methods, just one side of the
-//               operator should be provided due to efficiency reasons
+//               When using fully implicit methods, just the left-hand side of the
+//               operator should be provided for efficiency reasons when assembling
+//               the jacobians. Here, we provide two Jacobian routines just to
+//               illustrate the capabilities of the PetscODESolver class.
 //               We also show how to monitor the time dependent solution
 //               inside a call to PetscODESolver:Mult.
 
@@ -87,13 +89,15 @@ private:
 #endif
 
 public:
-   FE_Evolution(HypreParMatrix &_M, HypreParMatrix &_K, const Vector &_b, bool M_in_lhs);
+   FE_Evolution(HypreParMatrix &_M, HypreParMatrix &_K, const Vector &_b,
+                bool M_in_lhs);
 
    virtual void Mult(const Vector &x, Vector &y) const;
    virtual void Mult(const Vector &x, const Vector &xp, Vector &y) const;
 #ifdef MFEM_USE_PETSC
    virtual Operator& GetGradient(const Vector &x) const;
-   virtual Operator& GetGradient(const Vector &x, const Vector &xp, double shift) const;
+   virtual Operator& GetGradient(const Vector &x, const Vector &xp,
+                                 double shift) const;
 #endif
    virtual ~FE_Evolution() { delete iJacobian; delete rJacobian; }
 };
@@ -111,7 +115,7 @@ private:
 
 public:
    UserMonitor(socketstream& _s, ParMesh* _m, ParGridFunction* _u) :
-               PetscSolverMonitorCtx(true,false), sout(_s), pmesh(_m), u(_u), pause(true) {}
+      PetscSolverMonitorCtx(true,false), sout(_s), pmesh(_m), u(_u), pause(true) {}
 
    void MonitorSolution(PetscInt step, PetscReal norm, Vector &X)
    {
@@ -122,13 +126,16 @@ public:
       MPI_Comm_rank(pmesh->GetComm(),&myid);
       sout << "parallel " << num_procs << " " << myid << "\n";
       sout << "solution\n" << *pmesh << *u;
-      if (pause) sout << "pause\n";
+      if (pause) { sout << "pause\n"; }
       sout << flush;
-      if (pause && myid == 0)
+      if (pause)
       {
          pause = false;
-         cout << "GLVis visualization paused."
-             << " Press space (in the GLVis window) to resume it.\n";
+         if (myid == 0)
+         {
+            cout << "GLVis visualization paused."
+                 << " Press space (in the GLVis window) to resume it.\n";
+         }
       }
    }
 };
@@ -414,7 +421,8 @@ int main(int argc, char *argv[])
    // Explicitly perform time-integration (looping over the time iterations,
    // ti, with a time-step dt), or use the Mult method of the solver class.
    double t = 0.0;
-   if (use_step) {
+   if (use_step)
+   {
       for (int ti = 0; true; )
       {
          if (t >= t_final - dt/2)
@@ -577,7 +585,8 @@ Operator& FE_Evolution::GetGradient(const Vector &x) const
 
 // LHS Jacobian, evaluated as shift*F_du/dt + F_u
 #ifdef MFEM_USE_PETSC
-Operator& FE_Evolution::GetGradient(const Vector &x, const Vector &xp, double shift) const
+Operator& FE_Evolution::GetGradient(const Vector &x, const Vector &xp,
+                                    double shift) const
 {
    delete iJacobian;
    if (HasLHS())

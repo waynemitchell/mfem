@@ -11,6 +11,7 @@
 //               mpirun -np 4 ex2p -m ../data/beam-quad.mesh -o 3 -sc
 //               mpirun -np 4 ex2p -m ../data/beam-quad-nurbs.mesh
 //               mpirun -np 4 ex2p -m ../data/beam-hex-nurbs.mesh
+//               mpirun -np 4 ex2p -m ../data/beam-quad.mesh --usepetsc --petscopts .petsc_rc_ex2p
 //
 // Description:  This example code solves a simple linear elasticity problem
 //               describing a multi-material cantilever beam.
@@ -34,9 +35,8 @@
 //               finite element spaces with the linear elasticity bilinear form,
 //               meshes with curved elements, and the definition of piece-wise
 //               constant and vector coefficient objects. Static condensation is
-//               also illustrated.
-//               The example also shows how to form a linear system using a PETSc
-//               matrix.
+//               also illustrated. The example also shows how to form a linear
+//               system using a PETSc matrix.
 //
 //               We recommend viewing Example 1 before viewing this example.
 
@@ -285,9 +285,9 @@ int main(int argc, char *argv[])
       delete pcg;
       delete amg;
    }
-#ifdef MFEM_USE_PETSC
    else
    {
+#ifdef MFEM_USE_PETSC
       // 13b. Use PETSc to solve the linear system.
       //      Assemble a PETSc matrix, so that PETSc solvers can be used natively.
       PetscParMatrix A;
@@ -302,11 +302,13 @@ int main(int argc, char *argv[])
       PetscPCGSolver *pcg = new PetscPCGSolver(A);
       pcg->SetMaxIter(500);
       pcg->SetTol(1e-8);
-      pcg->SetPrintLevel(2); //TODO: dummy call
+      pcg->SetPrintLevel(2);
       pcg->Mult(B, X);
       delete pcg;
-   }
+#else
+      MFEM_ABORT("You did not enable PETSc when configuring MFEM");
 #endif
+   }
 
    // 14. Recover the parallel grid function corresponding to X. This is the
    //     local finite element solution on each processor.
