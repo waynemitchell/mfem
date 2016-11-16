@@ -82,6 +82,15 @@ New and updated examples and miniapps
   requirements, and eliminates unnecessary computation. It also fixed a bug
   with divergence cleaning in the Tesla miniapp.
 
+- Added a restart miniapp.  Provides an example of saving and loading a
+  checkpoint file.  Requires the use of the sidre, conduit, and hdf5 libraries.
+  Only a partial restart is implemented at this time, the original mesh file
+  is still needed.
+
+
+- Added an option to ex9p to save a visualization file using the
+  mesh blueprint/hdf5 binary format.
+
 Miscellaneous
 -------------
 - Added optional support for software-based higher-precision arithmetic with
@@ -90,6 +99,14 @@ Miscellaneous
 
 - Added on-the-fly compression of file streams input and output via gzstream,
   see the MFEM_USE_GZSTREAM option.
+
+- Added support for a new mesh blueprint binary file format for visualization or
+  restart capability, using the following libraries:
+  - LLNL ASC toolkit 'sidre' component ( not yet open-sourced ).
+    More information at:
+    http://computation.llnl.gov/providing-shared-computer-science-infrastructure-simulation-codes
+  - LLNL conduit/blueprint library (https://github.com/LLNL/conduit)
+  - HDF5 library (https://support.hdfgroup.org/HDF5/)
 
 - Better support for METIS version 5 and above.
 
