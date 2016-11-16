@@ -2893,20 +2893,27 @@ static PetscErrorCode MatCopyIJ(Mat A, mfem::SparseMatrix** l2l)
    PetscFunctionBeginUser;
    ierr = MatGetLocalSize(A,&m,&n); CHKERRQ(ierr);
    ierr = MatGetRowIJ(A,0,PETSC_FALSE,PETSC_FALSE,&m,&ii,&jj,&done); CHKERRQ(ierr);
-   iI = new int[m+1];
-   iJ = new int[ii[m]];
-   for (PetscInt i=0; i<m; i++)
+   if (done)
    {
-      iI[i] = ii[i];
-      for (PetscInt j=ii[i]; j<ii[i+1]; j++)
+      iI = new int[m+1];
+      iJ = new int[ii[m]];
+      for (PetscInt i=0; i<m; i++)
       {
-         iJ[j] = jj[j];
+         iI[i] = ii[i];
+         for (PetscInt j=ii[i]; j<ii[i+1]; j++)
+         {
+            iJ[j] = jj[j];
+         }
       }
+      iI[m] = ii[m];
+      *l2l = new mfem::SparseMatrix(iI,iJ,NULL,m,n,true,false,true);
+      ierr = MatRestoreRowIJ(A,0,PETSC_FALSE,PETSC_FALSE,&m,&ii,&jj,&done);
+      CHKERRQ(ierr);
    }
-   iI[m] = ii[m];
-   *l2l = new mfem::SparseMatrix(iI,iJ,NULL,m,n,true,false,true);
-   ierr = MatRestoreRowIJ(A,0,PETSC_FALSE,PETSC_FALSE,&m,&ii,&jj,&done);
-   CHKERRQ(ierr);
+   else
+   {
+      *l2l = NULL;
+   }
    PetscFunctionReturn(0);
 }
 
