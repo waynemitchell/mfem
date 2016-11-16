@@ -18,6 +18,10 @@
 //               mpirun -np 4 ex4p -m ../data/amr-hex.mesh -o 2 -sc
 //               mpirun -np 4 ex4p -m ../data/amr-hex.mesh -o 2 -hb
 //               mpirun -np 4 ex4p -m ../data/star-surf.mesh -o 3 -hb
+//               mpirun -np 4 ex4p -m ../data/klein-bottle.mesh -o 2
+//                                 --usepetsc --nonoverlapping --petscopts .petsc_rc_ex4p_bddc
+//               mpirun -np 4 ex4p -m ../data/klein-bottle.mesh -o 2
+//                                 --usepetsc --petscopts .petsc_rc_ex4p
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
 //               problem corresponding to the second order definite equation

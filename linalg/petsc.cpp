@@ -1042,25 +1042,13 @@ Mat PetscParMatrix::ReleaseMat(bool dereference)
 
 // PetscSolver methods
 
-void PetscSolver::Init()
+PetscSolver::PetscSolver()
 {
    obj = NULL;
    B = X = NULL;
-   clcustom = false;
-   _prset = true;
-   cid = -1;
+   cid         = -1;
    monitor_ctx = NULL;
-}
-
-void PetscSolver::SetPrefix(std::string prefix)
-{
-   _prefix = prefix;
-   _prset  = false;
-}
-
-PetscSolver::PetscSolver()
-{
-   Init();
+   clcustom    = false;
 }
 
 PetscSolver::~PetscSolver()
@@ -1075,66 +1063,30 @@ void PetscSolver::Customize() const
    if (cid == KSP_CLASSID)
    {
       KSP ksp = (KSP)obj;
-      if (!_prset && _prefix.size())
-      {
-         ierr = KSPSetOptionsPrefix(ksp,_prefix.c_str());
-         PCHKERRQ(ksp,ierr);
-         _prset = true;
-      }
-      if (!clcustom)
-      {
-         ierr = KSPSetFromOptions(ksp);
-         PCHKERRQ(ksp,ierr);
-         clcustom = true;
-      }
+      ierr = KSPSetFromOptions(ksp);
+      PCHKERRQ(ksp,ierr);
+      clcustom = true;
    }
    else if (cid == PC_CLASSID)
    {
       PC pc = (PC)obj;
-      if (!_prset && _prefix.size())
-      {
-         ierr = PCSetOptionsPrefix(pc,_prefix.c_str());
-         PCHKERRQ(pc,ierr);
-         _prset = true;
-      }
-      if (!clcustom)
-      {
-         ierr = PCSetFromOptions(pc);
-         PCHKERRQ(pc,ierr);
-         clcustom = true;
-      }
+      ierr = PCSetFromOptions(pc);
+      PCHKERRQ(pc,ierr);
+      clcustom = true;
    }
    else if (cid == SNES_CLASSID)
    {
       SNES snes = (SNES)obj;
-      if (!_prset && _prefix.size())
-      {
-         ierr = SNESSetOptionsPrefix(snes,_prefix.c_str());
-         PCHKERRQ(snes,ierr);
-         _prset = true;
-      }
-      if (!clcustom)
-      {
-         ierr = SNESSetFromOptions(snes);
-         PCHKERRQ(snes,ierr);
-         clcustom = true;
-      }
+      ierr = SNESSetFromOptions(snes);
+      PCHKERRQ(snes,ierr);
+      clcustom = true;
    }
    else if (cid == TS_CLASSID)
    {
       TS ts = (TS)obj;
-      if (!_prset && _prefix.size())
-      {
-         ierr = TSSetOptionsPrefix(ts,_prefix.c_str());
-         PCHKERRQ(ts,ierr);
-         _prset = true;
-      }
-      if (!clcustom)
-      {
-         ierr = TSSetFromOptions(ts);
-         PCHKERRQ(ts,ierr);
-         clcustom = true;
-      }
+      ierr = TSSetFromOptions(ts);
+      PCHKERRQ(ts,ierr);
+      clcustom = true;
    }
    else
    {
@@ -1487,6 +1439,35 @@ double PetscSolver::GetFinalNorm()
    }
 }
 
+void PetscSolver::SetPrefix(std::string prefix)
+{
+   clcustom = false;
+   if (obj && prefix.size())
+   {
+      if (cid == KSP_CLASSID)
+      {
+         ierr = KSPSetOptionsPrefix((KSP)obj,prefix.c_str());
+      }
+      else if (cid == PC_CLASSID)
+      {
+         ierr = PCSetOptionsPrefix((PC)obj,prefix.c_str());
+      }
+      else if (cid == SNES_CLASSID)
+      {
+         ierr = SNESSetOptionsPrefix((SNES)obj,prefix.c_str());
+      }
+      else if (cid == TS_CLASSID)
+      {
+         ierr = TSSetOptionsPrefix((TS)obj,prefix.c_str());
+      }
+      else
+      {
+         MFEM_ABORT("SetPrefix() to be implemented!");
+      }
+      PCHKERRQ(obj,ierr);
+   }
+}
+
 // PetscLinearSolver methods
 
 void PetscLinearSolver::Init()
@@ -1498,24 +1479,24 @@ PetscLinearSolver::PetscLinearSolver(MPI_Comm comm,
                                      std::string prefix) : PetscSolver()
 {
    Init();
-   SetPrefix(prefix);
 
    KSP ksp;
    ierr = KSPCreate(comm,&ksp); CCHKERRQ(comm,ierr);
    obj  = (PetscObject)ksp;
    ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
+   SetPrefix(prefix);
 }
 
 PetscLinearSolver::PetscLinearSolver(PetscParMatrix &_A,
                                      std::string prefix) : PetscSolver()
 {
    Init();
-   SetPrefix(prefix);
 
    KSP ksp;
    ierr = KSPCreate(_A.GetComm(),&ksp); CCHKERRQ(_A.GetComm(),ierr);
    obj  = (PetscObject)ksp;
    ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
+   SetPrefix(prefix);
    SetOperator(_A);
 }
 
@@ -1523,13 +1504,13 @@ PetscLinearSolver::PetscLinearSolver(HypreParMatrix &_A,bool wrapin,
                                      std::string prefix) : PetscSolver()
 {
    Init();
-   SetPrefix(prefix);
    wrap = wrapin;
 
    KSP ksp;
    ierr = KSPCreate(_A.GetComm(),&ksp); CCHKERRQ(_A.GetComm(),ierr);
    obj  = (PetscObject)ksp;
    ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
+   SetPrefix(prefix);
    SetOperator(_A);
 }
 
@@ -1669,37 +1650,37 @@ PetscPreconditioner::PetscPreconditioner(MPI_Comm comm,
                                          std::string prefix) : PetscSolver()
 {
    Init();
-   SetPrefix(prefix);
 
    PC pc;
    ierr = PCCreate(comm,&pc); CCHKERRQ(comm,ierr);
    obj  = (PetscObject)pc;
    ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
+   SetPrefix(prefix);
 }
 
 PetscPreconditioner::PetscPreconditioner(PetscParMatrix &_A,
                                          std::string prefix) : PetscSolver()
 {
    Init();
-   SetPrefix(prefix);
 
    PC pc;
    ierr = PCCreate(_A.GetComm(),&pc); CCHKERRQ(_A.GetComm(),ierr);
    obj  = (PetscObject)pc;
    ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
+   SetPrefix(prefix);
    SetOperator(_A);
 }
 
 PetscPreconditioner::PetscPreconditioner(MPI_Comm comm, Operator &op,
-                                         std::string prefix)
+                                         std::string prefix) : PetscSolver()
 {
    Init();
-   SetPrefix(prefix);
 
    PC pc;
    ierr = PCCreate(comm,&pc); CCHKERRQ(comm,ierr);
    obj  = (PetscObject)pc;
    ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
+   SetPrefix(prefix);
    SetOperator(op);
 }
 
@@ -2106,24 +2087,21 @@ PetscFieldSplitSolver::PetscFieldSplitSolver(MPI_Comm comm, Operator &op,
 PetscNonlinearSolver::PetscNonlinearSolver(MPI_Comm comm,
                                            std::string prefix) : PetscSolver()
 {
-   SetPrefix(prefix);
-
    SNES snes;
    ierr = SNESCreate(comm,&snes); CCHKERRQ(comm,ierr);
    obj  = (PetscObject)snes;
    ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
+   SetPrefix(prefix);
 }
 
 PetscNonlinearSolver::PetscNonlinearSolver(MPI_Comm comm, Operator &op,
                                            std::string prefix) : PetscSolver()
 {
-   SetPrefix(prefix);
-
    SNES snes;
    ierr = SNESCreate(comm,&snes); CCHKERRQ(comm,ierr);
    obj  = (PetscObject)snes;
    ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
-
+   SetPrefix(prefix);
    SetOperator(op);
 }
 
@@ -2152,12 +2130,11 @@ void PetscNonlinearSolver::SetOperator(const Operator &op)
 PetscODESolver::PetscODESolver(MPI_Comm comm,
                                std::string prefix) : PetscSolver()
 {
-   SetPrefix(prefix);
-
    TS ts;
    ierr = TSCreate(comm,&ts); CCHKERRQ(comm,ierr);
    obj  = (PetscObject)ts;
    ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
+   SetPrefix(prefix);
 
    // some defaults, to comply with the current interface to ODESolver
    ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_STEPOVER);
@@ -2172,12 +2149,12 @@ PetscODESolver::PetscODESolver(MPI_Comm comm,
 PetscODESolver::PetscODESolver(MPI_Comm comm, Operator &op,
                                std::string prefix) : PetscSolver()
 {
-   SetPrefix(prefix);
-
    TS ts;
    ierr = TSCreate(comm,&ts); CCHKERRQ(comm,ierr);
    obj  = (PetscObject)ts;
    ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
+   SetPrefix(prefix);
+   SetOperator(op);
 
    // some defaults, to comply with the current interface to ODESolver
    ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_STEPOVER);
@@ -2187,8 +2164,6 @@ PetscODESolver::PetscODESolver(MPI_Comm comm, Operator &op,
    PCHKERRQ(ts,ierr);
    ierr = TSAdaptSetType(tsad,TSADAPTNONE);
    PCHKERRQ(ts,ierr);
-
-   SetOperator(op);
 }
 
 PetscODESolver::~PetscODESolver()
@@ -2257,7 +2232,7 @@ void PetscODESolver::SetFinalTime(double t)
 {
    TS ts = (TS)obj;
    ierr = TSSetDuration(ts,PETSC_DECIDE,t); PCHKERRQ(ts,ierr);
-   ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_INTERPOLATE);
+   ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_MATCHSTEP);
    PCHKERRQ(ts,ierr);
 }
 

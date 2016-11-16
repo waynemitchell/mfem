@@ -287,15 +287,11 @@ protected:
    /// The actual PETSc object (KSP, SNES or TS)
    PetscObject obj;
 
-   /// The class is of the actual PETSc object (KSP, SNES or TS)
+   /// The class id of the actual PETSc object
    PetscClassId cid;
 
-   /// The string prefix
-   std::string _prefix;
-
-   /// booleans to handle SetFromOptions calls
+   /// boolean to handle SetFromOptions calls
    mutable bool clcustom;
-   mutable bool _prset;
 
    /// Right-hand side and solution vector
    mutable PetscParVector *B, *X;
@@ -303,14 +299,8 @@ protected:
    /// Monitor context
    PetscSolverMonitorCtx *monitor_ctx;
 
-   /// Set prefix for PETSc's options database
-   void SetPrefix(std::string prefix);
-
    /// Call SetFromOptions
    void Customize() const;
-
-private:
-   void Init();
 
 public:
    /// Initialize protected objects to NULL
@@ -319,23 +309,31 @@ public:
    /// Destroy the PetscParVectors allocated (if any)
    virtual ~PetscSolver();
 
-   // virtual methods for base class
+   // Set Operator
    virtual void SetOperator(const Operator &op)
    {
       MFEM_ABORT("Set Operator not implemented!")
    };
-   virtual void Mult(const Vector &b, Vector &x) const;
 
+   // Apply the solver
+   virtual void Mult(const Vector &b, Vector &x) const;
+   void Mult(const PetscParVector &b, PetscParVector &x) const;
+
+   // Change prefix
+   void SetPrefix(std::string prefix);
+
+   // Comply with MFEM solvers
    void SetTol(double tol);
    void SetRelTol(double tol);
    void SetAbsTol(double tol);
    void SetMaxIter(int max_iter);
    void SetPrintLevel(int plev);
-   void SetMonitor(PetscSolverMonitorCtx *ctx);
-   void Mult(const PetscParVector &b, PetscParVector &x) const;
    int GetConverged();
    int GetNumIterations();
    double GetFinalNorm();
+
+   // Sets user-defined monitoring routine
+   void SetMonitor(PetscSolverMonitorCtx *ctx);
 
    /// Typecasting to PETScObject
    operator PetscObject() const { return obj; }
