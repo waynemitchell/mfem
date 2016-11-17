@@ -10,7 +10,6 @@
 # Software Foundation) version 2.1 dated February 1999.
 
 cmake_minimum_required(VERSION 2.8.11)
-
 set(USER_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/config/user.cmake" CACHE PATH
   "Path to optional user configuration file.")
 
@@ -42,6 +41,12 @@ endif()
 project(mfem CXX)
 set(${PROJECT_NAME}_VERSION 3.2)
 
+# Prohibit in-source build
+if (${PROJECT_SOURCE_DIR} STREQUAL ${PROJECT_BINARY_DIR})
+  message(FATAL_ERROR
+    "MFEM does not support in-source CMake builds at this time.")
+endif (${PROJECT_SOURCE_DIR} STREQUAL ${PROJECT_BINARY_DIR})
+
 if (CMAKE_VERSION VERSION_LESS 3.2)
    # This seems to be needed by: find_package(BLAS REQUIRED)
    enable_language(C)
@@ -49,7 +54,7 @@ endif()
 
 # CMake needs to know where to find things
 set(MFEM_CMAKE_PATH ${PROJECT_SOURCE_DIR}/config)
-set(CMAKE_MODULE_PATH ${MFEM_CMAKE_PATH}/cmake-modules)
+set(CMAKE_MODULE_PATH ${MFEM_CMAKE_PATH}/cmake/modules)
 
 #-------------------------------------------------------------------------------
 # Process configuration options
@@ -221,7 +226,7 @@ endif()
 
 # Generate configuration file in the build directory: config/_config.hpp.
 configure_file(
-  "${PROJECT_SOURCE_DIR}/config/config.hpp.in_cmake"
+  "${PROJECT_SOURCE_DIR}/config/cmake/config.hpp.in_cmake"
   "${PROJECT_BINARY_DIR}/config/_config.hpp")
 
 # Create substitute mfem.hpp and mfem-performance.hpp in the build directory,
@@ -294,6 +299,11 @@ else()
 endif()
 
 #-------------------------------------------------------------------------------
+# Documentation
+#-------------------------------------------------------------------------------
+add_subdirectory(doc)
+
+#-------------------------------------------------------------------------------
 # Installation
 #-------------------------------------------------------------------------------
 
@@ -357,7 +367,7 @@ export(PACKAGE ${PROJECT_NAME})
 # This is the build-tree version
 set(INCLUDE_INSTALL_DIRS ${PROJECT_BINARY_DIR})
 set(LIB_INSTALL_DIR ${PROJECT_BINARY_DIR})
-configure_package_config_file(config/MFEMConfig.cmake.in
+configure_package_config_file(config/cmake/MFEMConfig.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/MFEMConfig.cmake
   INSTALL_DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
   PATH_VARS INCLUDE_INSTALL_DIRS LIB_INSTALL_DIR)
@@ -365,7 +375,7 @@ configure_package_config_file(config/MFEMConfig.cmake.in
 # This is the version that will be installed
 set(INCLUDE_INSTALL_DIRS ${INSTALL_INCLUDE_DIR})
 set(LIB_INSTALL_DIR ${INSTALL_LIB_DIR})
-configure_package_config_file(config/MFEMConfig.cmake.in
+configure_package_config_file(config/cmake/MFEMConfig.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/MFEMConfig.cmake
   INSTALL_DESTINATION ${INSTALL_CMAKE_DIR}
   PATH_VARS INCLUDE_INSTALL_DIRS LIB_INSTALL_DIR)
