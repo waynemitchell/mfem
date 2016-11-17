@@ -12,7 +12,8 @@
 find_package(Doxygen)
 
 if (DOXYGEN_FOUND)
-  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/CodeDocumentation.conf.cmake_in
+  set(MFEM_SOURCE_DIR ${PROJECT_SOURCE_DIR})
+  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/CodeDocumentation.conf.in
     ${CMAKE_CURRENT_BINARY_DIR}/CodeDocumentation.conf @ONLY)
 
   if (UNIX)
