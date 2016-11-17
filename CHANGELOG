@@ -84,6 +84,15 @@ New and updated examples and miniapps
   requirements, and eliminates unnecessary computation. It also fixed a bug
   with divergence cleaning in the Tesla miniapp.
 
+- Added a restart miniapp.  Provides an example of saving and loading a
+  checkpoint file.  Requires the use of the sidre, conduit, and hdf5 libraries.
+  Only a partial restart is implemented at this time, the original mesh file
+  is still needed.
+
+
+- Added an option to ex9p to save a visualization file using the
+  mesh blueprint/hdf5 binary format.
+
 Miscellaneous
 -------------
 - Added optional support for software-based higher-precision arithmetic with
@@ -92,6 +101,21 @@ Miscellaneous
 
 - Added on-the-fly compression of file streams input and output via gzstream,
   see the MFEM_USE_GZSTREAM option.
+
+- Added support for an HDF5-based file format following the Conduit mesh
+  blueprint specification, for visualization or restart capability.  Thia
+  functionality is aimed primarily at customers of the ASC Toolkit (HPC physics
+  codes) that run problems at extreme scales.  Customers desiring a small scale
+  binary format may want to look at the gzstream functionality instead.
+
+  This is an early capability and does not support extensions to the native
+  MFEM high order mesh structures, such as NURBs.  The following libraries are
+  required:
+  - LLNL ASC toolkit 'sidre' component ( not yet open-sourced ).
+    More information at:
+    http://computation.llnl.gov/providing-shared-computer-science-infrastructure-simulation-codes
+  - LLNL conduit/blueprint library (https://github.com/LLNL/conduit)
+  - HDF5 library (https://support.hdfgroup.org/HDF5/)
 
 - Better support for METIS version 5 and above.
 

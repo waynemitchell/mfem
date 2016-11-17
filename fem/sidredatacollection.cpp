@@ -86,7 +86,7 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name,
    : mfem::DataCollection(collection_name.c_str(), the_mesh),
      m_owns_datastore(true),
      m_owns_mesh_data(own_mesh_data),
-     m_meshNodesGFName("mfem_default_mesh_nodes_gf"),
+     m_meshNodesGFName(""),
      m_loadCalled(false)
 {
    namespace sidre = asctoolkit::sidre;
@@ -311,7 +311,8 @@ void SidreDataCollection::createMeshBlueprintTopologies(bool hasBP,
                                           num_indices);
       topology_grp->createViewString("coordset", "coords");
 
-      if (!isBdry)
+      // If the nodes GF name is empty, then the user has not provided one AND one doesn't exist in the mfem mesh.
+      if (!isBdry && !m_meshNodesGFName.empty() )
       {
          // NOTE: The view name will be changing
          //       from 'mfem_grid_function' to 'grid_function'
@@ -345,7 +346,8 @@ void SidreDataCollection::createMeshBlueprintTopologies(bool hasBP,
       bp_index_topo_grp->copyView( topology_grp->getView("type") );
       bp_index_topo_grp->copyView( topology_grp->getView("coordset") );
 
-      if (!isBdry)
+      // If the nodes GF name is empty, then the user has not provided one AND one doesn't exist in the mfem mesh.
+      if (!isBdry && !m_meshNodesGFName.empty())
       {
          bp_index_topo_grp->copyView( topology_grp->getView("mfem_grid_function") );
       }
@@ -369,8 +371,6 @@ void SidreDataCollection::createMeshBlueprintTopologies(bool hasBP,
       bp_index_field_grp->createViewScalar("number_of_components",
                                            number_of_components);
    }
-
-
 
    // Finally, change ownership or copy the element arrays into Sidre
    sidre::DataView* conn_view = bp_grp->getGroup(
@@ -404,12 +404,24 @@ void SidreDataCollection::createMeshBlueprintTopologies(bool hasBP,
    }
 }
 
+void SidreDataCollection::verifyMeshBlueprint()
+{
+   // Conduit will have a verify mesh blueprint capability in the future.
+   // Add call to that when it's available to check actual contents in sidre.
+   
+   // If a nodes GF name was set, verify a field with that name was registered.
+   if (!m_meshNodesGFName.empty())
+   {
+      MFEM_VERIFY( HasField( m_meshNodesGFName ), 
+         "A nodes' position GF was not found with the name '" <<
+         m_meshNodesGFName
+         << "'.  Either the field was not registered, or the wrong mesh nodes GF name was provided in the Sidre DC constructor.");
+   }
+}
+
 void SidreDataCollection::SetMesh(Mesh *new_mesh)
 {
    namespace sidre = asctoolkit::sidre;
-
-   MFEM_VERIFY( new_mesh->GetNodes() != NULL,
-                "Low order meshes are not supported by the sidre binary output at this time.");
 
    DataCollection::SetMesh(new_mesh);
 
@@ -434,8 +446,9 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
    }
 
 
-   if ( m_meshNodesGFName == "mfem_default_mesh_nodes_gf")
+   if ( new_mesh->GetNodes() != NULL && m_meshNodesGFName == "")
    {
+      m_meshNodesGFName = "_mesh_nodes_gf";
       /*
       if (m_owns_mesh_data)
       {
@@ -565,6 +578,8 @@ void SidreDataCollection::Save(const std::string& filename,
                                const std::string& protocol)
 {
    namespace sidre = asctoolkit::sidre;
+
+   verifyMeshBlueprint();
 
    create_directory(prefix_path, mesh, myid);
 

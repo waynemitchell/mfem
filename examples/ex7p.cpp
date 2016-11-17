@@ -164,9 +164,11 @@ int main(int argc, char *argv[])
 
    if (amr == 1)
    {
+      Vertex theVertex;
+      theVertex.SetCoords(0,0,1);
       for (int l = 0; l < 3; l++)
       {
-         mesh->RefineAtVertex(Vertex(0, 0, 1));
+         mesh->RefineAtVertex(theVertex);
       }
       SnapNodes(*mesh);
    }
@@ -201,9 +203,11 @@ int main(int argc, char *argv[])
 
    if (amr == 1)
    {
+      Vertex theVertex;
+      theVertex.SetCoords(0,0,1);
       for (int l = 0; l < 2; l++)
       {
-         pmesh->RefineAtVertex(Vertex(0, 0, 1));
+         pmesh->RefineAtVertex(theVertex);
       }
       SnapNodes(*pmesh);
    }

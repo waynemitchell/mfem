@@ -223,6 +223,11 @@ private:
     * \note Valid values for mesh_name are "mesh" and "boundary"
     */
    void createMeshBlueprintTopologies(bool hasBP, const std::string& mesh_name);
+
+   /**
+    * Verifies that the contents of the mesh blueprint data is valid.
+    */
+   void verifyMeshBlueprint();
 };
 
 } // end namespace mfem
