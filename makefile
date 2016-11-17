@@ -86,7 +86,7 @@ MFEM_BUILD_DIR ?= .
 BUILD_DIR := $(MFEM_BUILD_DIR)
 BUILD_REAL_DIR := $(abspath $(BUILD_DIR))
 ifneq ($(BUILD_REAL_DIR),$(MFEM_REAL_DIR))
-   BUILD_SUBDIRS = $(DIRS) config examples $(MINIAPP_DIRS)
+   BUILD_SUBDIRS = $(DIRS) config examples $(MINIAPP_DIRS) doc
    BUILD_DIR_DEF = -DMFEM_BUILD_DIR="$(BUILD_REAL_DIR)"
    BLD := $(if $(BUILD_REAL_DIR:$(CURDIR)=),$(BUILD_DIR)/,)
    $(if $(word 2,$(BLD)),$(error Spaces in BLD = "$(BLD)" are not supported))
@@ -307,6 +307,10 @@ $(MINIAPP_USE_COMMON): miniapps/common
 examples $(MINIAPP_DIRS): lib
 	$(MAKE) -C $(BLD)$(@)
 
+.PHONY: doc
+doc:
+	$(MAKE) -C $(BLD)$(@)
+
 -include $(BLD)deps.mk
 
 $(BLD)libmfem.a: $(OBJECT_FILES)
@@ -342,7 +346,7 @@ test:
 	   $(MAKE) -j1 -C $(BLD)$${dir} test; done
 	@echo "Done."
 
-ALL_CLEAN_SUBDIRS = $(addsuffix /clean,config doc examples $(MINIAPP_DIRS))
+ALL_CLEAN_SUBDIRS = $(addsuffix /clean,config examples $(MINIAPP_DIRS) doc)
 .PHONY: $(ALL_CLEAN_SUBDIRS) miniapps/clean
 miniapps/clean: $(addsuffix /clean,$(MINIAPP_DIRS))
 $(ALL_CLEAN_SUBDIRS):
@@ -351,7 +355,7 @@ $(ALL_CLEAN_SUBDIRS):
 clean: $(addsuffix /clean,examples miniapps)
 	rm -f $(addprefix $(BLD),*/*.o */*~ *~ libmfem.a deps.mk)
 
-distclean: clean config/clean $(if $(BUILD_DIR_DEF),,doc/clean)
+distclean: clean config/clean doc/clean
 	rm -rf mfem/
 
 install: $(BLD)libmfem.a
@@ -393,7 +397,7 @@ local-config:
 .PHONY: build-config
 build-config:
 	for d in $(BUILD_SUBDIRS); do mkdir -p $(BLD)$${d}; done
-	for dir in "" $(addsuffix /,config examples $(MINIAPP_DIRS)); do \
+	for dir in "" $(addsuffix /,config examples $(MINIAPP_DIRS) doc); do \
 	   printf "# Auto-generated file.\n%s\n%s\n" \
 	      "MFEM_DIR = $(MFEM_REAL_DIR)" \
 	      "include \$$(MFEM_DIR)/$${dir}makefile" \
