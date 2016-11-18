@@ -35,15 +35,15 @@ protected:
 
    /// The fields and their names (used when saving)
    typedef std::map<std::string, GridFunction*> FieldMapType;
-   typedef typename FieldMapType::iterator FieldMapIterator;
-   typedef typename FieldMapType::const_iterator FieldMapConstIterator;
+   typedef FieldMapType::iterator FieldMapIterator;
+   typedef FieldMapType::const_iterator FieldMapConstIterator;
    FieldMapType field_map;
 
 
    /// Field data that the collection explicitly manages
    typedef std::map<std::string, double*> FieldDataMapType;
-   typedef typename FieldDataMapType::iterator FieldDataMapIterator;
-   typedef typename FieldDataMapType::const_iterator FieldDataMapConstIterator;
+   typedef FieldDataMapType::iterator FieldDataMapIterator;
+   typedef FieldDataMapType::const_iterator FieldDataMapConstIterator;
    FieldDataMapType managed_field_data_map;
 
 
