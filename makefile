@@ -330,7 +330,8 @@ install: libmfem.a
 	$(INSTALL) -m 640 mfem.hpp mfem-performance.hpp $(PREFIX_INC)
 # install config include
 	mkdir -p $(PREFIX_INC)/config
-	$(INSTALL) -m 640 config/config.hpp config/tconfig.hpp $(PREFIX_INC)/config
+	$(INSTALL) -m 640 config/_config.hpp $(PREFIX_INC)/config/config.hpp
+	$(INSTALL) -m 640 config/tconfig.hpp $(PREFIX_INC)/config
 # install remaining includes in each subdirectory
 	for dir in $(DIRS); do \
 	   mkdir -p $(PREFIX_INC)/$$dir && \
@@ -388,7 +389,7 @@ status info:
 	@true
 
 ASTYLE = astyle --options=config/mfem.astylerc
-FORMAT_FILES = $(foreach dir,$(DIRS) examples $(wildcard miniapps/*),"$(dir)/*.?pp")
+FORMAT_FILES = $(foreach dir,$(DIRS) examples,"$(dir)/*.?pp") miniapps/*/*.?pp
 
 style:
 	@if ! $(ASTYLE) $(FORMAT_FILES) | grep Formatted; then\

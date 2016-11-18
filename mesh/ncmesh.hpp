@@ -12,16 +12,16 @@
 #ifndef MFEM_NCMESH
 #define MFEM_NCMESH
 
-#include <vector>
-#include <map>
-#include <iostream>
-
 #include "../config/config.hpp"
 #include "../general/hash.hpp"
 #include "../linalg/densemat.hpp"
 #include "element.hpp"
 #include "vertex.hpp"
 #include "../fem/geom.hpp"
+
+#include <vector>
+#include <map>
+#include <iostream>
 
 namespace mfem
 {

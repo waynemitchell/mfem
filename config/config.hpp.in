@@ -77,4 +77,4 @@
 #define _USE_MATH_DEFINES
 #endif
 
-#endif
+#endif // MFEM_CONFIG_HEADER
