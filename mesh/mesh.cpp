@@ -2228,13 +2228,13 @@ Mesh::Mesh(std::istream &input, int generate_edges, int refine,
 
 void Mesh::CopyElementObjectData(Array<Element*>& array_of_elements,
                                  size_t len_array_of_elements,
-                                 int* indices, size_t len_indices, int* attributes, size_t len_attributes)
+                                 int* indices, size_t len_indices,
+                                 int* attributes, size_t len_attributes)
 {
-   if (len_attributes < len_array_of_elements)
-   {
-      printf("%d < %d: ", len_attributes, len_array_of_elements);
-      throw std::runtime_error("new `attributes` memory not large enough");
-   }
+   MFEM_VERIFY(len_attributes >= len_array_of_elements,
+               "new `attributes` memory not large enough : "
+               "len_attributes = " << len_attributes << ", "
+               "len_array_of_elements = " << len_array_of_elements);
 
    size_t offset = 0;
    for (size_t i = 0; i < len_array_of_elements; i++)
@@ -2243,10 +2243,8 @@ void Mesh::CopyElementObjectData(Array<Element*>& array_of_elements,
       // number of vertices of each element
       size_t length = array_of_elements[i]->GetNVertices();
       int *element_indices = array_of_elements[i]->GetIndices();
-      if (offset + length > len_indices)
-      {
-         throw std::runtime_error("new `indices` memory not large enough");
-      }
+      MFEM_VERIFY(offset + length <= len_indices,
+                  "new `indices` memory not large enough");
 
       // copy the indices data
       memcpy(indices + offset, element_indices, length * sizeof(int));
@@ -2261,11 +2259,10 @@ void Mesh::ChangeElementObjectDataOwnership(
    int *indices, size_t len_indices,
    int *attributes, size_t len_attributes, bool zerocopy)
 {
-   if (len_attributes < len_array_of_elements)
-   {
-      printf("%d < %d: ", len_attributes, len_array_of_elements);
-      throw std::runtime_error("new `attributes` memory not large enough");
-   }
+   MFEM_VERIFY(len_attributes >= len_array_of_elements,
+               "new `attributes` memory not large enough : "
+               "len_attributes = " << len_attributes << ", "
+               "len_array_of_elements = " << len_array_of_elements);
 
    size_t offset = 0;
    for (size_t i = 0; i < len_array_of_elements; i++)
@@ -2274,10 +2271,8 @@ void Mesh::ChangeElementObjectDataOwnership(
       // number of vertices of each element
       size_t length = array_of_elements[i]->GetNVertices();
       int *element_indices = array_of_elements[i]->GetIndices();
-      if (offset + length > len_indices)
-      {
-         throw std::runtime_error("new `indices` memory not large enough");
-      }
+      MFEM_VERIFY(offset + length <= len_indices,
+                  "new `indices` memory not large enough");
 
       // copy the indices data
       if (!zerocopy)
@@ -2341,34 +2336,27 @@ void Mesh::CopyBoundaryElementData(int *indices, size_t len_indices,
 void Mesh::ChangeVertexDataOwnership(double *vertex_data,
                                      size_t len_vertex_data, bool zerocopy)
 {
-   if (static_cast<int>(len_vertex_data) < NumOfVertices * 3)
-   {
-      printf("%d < %d: ", len_vertex_data, NumOfVertices * 3);
-      throw std::runtime_error("Not enough vertices in external array");
-   }
+   MFEM_VERIFY(static_cast<int>(len_vertex_data) >= NumOfVertices * 3,
+               "Not enough vertices in external array : "
+               "len_vertex_data = "<< len_vertex_data << ", "
+               "NumOfVertices * 3 = " << NumOfVertices * 3);
 
-   if (!zerocopy) { memcpy(vertex_data, vertices.GetData(), NumOfVertices * 3 * sizeof(double)); }
-   // make sure we don't leak the mfem owned vertex data
-   if (vertices.OwnsData())
+   if (!zerocopy)
    {
-      // mfem::Array uses an array of char (bytes) on the backend so
-      // reinterpret to that before we delete
-      char *data = reinterpret_cast<char*>(vertices.GetData());
-      delete[] data;
-      vertices.LoseData();
+      memcpy(vertex_data, vertices.GetData(),
+             NumOfVertices * 3 * sizeof(double));
    }
    // Vertex is POD double[3]
-   vertices.SetData(reinterpret_cast<Vertex*>(vertex_data), NumOfVertices);
+   vertices.MakeRef(reinterpret_cast<Vertex*>(vertex_data), NumOfVertices);
 }
 
 void Mesh::CopyVertexData(double *vertex_data,
                           size_t len_vertex_data)
 {
-   if (static_cast<int>(len_vertex_data) < NumOfVertices * 3)
-   {
-      printf("%d < %d: ", len_vertex_data, NumOfVertices * 3);
-      throw std::runtime_error("Not enough vertices in external array");
-   }
+   MFEM_VERIFY(static_cast<int>(len_vertex_data) >= NumOfVertices * 3,
+               "Not enough vertices in external array : "
+               "len_vertex_data = "<< len_vertex_data << ", "
+               "NumOfVertices * 3 = " << NumOfVertices * 3);
    memcpy(vertex_data, vertices.GetData(), NumOfVertices * 3 * sizeof(double));
 }
 
@@ -2393,7 +2381,7 @@ Mesh::Mesh(double *_vertices, int num_vertices,
 
    // assuming Vertex is POD
    printf("setting vertices\n");
-   vertices.SetData(reinterpret_cast<Vertex*>(_vertices), num_vertices);
+   vertices.MakeRef(reinterpret_cast<Vertex*>(_vertices), num_vertices);
    NumOfVertices = num_vertices;
 
    printf("setting elements\n");
@@ -2417,7 +2405,7 @@ Mesh::Mesh(double *_vertices, int num_vertices,
       case Geometry::TETRAHEDRON: FinalizeTetMesh(generate_faces, refine,
                                                      fix_orientation);
          break;
-      default: throw std::runtime_error("cannot finialize mesh");
+      default: MFEM_ABORT("cannot finialize mesh");
    }
 
    printf("setting boundary elements\n");

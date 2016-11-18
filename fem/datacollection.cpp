@@ -108,7 +108,7 @@ DataCollection::DataCollection(const std::string& collection_name)
    own_data = false;
    cycle = -1;
    time = 0.0;
-   time_step = std::numeric_limits<double>::infinity();
+   time_step = 0.0;
    precision = precision_default;
    pad_digits = pad_digits_default;
    error = NO_ERROR;
@@ -134,7 +134,7 @@ DataCollection::DataCollection(const std::string& collection_name, Mesh *_mesh)
    own_data = false;
    cycle = -1;
    time = 0.0;
-   time_step = std::numeric_limits<double>::infinity();
+   time_step = 0.0;
    precision = precision_default;
    pad_digits = pad_digits_default;
    error = NO_ERROR;
@@ -233,7 +233,8 @@ double* DataCollection::GetFieldData(const std::string& field_name, int sz)
 }
 
 double* DataCollection::GetFieldData(const std::string& field_name, int sz,
-                                     const std::string& base_field, int offset, int stride)
+                                     const std::string& base_field, int offset,
+                                     int stride)
 {
    // If <field_name> is a field, return its pointer
    if (HasField(field_name))
@@ -242,7 +243,7 @@ double* DataCollection::GetFieldData(const std::string& field_name, int sz,
    }
 
    // Else, if we are explicitly managing its memory, return a pointer
-   if ( HasFieldData(field_name))
+   if (HasFieldData(field_name))
    {
       return managed_field_data_map[field_name];
    }
@@ -256,7 +257,7 @@ double* DataCollection::GetFieldData(const std::string& field_name, int sz,
    }
 
    // Else, check if we are explicitly managing base_field and return offset
-   if ( HasFieldData(base_field) )
+   if (HasFieldData(base_field))
    {
       return managed_field_data_map[base_field] + offset;
    }
@@ -301,7 +302,7 @@ void DataCollection::SetPrefixPath(const std::string& prefix)
 
 void DataCollection::Load(int cycle)
 {
-
+   MFEM_ABORT("this method is not implemented");
 }
 
 void DataCollection::Save()
@@ -367,8 +368,7 @@ void DataCollection::SaveMesh()
    }
 }
 
-void DataCollection::SaveOneField(
-   const std::map<std::string,GridFunction*>::iterator &it)
+void DataCollection::SaveOneField(const FieldMapIterator &it)
 {
    std::string dir_name = prefix_path;
    if (cycle == -1)
@@ -431,12 +431,9 @@ void DataCollection::DeleteData()
    for (FieldDataMapIterator it = managed_field_data_map.begin();
         it != managed_field_data_map.end(); ++it)
    {
-      if (it->second != NULL)
-      {
-         delete [] it->second;
-      }
+      delete [] it->second;
+      it->second = NULL;
    }
-
 }
 
 void DataCollection::DeleteAll()

@@ -161,9 +161,18 @@ MPFR_OPT =
 MPFR_LIB = -lmpfr
 
 # Sidre and required libraries configuration
-# Be sure to check the HDF5_DIR is correct ( the default value is set above by NETCDF vars )
+# Be sure to check the HDF5_DIR (set above) is correct
 SIDRE_DIR = @MFEM_DIR@/../asctoolkit
 CONDUIT_DIR = @MFEM_DIR@/../conduit
+SIDRE_OPT = -I$(SIDRE_DIR)/include -I$(CONDUIT_DIR)/include/conduit\
+ -I$(HDF5_DIR)/include
+SIDRE_LIB = -L$(SIDRE_DIR)/lib -L$(CONDUIT_DIR)/lib -L$(HDF5_DIR)/lib\
+ -Wl,-rpath=$(HDF5_DIR)/lib -lsidre -lslic -lcommon -lconduit -lconduit_relay\
+ -lhdf5 -lz -ldl
+
+ifeq ($(MFEM_USE_MPI),YES)
+   SIDRE_LIB += -lspio -lcommon
+endif
 
 # If YES, enable some informational messages
 VERBOSE = NO

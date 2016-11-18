@@ -95,10 +95,19 @@ public:
    // TODO: better exception
    inline void SetAttribute(const int attr)
    {
-      self_alloc ? attribute = attr :
-                               (ptr_attribute ? *ptr_attribute = attr :
-                                                                 throw std::runtime_error("Cannot assign an attribute to an "
-                                                                       "externally allocated Element with NULL attribute pointer"));
+      if (self_alloc)
+      {
+         attribute = attr;
+      }
+      else if (ptr_attribute)
+      {
+         *ptr_attribute = attr;
+      }
+      else
+      {
+         MFEM_ABORT("Cannot assign an attribute to an externally allocated "
+                    "Element with NULL attribute pointer");
+      }
    }
 
    /// Set the indices the element according to the input.

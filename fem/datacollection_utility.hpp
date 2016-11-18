@@ -126,7 +126,7 @@ public:
     *  \param gf A (non-null) pointer to a GridFunction or ParGridFunction
     *  \param fes A (non-null) pointer to a FiniteElementSpace or ParFiniteElementSpace
     *  \param srcVec The (non-null) source vector to which gf's data will point
-    *  \parem offset The offset within srcVec for gf's data
+    *  \param offset The offset within srcVec for gf's data
     *  \param dc A pointer to the data collection instance (may be null)
     *  \param fldName The name of the GridFunction (an its data) in dc
     *  \param arr_idx An optional index for fldName, appended when arr_idx != 1

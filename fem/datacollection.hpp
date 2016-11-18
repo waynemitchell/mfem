@@ -39,13 +39,11 @@ protected:
    typedef FieldMapType::const_iterator FieldMapConstIterator;
    FieldMapType field_map;
 
-
    /// Field data that the collection explicitly manages
    typedef std::map<std::string, double*> FieldDataMapType;
    typedef FieldDataMapType::iterator FieldDataMapIterator;
    typedef FieldDataMapType::const_iterator FieldDataMapConstIterator;
    FieldDataMapType managed_field_data_map;
-
 
    /// The (common) mesh for the collected fields
    Mesh *mesh;
@@ -88,7 +86,7 @@ protected:
    void DeleteAll();
 
    /// Save one field to disk, assuming the collection directory exists
-   void SaveOneField(const std::map<std::string,GridFunction*>::iterator &it);
+   void SaveOneField(const FieldMapIterator &it);
 
 public:
    /// Create an empty collection with the given name.
@@ -109,27 +107,24 @@ public:
    /// Check if a grid function is part of the collection
    bool HasField(const std::string& name) { return field_map.count(name) == 1; }
 
-   /**
-    * Gets a pointer to the data associated with a field
-    * If the field (or data) does not exist and sz is greater than zero, it will allocate memory for the field
-    * else, it returns a null pointer
-    */
+   /// Gets a pointer to the data of @a field_name.
+   /** If the field (or data) does not exist and sz is greater than zero, it
+       will allocate memory for the field; else, it returns a null pointer. */
    virtual double* GetFieldData(const std::string& field_name, int sz = 0);
 
-   /**
-    * Gets a pointer to the data of field_name
-    * If it does not exist, but base_field does, return pointer relative to base_field's data
-    */
+   /// Gets a pointer to the data of @a field_name.
+   /** If it does not exist, but @a base_field does, return pointer relative to
+       _base_field_'s data. */
    virtual double* GetFieldData(const std::string& field_name, int sz,
-                                const std::string& base_field, int offset = 0, int stride = 1);
+                                const std::string& base_field, int offset = 0,
+                                int stride = 1);
 
-
-   /**
-    *  Creates and returns a vector containing the names of all registered grid functions
-    */
+   /** @brief Creates and returns a vector containing the names of all
+       registered grid functions. */
    std::vector<std::string> GetFieldNames() const;
 
-   virtual bool HasFieldData(const std::string&  field_name);
+   /// Check if @a field_name has allocated data.
+   virtual bool HasFieldData(const std::string& field_name);
 
    /// Get a pointer to the mesh in the collection
    Mesh *GetMesh() { return mesh; }
