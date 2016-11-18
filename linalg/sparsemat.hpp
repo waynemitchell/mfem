@@ -111,7 +111,7 @@ public:
    void Clear() { Destroy(); SetEmpty(); }
 
    /// Check if the SparseMatrix is empty.
-   bool Empty() { return (A == NULL) && (Rows == NULL); }
+   bool Empty() const { return (A == NULL) && (Rows == NULL); }
 
    /// Return the array I
    inline int *GetI() const { return I; }
@@ -140,12 +140,16 @@ public:
     */
    void SetWidth(int width_ = -1);
 
-   /// Returns the actual Width of the matrix
+   /// Returns the actual Width of the matrix.
    /*! This method can be called for matrices finalized or not. */
    int ActualWidth();
 
-   /// Sort the column indices corresponding to each row
+   /// Sort the column indices corresponding to each row.
    void SortColumnIndices();
+
+   /** @brief Move the diagonal entry to the first position in each row,
+       preserving the order of the rest of the columns. */
+   void MoveDiagonalFirst();
 
    /// Returns reference to a_{ij}.
    virtual double &Elem(int i, int j);
@@ -344,6 +348,9 @@ public:
    /// Prints a sparse matrix to stream out in CSR format.
    void PrintCSR2(std::ostream &out) const;
 
+   /// Print various sparse matrix staticstics.
+   void PrintInfo(std::ostream &out) const;
+
    /// Walks the sparse matrix
    int Walk(int &i, int &j, double &a);
 
@@ -358,8 +365,11 @@ public:
 
    double MaxNorm() const;
 
-   /// Count the number of entries with |a_ij| < tol
+   /// Count the number of entries with |a_ij| <= tol.
    int CountSmallElems(double tol) const;
+
+   /// Count the number of entries that are NOT finite, i.e. Inf or Nan.
+   int CheckFinite() const;
 
    /// Set the graph ownership flag (I and J arrays).
    void SetGraphOwner(bool ownij) { ownGraph = ownij; }

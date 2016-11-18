@@ -20,6 +20,7 @@
 #include "ncmesh.hpp"
 #include "../fem/eltrans.hpp"
 #include "../fem/coefficient.hpp"
+#include "../general/gzstream.hpp"
 #include <iostream>
 #include <fstream>
 #include <limits>
@@ -34,7 +35,6 @@ class NURBSExtension;
 class FiniteElementSpace;
 class GridFunction;
 struct Refinement;
-class named_ifstream;
 
 #ifdef MFEM_USE_MPI
 class ParMesh;
@@ -147,10 +147,12 @@ protected:
    Operation last_operation;
 
    void Init();
-
    void InitTables();
-
-   void DeleteTables();
+   void SetEmpty();  // Init all data members with empty values
+   void DestroyTables();
+   void DeleteTables() { DestroyTables(); InitTables(); }
+   void DestroyPointers(); // Delete data specifically allocated by class Mesh.
+   void Destroy();         // Delete all owned data.
 
    Element *ReadElementWithoutAttr(std::istream &);
    static void PrintElementWithoutAttr(const Element *, std::ostream &);
@@ -171,7 +173,7 @@ protected:
    void ReadGmshMesh(std::istream &input);
    /* Note NetCDF (optional library) is used for reading cubit files */
 #ifdef MFEM_USE_NETCDF
-   void ReadCubit(named_ifstream &input, int &curved, int &read_gf);
+   void ReadCubit(const char *filename, int &curved, int &read_gf);
 #endif
 
    static void skip_comment_lines(std::istream &is, const char comment_char)
@@ -377,7 +379,7 @@ protected:
 
 public:
 
-   Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
+   Mesh() { SetEmpty(); }
 
    /** Copy constructor. Performs a deep copy of (almost) all data, so that the
        source mesh can be modified (e.g. deleted, refined) without affecting the
@@ -476,12 +478,16 @@ public:
    /// Create a disjoint mesh from the given mesh array
    Mesh(Mesh *mesh_array[], int num_pieces);
 
-   /* This is similar to the above mesh constructor, but here the current
-      mesh is destroyed and another one created based on the data stream
-      again given in MFEM, netgen, or VTK format. If generate_edges = 0
-      (default) edges are not generated, if 1 edges are generated. */
+   /** This is similar to the mesh constructor with the same arguments, but here
+       the current mesh is destroyed and another one created based on the data
+       stream again given in MFEM, netgen, or VTK format. If generate_edges = 0
+       (default) edges are not generated, if 1 edges are generated. */
+   /// \see mfem::igzstream() for on-the-fly decompression of compressed ascii inputs.
    void Load(std::istream &input, int generate_edges = 0, int refine = 1,
              bool fix_orientation = true);
+
+   /// Clear the contents of the Mesh.
+   void Clear() { Destroy(); SetEmpty(); }
 
    /** Return a bitmask:
        bit 0 - simplices are present in the mesh (triangles, tets),
@@ -739,7 +745,7 @@ public:
        2) rotate all boundary triangles so that the vertices {v0, v1, v2}
        satisfy: v0 < min(v1, v2).
 
-       Note: refinement does not work after a call to this method! */
+       @note Refinement does not work after a call to this method! */
    virtual void ReorientTetMesh();
 
    int *CartesianPartitioning(int nxyz[]);
@@ -874,15 +880,18 @@ public:
    virtual void PrintXG(std::ostream &out = std::cout) const;
 
    /// Print the mesh to the given stream using the default MFEM mesh format.
+   /// \see mfem::ogzstream() for on-the-fly compression of ascii outputs
    virtual void Print(std::ostream &out = std::cout) const;
 
    /// Print the mesh in VTK format (linear and quadratic meshes only).
+   /// \see mfem::ogzstream() for on-the-fly compression of ascii outputs
    void PrintVTK(std::ostream &out);
 
    /** Print the mesh in VTK format. The parameter ref > 0 specifies an element
        subdivision number (useful for high order fields and curved meshes).
        If the optional field_data is set, we also add a FIELD section in the
        beginning of the file with additional dataset information. */
+   /// \see mfem::ogzstream() for on-the-fly compression of ascii outputs
    void PrintVTK(std::ostream &out, int ref, int field_data=0);
 
    void GetElementColoring(Array<int> &colors, int el0 = 0);
@@ -890,6 +899,7 @@ public:
    /** Prints the mesh with bdr elements given by the boundary of
        the subdomains, so that the boundary of subdomain i has bdr
        attribute i+1. */
+   /// \see mfem::ogzstream() for on-the-fly compression of ascii outputs
    void PrintWithPartitioning (int *partitioning,
                                std::ostream &out, int elem_attr = 0) const;
 
@@ -939,8 +949,8 @@ public:
 
    void MesquiteSmooth(const int mesquite_option = 0);
 
-   /// Destroys mesh.
-   virtual ~Mesh();
+   /// Destroys Mesh.
+   virtual ~Mesh() { DestroyPointers(); }
 };
 
 /** Overload operator<< for std::ostream and Mesh; valid also for the derived
@@ -970,14 +980,14 @@ Mesh *Extrude1D(Mesh *mesh, const int ny, const double sy,
                 const bool closed = false);
 
 
-/// Input file stream that remembers the input file name (used for reading
-/// NetCDF meshes).
-class named_ifstream : public std::ifstream
+/// Input file stream that remembers the input file name (useful for example
+/// when reading NetCDF meshes) and supports optional gzstream decompression.
+class named_ifgzstream : public mfem::ifgzstream
 {
 public:
    const char *filename;
-   named_ifstream(const char *mesh_name) :
-      std::ifstream(mesh_name), filename(mesh_name) {}
+   named_ifgzstream(const char *mesh_name) :
+      mfem::ifgzstream(mesh_name), filename(mesh_name) {}
 };
 
 

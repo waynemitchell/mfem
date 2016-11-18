@@ -239,9 +239,9 @@ void StaticCondensation::AssembleBdrMatrix(int el, const DenseMatrix &elmat)
 
 void StaticCondensation::Finalize()
 {
+   const int skip_zeros = 0;
    if (!Parallel())
    {
-      const int skip_zeros = 0;
       S->Finalize(skip_zeros);
       if (S_e) { S_e->Finalize(skip_zeros); }
       const SparseMatrix *cP = tr_fes->GetConformingProlongation();
@@ -265,8 +265,8 @@ void StaticCondensation::Finalize()
    {
 #ifdef MFEM_USE_MPI
       if (!S) { return; }  // already finalized
-      S->Finalize();
-      if (S_e) { S_e->Finalize(); }
+      S->Finalize(skip_zeros);
+      if (S_e) { S_e->Finalize(skip_zeros); }
 #ifdef MFEM_USE_PETSC
       PetscParMatrix *ptemp = NULL;
 #endif
@@ -457,6 +457,28 @@ void StaticCondensation::ReduceSolution(const Vector &sol, Vector &sc_sol) const
    {
       sc_sol.SetSize(tr_R->Height());
       tr_R->Mult(sol_r, sc_sol);
+   }
+}
+
+void StaticCondensation::ReduceSystem(Vector &x, Vector &b, Vector &X,
+                                      Vector &B, int copy_interior) const
+{
+   ReduceRHS(b, B);
+   ReduceSolution(x, X);
+   if (!Parallel())
+   {
+      S_e->AddMult(X, B, -1.);
+      S->PartMult(ess_rtdof_list, X, B);
+   }
+   else
+   {
+#ifdef MFEM_USE_MPI
+      EliminateBC(*pS, *pS_e, ess_rtdof_list, X, B);
+#endif
+   }
+   if (!copy_interior)
+   {
+      X.SetSubVectorComplement(ess_rtdof_list, 0.0);
    }
 }
 

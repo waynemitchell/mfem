@@ -361,7 +361,33 @@ public:
 };
 
 
-/// Integrator for (curl u, v) for Nedelec and RT elements
+/** Integrator for `(-Q u, grad v)` for Nedelec (`u`) and H1 (`v`) elements.
+    This is equivalent to a weak divergence of the Nedelec basis functions.
+ */
+class VectorFEWeakDivergenceIntegrator: public BilinearFormIntegrator
+{
+private:
+   Coefficient *Q;
+#ifndef MFEM_THREAD_SAFE
+   DenseMatrix dshape;
+   DenseMatrix dshapedxt;
+   DenseMatrix vshape;
+   DenseMatrix invdfdx;
+#endif
+public:
+   VectorFEWeakDivergenceIntegrator() { Q = NULL; }
+   VectorFEWeakDivergenceIntegrator(Coefficient &q) { Q = &q; }
+   virtual void AssembleElementMatrix(const FiniteElement &el,
+                                      ElementTransformation &Trans,
+                                      DenseMatrix &elmat) { }
+   virtual void AssembleElementMatrix2(const FiniteElement &trial_fe,
+                                       const FiniteElement &test_fe,
+                                       ElementTransformation &Trans,
+                                       DenseMatrix &elmat);
+};
+
+/// Integrator for (curl u, v) for Nedelec and RT elements. If the trail and
+/// test spaces are switched, assembles the form (u, curl v).
 class VectorFECurlIntegrator: public BilinearFormIntegrator
 {
 private:
@@ -659,6 +685,116 @@ public:
                                    const FiniteElement &el2,
                                    FaceElementTransformations &Trans,
                                    DenseMatrix &elmat);
+};
+
+/** Integrator for the DG elasticity form, for the formulations see:
+    - PhD Thesis of Jonas De Basabe, High-Order Finite %Element Methods for
+      Seismic Wave Propagation, UT Austin, 2009, p. 23, and references therein
+    - Peter Hansbo and Mats G. Larson, Discontinuous Galerkin and the
+      Crouzeix-Raviart %Element: Application to Elasticity, PREPRINT 2000-09,
+      p.3
+
+    \f[
+    - \left< \{ \tau(u) \}, [v] \right> + \alpha \left< \{ \tau(v) \}, [u]
+        \right> + \kappa \left< h^{-1} \{ \lambda + 2 \mu \} [u], [v] \right>
+    \f]
+
+    where \f$ \left<u, v\right> = \int_{F} u \cdot v \f$, and \f$ F \f$ is a
+    face which is either a boundary face \f$ F_b \f$ of an element \f$ K \f$ or
+    an interior face \f$ F_i \f$ separating elements \f$ K_1 \f$ and \f$ K_2 \f$.
+
+    In the bilinear form above \f$ \tau(u) \f$ is traction, and it's also
+    \f$ \tau(u) = \sigma(u) \cdot \vec{n} \f$, where \f$ \sigma(u) \f$ is
+    stress, and \f$ \vec{n} \f$ is the unit normal vector w.r.t. to \f$ F \f$.
+
+    In other words, we have
+    \f[
+    - \left< \{ \sigma(u) \cdot \vec{n} \}, [v] \right> + \alpha \left< \{
+        \sigma(v) \cdot \vec{n} \}, [u] \right> + \kappa \left< h^{-1} \{
+        \lambda + 2 \mu \} [u], [v] \right>
+    \f]
+
+    For isotropic media
+    \f[
+    \begin{split}
+    \sigma(u) &= \lambda \nabla \cdot u I + 2 \mu \varepsilon(u) \\
+              &= \lambda \nabla \cdot u I + 2 \mu \frac{1}{2} (\nabla u + \nabla
+                 u^T) \\
+              &= \lambda \nabla \cdot u I + \mu (\nabla u + \nabla u^T)
+    \end{split}
+    \f]
+
+    where \f$ I \f$ is identity matrix, \f$ \lambda \f$ and \f$ \mu \f$ are Lame
+    coefficients (see ElasticityIntegrator), \f$ u, v \f$ are the trial and test
+    functions, respectively.
+
+    The parameters \f$ \alpha \f$ and \f$ \kappa \f$ determine the DG method to
+    use (when this integrator is added to the "broken" ElasticityIntegrator):
+
+    - IIPG, \f$\alpha = 0\f$,
+      C. Dawson, S. Sun, M. Wheeler, Compatible algorithms for coupled flow and
+      transport, Comp. Meth. Appl. Mech. Eng., 193(23-26), 2565-2580, 2004.
+
+    - SIPG, \f$\alpha = -1\f$,
+      M. Grote, A. Schneebeli, D. Schotzau, Discontinuous Galerkin Finite
+      %Element Method for the Wave Equation, SINUM, 44(6), 2408-2431, 2006.
+
+    - NIPG, \f$\alpha = 1\f$,
+      B. Riviere, M. Wheeler, V. Girault, A Priori Error Estimates for Finite
+      %Element Methods Based on Discontinuous Approximation Spaces for Elliptic
+      Problems, SINUM, 39(3), 902-931, 2001.
+
+    This is a '%Vector' integrator, i.e. defined for FE spaces using multiple
+    copies of a scalar FE space.
+ */
+class DGElasticityIntegrator : public BilinearFormIntegrator
+{
+public:
+   DGElasticityIntegrator(double alpha_, double kappa_)
+      : lambda(NULL), mu(NULL), alpha(alpha_), kappa(kappa_) {}
+
+   DGElasticityIntegrator(Coefficient &lambda_, Coefficient &mu_,
+                          double alpha_, double kappa_)
+      : lambda(&lambda_), mu(&mu_), alpha(alpha_), kappa(kappa_) {}
+
+   using BilinearFormIntegrator::AssembleFaceMatrix;
+   virtual void AssembleFaceMatrix(const FiniteElement &el1,
+                                   const FiniteElement &el2,
+                                   FaceElementTransformations &Trans,
+                                   DenseMatrix &elmat);
+
+protected:
+   Coefficient *lambda, *mu;
+   double alpha, kappa;
+
+#ifndef MFEM_THREAD_SAFE
+   // values of all scalar basis functions for one component of u (which is a
+   // vector) at the integration point in the reference space
+   Vector shape1, shape2;
+   // values of derivatives of all scalar basis functions for one component
+   // of u (which is a vector) at the integration point in the reference space
+   DenseMatrix dshape1, dshape2;
+   // Adjugate of the Jacobian of the transformation: adjJ = det(J) J^{-1}
+   DenseMatrix adjJ;
+   // gradient of shape functions in the real (physical, not reference)
+   // coordinates, scaled by det(J):
+   //    dshape_ps(jdof,jm) = sum_{t} adjJ(t,jm)*dshape(jdof,t)
+   DenseMatrix dshape1_ps, dshape2_ps;
+   Vector nor;  // nor = |weight(J_face)| n
+   Vector nL1, nL2;  // nL1 = (lambda1 * ip.weight / detJ1) nor
+   Vector nM1, nM2;  // nM1 = (mu1     * ip.weight / detJ1) nor
+   Vector dshape1_dnM, dshape2_dnM; // dshape1_dnM = dshape1_ps . nM1
+   // 'jmat' corresponds to the term: kappa <h^{-1} {lambda + 2 mu} [u], [v]>
+   DenseMatrix jmat;
+#endif
+
+   static void AssembleBlock(
+      const int dim, const int row_ndofs, const int col_ndofs,
+      const int row_offset, const int col_offset,
+      const double jmatcoef, const Vector &col_nL, const Vector &col_nM,
+      const Vector &row_shape, const Vector &col_shape,
+      const Vector &col_dshape_dnM, const DenseMatrix &col_dshape,
+      DenseMatrix &elmat, DenseMatrix &jmat);
 };
 
 /** Integrator for the DPG form: < v, [w] > over all faces (the interface) where

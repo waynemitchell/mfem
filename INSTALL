@@ -156,6 +156,11 @@ MFEM_DEBUG = YES/NO
    Choose debug/optimized build. The debug build enables a number of messages
    and consistency checks that may simplify bug-hunting.
 
+MFEM_USE_LIBUNWIND = YES/NO
+   Use libunwind to print a stacktrace whenever mfem_error is raised. The
+   information printed is enough to determine the line numbers where the
+   error originated, provided MFEM_DEBUG=YES or build flags include `-g'.
+
 MFEM_USE_METIS_5 = YES/NO
    Specify the version of the METIS library - 5 (YES) or 4 (NO).
 
@@ -219,6 +224,23 @@ MFEM_USE_NETCDF = YES/NO
    Genesis mesh files. This option enables a reader for these files, which
    requires that NetCDF be installed, see the NETCDF_* build options below.
 
+MFEM_USE_MPFR = YES/NO
+   MPFR is a library for multiple-precision floating-point computations. This
+   option enables the use of MPFR in MFEM, e.g. for precise computation of 1D
+   quadrature rules. When enabled, this option uses the MPFR_* library options,
+   see below.
+
+MFEM_USE_GZSTREAM = YES/NO
+   Enables use of on-the-fly gzip compressed streams. With this feature enabled
+   (YES), MFEM can compress its output files on-the-fly. In addition, it can
+   read back files compressed with gzstream (or any compression utility capable
+   of creating a gzip-compatible output such as gzip).
+   MFEM will write compressed files if the mode argument in the constructor
+   includes a 'z' character. With this feature disabled (NO), MFEM will not be
+   able to properly read an input file if it is gzip compressed. In that case,
+   the solution is to UNcompress the file with an external tool (such as gunzip)
+   before attempting to use it with MFEM.
+
 MFEM_BUILD_TAG = (any value)
    An optional tag to characterize the build. Exported to config/config.mk.
    Can be used to identify the MFEM build from other makefiles.
@@ -246,7 +268,7 @@ The specific libraries and their options are:
 - METIS, required for the parallel build, i.e. when MFEM_USE_MPI = YES. If using
   METIS 5, set MFEM_USE_METIS_5 = YES (default is to use METIS 4).
   URL: http://glaros.dtc.umn.edu/gkhome/metis/metis/overview
-  Options: METIS_OPT (currently not used/needed), METIS_LIB.
+  Options: METIS_OPT, METIS_LIB.
 
 - LAPACK (optional), used when MFEM_USE_LAPACK = YES. Alternative, optimized
   implementations can also be used, e.g. the ATLAS project.
@@ -270,7 +292,9 @@ The specific libraries and their options are:
   Options: SUITESPARSE_OPT, SUITESPARSE_LIB.
 
 - SuperLU_DIST (optional), used when MFEM_USE_SUPERLU = YES. Note that
-  SuperLU_DIST requires ParMETIS which, in turn, requires METIS (see above URL).
+  SuperLU_DIST requires ParMETIS, which includes METIS 5 in its distribution.
+  Both ParMETIS and the included METIS 5 should be built and installed in the
+  same location.
   URL: http://crd-legacy.lbl.gov/~xiaoye/SuperLU
   Options: SUPERLU_OPT, SUPERLU_LIB.
 
@@ -286,6 +310,16 @@ The specific libraries and their options are:
   don't need the C++ or parallel versions.
   URL: www.unidata.ucar.edu/software/netcdf
   Options: NETCDF_OPT, NETCDF_LIB.
+
+- MPFR (optional), used when MFEM_USE_MPFR = YES.
+  URL: http://mpfr.org, it depends on the GMP library: https://gmplib.org
+  Options: MPFR_OPT, MPFR_LIB.
+
+- Libunwind (optional), used when MFEM_USE_LIBUNWIND = YES. The library is
+  included with OS X (as of version 10.11). On Linux it could be installed with
+  the libunwind-devel package.
+  URL: http://www.nongnu.org/libunwind
+  Options: LIBUNWIND_OPT, LIBUNWIND_LIB.
 
 
 Building without GNU make

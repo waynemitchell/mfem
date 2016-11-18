@@ -71,15 +71,16 @@ public:
    void Distribute(const Vector *tv);
    void Distribute(const Vector &tv) { Distribute(&tv); }
    void AddDistribute(double a, const Vector *tv);
-   void AddDistribute(double a, const Vector &tv)
-   { AddDistribute(a, &tv); }
+   void AddDistribute(double a, const Vector &tv) { AddDistribute(a, &tv); }
+
+   /// Set the GridFunction from the given true-dof vector.
+   virtual void SetFromTrueDofs(const Vector &tv) { Distribute(tv); }
 
    /// Short semantic for Distribute
    ParGridFunction &operator=(const HypreParVector &tv)
    { Distribute(&tv); return (*this); }
 
-   /// Returns the true dofs in a Vector
-   void GetTrueDofs(Vector &tv) const;
+   using GridFunction::GetTrueDofs;
 
    /// Returns the true dofs in a new HypreParVector
    HypreParVector *GetTrueDofs() const;

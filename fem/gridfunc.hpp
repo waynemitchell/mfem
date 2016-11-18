@@ -62,6 +62,10 @@ public:
 
    GridFunction() { fes = NULL; fec = NULL; sequence = 0; }
 
+   /// Copy constructor.
+   GridFunction(const GridFunction &orig)
+      : Vector(orig), fes(orig.fes), fec(NULL), sequence(orig.sequence) { }
+
    /// Creates grid function associated with *f.
    GridFunction(FiniteElementSpace *f) : Vector(f->GetVSize())
    { fes = f; fec = NULL; sequence = f->GetSequence(); }
@@ -76,6 +80,13 @@ public:
    FiniteElementCollection *OwnFEC() { return fec; }
 
    int VectorDim() const;
+
+   /// @brief Extract the true-dofs from the GridFunction. If all dofs are true,
+   /// then `tv` will be set to point to the data of `*this`.
+   void GetTrueDofs(Vector &tv) const;
+
+   /// Set the GridFunction from the given true-dof vector.
+   virtual void SetFromTrueDofs(const Vector &tv);
 
    /// Returns the values in the vertices of i'th element for dimension vdim.
    void GetNodalValues(int i, Array<double> &nval, int vdim = 1) const;
@@ -253,8 +264,14 @@ public:
    /// Redefine '=' for GridFunction = constant.
    GridFunction &operator=(double value);
 
+   /// Copy the data from @a v.
+   /** The size of @a v must be equal to the size of the FiniteElementSpace
+       @a fes. */
    GridFunction &operator=(const Vector &v);
 
+   /// Copy the data from @a v.
+   /** The GridFunctions @a v and @a *this must have FiniteElementSpaces with
+       the same size. */
    GridFunction &operator=(const GridFunction &v);
 
    /// Transform by the Space UpdateMatrix (e.g., on Mesh change).
