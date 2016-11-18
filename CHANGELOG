@@ -86,6 +86,10 @@ New and updated examples and miniapps
 
 Miscellaneous
 -------------
+- Added a new CMake build system, that can be used alternatively to the GNU
+  make-based build system. For more details, see the INSTALL file and the
+  config/cmake directory.
+
 - Added optional support for the time integration and non-linear solvers methods
   from the CVODE, ARKODE and KINSOL libraries of the SUNDIALS suite (version 2.7
   or higher of SUNDIALS is required).

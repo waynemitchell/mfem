@@ -12,12 +12,8 @@
 #ifndef MFEM_MESH_EXTRAS
 #define MFEM_MESH_EXTRAS
 
-#include "../../config/config.hpp"
-
 #include "mfem.hpp"
 #include <sstream>
-
-using namespace std;
 
 namespace mfem
 {
@@ -25,7 +21,7 @@ namespace mfem
 namespace miniapps
 {
 
-class ElementMeshStream : public stringstream
+class ElementMeshStream : public std::stringstream
 {
 public:
    ElementMeshStream(Element::Type e);
