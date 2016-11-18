@@ -476,7 +476,7 @@ int main(int argc, char *argv[])
       pode_solver->SetTimeStep(dt);
       pode_solver->Mult(*U,*U);
 #else
-      ode_solver.Mult(*U,*U);
+      // ode_solver->Mult(*U,*U);
 #endif
    }
 
