@@ -142,7 +142,7 @@ public:
        FiniteElementCollection objects should be deleted by using appropriate
        accessor methods */
    virtual FiniteElementSpace *LowOrderRefinement(int order, Operator *&P,
-         Operator *&R) const;
+                                                  Operator *&R) const;
 
    /// Returns the mesh
    inline Mesh *GetMesh() const { return mesh; }

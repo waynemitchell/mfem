@@ -159,7 +159,7 @@ public:
                          int dim = 1, int ordering = Ordering::byNODES);
 
    virtual ParFiniteElementSpace *LowOrderRefinement(int order, Operator *&P,
-         Operator *&R) const;
+                                                     Operator *&R) const;
 
    MPI_Comm GetComm() { return MyComm; }
    int GetNRanks() { return NRanks; }

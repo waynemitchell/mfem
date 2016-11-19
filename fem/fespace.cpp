@@ -1081,7 +1081,7 @@ void FiniteElementSpace::BuildLORMesh(int order, Mesh *& mesh_lor) const
 
 FiniteElementSpace*
 FiniteElementSpace::LowOrderRefinement(int order, Operator *& P, Operator *& R)
-   const
+const
 {
    Mesh *mesh_lor = NULL;
    BuildLORMesh(order, mesh_lor);
