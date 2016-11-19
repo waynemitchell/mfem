@@ -9,12 +9,8 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#ifndef MFEM_FEM
-#define MFEM_FEM
-
-#include "../general/array.hpp"
-#include "../linalg/linalg.hpp"
-#include "../mesh/mesh_headers.hpp"
+#ifndef MFEM_FEM_HPP
+#define MFEM_FEM_HPP
 
 #include "intrules.hpp"
 #include "geom.hpp"
@@ -33,9 +29,9 @@
 #include "hybridization.hpp"
 #include "datacollection.hpp"
 #include "estimators.hpp"
+#include "staticcond.hpp"
 
 #ifdef MFEM_USE_MPI
-#include <mpi.h>
 #include "pfespace.hpp"
 #include "pgridfunc.hpp"
 #include "plinearform.hpp"

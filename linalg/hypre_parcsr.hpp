@@ -16,6 +16,9 @@
 
 #ifdef MFEM_USE_MPI
 
+// Enable internal hypre timing routines
+#define HYPRE_TIMING
+
 #include "_hypre_parcsr_mv.h"
 
 namespace mfem

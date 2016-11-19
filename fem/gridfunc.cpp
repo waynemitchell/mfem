@@ -11,7 +11,8 @@
 
 // Implementation of GridFunction
 
-#include "fem.hpp"
+#include "gridfunc.hpp"
+#include "../mesh/nurbs.hpp"
 
 #include <limits>
 #include <cstring>

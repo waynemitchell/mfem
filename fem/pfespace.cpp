@@ -13,8 +13,9 @@
 
 #ifdef MFEM_USE_MPI
 
-#include "fem.hpp"
+#include "pfespace.hpp"
 #include "../general/sort_pairs.hpp"
+#include "../mesh/mesh_headers.hpp"
 
 #include <climits> // INT_MAX
 #include <limits>
