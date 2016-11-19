@@ -55,6 +55,7 @@ protected:
 
    /// Set of boundary face Integrators to be applied.
    Array<BilinearFormIntegrator*> bfbfi;
+   Array<Array<int>*>             bfbfi_marker;
 
    DenseMatrix elemmat;
    Array<int>  vdofs;
@@ -113,6 +114,20 @@ public:
        (assuming dense element matrices) based on the types of integrators
        present in the bilinear form. */
    void UsePrecomputedSparsity(int ps = 1) { precompute_sparsity = ps; }
+
+   /** @brief Use the given CSR sparsity pattern to allocate the internal
+       SparseMatrix.
+
+       - The @a I and @a J arrays must define a square graph with size equal to
+         GetVSize() of the associated FiniteElementSpace.
+       - This method should be called after enabling static condensation or
+         hybridization, if used.
+       - In the case of static condensation, @a I and @a J are not used.
+       - The ownership of the arrays @a I and @a J remains with the caller. */
+   void UseSparsity(int *I, int *J, bool isSorted);
+
+   /// Use the sparsity of @a A to allocate the internal SparseMatrix.
+   void UseSparsity(SparseMatrix &A);
 
    /** Pre-allocate the internal SparseMatrix before assembly. If the flag
        'precompute sparsity' is set, the matrix is allocated in CSR format (i.e.
@@ -192,6 +207,11 @@ public:
 
    /// Adds new boundary Face Integrator.
    void AddBdrFaceIntegrator(BilinearFormIntegrator *bfi);
+
+   /** @brief Adds new boundary Face Integrator, restricted to specific boundary
+       attributes. */
+   void AddBdrFaceIntegrator(BilinearFormIntegrator *bfi,
+                             Array<int> &bdr_marker);
 
    void operator=(const double a)
    {

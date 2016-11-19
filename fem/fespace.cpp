@@ -11,6 +11,7 @@
 
 // Implementation of FiniteElementSpace
 
+#include "../mesh/mesh_headers.hpp"
 #include "fem.hpp"
 
 #include <cmath>

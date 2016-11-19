@@ -148,6 +148,32 @@ void BilinearForm::EnableHybridization(FiniteElementSpace *constr_space,
    hybridization->Init(ess_tdof_list);
 }
 
+void BilinearForm::UseSparsity(int *I, int *J, bool isSorted)
+{
+   if (static_cond) { return; }
+
+   if (mat)
+   {
+      if (mat->Finalized() && mat->GetI() == I && mat->GetJ() == J)
+      {
+         return; // mat is already using the given sparsity
+      }
+      delete mat;
+   }
+   height = width = fes->GetVSize();
+   mat = new SparseMatrix(I, J, NULL, height, width, false, true, isSorted);
+}
+
+void BilinearForm::UseSparsity(SparseMatrix &A)
+{
+   MFEM_ASSERT(A.Height() == fes->GetVSize() && A.Width() == fes->GetVSize(),
+               "invalid matrix A dimensions: "
+               << A.Height() << " x " << A.Width());
+   MFEM_ASSERT(A.Finalized(), "matrix A must be Finalized");
+
+   UseSparsity(A.GetI(), A.GetJ(), A.areColumnsSorted());
+}
+
 double& BilinearForm::Elem (int i, int j)
 {
    return mat -> Elem(i,j);
@@ -191,9 +217,17 @@ void BilinearForm::AddInteriorFaceIntegrator (BilinearFormIntegrator * bfi)
    fbfi.Append (bfi);
 }
 
-void BilinearForm::AddBdrFaceIntegrator (BilinearFormIntegrator * bfi)
+void BilinearForm::AddBdrFaceIntegrator(BilinearFormIntegrator *bfi)
 {
-   bfbfi.Append (bfi);
+   bfbfi.Append(bfi);
+   bfbfi_marker.Append(NULL); // NULL marker means apply everywhere
+}
+
+void BilinearForm::AddBdrFaceIntegrator(BilinearFormIntegrator *bfi,
+                                        Array<int> &bdr_marker)
+{
+   bfbfi.Append(bfi);
+   bfbfi_marker.Append(&bdr_marker);
 }
 
 void BilinearForm::ComputeElementMatrix(int i, DenseMatrix &elmat)
@@ -384,8 +418,32 @@ void BilinearForm::Assemble (int skip_zeros)
       FaceElementTransformations *tr;
       const FiniteElement *fe1, *fe2;
 
+      // Which boundary attributes need to be processed?
+      Array<int> bdr_attr_marker(mesh->bdr_attributes.Size() ?
+                                 mesh->bdr_attributes.Max() : 0);
+      bdr_attr_marker = 0;
+      for (int k = 0; k < bfbfi.Size(); k++)
+      {
+         if (bfbfi_marker[k] == NULL)
+         {
+            bdr_attr_marker = 1;
+            break;
+         }
+         Array<int> &bdr_marker = *bfbfi_marker[k];
+         MFEM_ASSERT(bdr_marker.Size() == bdr_attr_marker.Size(),
+                     "invalid boundary marker for boundary face integrator #"
+                     << k << ", counting from zero");
+         for (int i = 0; i < bdr_attr_marker.Size(); i++)
+         {
+            bdr_attr_marker[i] |= bdr_marker[i];
+         }
+      }
+
       for (i = 0; i < fes -> GetNBE(); i++)
       {
+         const int bdr_attr = mesh->GetBdrAttribute(i);
+         if (bdr_attr_marker[bdr_attr-1] == 0) { continue; }
+
          tr = mesh -> GetBdrFaceTransformations (i);
          if (tr != NULL)
          {
@@ -397,6 +455,9 @@ void BilinearForm::Assemble (int skip_zeros)
             fe2 = fe1;
             for (int k = 0; k < bfbfi.Size(); k++)
             {
+               if (bfbfi_marker[k] &&
+                   (*bfbfi_marker[k])[bdr_attr-1] == 0) { continue; }
+
                bfbfi[k] -> AssembleFaceMatrix (*fe1, *fe2, *tr, elemmat);
                mat -> AddSubMatrix (vdofs, vdofs, elemmat, skip_zeros);
             }

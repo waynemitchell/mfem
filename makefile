@@ -186,11 +186,16 @@ ifeq ($(MFEM_USE_MPFR),YES)
    ALL_LIBS += $(MPFR_LIB)
 endif
 
+# gzstream configuration
+ifeq ($(MFEM_USE_GZSTREAM),YES)
+   ALL_LIBS += -lz
+endif
+
 # List of all defines that may be enabled in config.hpp and config.mk:
-MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_USE_LIBUNWIND\
- MFEM_USE_LAPACK MFEM_THREAD_SAFE MFEM_USE_OPENMP MFEM_USE_MEMALLOC\
- MFEM_TIMER_TYPE MFEM_USE_MESQUITE MFEM_USE_SUITESPARSE MFEM_USE_GECKO\
- MFEM_USE_SUPERLU MFEM_USE_GNUTLS MFEM_USE_NETCDF MFEM_USE_MPFR
+MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_USE_GZSTREAM\
+ MFEM_USE_LIBUNWIND MFEM_USE_LAPACK MFEM_THREAD_SAFE MFEM_USE_OPENMP\
+ MFEM_USE_MEMALLOC MFEM_TIMER_TYPE MFEM_USE_MESQUITE MFEM_USE_SUITESPARSE\
+ MFEM_USE_GECKO MFEM_USE_SUPERLU MFEM_USE_GNUTLS MFEM_USE_NETCDF MFEM_USE_MPFR
 
 # List of makefile variables that will be written to config.mk:
 MFEM_CONFIG_VARS = MFEM_CXX MFEM_CPPFLAGS MFEM_CXXFLAGS MFEM_INC_DIR\
@@ -325,7 +330,8 @@ install: libmfem.a
 	$(INSTALL) -m 640 mfem.hpp mfem-performance.hpp $(PREFIX_INC)
 # install config include
 	mkdir -p $(PREFIX_INC)/config
-	$(INSTALL) -m 640 config/config.hpp config/tconfig.hpp $(PREFIX_INC)/config
+	$(INSTALL) -m 640 config/_config.hpp $(PREFIX_INC)/config/config.hpp
+	$(INSTALL) -m 640 config/tconfig.hpp $(PREFIX_INC)/config
 # install remaining includes in each subdirectory
 	for dir in $(DIRS); do \
 	   mkdir -p $(PREFIX_INC)/$$dir && \
@@ -355,6 +361,7 @@ status info:
 	$(info MFEM_USE_MPI         = $(MFEM_USE_MPI))
 	$(info MFEM_USE_METIS_5     = $(MFEM_USE_METIS_5))
 	$(info MFEM_DEBUG           = $(MFEM_DEBUG))
+	$(info MFEM_USE_GZSTREAM    = $(MFEM_USE_GZSTREAM))
 	$(info MFEM_USE_LIBUNWIND   = $(MFEM_USE_LIBUNWIND))
 	$(info MFEM_USE_LAPACK      = $(MFEM_USE_LAPACK))
 	$(info MFEM_THREAD_SAFE     = $(MFEM_THREAD_SAFE))
@@ -382,7 +389,7 @@ status info:
 	@true
 
 ASTYLE = astyle --options=config/mfem.astylerc
-FORMAT_FILES = $(foreach dir,$(DIRS) examples $(wildcard miniapps/*),"$(dir)/*.?pp")
+FORMAT_FILES = $(foreach dir,$(DIRS) examples,"$(dir)/*.?pp") miniapps/*/*.?pp
 
 style:
 	@if ! $(ASTYLE) $(FORMAT_FILES) | grep Formatted; then\

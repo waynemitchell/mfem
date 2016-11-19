@@ -15,7 +15,6 @@
 
 #include "linalg.hpp"
 #include "../fem/fem.hpp"
-#include "hypre_parcsr.hpp"
 
 #include <fstream>
 #include <iomanip>
@@ -1201,9 +1200,9 @@ void HypreParMatrix::Threshold(double threshold)
    hypre_CSRMatrix * csr_A;
    hypre_CSRMatrix * csr_A_wo_z;
    hypre_ParCSRMatrix * parcsr_A_ptr;
-   int * row_starts = NULL; int * col_starts = NULL;
-   int row_start = -1;   int row_end = -1;
-   int col_start = -1;   int col_end = -1;
+   HYPRE_Int * row_starts = NULL; HYPRE_Int * col_starts = NULL;
+   HYPRE_Int row_start = -1;   HYPRE_Int row_end = -1;
+   HYPRE_Int col_start = -1;   HYPRE_Int col_end = -1;
 
    comm = hypre_ParCSRMatrixComm(A);
 

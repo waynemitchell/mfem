@@ -11,7 +11,8 @@
 
 // Implementation of GridFunction
 
-#include "fem.hpp"
+#include "gridfunc.hpp"
+#include "../mesh/nurbs.hpp"
 
 #include <limits>
 #include <cstring>
@@ -852,7 +853,7 @@ void GridFunction::GetVectorGradientHat(
    DenseMatrix dshape(dof, dim);
    FElem->CalcDShape(T.GetIntPoint(), dshape);
    gh.SetSize(vdim, dim);
-   DenseMatrix loc_data_mat(loc_data.StealData(), dof, vdim);
+   DenseMatrix loc_data_mat(loc_data.GetData(), dof, vdim);
    MultAtB(loc_data_mat, dshape, gh);
 }
 
@@ -2152,7 +2153,7 @@ GridFunction & GridFunction::operator=(double value)
 
 GridFunction & GridFunction::operator=(const Vector &v)
 {
-   MFEM_ASSERT(v.Size() == fes->GetVSize(), "");
+   MFEM_ASSERT(fes && v.Size() == fes->GetVSize(), "");
    SetSize(v.Size());
    for (int i = 0; i < size; i++)
    {

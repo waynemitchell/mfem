@@ -170,10 +170,10 @@ private:
    //   0: prevent hypre from destroying A->col_map_offd
    //   1: same as 0, plus take ownership of A->col_map_offd
    // All owned arrays are destroyed with 'delete []'.
-   char diagOwner, offdOwner, colMapOwner;
+   signed char diagOwner, offdOwner, colMapOwner;
 
    // Does the object own the pointer A?
-   char ParCSROwner;
+   signed char ParCSROwner;
 
    // Initialize with defaults. Does not initialize inherited members.
    void Init();
@@ -209,7 +209,10 @@ public:
 
    /** Creates block-diagonal square parallel matrix. Diagonal is given by diag
        which must be in CSR format (finalized). The new HypreParMatrix does not
-       take ownership of any of the input arrays. */
+       take ownership of any of the input arrays.
+       @warning The ordering of the columns in each row in @a *diag may be
+       changed by this contructor to ensure that the first entry in each row is
+       the diagonal one. This is expected by most hypre functions. */
    HypreParMatrix(MPI_Comm comm, HYPRE_Int glob_size, HYPRE_Int *row_starts,
                   SparseMatrix *diag);
 
@@ -277,15 +280,15 @@ public:
    hypre_ParCSRMatrix* StealData();
 
    /// Explicitly set the three ownership flags, see docs for diagOwner etc.
-   void SetOwnerFlags(char diag, char offd, char colmap)
+   void SetOwnerFlags(signed char diag, signed char offd, signed char colmap)
    { diagOwner = diag, offdOwner = offd, colMapOwner = colmap; }
 
    /// Get diag ownership flag
-   char OwnsDiag() const { return diagOwner; }
+   signed char OwnsDiag() const { return diagOwner; }
    /// Get offd ownership flag
-   char OwnsOffd() const { return offdOwner; }
+   signed char OwnsOffd() const { return offdOwner; }
    /// Get colmap ownership flag
-   char OwnsColMap() const { return colMapOwner; }
+   signed char OwnsColMap() const { return colMapOwner; }
 
    /** If the HypreParMatrix does not own the row-starts array, make a copy of
        it that the HypreParMatrix will own. If the col-starts array is the same
