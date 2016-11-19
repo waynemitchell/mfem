@@ -86,6 +86,10 @@ New and updated examples and miniapps
 
 Miscellaneous
 -------------
+- Added a new CMake build system, that can be used alternatively to the GNU
+  make-based build system. For more details, see the INSTALL file and the
+  config/cmake directory.
+
 - Added optional support for software-based higher-precision arithmetic with
   the MPFR library. When MFEM_USE_MPFR is enabled, the 1D quadrature rules will
   be computed precisely, at least for rules with up to 65-points.

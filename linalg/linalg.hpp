@@ -24,14 +24,18 @@
 #include "sparsesmoothers.hpp"
 #include "densemat.hpp"
 #include "ode.hpp"
+#include "solvers.hpp"
 
 #ifdef MFEM_USE_MPI
-#include <mpi.h>
+#include "hypre_parcsr.hpp"
 #include "hypre.hpp"
 #include "petsc.hpp"
 #endif
 
-#include "solvers.hpp"
+#ifdef MFEM_USE_SUPERLU
 #include "superlu.hpp"
+#endif
+
+#endif
 
 #endif

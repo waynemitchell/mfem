@@ -9,11 +9,9 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#include "../../config/config.hpp"
+#include "joule_solver.hpp"
 
 #ifdef MFEM_USE_MPI
-
-#include "joule_solver.hpp"
 
 using namespace std;
 
@@ -954,6 +952,7 @@ double MeshDependentCoefficient::Eval(ElementTransformation &T,
    }
    else
    {
+      value = 0.0; // avoid compile warning
       std::cerr << "MeshDependentCoefficient attribute " << thisAtt
                 << " not found" << std::endl;
       mfem_error();
