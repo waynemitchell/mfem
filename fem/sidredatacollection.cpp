@@ -408,14 +408,14 @@ void SidreDataCollection::verifyMeshBlueprint()
 {
    // Conduit will have a verify mesh blueprint capability in the future.
    // Add call to that when it's available to check actual contents in sidre.
-   
+
    // If a nodes GF name was set, verify a field with that name was registered.
    if (!m_meshNodesGFName.empty())
    {
-      MFEM_VERIFY( HasField( m_meshNodesGFName ), 
-         "A nodes' position GF was not found with the name '" <<
-         m_meshNodesGFName
-         << "'.  Either the field was not registered, or the wrong mesh nodes GF name was provided in the Sidre DC constructor.");
+      MFEM_VERIFY( HasField( m_meshNodesGFName ),
+                   "A nodes' position GF was not found with the name '" <<
+                   m_meshNodesGFName
+                   << "'.  Either the field was not registered, or the wrong mesh nodes GF name was provided in the Sidre DC constructor.");
    }
 }
 
