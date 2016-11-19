@@ -20,8 +20,8 @@ message(STATUS "(optional) USER_CONFIG = ${USER_CONFIG}")
 include("${USER_CONFIG}" OPTIONAL)
 include("${CMAKE_CURRENT_SOURCE_DIR}/config/defaults.cmake")
 
-# Allow overwriting of the compiler by setting CXX/MPICXX on the command line
-# or in user.cmake.
+# Allow overwriting of the compiler by setting CXX/MPICXX on the command line or
+# in user.cmake.
 if (NOT CMAKE_CXX_COMPILER)
   if (CXX)
     set(CMAKE_CXX_COMPILER ${CXX})
@@ -71,7 +71,7 @@ endif()
 if (MFEM_USE_MPI)
   find_package(MPI REQUIRED)
   include_directories(${MPI_CXX_INCLUDE_PATH})
-  # Parallel MFEM depends on Hypre and Metis
+  # Parallel MFEM depends on hypre and METIS
   find_package(HYPRE REQUIRED)
   include_directories(${HYPRE_INCLUDE_DIRS})
   find_package(METIS REQUIRED)
@@ -168,7 +168,7 @@ if (NOT DEFINED MFEM_TIMER_TYPE)
   endif()
 endif()
 
-# List all posible libraries in order of dependencies.
+# List all possible libraries in order of dependencies.
 set(MFEM_TPLS HYPRE OPENMP MESQUITE SuiteSparse SuperLUDist ParMETIS METIS
     LAPACK BLAS GECKO GNUTLS NETCDF MPFR POSIXCLOCKS MFEMBacktrace ZLIB)
 # Add all *_FOUND libraries in the variable TPL_LIBRARIES.
@@ -226,7 +226,7 @@ endif()
 
 # Generate configuration file in the build directory: config/_config.hpp.
 configure_file(
-  "${PROJECT_SOURCE_DIR}/config/cmake/config.hpp.in_cmake"
+  "${PROJECT_SOURCE_DIR}/config/cmake/config.hpp.in"
   "${PROJECT_BINARY_DIR}/config/_config.hpp")
 
 # Create substitute mfem.hpp and mfem-performance.hpp in the build directory,
@@ -290,11 +290,13 @@ endif()
 # Add 'check' target - quick test
 if (NOT MFEM_USE_MPI)
   add_custom_target(check
-    ${CMAKE_CTEST_COMMAND} -R ex1_ser -E performance USES_TERMINAL)
+    ${CMAKE_CTEST_COMMAND} -R ex1_ser -E performance -C ${CMAKE_CFG_INTDIR}
+    USES_TERMINAL)
   add_dependencies(check ex1)
 else()
   add_custom_target(check
-    ${CMAKE_CTEST_COMMAND} -R ex1p -E performance USES_TERMINAL)
+    ${CMAKE_CTEST_COMMAND} -R ex1p -E performance -C ${CMAKE_CFG_INTDIR}
+    USES_TERMINAL)
   add_dependencies(check ex1p)
 endif()
 
@@ -351,17 +353,15 @@ install(FILES ${PROJECT_BINARY_DIR}/config/_config.hpp
 install(FILES ${PROJECT_SOURCE_DIR}/config/tconfig.hpp
   DESTINATION ${INSTALL_INCLUDE_DIR}/config)
 
-#
 # Package the whole thing up nicely
-#
 include(CMakePackageConfigHelpers)
 
 # Add all targets to the build-tree export set
 export(TARGETS ${PROJECT_NAME}
   FILE "${PROJECT_BINARY_DIR}/MFEMTargets.cmake")
 
-# Export the package for use from the build-tree
-# (this registers the build-tree with a global CMake-registry)
+# Export the package for use from the build-tree (this registers the build-tree
+# with a global CMake-registry)
 export(PACKAGE ${PROJECT_NAME})
 
 # This is the build-tree version
