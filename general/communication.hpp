@@ -16,10 +16,10 @@
 
 #ifdef MFEM_USE_MPI
 
-#include <mpi.h>
 #include "array.hpp"
 #include "table.hpp"
 #include "sets.hpp"
+#include <mpi.h>
 
 namespace mfem
 {

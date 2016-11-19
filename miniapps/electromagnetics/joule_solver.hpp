@@ -12,11 +12,10 @@
 #ifndef MFEM_JOULE_SOLVER
 #define MFEM_JOULE_SOLVER
 
-#include "../../config/config.hpp"
+#include "../common/pfem_extras.hpp"
 
 #ifdef MFEM_USE_MPI
 
-#include "../common/pfem_extras.hpp"
 #include <memory>
 #include <iostream>
 #include <fstream>
