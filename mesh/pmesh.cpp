@@ -769,7 +769,8 @@ ParMesh::ParMesh(MPI_Comm comm, istream &input)
    // read parallel header
    skip_comment_lines(input, '#');
    getline(input, header);
-   MFEM_VERIFY(header == "MFEM parallel mesh v1.0", "Unknown parallel mesh format '" << header << "'!");
+   MFEM_VERIFY(header == "MFEM parallel mesh v1.0",
+               "Unknown parallel mesh format '" << header << "'!");
 
    skip_comment_lines(input, '#');
 
@@ -779,7 +780,7 @@ ParMesh::ParMesh(MPI_Comm comm, istream &input)
 
    skip_comment_lines(input, '#');
 
-   #define MFEM_PAR_MESH_FORMAT_B
+#define MFEM_PAR_MESH_FORMAT_B
 #if defined(MFEM_PAR_MESH_FORMAT_A)
    // Version A of the format
 
