@@ -53,15 +53,13 @@ header:
 # the shell variables MFEM_DEFINES and MFEM_CONFIG_VARS
 config-mk:
 	$(call mfem-info, Writing $(CONFIG_MK) ...)
-	@cp -f $(SRC)config.mk.in $(CONFIG_MK) && \
-	set -- && \
+	@set -- && \
 	for ref in $${MFEM_DEFINES} $${MFEM_CONFIG_VARS}; do \
 	   eval var=\$$$$ref && \
 	   set -- "$$@" "-e" "s#@$${ref}@#$${var}#g"; \
 	done && \
 	set -- "$$@" "-e" 's/@\([^@]*\)@/$$(\1)/g' "-e" 's/ *$$//g' && \
-	sed "$$@" $(CONFIG_MK) > $(CONFIG_MK).tmp && \
-	mv -f $(CONFIG_MK).tmp $(CONFIG_MK)
+	sed "$$@" $(SRC)config.mk.in > $(CONFIG_MK)
 
 clean:
 	rm -f $(CONFIG_HPP) $(CONFIG_MK)

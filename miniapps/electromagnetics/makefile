@@ -66,7 +66,7 @@ tesla-test-par: tesla
 	-maxit 2 -cr '0 0 -0.2 0 0 0.2 0.2 0.4 1')
 joule-test-par: joule
 	@$(call mfem-test,$<, mpirun -np 4, Electromagnetic miniapp,\
-	-p rod -tf 3)
+	-p rod -tf 3 -m $(SRC)cylinder-hex.mesh)
 
 # Testing: "test" target and mfem-test* variables are defined in config/test.mk
 
