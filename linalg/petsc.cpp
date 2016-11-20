@@ -382,7 +382,8 @@ PetscParMatrix::PetscParMatrix(const HypreParMatrix *hmat, bool wrap,
    }
 }
 
-PetscParMatrix::PetscParMatrix(MPI_Comm comm, const Operator *op, bool wrap)
+PetscParMatrix::PetscParMatrix(MPI_Comm comm, const Operator *op, bool wrap,
+                               bool assembled)
 {
    Init();
    PetscParMatrix *pA = const_cast<PetscParMatrix *>
@@ -390,7 +391,7 @@ PetscParMatrix::PetscParMatrix(MPI_Comm comm, const Operator *op, bool wrap)
    height = op->Height();
    width  = op->Width();
    if (wrap && !pA) { MakeWrapper(comm,op,&A); }
-   else { ConvertOperator(comm,*op,&A); }
+   else { ConvertOperator(comm,*op,&A,assembled); }
 }
 
 PetscParMatrix::PetscParMatrix(MPI_Comm comm, PetscInt glob_size,
@@ -612,7 +613,8 @@ void PetscParMatrix::MakeWrapper(MPI_Comm comm, const Operator* op, Mat *A)
    ctx->op = const_cast<Operator *>(op);
 }
 
-void PetscParMatrix::ConvertOperator(MPI_Comm comm, const Operator &op, Mat* A)
+void PetscParMatrix::ConvertOperator(MPI_Comm comm, const Operator &op, Mat* A,
+                                     bool assembled)
 {
    PetscParMatrix   *pA = const_cast<PetscParMatrix *>
                           (dynamic_cast<const PetscParMatrix *>(&op));
@@ -624,12 +626,34 @@ void PetscParMatrix::ConvertOperator(MPI_Comm comm, const Operator &op, Mat* A)
                           (dynamic_cast<const IdentityOperator *>(&op));
    if (pA)
    {
-      ierr = PetscObjectReference((PetscObject)(pA->A)); PCHKERRQ(pA->A,ierr);
-      *A = pA->A;
+      PetscBool ismatis;
+      ierr = PetscObjectTypeCompare((PetscObject)(pA->A),MATIS,&ismatis);
+      CCHKERRQ(pH->GetComm(),ierr);
+      if (assembled && ismatis)
+      {
+         ierr = MatISGetMPIXAIJ(pA->A,MAT_INITIAL_MATRIX,A); PCHKERRQ(pA->A,ierr);
+      }
+      else
+      {
+         if ((!assembled && !ismatis))
+         {
+            MFEM_ABORT("Unsupported operation");
+         }
+         ierr = PetscObjectReference((PetscObject)(pA->A));
+         CCHKERRQ(pH->GetComm(),ierr);
+         *A = pA->A;
+      }
    }
    else if (pH)
    {
-      ierr = MatConvert_hypreParCSR_AIJ(const_cast<HypreParMatrix&>(*pH),A);
+      if (assembled)
+      {
+         ierr = MatConvert_hypreParCSR_AIJ(const_cast<HypreParMatrix&>(*pH),A);
+      }
+      else
+      {
+         ierr = MatConvert_hypreParCSR_IS(const_cast<HypreParMatrix&>(*pH),A);
+      }
       CCHKERRQ(pH->GetComm(),ierr);
    }
    else if (pB)
@@ -646,16 +670,21 @@ void PetscParMatrix::ConvertOperator(MPI_Comm comm, const Operator &op, Mat* A)
          {
             if (!pB->IsZeroBlock(i,j))
             {
-               ConvertOperator(comm,pB->GetBlock(i,j),&mats[i*nc+j]);
+               ConvertOperator(comm,pB->GetBlock(i,j),&mats[i*nc+j],assembled);
             }
          }
       }
       ierr = MatCreateNest(comm,nr,NULL,nc,NULL,mats,A); CCHKERRQ(comm,ierr);
+      if (!assembled)
+      {
+         ierr = MatConvert(*A,MATIS,MAT_INPLACE_MATRIX,A); CCHKERRQ(comm,ierr);
+      }
       for (i=0; i<nr*nc; i++) { ierr = MatDestroy(&mats[i]); CCHKERRQ(comm,ierr); }
       ierr = PetscFree(mats); CCHKERRQ(PETSC_COMM_SELF,ierr);
    }
    else if (pI)
    {
+      MFEM_VERIFY(assembled,"Unsupported operation");
       PetscInt rst;
 
       ierr = MatCreate(comm,A); CCHKERRQ(comm,ierr);

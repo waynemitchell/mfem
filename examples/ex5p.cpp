@@ -271,7 +271,7 @@ int main(int argc, char *argv[])
       tdarcyOp->SetBlock(0,0,pM);
       tdarcyOp->SetBlock(0,1,pBT);
       tdarcyOp->SetBlock(1,0,pB);
-      darcyOp = new PetscParMatrix(pM->GetComm(),tdarcyOp,false);
+      darcyOp = new PetscParMatrix(pM->GetComm(),tdarcyOp,false,!use_nonoverlapping);
       delete tdarcyOp;
    }
 #endif

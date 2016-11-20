@@ -127,7 +127,7 @@ protected:
 
    /// Convert a mfem::Operator into a Mat B
    /// Op can be destroyed
-   void ConvertOperator(MPI_Comm comm, const Operator& op, Mat *B);
+   void ConvertOperator(MPI_Comm comm, const Operator& op, Mat *B, bool assembled);
 
    friend class PetscLinearSolver;
    friend class PetscPreconditioner;
@@ -162,7 +162,8 @@ public:
    /// MultTranspose into a PetscParMatrix. The Operator destructor should not
    /// be called before the one of the PetscParMatrix.
    /// If wrap is false, it tries to convert the operator in PETSc's classes.
-   PetscParMatrix(MPI_Comm comm, const Operator* op, bool wrap = true);
+   PetscParMatrix(MPI_Comm comm, const Operator* op, bool wrap = true,
+                  bool assembled=true);
 
    /** Creates block-diagonal square parallel matrix. Diagonal is given by diag
        which must be in CSR format (finalized). The new PetscParMatrix does not
