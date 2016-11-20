@@ -272,6 +272,7 @@ public:
 
    /// Typecasting to hypre's hypre_ParCSRMatrix*
    operator hypre_ParCSRMatrix*() { return A; }
+   operator hypre_ParCSRMatrix*() const { return A; }
 #ifndef HYPRE_PAR_CSR_MATRIX_STRUCT
    /// Typecasting to hypre's HYPRE_ParCSRMatrix, a.k.a. void *
    operator HYPRE_ParCSRMatrix() { return (HYPRE_ParCSRMatrix) A; }
