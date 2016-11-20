@@ -76,6 +76,10 @@ if (MFEM_USE_MPI)
   include_directories(${HYPRE_INCLUDE_DIRS})
   find_package(METIS REQUIRED)
   include_directories(${METIS_INCLUDE_DIRS})
+  if (MFEM_USE_PETSC)
+    find_package(PETSc REQUIRED)
+    include_directories(${PETSC_INCLUDES})
+  endif()
 endif()
 
 # GZSTREAM -> zlib
@@ -169,7 +173,7 @@ if (NOT DEFINED MFEM_TIMER_TYPE)
 endif()
 
 # List all possible libraries in order of dependencies.
-set(MFEM_TPLS HYPRE OPENMP MESQUITE SuiteSparse SuperLUDist ParMETIS METIS
+set(MFEM_TPLS HYPRE PETSC OPENMP MESQUITE SuiteSparse SuperLUDist ParMETIS METIS
     LAPACK BLAS GECKO GNUTLS NETCDF MPFR POSIXCLOCKS MFEMBacktrace ZLIB)
 # Add all *_FOUND libraries in the variable TPL_LIBRARIES.
 set(TPL_LIBRARIES "")

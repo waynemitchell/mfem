@@ -59,6 +59,9 @@
 // Enable MFEM functionality based on the NetCDF library
 #cmakedefine MFEM_USE_NETCDF
 
+// Enable MFEM functionality based on the PETSc library
+#cmakedefine MFEM_USE_PETSC
+
 // Which library functions to use in class StopWatch for measuring time.
 // The available options are:
 //   0 - use std::clock from <ctime>

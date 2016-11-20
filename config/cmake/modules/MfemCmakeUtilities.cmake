@@ -61,7 +61,7 @@ function(add_mfem_examples EXE_SRCS)
   endforeach(SRC_FILE)
 endfunction()
 
-# A slightly more versitile function for adding miniapps to MFEM
+# A slightly more versatile function for adding miniapps to MFEM
 function(add_mfem_miniapp MFEM_EXE_NAME)
   # Parse the input arguments looking for the things we need
   set(POSSIBLE_ARGS "MAIN" "EXTRA_SOURCES" "EXTRA_HEADERS" "EXTRA_OPTIONS" "EXTRA_DEFINES" "LIBRARIES")
