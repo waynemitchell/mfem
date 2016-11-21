@@ -33,11 +33,13 @@ ifneq ($(SYSNAME),Darwin)
    AR      = ar
    ARFLAGS = cruv
    RANLIB  = ranlib
+   RPATH   = -rpath=
 else
    # Silence "has no symbols" warnings on Mac OS X
    AR      = ar
    ARFLAGS = Scruv
    RANLIB  = ranlib -no_warning_for_no_symbols
+   RPATH   = -rpath # note the space at the end
 endif
 
 # Set CXXFLAGS to overwrite the default selection of DEBUG_FLAGS/OPTIM_FLAGS
@@ -166,9 +168,13 @@ SIDRE_DIR = @MFEM_DIR@/../asctoolkit
 CONDUIT_DIR = @MFEM_DIR@/../conduit
 SIDRE_OPT = -I$(SIDRE_DIR)/include -I$(CONDUIT_DIR)/include/conduit\
  -I$(HDF5_DIR)/include
-SIDRE_LIB = -L$(SIDRE_DIR)/lib -L$(CONDUIT_DIR)/lib -L$(HDF5_DIR)/lib\
- -Wl,-rpath -Wl,$(HDF5_DIR)/lib -lsidre -lslic -lcommon -lconduit\
- -lconduit_relay -lhdf5 -lz -ldl
+
+SIDRE_LIB = -L$(SIDRE_DIR)/lib \
+            -L$(CONDUIT_DIR)/lib \
+            -Wl,$(RPATH)$(CONDUIT_DIR)/lib \
+            -L$(HDF5_DIR)/lib\
+            -Wl,$(RPATH)$(HDF5_DIR)/lib \
+            -lsidre -lslic -lcommon -lconduit -lconduit_relay -lhdf5 -lz -ldl
 
 ifeq ($(MFEM_USE_MPI),YES)
    SIDRE_LIB += -lspio -lcommon
