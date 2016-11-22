@@ -29,10 +29,6 @@ class DataGroup;
 class SidreDataCollection : public DataCollection
 {
 
-protected:
-   // why is this protected, but sidre dc is private?
-   asctoolkit::sidre::DataGroup *parent_datagroup;
-
 public:
 
    // Adding some typedefs here for the variables types in MFEM that we will be putting in Sidre
@@ -152,8 +148,17 @@ private:
    // Can we use one flag and just have DC own all objects vs none?
    const bool m_owns_mesh_data;
 
+   std::string m_meshNodesGFName;
+   bool m_loadCalled;
+
    // If the data collection owns the datastore, it will store a pointer to it.
    asctoolkit::sidre::DataStore * m_datastore_ptr;
+
+protected:
+   // why is this protected, but sidre dc is private?
+   asctoolkit::sidre::DataGroup *parent_datagroup;
+
+private:
 
    // If the data collection does not own the datastore, it will need pointers
    // to the blueprint and blueprint index group to use.
@@ -163,9 +168,6 @@ private:
    // This is stored for convenience.
    asctoolkit::sidre::DataGroup * simdata_grp;
 
-   std::string m_meshNodesGFName;
-
-   bool m_loadCalled;
 
    void DeregisterFieldInBPIndex(const std::string & field_name);
    void RegisterFieldInBPIndex(asctoolkit::sidre::DataGroup * bp_field_group);

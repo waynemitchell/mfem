@@ -120,8 +120,8 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name,
      m_owns_datastore(false),
      m_owns_mesh_data(own_mesh_data),
      m_meshNodesGFName(meshNodesGFName),
-     parent_datagroup( domain_grp->getParent() ),
-     m_loadCalled(false)
+     m_loadCalled(false),
+     parent_datagroup( domain_grp->getParent() )
 {
    bp_grp = domain_grp->createGroup("blueprint");
 
