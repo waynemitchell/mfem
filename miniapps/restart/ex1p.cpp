@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
    // Create sidre data collection.  Designate that sidre DC should own the
    // memory for the mesh by passing in 'true' for owns_mesh_data param.  This
    // is required to support restarting using the sidre DC.
-   DataCollection * dc = new SidreDataCollection("ex1p_restart", pmesh, false);
+   SidreDataCollection * dc = new SidreDataCollection("ex1p_restart", pmesh, false);
    dc->SetPrefixPath("ex1p_restart");
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
