@@ -202,7 +202,7 @@ int main(int argc, char *argv[])
    {
       dc = new VisItDataCollection("Example9-Parallel", pmesh);
    }
-   dc->SetPrefixPath("ex9p_output");
+   dc->SetPrefixPath("output/ex9p");
    // 7. Define the parallel discontinuous DG finite element space on the
    //    parallel refined mesh of the given polynomial order.
    DG_FECollection fec(order, dim);
@@ -257,8 +257,8 @@ int main(int argc, char *argv[])
 
    {
       ostringstream mesh_name, sol_name;
-      mesh_name << "ex9p_output/ex9-mesh." << setfill('0') << setw(6) << myid;
-      sol_name << "ex9p_output/ex9-init." << setfill('0') << setw(6) << myid;
+      mesh_name << "output/ex9p/mesh." << setfill('0') << setw(6) << myid;
+      sol_name << "output/ex9p/init." << setfill('0') << setw(6) << myid;
       ofstream omesh(mesh_name.str().c_str());
       omesh.precision(precision);
       pmesh->Print(omesh);
@@ -347,7 +347,7 @@ int main(int argc, char *argv[])
    {
       *u = *U;
       ostringstream sol_name;
-      sol_name << "ex9p_output/ex9-final." << setfill('0') << setw(6) << myid;
+      sol_name << "output/ex9p/final." << setfill('0') << setw(6) << myid;
       ofstream osol(sol_name.str().c_str());
       osol.precision(precision);
       u->Save(osol);
