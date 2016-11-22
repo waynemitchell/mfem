@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
       args.PrintOptions(cout);
    }
 
-   bool isRestart = (checkpoint_file != "");
+   bool isRestart = ( !std::string(checkpoint_file).empty() );
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
