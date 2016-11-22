@@ -539,8 +539,8 @@ void SidreDataCollection::Load(const std::string& path,
    // the load operation and also reset the state variables.
    if (m_owns_datastore)
    {
-      SetGroupPointers(m_datastore_ptr->getRoot()->getGroup(name),
-                       m_datastore_ptr->getRoot()->getGroup(name + "_global"));
+      SetGroupPointers(m_datastore_ptr->getRoot()->getGroup(name + "_global"),
+                       m_datastore_ptr->getRoot()->getGroup(name));
 
       UpdateStateFromDS();
    }
