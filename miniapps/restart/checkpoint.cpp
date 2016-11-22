@@ -1,36 +1,19 @@
 //                       MFEM Example 1 - Parallel Version
 //
-// Compile with: make ex1p
+// Compile with: make checkpoint
 //
-// Sample runs:  mpirun -np 4 ex1p -m ../data/square-disc.mesh
-//               mpirun -np 4 ex1p -m ../data/star.mesh
-//               mpirun -np 4 ex1p -m ../data/escher.mesh
-//               mpirun -np 4 ex1p -m ../data/fichera.mesh
-//               mpirun -np 4 ex1p -m ../data/square-disc-p2.vtk -o 2
-//               mpirun -np 4 ex1p -m ../data/square-disc-p3.mesh -o 3
-//               mpirun -np 4 ex1p -m ../data/square-disc-nurbs.mesh -o -1
-//               mpirun -np 4 ex1p -m ../data/disc-nurbs.mesh -o -1
-//               mpirun -np 4 ex1p -m ../data/pipe-nurbs.mesh -o -1
-//               mpirun -np 4 ex1p -m ../data/ball-nurbs.mesh -o 2
-//               mpirun -np 4 ex1p -m ../data/star-surf.mesh
-//               mpirun -np 4 ex1p -m ../data/square-disc-surf.mesh
-//               mpirun -np 4 ex1p -m ../data/inline-segment.mesh
-//               mpirun -np 4 ex1p -m ../data/amr-quad.mesh
-//               mpirun -np 4 ex1p -m ../data/amr-hex.mesh
-//               mpirun -np 4 ex1p -m ../data/mobius-strip.mesh
-//               mpirun -np 4 ex1p -m ../data/mobius-strip.mesh -o -1 -sc
+// Saving a checkpoint file:
+// mpirun -np 4 checkpoint
 //
-// Description:  This example code demonstrates the use of MFEM to define a
-//               simple finite element discretization of the Laplace problem
-//               -Delta u = 1 with homogeneous Dirichlet boundary conditions.
-//               Specifically, we discretize using a FE space of the specified
-//               order, or if order < 1 using an isoparametric/isogeometric
-//               space (i.e. quadratic for quadratic curvilinear mesh, NURBS for
-//               NURBS mesh, etc.)
+// Loading a checkpoint file:
+// mpirun -np 4 checkpoint -c output/problem.root
 //
-//               The example highlights the use of dumping a checkpoint file
-//               using the sidre data collection, and of loading the grid
-//               functions back in from the checkpoint file.
+// Description:
+// The example highlights the use of dumping a checkpoint file
+// using the sidre data collection, and of loading the grid
+// functions back in from the checkpoint file.
+//
+// It is based on the ex1p problem.
 
 #include "mfem.hpp"
 #include <fstream>
@@ -118,8 +101,8 @@ int main(int argc, char *argv[])
    // Create sidre data collection.  Designate that sidre DC should own the
    // memory for the mesh by passing in 'true' for owns_mesh_data param.  This
    // is required to support restarting using the sidre DC.
-   SidreDataCollection * dc = new SidreDataCollection("ex1p_restart", pmesh, false);
-   dc->SetPrefixPath("ex1p_restart");
+   SidreDataCollection * dc = new SidreDataCollection("problem", pmesh, false);
+   dc->SetPrefixPath("output");
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use continuous Lagrange finite elements of the specified order. If
@@ -250,8 +233,8 @@ int main(int argc, char *argv[])
       }
 
       ostringstream mesh_name, sol_name;
-      mesh_name << "ex1p_restart/mesh." << setfill('0') << setw(6) << myid << suffix;
-      sol_name << "ex1p_restart/sol." << setfill('0') << setw(6) << myid << suffix;
+      mesh_name << "output/mesh." << setfill('0') << setw(6) << myid << suffix;
+      sol_name << "output/sol." << setfill('0') << setw(6) << myid << suffix;
 
       ofstream mesh_ofs(mesh_name.str().c_str());
       mesh_ofs.precision(8);

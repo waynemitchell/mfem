@@ -312,6 +312,8 @@ test: lib
 	@$(MAKE) -C miniapps/electromagnetics test
 	@echo "Running high-performance miniapps..."
 	@$(MAKE) -C miniapps/performance test
+	@echo "Running restart miniapp..."
+	@$(MAKE) -C miniapps/restart test
 	@echo "Done."
 
 clean:

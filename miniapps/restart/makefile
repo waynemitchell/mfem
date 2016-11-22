@@ -22,7 +22,8 @@ MFEM_LIB_FILE = mfem_is_not_built
 -include $(CONFIG_MK)
 
 SEQ_EXAMPLES =
-PAR_EXAMPLES = ex1p
+PAR_EXAMPLES = checkpoint
+
 ifeq ($(MFEM_USE_MPI),NO)
    EXAMPLES = $(SEQ_EXAMPLES)
 else
@@ -43,11 +44,10 @@ all: $(EXAMPLES)
 MFEM_TESTS = EXAMPLES
 include $(TEST_MK)
 
-# Testing: Parallel vs. serial runs
-%-test-par: %
-	@$(call mfem-test,$<, mpirun -np 4, Parallel example)
-%-test-seq: %
-	@$(call mfem-test,$<,, Serial example)
+# Testing: Specific execution options
+checkpoint-test-par: checkpoint
+	@$(call mfem-test,$<, mpirun -np 4, Parallel checkpoint save test)
+	@$(call mfem-test,$<, mpirun -np 4, Parallel checkpoint load test, -c output/problem.root)
 
 # Testing: "test" target and mfem-test* variables are defined in config/test.mk
 
@@ -60,6 +60,7 @@ clean: clean-build clean-exec
 clean-build:
 	rm -f *.o *~ $(SEQ_EXAMPLES) $(PAR_EXAMPLES)
 	rm -rf *.dSYM *.TVD.*breakpoints
+	rm -rf output
 
 clean-exec:
-	@rm -f ex16.mesh ex16-mesh.* ex16-init.* ex16-final.*
+	@rm -f ex1p
