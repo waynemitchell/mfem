@@ -410,13 +410,13 @@ void SidreDataCollection::verifyMeshBlueprint()
    // Add call to that when it's available to check actual contents in sidre.
 
    // If a nodes GF name was set, verify a field with that name was registered.
-   if (!m_meshNodesGFName.empty())
-   {
-      MFEM_VERIFY( HasField( m_meshNodesGFName ),
-                   "A nodes' position GF was not found with the name '" <<
-                   m_meshNodesGFName
-                   << "'.  Either the field was not registered, or the wrong mesh nodes GF name was provided in the Sidre DC constructor.");
-   }
+   //if (!m_meshNodesGFName.empty())
+   //{
+   //   MFEM_VERIFY( HasField( m_meshNodesGFName ),
+   //                "A nodes' position GF was not found with the name '" <<
+   //                m_meshNodesGFName
+   //                << "'.  Either the field was not registered, or the wrong mesh nodes GF name was provided in the Sidre DC constructor.");
+   //}
 }
 
 void SidreDataCollection::SetMesh(Mesh *new_mesh)
@@ -437,6 +437,14 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
    createMeshBlueprintState(hasBP);
    createMeshBlueprintCoordset(hasBP);
 
+   bool isCurved = new_mesh->GetNodes() != NULL;
+
+   bool hasRegisteredNodesGF = ! m_meshNodesGFName.empty();
+   if(isCurved && !hasRegisteredNodesGF )
+   {
+      m_meshNodesGFName = "_mesh_nodes_gf";
+   }
+
    createMeshBlueprintTopologies(hasBP, "mesh");
 
    if (has_bnd_elts)
@@ -446,15 +454,13 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
    }
 
 
-   if ( new_mesh->GetNodes() != NULL && m_meshNodesGFName == "")
+   if (  isCurved && !hasRegisteredNodesGF)
    {
-      m_meshNodesGFName = "_mesh_nodes_gf";
-      /*
       if (m_owns_mesh_data)
       {
          const FiniteElementSpace* nFes = new_mesh->GetNodalFESpace();
          int sz = nFes->GetVSize();
-         double* gfData = GetFieldData( m_nodePositionsFieldName.c_str(), sz);
+         double* gfData = GetFieldData( m_meshNodesGFName, sz);
 
          if(!hasBP)
          {
@@ -464,9 +470,8 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
 
          new_mesh->GetNodes()->NewDataAndSize(gfData, sz);
       }
-      */
 
-      RegisterField( m_meshNodesGFName.c_str(), new_mesh->GetNodes());
+      RegisterField( m_meshNodesGFName, new_mesh->GetNodes());
    }
 }
 
@@ -915,8 +920,8 @@ void SidreDataCollection::addVectorBasedGridFunction(const std::string&
                   break;
             }
 
-            grp->createView(fidxName, gf->GetData())
-            ->apply(sidre::DOUBLE_ID, ndof, offset, stride);
+            grp->createView(fidxName, gf->GetData()+offset)
+            ->apply(sidre::DOUBLE_ID, ndof, 0, stride);
          }
       }
    }

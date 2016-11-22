@@ -203,6 +203,7 @@ int main(int argc, char *argv[])
       dc = new VisItDataCollection("Example9-Parallel", pmesh);
    }
    dc->SetPrefixPath("output/ex9p");
+
    // 7. Define the parallel discontinuous DG finite element space on the
    //    parallel refined mesh of the given polynomial order.
    DG_FECollection fec(order, dim);
