@@ -285,6 +285,11 @@ private:
 
 };
 
+/** An abstract class for integrating the product of a scalar basis
+    function and the inner product of a vector coefficient with a
+    vector basis function.  In 2D the inner product can be replaced
+    with a cross product.
+ */
 class MixedScalarVectorIntegrator: public BilinearFormIntegrator
 {
 public:
@@ -296,8 +301,9 @@ public:
 
 protected:
 
-   MixedScalarVectorIntegrator(VectorCoefficient &vq, bool _transpose = false)
-      : VQ(&vq), transpose(_transpose) {}
+   MixedScalarVectorIntegrator(VectorCoefficient &vq, bool _transpose = false,
+                               bool _cross_2d = false)
+      : VQ(&vq), transpose(_transpose) , cross_2d(_cross_2d) {}
 
    inline virtual bool VerifyFiniteElementTypes(
       const FiniteElement & trial_fe,
@@ -346,6 +352,7 @@ private:
 
    VectorCoefficient *VQ;
    bool transpose;
+   bool cross_2d;  // In 2D use a cross product rather than a dot product
 
 #ifndef MFEM_THREAD_SAFE
    Vector V;
@@ -1037,14 +1044,45 @@ public:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial space must be a vector field in 3D "
-             "and the test space must be a vector field with a curl";
+      return "Trial space must be a vector field in 3D with a curl "
+             "and the test space must be a vector field";
    }
 
    inline virtual void CalcTrialShape(const FiniteElement & trial_fe,
                                       ElementTransformation &Trans,
                                       DenseMatrix & shape)
    { trial_fe.CalcCurlShape(Trans, shape); }
+};
+
+/** Class for integrating the bilinear form a(u,v) := (V x Grad u, v) in 2D
+    and where V is a vector coefficient u is in H1 and v is in H1 or L2.
+ */
+class MixedScalarCrossGradIntegrator : public MixedScalarVectorIntegrator
+{
+public:
+   MixedScalarCrossGradIntegrator(VectorCoefficient &vq)
+      : MixedScalarVectorIntegrator(vq, true, true) {}
+
+   inline virtual bool VerifyFiniteElementTypes(
+      const FiniteElement & trial_fe,
+      const FiniteElement & test_fe) const
+   {
+      return (trial_fe.GetDim() == 2 && test_fe.GetDim() == 2 &&
+              trial_fe.GetRangeType() == mfem::FiniteElement::SCALAR &&
+              trial_fe.GetDerivType() == mfem::FiniteElement::GRAD   &&
+              test_fe.GetRangeType()  == mfem::FiniteElement::SCALAR );
+   }
+
+   inline virtual const char * FiniteElementTypeFailureMessage() const
+   {
+      return "Trial space must be a scalar field in 2D with a gradient "
+             "and the test space must be a scalar field";
+   }
+
+   inline virtual void CalcVShape(const FiniteElement & vector_fe,
+                                  ElementTransformation &Trans,
+                                  DenseMatrix & shape)
+   { vector_fe.CalcDShape(Trans, shape); }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (V . Grad u, v) in 2D

@@ -270,6 +270,7 @@ void MixedScalarVectorIntegrator::AssembleElementMatrix2(
    int sca_nd = sca_fe->GetDof();
    int vec_nd = vec_fe->GetDof();
    int spaceDim = Trans.GetSpaceDim();
+   double vtmp;
 
 #ifdef MFEM_THREAD_SAFE
    Vector V(VQ ? VQ->GetVDim() : 0);
@@ -308,6 +309,13 @@ void MixedScalarVectorIntegrator::AssembleElementMatrix2(
 
       VQ->Eval(V, Trans, ip);
       V *= w;
+
+      if ( vec_fe->GetDim() == 2 && cross_2d )
+      {
+         vtmp = V[0];
+         V[0] = -V[1];
+         V[1] = vtmp;
+      }
 
       vshape.Mult(V,vshape_tmp);
 
