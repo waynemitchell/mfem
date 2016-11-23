@@ -85,12 +85,6 @@ protected:
    static const double default_rel_tol;
    static const double default_abs_tol;
 
-   struct UserData
-   {
-      const Operator *oper;
-      Operator *jacobian;
-   };
-
    // Computes the action of a time-dependent operator.
    static int ODEMult(realtype t, N_Vector y, N_Vector ydot, void *td_oper);
 
@@ -112,6 +106,13 @@ public:
 
    /// Return the flag returned by the last call to a SUNDIALS function.
    int GetFlag() const { return flag; }
+
+   struct UserData
+   {
+      const Operator *oper;
+      Operator *jacobian;
+      Solver   *jac_solver;
+   };
 };
 
 /// Wrapper for SUNDIALS' CVODE library.
@@ -311,15 +312,12 @@ public:
    /// Destroy the associated KINSOL memory.
    virtual ~KinSolver();
 
-   /// TODO
-   virtual void SetSolver(Solver &solver)
-   { MFEM_ABORT("This option is not implemented in class KinSolver yet."); }
-   /// TODO
-   virtual void SetPreconditioner(Solver &pr)
-   { MFEM_ABORT("This option is not implemented in class KinSolver yet."); }
-
-   /** Set the nonlinear Operator of the system. This method calls KINInit(). */
+   /// Set the nonlinear Operator of the system. This method calls KINInit().
    virtual void SetOperator(const Operator &op);
+
+   /// Set the linear solver for inverting the Jacobian.
+   /** This is method is equivalent to calling SetPreconditioner(). */
+   virtual void SetSolver(Solver &solver);
 
    /// Solve the nonlinear system with zero RHS.
    /** FIXME: Calls the other Mult(Vector&, Vector&, Vector&) const method with

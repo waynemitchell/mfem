@@ -44,7 +44,9 @@ using namespace std;
 using namespace mfem;
 
 class BackwardEulerOperator;
+#ifdef MFEM_USE_SUNDIALS
 class SundialsJacSolver;
+#endif
 
 /** After spatial discretization, the hyperelastic model can be written as a
  *  system of ODEs:
@@ -90,7 +92,9 @@ public:
        This is the only requirement for high-order SDIRK implicit integration.*/
    virtual void ImplicitSolve(const double dt, const Vector &x, Vector &k);
 
+#ifdef MFEM_USE_SUNDIALS
    void InitSundialsJacSolver(SundialsJacSolver &sjsolv);
+#endif
 
    double ElasticEnergy(ParGridFunction &x) const;
    double KineticEnergy(ParGridFunction &v) const;
@@ -122,6 +126,7 @@ public:
    virtual ~BackwardEulerOperator();
 };
 
+#ifdef MFEM_USE_SUNDIALS
 /// Custom Jacobian system solver for the SUNDIALS time integrators.
 class SundialsJacSolver : public SundialsODELinearSolver
 {
@@ -157,6 +162,7 @@ public:
                    Vector &y_cur, Vector &f_cur);
    int FreeSystem(void *sundials_mem);
 };
+#endif
 
 
 /** Function representing the elastic energy density for the given hyperelastic
@@ -269,15 +275,18 @@ int main(int argc, char *argv[])
    //    singly diagonal implicit Runge-Kutta (SDIRK) methods, as well as
    //    explicit Runge-Kutta methods are available.
    ODESolver *ode_solver;
+#ifdef MFEM_USE_SUNDIALS
    CVODESolver *cvode = NULL;
    ARKODESolver *arkode = NULL;
    SundialsJacSolver *sjsolver = NULL;
+#endif
    switch (ode_solver_type)
    {
       // Implicit L-stable methods
       case 1:  ode_solver = new BackwardEulerSolver; break;
       case 2:  ode_solver = new SDIRK23Solver(2); break;
       case 3:  ode_solver = new SDIRK33Solver; break;
+#ifdef MFEM_USE_SUNDIALS
       case 4:
       case 5:
       {
@@ -304,11 +313,20 @@ int main(int argc, char *argv[])
          arkode->SetLinearSolve(*sjsolver);
          break;
       }
+#else
+      case 4:
+      case 5:
+      case 6:
+      case 7:
+      case 15:
+      case 16: MFEM_ABORT("MFEM is not configured with SUNDIALS!");
+#endif
       // Explicit methods
       case 11: ode_solver = new ForwardEulerSolver; break;
       case 12: ode_solver = new RK2Solver(0.5); break; // midpoint method
       case 13: ode_solver = new RK3SSPSolver; break;
       case 14: ode_solver = new RK4Solver; break;
+#ifdef MFEM_USE_SUNDIALS
       case 15:
       {
          cvode = new CVODESolver(MPI_COMM_WORLD, CV_ADAMS, CV_FUNCTIONAL);
@@ -323,6 +341,7 @@ int main(int argc, char *argv[])
          arkode->SetSStolerances(1.0e-2, 1.0e-2);
          break;
       }
+#endif
       // Implicit A-stable methods (not L-stable)
       case 22: ode_solver = new ImplicitMidpointSolver; break;
       case 23: ode_solver = new SDIRK23Solver; break;
@@ -458,8 +477,10 @@ int main(int argc, char *argv[])
             cout << "step " << ti << ", t = " << t << ", EE = " << ee
                  << ", KE = " << ke << ", ΔTE = " << (ee+ke)-(ee0+ke0) << endl;
 
+#ifdef MFEM_USE_SUNDIALS
             if (cvode) { cvode->PrintInfo(); }
             else if (arkode) { arkode->PrintInfo(); }
+#endif
          }
 
          if (visualization)
@@ -500,7 +521,9 @@ int main(int argc, char *argv[])
 
    // 12. Free the used memory.
    delete ode_solver;
+#ifdef MFEM_USE_SUNDIALS
    delete sjsolver;
+#endif
    delete pmesh;
 
    MPI_Finalize();
@@ -581,6 +604,7 @@ BackwardEulerOperator::~BackwardEulerOperator()
    delete Jacobian;
 }
 
+#ifdef MFEM_USE_SUNDIALS
 int SundialsJacSolver::InitSystem(void *sundials_mem)
 {
    TimeDependentOperator *td_oper = GetTimeDependentOperator(sundials_mem);
@@ -667,6 +691,7 @@ int SundialsJacSolver::FreeSystem(void *sundials_mem)
    delete Jacobian;
    return 0;
 }
+#endif
 
 HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
                                            Array<int> &ess_bdr, double visc,
@@ -723,8 +748,12 @@ HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
 
    if (use_kinsol)
    {
+#ifdef MFEM_USE_SUNDIALS
       newton_solver = new KinSolver(f.GetComm(), KIN_NONE, true);
       newton_solver->SetMaxIter(200);
+#else
+      MFEM_ABORT("MFEM is not configured with SUNDIALS!");
+#endif
    }
    else
    {
@@ -781,10 +810,12 @@ void HyperelasticOperator::ImplicitSolve(const double dt,
    add(v, dt, dv_dt, dx_dt);
 }
 
+#ifdef MFEM_USE_SUNDIALS
 void HyperelasticOperator::InitSundialsJacSolver(SundialsJacSolver &sjsolv)
 {
    sjsolv.SetOperators(M, S, H, *J_solver);
 }
+#endif
 
 double HyperelasticOperator::ElasticEnergy(ParGridFunction &x) const
 {

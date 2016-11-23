@@ -38,7 +38,6 @@
 #include <kinsol/kinsol_impl.h>
 #include <kinsol/kinsol_spgmr.h>
 
-
 using namespace std;
 
 namespace mfem
@@ -117,6 +116,64 @@ static int LinSysFree(ARKodeMem ark_mem)
    return to_solver(ark_mem->ark_lmem)->FreeSystem(ark_mem);
 }
 
+/*
+static int LinSysInit(KINMem kin_mem)
+{
+   return KIN_SUCCESS;
+}
+*/
+
+static int LinSysSetup(KINMem kin_mem)
+{
+   const Vector u(kin_mem->kin_uu);
+
+   SundialsSolver::UserData &ud =
+         *static_cast<SundialsSolver::UserData *>(kin_mem->kin_lmem);
+   // Compute J(u).
+   ud.jacobian = &ud.oper->GetGradient(u);
+   ud.jac_solver->SetOperator(*ud.jacobian);
+
+   return KIN_SUCCESS;
+}
+
+static int LinSysSolve(KINMem kin_mem, N_Vector x, N_Vector b,
+                       realtype *sJpnorm, realtype *sFdotJp)
+{
+   Vector mx(x);
+   const Vector mb(b);
+
+   // mx = J(u)^-1 mb.
+   SundialsSolver::UserData &ud =
+         *static_cast<SundialsSolver::UserData *>(kin_mem->kin_lmem);
+
+   if( !ud.jac_solver->iterative_mode) { mx = 0.0; }
+
+   ud.jac_solver->Mult(mb, mx);
+
+   // Compute required norms.
+   if ( (kin_mem->kin_globalstrategy == KIN_LINESEARCH) ||
+        (kin_mem->kin_globalstrategy != KIN_FP &&
+         kin_mem->kin_etaflag == KIN_ETACHOICE1) )
+   {
+      // TODO: this function uses fields from kinspils_mem, which is actually
+      // kin_mem->kin_lmem. But the latter is used for user data!?
+      // KINSpilsAtimes(kin_mem, x, b);
+      *sJpnorm = N_VWL2Norm(b, kin_mem->kin_fscale);
+      N_VProd(b, kin_mem->kin_fscale, b);
+      N_VProd(b, kin_mem->kin_fscale, b);
+      *sFdotJp = N_VDotProd(kin_mem->kin_fval, b);
+   }
+   else { sJpnorm = sFdotJp = NULL; }
+
+   return KIN_SUCCESS;
+}
+
+/*
+static int LinSysFree(KINMem kin_mem)
+{
+   return KIN_SUCCESS;
+}
+*/
 
 const double SundialsSolver::default_rel_tol = 1e-4;
 const double SundialsSolver::default_abs_tol = 1e-9;
@@ -149,8 +206,7 @@ int SundialsSolver::GradientMult(N_Vector v, N_Vector Jv, N_Vector u,
                                  booleantype *new_u, void *user_data)
 {
    Vector mfem_v(v), mfem_Jv(Jv);
-
-   UserData &ud = *static_cast<UserData*>(user_data);
+   UserData &ud = *static_cast<UserData *>(user_data);
    if (*new_u)
    {
       Vector mfem_u(u);
@@ -688,13 +744,13 @@ static inline KINMem Mem(const KinSolver *self)
 }
 
 KinSolver::KinSolver(int strategy, bool oper_grad)
-   : use_oper_grad(oper_grad), y_scale(NULL), f_scale(NULL), user_data()
+   : use_oper_grad(oper_grad), user_data()
 {
-   // Allocate an empty serial N_Vector wrapper in y.
+   // Allocate empty serial N_Vectors.
    y = N_VNewEmpty_Serial(0);
-   MFEM_ASSERT(y, "Error in N_VNewEmpty_Serial().");
    y_scale = N_VNewEmpty_Serial(0);
    f_scale = N_VNewEmpty_Serial(0);
+   MFEM_ASSERT(y && y_scale && f_scale, "Error in N_VNewEmpty_Serial().");
 
    sundials_mem = KINCreate();
    MFEM_ASSERT(sundials_mem, "Error in KINCreate().");
@@ -707,23 +763,23 @@ KinSolver::KinSolver(int strategy, bool oper_grad)
 #ifdef MFEM_USE_MPI
 
 KinSolver::KinSolver(MPI_Comm comm, int strategy, bool oper_grad)
-   : use_oper_grad(oper_grad), y_scale(NULL), f_scale(NULL), user_data()
+   : use_oper_grad(oper_grad), user_data()
 {
    if (comm == MPI_COMM_NULL)
    {
-      // Allocate an empty serial N_Vector wrapper in y.
+      // Allocate empty serial N_Vectors.
       y = N_VNewEmpty_Serial(0);
-      MFEM_ASSERT(y, "Error in N_VNewEmpty_Serial().");
       y_scale = N_VNewEmpty_Serial(0);
       f_scale = N_VNewEmpty_Serial(0);
+      MFEM_ASSERT(y && y_scale && f_scale, "Error in N_VNewEmpty_Serial().");
    }
    else
    {
-      // Allocate an empty parallel N_Vector wrapper in y.
+      // Allocate empty parallel N_Vectors.
       y = N_VNewEmpty_Parallel(comm, 0, 0);
-      MFEM_ASSERT(y, "Error in N_VNewEmpty_Parallel().");
       y_scale = N_VNewEmpty_Parallel(comm, 0, 0);
       f_scale = N_VNewEmpty_Parallel(comm, 0, 0);
+      MFEM_ASSERT(y && y_scale && f_scale, "Error in N_VNewEmpty_Parallel().");
    }
 
    sundials_mem = KINCreate();
@@ -736,8 +792,39 @@ KinSolver::KinSolver(MPI_Comm comm, int strategy, bool oper_grad)
 
 #endif
 
+// Copy fields that can be set by the MFEM interface.
+static inline void kinCopyInit(KINMem src, KINMem dest)
+{
+   dest->kin_linit        = src->kin_linit;
+   dest->kin_lsetup       = src->kin_lsetup;
+   dest->kin_lsolve       = src->kin_lsolve;
+   dest->kin_lfree        = src->kin_lfree;
+   dest->kin_lmem         = src->kin_lmem;
+   dest->kin_setupNonNull = src->kin_setupNonNull;
+
+   dest->kin_globalstrategy = src->kin_globalstrategy;
+   dest->kin_printfl        = src->kin_printfl;
+   dest->kin_mxiter         = src->kin_mxiter;
+   dest->kin_scsteptol      = src->kin_scsteptol;
+   dest->kin_fnormtol       = src->kin_fnormtol;
+}
+
 void KinSolver::SetOperator(const Operator &op)
 {
+   KINMem mem = Mem(this);
+   KINMemRec backup;
+
+   // Check if SetOperator() has already been called.
+   if (mem->kin_MallocDone == TRUE)
+   {
+      // TODO: preserve more options.
+      kinCopyInit(mem, &backup);
+      KINFree(&sundials_mem);
+      sundials_mem = KINCreate();
+      MFEM_ASSERT(sundials_mem, "Error in KinCreate()!");
+      kinCopyInit(&backup, mem);
+   }
+
    NewtonSolver::SetOperator(op);
    r = 1.0; c = 1.0;
 
@@ -745,9 +832,11 @@ void KinSolver::SetOperator(const Operator &op)
    if (!Parallel())
    {
       NV_LENGTH_S(y) = height;
-      NV_DATA_S(y) = NULL;
+      NV_DATA_S(y)   = new double[height](); // value-initialize
       NV_LENGTH_S(y_scale) = height;
+      NV_DATA_S(y_scale)   = NULL;
       NV_LENGTH_S(f_scale) = height;
+      NV_DATA_S(f_scale)   = NULL;
    }
    else
    {
@@ -755,28 +844,50 @@ void KinSolver::SetOperator(const Operator &op)
       long local_size = height, global_size;
       MPI_Allreduce(&local_size, &global_size, 1, MPI_LONG, MPI_SUM,
                     NV_COMM_P(y));
-      NV_LOCLENGTH_P(y) = local_size;
+      NV_LOCLENGTH_P(y)  = local_size;
       NV_GLOBLENGTH_P(y) = global_size;
-      NV_DATA_P(y) = NULL;
-      NV_LOCLENGTH_P(y_scale) = local_size;
+      NV_DATA_P(y)       = new double[local_size](); // value-initialize
+      NV_LOCLENGTH_P(y_scale)  = local_size;
       NV_GLOBLENGTH_P(y_scale) = global_size;
-      NV_LOCLENGTH_P(f_scale) = local_size;
+      NV_DATA_P(y_scale)       = NULL;
+      NV_LOCLENGTH_P(f_scale)  = local_size;
       NV_GLOBLENGTH_P(f_scale) = global_size;
+      NV_DATA_P(f_scale)       = NULL;
 #endif
    }
 
+   kinCopyInit(mem, &backup);
    flag = KINInit(sundials_mem, SundialsSolver::Mult, y);
    MFEM_ASSERT(flag >= 0, "KINInit() failed!");
+   kinCopyInit(&backup, mem);
+
+   // Delete the allocated data in y.
+   if (!Parallel())
+   {
+      delete [] NV_DATA_S(y);
+      NV_DATA_S(y) = NULL;
+   }
+   else
+   {
+#ifdef MFEM_USE_MPI
+      delete [] NV_DATA_P(y);
+      NV_DATA_P(y) = NULL;
+#endif
+   }
 
    // The 'user_data' in KINSOL will be the data member with the same name.
-   user_data.oper = oper;
-   user_data.jacobian = NULL;
+   user_data.oper       = oper;
+   user_data.jacobian   = NULL;
+   user_data.jac_solver = prec;
    flag = KINSetUserData(sundials_mem, &user_data);
    MFEM_ASSERT(flag >= 0, "KINSetUserData() failed!");
 
-   // Set scaled preconditioned GMRES linear solver.
-   flag = KINSpgmr(sundials_mem, 0);
-   MFEM_ASSERT(flag >= 0, "KINSpgmr() failed!");
+   if (!prec)
+   {
+      // Set scaled preconditioned GMRES linear solver.
+      flag = KINSpgmr(sundials_mem, 0);
+      MFEM_ASSERT(flag >= 0, "KINSpgmr() failed!");
+   }
 
    // Define the Jacobian action.
    if (use_oper_grad)
@@ -784,6 +895,25 @@ void KinSolver::SetOperator(const Operator &op)
       flag = KINSpilsSetJacTimesVecFn(sundials_mem, GradientMult);
       MFEM_ASSERT(flag >= 0, "KINSpilsSetJacTimesVecFn() failed!");
    }
+}
+
+void KinSolver::SetSolver(Solver &solver)
+{
+   MFEM_ABORT("Not implemented yet, see comments in LinSysSolve(KINMem ...)");
+
+   prec = &solver;
+
+   KINMem mem = Mem(this);
+   if (mem->kin_lfree != NULL) { mem->kin_lfree(mem); }
+
+   user_data.jac_solver = prec;
+
+   mem->kin_linit  = NULL; //LinSysInit;
+   mem->kin_lsetup = LinSysSetup;
+   mem->kin_lsolve = LinSysSolve;
+   mem->kin_lfree  = NULL; //LinSysFree;
+   mem->kin_lmem   = &user_data;
+   mem->kin_setupNonNull = TRUE;
 }
 
 void KinSolver::Mult(const Vector &b, Vector &x) const

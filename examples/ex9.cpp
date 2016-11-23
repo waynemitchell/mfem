@@ -137,7 +137,11 @@ int main(int argc, char *argv[])
    // 3. Define the ODE solver used for time integration. Several explicit
    //    Runge-Kutta methods are available.
    ODESolver *ode_solver = NULL;
+#ifdef MFEM_USE_SUNDIALS
    CVODESolver *cvode = NULL;
+   ARKODESolver *arkode = NULL;
+   const int rk_order = FEHLBERG_13_7_8;
+#endif
    switch (ode_solver_type)
    {
       case 1: ode_solver = new ForwardEulerSolver; break;
@@ -145,18 +149,35 @@ int main(int argc, char *argv[])
       case 3: ode_solver = new RK3SSPSolver; break;
       case 4: ode_solver = new RK4Solver; break;
       case 6: ode_solver = new RK6Solver; break;
+#ifdef MFEM_USE_SUNDIALS
       case 11:
       {
          cvode = new CVODESolver(CV_ADAMS, CV_FUNCTIONAL);
-         cvode->SetSStolerances(1.0, 1.0);
+         cvode->SetSStolerances(1.0e-2, 1.0e-2);
          CVodeSetMaxStep(cvode->SundialsMem(), dt);
          ode_solver = cvode;
          break;
       }
-      // SUNDIALS time integrators can be initialized only after the
-      // initial condition is known.
       case 12:
-      case 13: break;
+      {
+         ode_solver = arkode = new ARKODESolver(false);
+         arkode->SetSStolerances(1.0e-2, .01e-2);
+         break;
+      }
+      case 13:
+      {
+         ode_solver = arkode = new ARKODESolver(false);
+         arkode->SetSStolerances(1.0e-2, .01e-2);
+         arkode->SetERKTableNum(rk_order);
+         // Always use dt (no internal temporal adaptivity).
+         arkode->SetFixedStep(dt);
+         break;
+      }
+#else
+      case 11:
+      case 12:
+      case 13: MFEM_ABORT("MFEM is not configured with SUNDIALS!");
+#endif
       default:
          cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
          return 3;
@@ -263,21 +284,6 @@ int main(int argc, char *argv[])
    //    iterations, ti, with a time-step dt).
    FE_Evolution adv(m.SpMat(), k.SpMat(), b);
 
-   // Initialization of SUNDIALS time integrators.
-   const int rk_order = FEHLBERG_13_7_8;
-   ARKODESolver *arkode_solver;
-   switch (ode_solver_type)
-   {
-      case 12:
-         ode_solver = new ARKODESolver(u, false); break;
-      case 13:
-         ode_solver = arkode_solver = new ARKODESolver(u, false);
-         arkode_solver->SetERKTableNum(rk_order);
-         // Always use dt (no internal temporal adaptivity).
-         arkode_solver->SetFixedStep(dt);
-         break;
-   }
-
    double t = 0.0;
    adv.SetTime(t);
    ode_solver->Init(adv);
@@ -295,7 +301,10 @@ int main(int argc, char *argv[])
       {
          cout << "time step: " << ti << ", time: " << t << endl;
 
+#ifdef MFEM_USE_SUNDIALS
          if (cvode) { cvode->PrintInfo(); }
+         if (arkode) { arkode->PrintInfo(); }
+#endif
 
          if (visualization)
          {
