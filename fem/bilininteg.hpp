@@ -191,7 +191,8 @@ protected:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial and test spaces must both be scalar fields.";
+      return "MixedScalarIntegrator:  "
+             "Trial and test spaces must both be scalar fields.";
    }
 
    inline virtual int GetIntegrationOrder(const FiniteElement & trial_fe,
@@ -249,7 +250,10 @@ protected:
    }
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
-   { return "Trial and test spaces must both be vector fields"; }
+   {
+      return "MixedVectorIntegrator:  "
+             "Trial and test spaces must both be vector fields";
+   }
 
    inline virtual int GetIntegrationOrder(const FiniteElement & trial_fe,
                                           const FiniteElement & test_fe,
@@ -322,12 +326,14 @@ protected:
    {
       if ( transpose )
       {
-         return "Trial space must be a vector field "
+         return "MixedScalarVectorIntegrator:  "
+                "Trial space must be a vector field "
                 "and the test space must be a scalar field";
       }
       else
       {
-         return "Trial space must be a scalar field "
+         return "MixedScalarVectorIntegrator:  "
+                "Trial space must be a scalar field "
                 "and the test space must be a vector field";
       }
    }
@@ -409,7 +415,8 @@ protected:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial and test spaces must both be scalar fields in 1D "
+      return "MixedScalarDerivativeIntegrator:  "
+             "Trial and test spaces must both be scalar fields in 1D "
              "and the trial space must implement CaldDShape.";
    }
 
@@ -445,7 +452,8 @@ protected:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial and test spaces must both be scalar fields in 1D "
+      return "MixedScalarWeakDerivativeIntegrator:  "
+             "Trial and test spaces must both be scalar fields in 1D "
              "and the test space must implement CalcDShape with "
              "map type \"VALUE\".";
    }
@@ -482,7 +490,8 @@ protected:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial must be H(Div) and the test space must be a "
+      return "MixedScalarDivergenceIntegrator:  "
+             "Trial must be H(Div) and the test space must be a "
              "scalar field";
    }
 
@@ -518,7 +527,8 @@ protected:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial must be H(Div) and the test space must be a "
+      return "MixedVectorDivergenceIntegrator:  "
+             "Trial must be H(Div) and the test space must be a "
              "vector field";
    }
 
@@ -555,7 +565,8 @@ protected:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial space must be a scalar field "
+      return "MixedScalarWeakGradientIntegrator:  "
+             "Trial space must be a scalar field "
              "and the test space must be H(Div)";
    }
 
@@ -591,7 +602,8 @@ protected:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial must be H(Curl) and the test space must be a "
+      return "MixedScalarCurlIntegrator:  "
+             "Trial must be H(Curl) and the test space must be a "
              "scalar field";
    }
 
@@ -632,7 +644,8 @@ protected:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial space must be a scalar field "
+      return "MixedScalarWeakCurlIntegrator:  "
+             "Trial space must be a scalar field "
              "and the test space must be H(Curl)";
    }
 
@@ -691,7 +704,8 @@ public:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial space must be a vector field "
+      return "MixedDotProductIntegrator:  "
+             "Trial space must be a vector field "
              "and the test space must be a scalar field";
    }
 };
@@ -717,7 +731,8 @@ public:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial space must be a vector field "
+      return "MixedWeakGradDotIntegrator:  "
+             "Trial space must be a vector field "
              "and the test space must be a vector field with a divergence";
    }
 
@@ -749,7 +764,8 @@ public:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial space must be a vector field in 3D "
+      return "MixedWeakDivCrossIntegrator:  "
+             "Trial space must be a vector field in 3D "
              "and the test space must be a scalar field with a gradient";
    }
 
@@ -786,7 +802,8 @@ public:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial and test spaces must both be scalar fields "
+      return "MixedGradGradIntegrator:  "
+             "Trial and test spaces must both be scalar fields "
              "with a gradient operator.";
    }
 
@@ -822,7 +839,8 @@ public:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial and test spaces must both be scalar fields "
+      return "MixedCrossGradGradIntegrator:  "
+             "Trial and test spaces must both be scalar fields "
              "with a gradient operator.";
    }
 
@@ -864,7 +882,8 @@ public:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial and test spaces must both be vector fields in 3D "
+      return "MixedCurlCurlIntegrator"
+             "Trial and test spaces must both be vector fields in 3D "
              "with a curl.";
    }
 
@@ -901,7 +920,8 @@ public:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial and test spaces must both be vector fields in 3D "
+      return "MixedCrossCurlCurlIntegrator:  "
+             "Trial and test spaces must both be vector fields in 3D "
              "with a curl.";
    }
 
@@ -938,7 +958,8 @@ public:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial space must be a vector field in 3D with a curl"
+      return "MixedCrossCurlGradIntegrator"
+             "Trial space must be a vector field in 3D with a curl"
              "and the test space must be a scalar field with a gradient";
    }
 
@@ -975,7 +996,8 @@ public:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial space must be a vector field in 3D "
+      return "MixedWeakCurlCrossIntegrator:  "
+             "Trial space must be a vector field in 3D "
              "and the test space must be a vector field with a curl";
    }
 
@@ -983,6 +1005,42 @@ public:
                                      ElementTransformation &Trans,
                                      DenseMatrix & shape)
    { test_fe.CalcCurlShape(Trans, shape); }
+};
+
+/** Class for integrating the bilinear form a(u,v) := (V x u, Curl v) in 2D
+    and where V is a vector coefficient u is in H(Curl) or H(Div) and v is
+    in H(Curl).
+ */
+class MixedScalarWeakCurlCrossIntegrator : public MixedScalarVectorIntegrator
+{
+public:
+   MixedScalarWeakCurlCrossIntegrator(VectorCoefficient &vq)
+      : MixedScalarVectorIntegrator(vq, true, true) {}
+
+   inline virtual bool VerifyFiniteElementTypes(
+      const FiniteElement & trial_fe,
+      const FiniteElement & test_fe) const
+   {
+      return (trial_fe.GetDim() == 2 && test_fe.GetDim() == 2 &&
+              trial_fe.GetRangeType() == mfem::FiniteElement::VECTOR &&
+              test_fe.GetRangeType()  == mfem::FiniteElement::VECTOR &&
+              test_fe.GetDerivType()  == mfem::FiniteElement::CURL );
+   }
+
+   inline virtual const char * FiniteElementTypeFailureMessage() const
+   {
+      return "MixedScalarWeakCurlCrossIntegrator:  "
+             "Trial space must be a vector field in 2D "
+             "and the test space must be a vector field with a curl";
+   }
+
+   inline virtual void CalcShape(const FiniteElement & scalar_fe,
+                                 ElementTransformation &Trans,
+                                 Vector & shape)
+   {
+      DenseMatrix dshape(shape.GetData(), shape.Size(), 1);
+      scalar_fe.CalcCurlShape(Trans, dshape);
+   }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (V x Grad u, v) in 3D
@@ -1007,7 +1065,8 @@ public:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial space must be a scalar field with a gradient operator"
+      return "MixedCrossGradIntegrator:  "
+             "Trial space must be a scalar field with a gradient operator"
              " and the test space must be a vector field both in 3D.";
    }
 
@@ -1044,7 +1103,8 @@ public:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial space must be a vector field in 3D with a curl "
+      return "MixedCrossCurlIntegrator:  "
+             "Trial space must be a vector field in 3D with a curl "
              "and the test space must be a vector field";
    }
 
@@ -1052,6 +1112,42 @@ public:
                                       ElementTransformation &Trans,
                                       DenseMatrix & shape)
    { trial_fe.CalcCurlShape(Trans, shape); }
+};
+
+/** Class for integrating the bilinear form a(u,v) := (V x Curl u, v) in 2D
+    and where V is a vector coefficient u is in H(Curl) and v is
+    in H(Curl) or H(Div).
+ */
+class MixedScalarCrossCurlIntegrator : public MixedScalarVectorIntegrator
+{
+public:
+   MixedScalarCrossCurlIntegrator(VectorCoefficient &vq)
+      : MixedScalarVectorIntegrator(vq, false, true) {}
+
+   inline virtual bool VerifyFiniteElementTypes(
+      const FiniteElement & trial_fe,
+      const FiniteElement & test_fe) const
+   {
+      return (trial_fe.GetDim() == 2 && test_fe.GetDim() == 2 &&
+              trial_fe.GetRangeType() == mfem::FiniteElement::VECTOR &&
+              trial_fe.GetDerivType() == mfem::FiniteElement::CURL   &&
+              test_fe.GetRangeType()  == mfem::FiniteElement::VECTOR );
+   }
+
+   inline virtual const char * FiniteElementTypeFailureMessage() const
+   {
+      return "MixedCrossCurlIntegrator:  "
+             "Trial space must be a vector field in 2D with a curl "
+             "and the test space must be a vector field";
+   }
+
+   inline virtual void CalcShape(const FiniteElement & scalar_fe,
+                                 ElementTransformation &Trans,
+                                 Vector & shape)
+   {
+      DenseMatrix dshape(shape.GetData(), shape.Size(), 1);
+      scalar_fe.CalcCurlShape(Trans, dshape); shape *= -1.0;
+   }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (V x Grad u, v) in 2D
@@ -1075,7 +1171,8 @@ public:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial space must be a scalar field in 2D with a gradient "
+      return "MixedScalarCrossGradIntegrator:  "
+             "Trial space must be a scalar field in 2D with a gradient "
              "and the test space must be a scalar field";
    }
 
@@ -1083,6 +1180,63 @@ public:
                                   ElementTransformation &Trans,
                                   DenseMatrix & shape)
    { vector_fe.CalcDShape(Trans, shape); }
+};
+
+/** Class for integrating the bilinear form a(u,v) := (V x u, v) in 2D
+    and where V is a vector coefficient u is in ND or RT and v is in H1 or L2.
+ */
+class MixedScalarCrossProductIntegrator : public MixedScalarVectorIntegrator
+{
+public:
+   MixedScalarCrossProductIntegrator(VectorCoefficient &vq)
+      : MixedScalarVectorIntegrator(vq, true, true) {}
+
+   inline virtual bool VerifyFiniteElementTypes(
+      const FiniteElement & trial_fe,
+      const FiniteElement & test_fe) const
+   {
+      return (trial_fe.GetDim() == 2 && test_fe.GetDim() == 2 &&
+              trial_fe.GetRangeType() == mfem::FiniteElement::VECTOR &&
+              test_fe.GetRangeType()  == mfem::FiniteElement::SCALAR );
+   }
+
+   inline virtual const char * FiniteElementTypeFailureMessage() const
+   {
+      return "MixedScalarCrossProductIntegrator:  "
+             "Trial space must be a vector field in 2D "
+             "and the test space must be a scalar field";
+   }
+};
+
+/** Class for integrating the bilinear form a(u,v) := (V x z u, v) in 2D
+    and where V is a vector coefficient u is in H1 or L2 and v is in ND or RT.
+ */
+class MixedScalarWeakCrossProductIntegrator : public MixedScalarVectorIntegrator
+{
+public:
+   MixedScalarWeakCrossProductIntegrator(VectorCoefficient &vq)
+      : MixedScalarVectorIntegrator(vq, false, true) {}
+
+   inline virtual bool VerifyFiniteElementTypes(
+      const FiniteElement & trial_fe,
+      const FiniteElement & test_fe) const
+   {
+      return (trial_fe.GetDim() == 2 && test_fe.GetDim() == 2 &&
+              trial_fe.GetRangeType() == mfem::FiniteElement::SCALAR &&
+              test_fe.GetRangeType()  == mfem::FiniteElement::VECTOR );
+   }
+
+   inline virtual const char * FiniteElementTypeFailureMessage() const
+   {
+      return "MixedScalarWeakCrossProductIntegrator:  "
+             "Trial space must be a scalar field in 2D "
+             "and the test space must be a vector field";
+   }
+
+   inline virtual void CalcShape(const FiniteElement & scalar_fe,
+                                 ElementTransformation &Trans,
+                                 Vector & shape)
+   { scalar_fe.CalcShape(Trans, shape); shape *= -1.0; }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (V . Grad u, v) in 2D
@@ -1106,7 +1260,8 @@ public:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial space must be a scalar field with a gradient "
+      return "MixedDirectionalDerivativeIntegrator:  "
+             "Trial space must be a scalar field with a gradient "
              "and the test space must be a scalar field";
    }
 
@@ -1138,7 +1293,8 @@ public:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial space must be a scalar field with a gradient"
+      return "MixedGradDivIntegrator:  "
+             "Trial space must be a scalar field with a gradient"
              "and the test space must be a vector field with a divergence";
    }
 
@@ -1174,7 +1330,8 @@ public:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial space must be a scalar field "
+      return "MixedScalarWeakDivergenceIntegrator:  "
+             "Trial space must be a scalar field "
              "and the test space must be a scalar field with a gradient";
    }
 
@@ -1211,7 +1368,8 @@ protected:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial spaces must be H1 and the test space must be a "
+      return "MixedVectorGradientIntegrator:  "
+             "Trial spaces must be H1 and the test space must be a "
              "vector field in 2D or 3D";
    }
 
@@ -1253,7 +1411,8 @@ protected:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial space must be H(Curl) and the test space must be a "
+      return "MixedVectorCurlIntegrator:  "
+             "Trial space must be H(Curl) and the test space must be a "
              "vector field in 3D";
    }
 
@@ -1292,7 +1451,8 @@ protected:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial space must be vector field in 3D and the "
+      return "MixedVectorWeakCurlIntegrator:  "
+             "Trial space must be vector field in 3D and the "
              "test space must be H(Curl)";
    }
 
@@ -1330,7 +1490,8 @@ protected:
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
    {
-      return "Trial space must be vector field and the "
+      return "MixedVectorWeakDivergenceIntegrator:  "
+             "Trial space must be vector field and the "
              "test space must be H1";
    }
 
