@@ -1,8 +1,8 @@
-//                       Create parallel mesh file set.
+// Create a parallel mesh file set.
 //
-// Compile with: make refine_mesh
+// Compile with: make refine-mesh
 //
-// Sample runs:  mpirun -np 4 refine_mesh -s ../data/beam-tri.mesh -d ../data/beam-tri-4
+// Sample runs:  mpirun -np 4 refine-mesh -s ../../data/beam-tri.mesh -d ../../data/beam-tri-4
 //
 // Description:  This example code will refine a serial mesh into a resulting serial or parallel mesh.
 

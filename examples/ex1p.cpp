@@ -60,10 +60,13 @@ int main(int argc, char *argv[])
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
+
+   // Either specify a serial mesh or a parallel mesh file to read in.
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
    args.AddOption(&par_mesh_prefix, "-p", "--parallel-mesh-prefix",
                   "Specify a parallel mesh file prefix.");
+
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
@@ -129,7 +132,8 @@ int main(int argc, char *argv[])
       par_ref_levels = 1;
    }
 
-   DataCollection dc("Example1-Parallel", pmesh);
+   DataCollection dc("ex1p", pmesh);
+   dc.SetPrefixPath("output");
 
    // Refine in parallel.
    for (int l = 0; l < par_ref_levels; l++)

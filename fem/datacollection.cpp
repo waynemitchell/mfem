@@ -233,15 +233,16 @@ void DataCollection::SaveMesh()
    ofstream mesh_file(mesh_name.c_str());
    mesh_file.precision(precision);
 
-
    if (serial)
    {
       mesh->Print(mesh_file);
    }
    else
    {
+#ifdef MFEM_USE_MPI
       const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
       pmesh->ParPrint(mesh_file);
+#endif
    }
    if (!mesh_file)
    {
