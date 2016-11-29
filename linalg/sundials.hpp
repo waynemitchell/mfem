@@ -92,10 +92,6 @@ protected:
    // The real type of user_data is UserData.
    static int Mult(N_Vector u, N_Vector fu, void *user_data);
 
-   // Computes J(u)v. The real type of user_data is UserData.
-   static int GradientMult(N_Vector v, N_Vector Jv, N_Vector u,
-                           booleantype *new_u, void *user_data);
-
    // Note: the contructors are protected.
    SundialsSolver() : sundials_mem(NULL) { }
    SundialsSolver(void *mem) : sundials_mem(mem) { }
@@ -106,6 +102,10 @@ public:
 
    /// Return the flag returned by the last call to a SUNDIALS function.
    int GetFlag() const { return flag; }
+
+   // Computes J(u)v. The real type of user_data is UserData.
+   static int GradientMult(N_Vector v, N_Vector Jv, N_Vector u,
+                           booleantype *new_u, void *user_data);
 
    struct UserData
    {
@@ -319,26 +319,37 @@ public:
    /** This is method is equivalent to calling SetPreconditioner(). */
    virtual void SetSolver(Solver &solver);
 
-   /// Solve the nonlinear system with zero RHS.
-   /** FIXME: Calls the other Mult(Vector&, Vector&, Vector&) const method with
-       `x_scale = fx_scale = 1`.
+   /// Set KINSOL's scaled step tolerance.
+   /** The default tolerance is U^(2/3), where U = machine unit roundoff. */
+   void SetScaledStepTol(double sstol);
+   /// Set KINSOL's functional norm tolerance.
+   /** The default tolerance is U^(1/3), where U = machine unit roundoff.
+        @note This function is equivalent to SetAbsTol(int). */
+   void SetFuncNormTol(double ftol) { abs_tol = ftol; }
+
+   /// Solve the nonlinear system F(x) = 0.
+   /** Calls the other Mult(Vector&, Vector&, Vector&) const method with
+       `x_scale = 1`. The values of 'fx_scale' are determined by comparing
+       the chosen relative and functional norm (i.e. absolute) tolerances.
        @param[in]     b  Not used, KINSol always assumes zero RHS.
        @param[in,out] x  On input, initial guess, if @a #iterative_mode = true,
                          otherwise the initial guess is zero; on output, the
                          solution. */
    virtual void Mult(const Vector &b, Vector &x) const;
 
-   /// Solve the nonlinear system with zero RHS.
+   /// Solve the nonlinear system F(x) = 0.
    /** Calls KINSol() to solve the nonlinear system. Before calling KINSol(),
        this functions uses the data members inherited from class IterativeSolver
        to set corresponding KINSOL options.
        @param[in,out] x        On input, initial guess, if @a #iterative_mode =
                                true, otherwise the initial guess is zero; on
                                output, the solution.
-       @param[in]     x_scale  TODO
-       @param[in]    fx_scale  TODO
-       @note FIXME: The values set by SetRelTol() and SetAbsTol() are used as
-       KINSOL's "scaled step" and "function norm" tolerances, respectively. */
+       @param[in]     x_scale  Elements of a diagonal scaling matrix D, s.t.
+                               D*x has all elements roughly the same when
+                               x is close to a solution.
+       @param[in]    fx_scale  Elements of a diagonal scaling matrix E, s.t.
+                               D*F(x) has all elements roughly the same when
+                               x is not too close to a solution. */
    void Mult(Vector &x, Vector &x_scale, Vector &fx_scale) const;
 };
 

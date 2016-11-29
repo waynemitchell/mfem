@@ -155,9 +155,8 @@ static int LinSysSolve(KINMem kin_mem, N_Vector x, N_Vector b,
         (kin_mem->kin_globalstrategy != KIN_FP &&
          kin_mem->kin_etaflag == KIN_ETACHOICE1) )
    {
-      // TODO: this function uses fields from kinspils_mem, which is actually
-      // kin_mem->kin_lmem. But the latter is used for user data!?
-      // KINSpilsAtimes(kin_mem, x, b);
+      booleantype new_uu = (kin_mem->kin_jacCurrent) ? false : true;
+      SundialsSolver::GradientMult(x, b, kin_mem->kin_uu, &new_uu, &ud);
       *sJpnorm = N_VWL2Norm(b, kin_mem->kin_fscale);
       N_VProd(b, kin_mem->kin_fscale, b);
       N_VProd(b, kin_mem->kin_fscale, b);
@@ -763,7 +762,7 @@ KinSolver::KinSolver(int strategy, bool oper_grad)
 #ifdef MFEM_USE_MPI
 
 KinSolver::KinSolver(MPI_Comm comm, int strategy, bool oper_grad)
-   : use_oper_grad(oper_grad), user_data()
+   : use_oper_grad(oper_grad), fnorm_tol(0.0), user_data()
 {
    if (comm == MPI_COMM_NULL)
    {
@@ -826,7 +825,6 @@ void KinSolver::SetOperator(const Operator &op)
    }
 
    NewtonSolver::SetOperator(op);
-   r = 1.0; c = 1.0;
 
    // Set actual size and data in the N_Vector y.
    if (!Parallel())
@@ -916,10 +914,42 @@ void KinSolver::SetSolver(Solver &solver)
    mem->kin_setupNonNull = TRUE;
 }
 
+void KinSolver::SetScaledStepTol(double sstol)
+{
+   Mem(this)->kin_scsteptol = sstol;
+}
+
 void KinSolver::Mult(const Vector &b, Vector &x) const
 {
-   // Note r = c = 1.
-   Mult(x, r, c);
+   // Uses c = 1, corresponding to x_scale.
+   c = 1.0;
+
+   // For relative tolerance, r = 1 / |residual(x)|, corresponding to fx_scale.
+   if (rel_tol > 0.0)
+   {
+      oper->Mult(x, r);
+
+      // Note that KINSOL uses infinity norms.
+#ifdef MFEM_USE_MPI
+      double lnorm = r.Normlinf(), norm;
+      MPI_Allreduce(&lnorm, &norm, 1, MPI_DOUBLE, MPI_MAX, NV_COMM_P(y));
+#else
+      double norm = r.Normlinf();
+#endif
+      if (abs_tol > rel_tol * norm)
+      {
+         r = 1.0;
+         Mem(this)->kin_fnormtol = abs_tol;
+      }
+      else
+      {
+         r =  1.0 / norm;
+         Mem(this)->kin_fnormtol = rel_tol;
+      }
+   }
+   else { r = 1.0; }
+
+   Mult(x, c, r);
 }
 
 void KinSolver::Mult(Vector &x, Vector &x_scale, Vector &fx_scale) const
@@ -932,10 +962,11 @@ void KinSolver::Mult(Vector &x, Vector &x_scale, Vector &fx_scale) const
    flag = KINSetNumMaxIters(sundials_mem, max_iter);
    MFEM_ASSERT(flag >= 0, "KINSetNumMaxIters() failed!");
 
-   flag = KINSetScaledStepTol(sundials_mem, rel_tol);
+   flag = KINSetScaledStepTol(sundials_mem, mem->kin_scsteptol);
    MFEM_ASSERT(flag >= 0, "KINSetScaledStepTol() failed!");
 
-   flag = KINSetFuncNormTol(sundials_mem, abs_tol);
+   mem->kin_fnormtol = max(mem->kin_fnormtol, abs_tol);
+   flag = KINSetFuncNormTol(sundials_mem, mem->kin_fnormtol);
    MFEM_ASSERT(flag >= 0, "KINSetFuncNormTol() failed!");
 
    if (!Parallel())
