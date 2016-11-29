@@ -324,6 +324,7 @@ clean:
 	$(MAKE) -C miniapps/tools clean
 	$(MAKE) -C miniapps/electromagnetics clean
 	$(MAKE) -C miniapps/performance clean
+	$(MAKE) -C miniapps/restart clean
 
 distclean: clean
 	rm -rf mfem/
