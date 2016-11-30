@@ -755,6 +755,8 @@ KinSolver::KinSolver(int strategy, bool oper_grad)
    MFEM_ASSERT(sundials_mem, "Error in KINCreate().");
 
    Mem(this)->kin_globalstrategy = strategy;
+   // Default abs_tol.
+   abs_tol = Mem(this)->kin_fnormtol;
 
    flag = KIN_SUCCESS;
 }
@@ -785,6 +787,8 @@ KinSolver::KinSolver(MPI_Comm comm, int strategy, bool oper_grad)
    MFEM_ASSERT(sundials_mem, "Error in KINCreate().");
 
    Mem(this)->kin_globalstrategy = strategy;
+   // Default abs_tol.
+   abs_tol = Mem(this)->kin_fnormtol;
 
    flag = KIN_SUCCESS;
 }
@@ -965,7 +969,6 @@ void KinSolver::Mult(Vector &x, Vector &x_scale, Vector &fx_scale) const
    flag = KINSetScaledStepTol(sundials_mem, mem->kin_scsteptol);
    MFEM_ASSERT(flag >= 0, "KINSetScaledStepTol() failed!");
 
-   mem->kin_fnormtol = max(mem->kin_fnormtol, abs_tol);
    flag = KINSetFuncNormTol(sundials_mem, mem->kin_fnormtol);
    MFEM_ASSERT(flag >= 0, "KINSetFuncNormTol() failed!");
 
