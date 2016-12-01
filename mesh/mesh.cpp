@@ -6713,7 +6713,7 @@ void Mesh::PrintXG(std::ostream &out) const
    out << flush;
 }
 
-void Mesh::Print(std::ostream &out) const
+void Mesh::Print(std::ostream &out, bool append_end_tag) const
 {
    int i, j;
 
@@ -6723,6 +6723,11 @@ void Mesh::Print(std::ostream &out) const
       NURBSext->Print(out);
       out << '\n';
       Nodes->Save(out);
+
+      if (append_end_tag)
+      {
+         out << "end_mfem_mesh\n";
+      }
 
       // patch-wise format
       // NURBSext->ConvertToPatches(*Nodes);
@@ -6785,6 +6790,11 @@ void Mesh::Print(std::ostream &out) const
    {
       out << "\nnodes\n";
       Nodes->Save(out);
+   }
+
+   if (append_end_tag)
+   {
+      out << "end_mfem_mesh\n";
    }
 }
 

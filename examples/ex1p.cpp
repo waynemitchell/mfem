@@ -55,6 +55,7 @@ int main(int argc, char *argv[])
    // 2. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
    const char *par_mesh_prefix = string_none;
+   int par_ref_levels = 2;
    int order = 1;
    bool static_cond = false;
    bool visualization = 1;
@@ -65,8 +66,9 @@ int main(int argc, char *argv[])
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
    args.AddOption(&par_mesh_prefix, "-p", "--parallel-mesh-prefix",
-                  "Specify a parallel mesh file prefix.");
-
+                  "Specify a parallel mesh file prefix, for example '/output/ex1p/pmesh'.");
+   args.AddOption(&par_ref_levels, "-r", "--par_ref_levels",
+                  "Levels of parallel refinement to make to mesh.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
@@ -92,7 +94,6 @@ int main(int argc, char *argv[])
 
    ParMesh *pmesh;
    int dim;
-   int par_ref_levels = 2;
    if (par_mesh_prefix == string_none)
    {
       // 3. Read the (serial) mesh from the given mesh file on all processors.
@@ -106,8 +107,9 @@ int main(int argc, char *argv[])
       //    'ref_levels' to be the largest number that gives a final mesh with
       //    no more than 10,000 elements.
       {
-         int ref_levels =
-            (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
+//         int ref_levels =
+//            (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
+           int ref_levels = 0;
          for (int l = 0; l < ref_levels; l++)
          {
             mesh->UniformRefinement();
@@ -129,7 +131,6 @@ int main(int argc, char *argv[])
       MFEM_VERIFY(imesh.good(), "error opening file: " << pmesh_name.str());
       pmesh = new ParMesh(MPI_COMM_WORLD, imesh);
       dim = pmesh->Dimension();
-      par_ref_levels = 1;
    }
 
    DataCollection dc("ex1p", pmesh);

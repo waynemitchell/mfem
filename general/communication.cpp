@@ -199,31 +199,64 @@ void GroupTopology::Create(ListOfIntegerSets &groups, int mpitag)
 
 void GroupTopology::Save(ostream &out) const
 {
-   out << "\ngroup_topology\n";
-   out << "# The groups in term of local processor numbering.\n";
-   group_lproc.Save(out);
-   out << '\n';
+   out << "\ncommunication_groups\n";
+   out << "number_of_groups " << NGroups() << "\n\n";
 
-   // write the groupmaster_lproc array (size = number of groups)
-   out << "# The master of each group\n";
-   groupmaster_lproc.Save(out, 1);
-   out << '\n';
-
-   // write the lproc_proc array, i.e. the mapping local-proc-index ->
-   // global-proc-index (mpi rank in MyComm); the size of the array is the
-   // number of neighbor processors
-   out << "# Global numbers of the local processor numbering.\n";
-   lproc_proc.Save(out);
-   out << '\n';
-
-   // write the group_mgroup array (size = number of groups)
-   out << "# The number of each group in its master.\n";
-   group_mgroup.Save(out, 1);
+   out << "# number of entities in each group, followed by group ids in group\n";
+   for (int group_id = 0; group_id < NGroups(); ++group_id)
+   {
+      int group_size = GetGroupSize(group_id);
+      const int * group_ptr = GetGroup(group_id);
+      out << group_size;
+      for ( int group_member_index = 0; group_member_index < group_size; ++group_member_index)
+      {
+         out << " " << group_ptr[group_member_index];
+      }
+      out << "\n";
+   }
+  
+   // For future use, optional ownership strategy.
+   // out << "# ownership";
 }
 
 void GroupTopology::Load(istream &in)
 {
+   // Load in group topology and create list of integer sets.  Use constructor
+   // that uses list of integer sets.
    using text_parsing::skip_comment_lines;
+
+   std::string ident;
+
+   // Read in number of groups
+   int number_of_groups = -1;
+   in >> ident;
+   MFEM_VERIFY(ident == "number_of_groups", "GroupTopology::Load - expected 'number_of_groups' entry.");
+   in >> number_of_groups;
+   
+   // Skip number of entries in each group comment.
+   skip_comment_lines(in, '#');
+
+   ListOfIntegerSets integer_sets;
+   for (int group_id = 0; group_id < number_of_groups; ++group_id)
+   {
+      IntegerSet integer_set;
+      Array<int>& array = integer_set;
+      int group_size;
+      in >> group_size;
+      array.Reserve(group_size);
+      for ( int index = 0; index < group_size; ++index )
+      {
+         int value; 
+         in >> value;
+         array.Append(value);
+      }
+      integer_sets.Insert(integer_set);
+   }
+
+   Create(integer_sets, 823);
+   
+/*
+using text_parsing::skip_comment_lines;
 
    skip_comment_lines(in, '#');
    group_lproc.Load(in);
@@ -239,6 +272,7 @@ void GroupTopology::Load(istream &in)
 
    skip_comment_lines(in, '#');
    group_mgroup.Load(NGroups(), in);
+*/
 }
 
 
