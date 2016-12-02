@@ -4311,8 +4311,6 @@ void ParMesh::ParPrint(ostream &out) const
    // write out group topology info.
    gtopo.Save(out);
 
-   // Version B of the format
-
    out << "\ntotal_shared_vertices " << svert_lvert.Size() << '\n';
    if (Dim >= 2)
    {

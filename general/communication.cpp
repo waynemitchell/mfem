@@ -210,7 +210,7 @@ void GroupTopology::Save(ostream &out) const
       out << group_size;
       for ( int group_member_index = 0; group_member_index < group_size; ++group_member_index)
       {
-         out << " " << group_ptr[group_member_index];
+         out << " " << GetNeighborRank( group_ptr[group_member_index] );
       }
       out << "\n";
    }
@@ -254,25 +254,6 @@ void GroupTopology::Load(istream &in)
    }
 
    Create(integer_sets, 823);
-   
-/*
-using text_parsing::skip_comment_lines;
-
-   skip_comment_lines(in, '#');
-   group_lproc.Load(in);
-
-   skip_comment_lines(in, '#');
-   groupmaster_lproc.Load(NGroups(), in);
-
-   skip_comment_lines(in, '#');
-   lproc_proc.Load(in);
-
-   MFEM_VERIFY(lproc_proc[0] == MyRank(), "mismatch in MPI ranks: from file: "
-               << lproc_proc[0] << ", actual: " << MyRank());
-
-   skip_comment_lines(in, '#');
-   group_mgroup.Load(NGroups(), in);
-*/
 }
 
 
