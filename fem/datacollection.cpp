@@ -86,6 +86,7 @@ DataCollection::DataCollection(const char *collection_name, Mesh *_mesh)
       myid = par_mesh->GetMyRank();
       num_procs = par_mesh->GetNRanks();
       serial = false;
+      appendRankToFileName = true;
    }
 #endif
    own_data = false;
@@ -110,6 +111,7 @@ void DataCollection::SetMesh(Mesh *new_mesh)
       myid = par_mesh->GetMyRank();
       num_procs = par_mesh->GetNRanks();
       serial = false;
+      appendRankToFileName = true;
    }
 #endif
 }
@@ -222,7 +224,7 @@ void DataCollection::SaveMesh()
    }
 
    string mesh_name;
-   if (serial)
+   if (!appendRankToFileName)
    {
       mesh_name = dir_name + "/mesh";
    }
@@ -241,6 +243,7 @@ void DataCollection::SaveMesh()
    {
 #ifdef MFEM_USE_MPI
       const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
+      MFEM_VERIFY(pmesh, "Unable to get parallel mesh.");
       pmesh->ParPrint(mesh_file);
 #endif
    }
@@ -337,7 +340,7 @@ DataCollection::~DataCollection()
 VisItDataCollection::VisItDataCollection(const char *collection_name)
    : DataCollection(collection_name)
 {
-   serial = false; // always include rank in file names
+   appendRankToFileName = true; // always include rank in file names
    cycle  = 0;     // always include cycle in directory names
 
    spatial_dim = 0;
@@ -349,7 +352,7 @@ VisItDataCollection::VisItDataCollection(const char *collection_name,
                                          Mesh *mesh)
    : DataCollection(collection_name, mesh)
 {
-   serial = false; // always include rank in file names
+   appendRankToFileName = true; // always include rank in file names
    cycle  = 0;     // always include cycle in directory names
 
    spatial_dim = mesh->SpaceDimension();
@@ -360,8 +363,6 @@ VisItDataCollection::VisItDataCollection(const char *collection_name,
 void VisItDataCollection::SetMesh(Mesh *new_mesh)
 {
    DataCollection::SetMesh(new_mesh);
-   serial = false; // always include rank in file names
-
    spatial_dim = mesh->SpaceDimension();
    topo_dim = mesh->Dimension();
 }

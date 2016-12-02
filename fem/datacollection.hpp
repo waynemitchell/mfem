@@ -43,8 +43,11 @@ protected:
    /// Physical time (for time-dependent simulations)
    double time;
 
-   /// Serial or parallel run? If false, append rank (myid) to file names
+   /// Serial or parallel run?
    bool serial;
+   /// Append rank to any output file names.
+   bool appendRankToFileName;
+
    /// MPI rank (in parallel)
    int myid;
    /// Number of MPI ranks (in parallel)
