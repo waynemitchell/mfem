@@ -22,20 +22,19 @@
 namespace mfem
 {
 
-// Forward declare needed datastore class so we don't need to #include sidre headers in this header.
-class DataGroup;
-
-/// Data collection with Sidre routines
+/// Data collection with Sidre routines.
 class SidreDataCollection : public DataCollection
 {
 
 public:
 
-   // Adding some typedefs here for the variables types in MFEM that we will be putting in Sidre
-   // This is to avoid hard coding a bunch of SIDRE::ENUM types in the sidre calls, in case MFEM ever
-   // wants to change some of it's data types.
-   // TODO - ask MFEM team if they have any interest in adding a few typedefs in their classes, or
-   // if just hard-coding the type is better.  For now, I'll just put the typedef's here.
+   // Adding some typedefs here for the variables types in MFEM that we will be
+   // putting in Sidre. This is to avoid hard coding a bunch of SIDRE::ENUM
+   // types in the sidre calls, in case MFEM ever wants to change some of it's
+   // data types.
+   // TODO - ask MFEM team if they have any interest in adding a few typedefs in
+   // their classes, or if just hard-coding the type is better.  For now, I'll
+   // just put the typedef's here.
 
    typedef int mfem_int_t;
    typedef double mfem_double_t;
@@ -53,15 +52,17 @@ public:
 
    void RegisterField(const std::string& field_name, GridFunction *gf);
 
-   /// Verify we will delete the mesh and fields if we own them
+   /// Delete all owned data.
    virtual ~SidreDataCollection();
 
    void SetMesh(Mesh *new_mesh);
 
-   // Reset the domain and global (root) datastore group pointers.
-   // These are set in the constructor, but if a host code changes the datastore contents
-   // ( such as wiping out the datastore and loading in new contents from a file, ie a restart )
-   // these pointers will need to be reset to valid groups in the datastore.
+   /// Reset the domain and global (root) datastore group pointers.
+   /** These are set in the constructor, but if a host code changes the
+       datastore contents ( such as wiping out the datastore and loading in new
+       contents from a file, i.e. a restart ) these pointers will need to be
+       reset to valid groups in the datastore.
+    */
    void SetGroupPointers(asctoolkit::sidre::DataGroup * global_grp,
                          asctoolkit::sidre::DataGroup * domain_grp);
 
@@ -75,41 +76,34 @@ public:
 
    void Load(const std::string& path, const std::string& protocol);
 
-   /**
-    * Updates the DataCollection's state variables (e.g. cycle,time)
-    * to the values from the data store
-    */
+   /** @brief Updates the DataCollection's state variables (e.g. cycle, time) to
+       the values from the data store. */
    void UpdateStateFromDS();
 
-   /**
-    * Updates the data store's state variables (e.g. cycle,time)
-    * to the values from the DataCollection
-    */
+   /** @brief Updates the data store's state variables (e.g. cycle, time) to the
+       values from the DataCollection. */
    void UpdateStateToDS();
 
-   /**
-    * Gets a pointer to the associated field's view data (always an array of doubles)
-    * If the field does not exist, it will create a view of the appropriate size
-    */
+   /** @brief Gets a pointer to the associated field's view data (always an
+       array of doubles).
+
+       If the field does not exist, it will create a view of size @a sz. */
    double* GetFieldData(const std::string& field_name, int sz = 0);
 
-   /**
-    * Gets a pointer to the data of field_name (always an array of doubles)
-    * Data is relative to the data associated with base_field
-    * Returns null if base_field does not exist
+   /// Gets a pointer to the data of @a field_name (always an array of doubles).
+   /** Data is relative to the data associated with @a base_field.
+       Returns null if @a base_field does not exist.
     */
    double* GetFieldData(const std::string& field_name, int sz,
-                        const std::string& base_field, int offset = 0, int stride = 1);
-
+                        const std::string& base_field, int offset = 0,
+                        int stride = 1);
 
    bool HasFieldData(const std::string& field_name);
 
-
-   /**
-    * Gets a pointer to the data (an array of template type T)
-    * If the array named by field_name does not exist,
-    * it will create a view of the appropriate size and allocate as appropriate
-    * \note This function is not available in base DataCollection class
+   /// Gets a pointer to the data (an array of template type T).
+   /** If the array named by field_name does not exist, it will create a view of
+       the appropriate size and allocate as appropriate.
+       \note This function is not available in base DataCollection class.
     */
    template<typename T>
    T* GetArrayData(const std::string& field_name, int sz)
@@ -137,15 +131,14 @@ public:
    }
 
 private:
-   // Private helper functions
-
    // Used if the sidre data collection is providing the datastore itself.
    const bool m_owns_datastore;
 
-   // TODO - Need to evaluate if this bool member can be combined with own_data in parent data collection class.
-   // m_owns_mesh_data indicates whether the sidre dc owns the mesh element data and node positions gf.
-   // The DC base class own_data indicates if the dc owns the mesh object pointer itself and GF objects.
-   // Can we use one flag and just have DC own all objects vs none?
+   // TODO - Need to evaluate if this bool member can be combined with own_data
+   // in parent data collection class. m_owns_mesh_data indicates whether the
+   // sidre dc owns the mesh element data and node positions gf. The DC base
+   // class own_data indicates if the dc owns the mesh object pointer itself and
+   // GF objects. Can we use one flag and just have DC own all objects vs none?
    const bool m_owns_mesh_data;
 
    std::string m_meshNodesGFName;
@@ -168,6 +161,7 @@ private:
    // This is stored for convenience.
    asctoolkit::sidre::DataGroup * simdata_grp;
 
+   // Private helper functions
 
    void DeregisterFieldInBPIndex(const std::string & field_name);
    void RegisterFieldInBPIndex(asctoolkit::sidre::DataGroup * bp_field_group);
@@ -175,8 +169,8 @@ private:
    std::string getElementName( Element::Type elementEnum );
 
    /**
-    * \brief A private helper function to set up the views associated with the data
-    * of a scalar valued grid function in the blueprint style
+    * \brief A private helper function to set up the views associated with the
+       data of a scalar valued grid function in the blueprint style.
     * \pre gf is not null
     * \note This function is expected to be called by RegisterField()
     * \note Handles cases where hierarchy is already set up,
@@ -186,10 +180,9 @@ private:
    void addScalarBasedGridFunction(const std::string& field_name,
                                    GridFunction* gf);
 
-
    /**
-    * \brief A private helper function to set up the views associated with the data
-    * of a vector valued grid function in the blueprint style
+    * \brief A private helper function to set up the views associated with the
+       data of a vector valued grid function in the blueprint style.
     * \pre gf is not null
     * \note This function is expected to be called by RegisterField()
     * \note Handles cases where hierarchy is already set up,
@@ -200,35 +193,33 @@ private:
                                    GridFunction* gf);
 
 
+   /// Sets up the four main mesh blueprint groups.
    /**
-    * Sets up the four main mesh blueprint groups
-    * \param hasBP Indicates whether the blueprint has already been set up
+    * \param hasBP Indicates whether the blueprint has already been set up.
     */
    void createMeshBlueprintStubs(bool hasBP);
 
+   /// Sets up the mesh blueprint 'state' group.
    /**
-    * Sets up the mesh blueprint 'state' group
-    * \param hasBP Indicates whether the blueprint has already been set up
+    * \param hasBP Indicates whether the blueprint has already been set up.
     */
    void createMeshBlueprintState(bool hasBP);
 
+   /// Sets up the mesh blueprint 'coordsets' group.
    /**
-    * Sets up the mesh blueprint 'coordsets' group
-    * \param hasBP Indicates whether the blueprint has already been set up
+    * \param hasBP Indicates whether the blueprint has already been set up.
     */
    void createMeshBlueprintCoordset(bool hasBP);
 
+   /// Sets up the mesh blueprint 'topologies' group.
    /**
-    * Sets up the mesh blueprint 'topologies' group
-    * \param hasBP Indicates whether the blueprint has already been set up
-    * \param mesh_name The name of the topology
-    * \note Valid values for mesh_name are "mesh" and "boundary"
+    * \param hasBP Indicates whether the blueprint has already been set up.
+    * \param mesh_name The name of the topology.
+    * \note Valid values for @a mesh_name are "mesh" and "boundary".
     */
    void createMeshBlueprintTopologies(bool hasBP, const std::string& mesh_name);
 
-   /**
-    * Verifies that the contents of the mesh blueprint data is valid.
-    */
+   /// Verifies that the contents of the mesh blueprint data is valid.
    void verifyMeshBlueprint();
 };
 

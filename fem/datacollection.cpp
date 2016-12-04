@@ -28,8 +28,9 @@
 namespace mfem
 {
 
-static int create_directory(const std::string &dir_name,
-                            const Mesh *mesh, int myid)
+// static method
+int DataCollection::create_directory(const std::string &dir_name,
+                                     const Mesh *mesh, int myid)
 {
    // create directories recursively
    const char path_delim = '/';
@@ -703,4 +704,3 @@ void VisItDataCollection::ParseVisItRootString(const std::string& json)
 }
 
 }  // end namespace MFEM
-

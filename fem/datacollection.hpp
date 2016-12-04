@@ -88,6 +88,10 @@ protected:
    /// Save one field to disk, assuming the collection directory exists
    void SaveOneField(const FieldMapIterator &it);
 
+   // Helper method
+   static int create_directory(const std::string &dir_name,
+                               const Mesh *mesh, int myid);
+
 public:
    /// Create an empty collection with the given name.
    DataCollection(const std::string& collection_name);

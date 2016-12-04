@@ -18,9 +18,6 @@
 #include "../linalg/densemat.hpp"
 #include "../fem/geom.hpp"
 
-#include <stdexcept>
-#include <stdio.h>
-
 namespace mfem
 {
 
@@ -32,7 +29,9 @@ class Element
 public:
    typedef std::pair<int*, int*> int_ptr_pair;
    static int NumOfIndices[6];
+
 protected:
+   int *indices;
    /// Element's attribute (specifying material property, etc).
    union
    {
@@ -40,13 +39,12 @@ protected:
       int *ptr_attribute;
    };
    int base_geom;
-   int *indices;
    bool self_alloc;
 
-   /// Assign or allocate storage for this element;s indices
+   /// Assign or allocate storage for this element's indices
    void init(int *indices, size_t indices_count, int *attribute);
-public:
 
+public:
    /// Constants for the classes derived from Element.
    enum Type { POINT, SEGMENT, TRIANGLE, QUADRILATERAL, TETRAHEDRON,
                HEXAHEDRON
@@ -59,27 +57,27 @@ public:
    /// Set where the indices pointer is pointing.
    /// Useful if the memory location of indices data
    ///  has moved
-   inline void SetIndices(int *p) { indices = p; };
+   inline void SetIndices(int *p) { indices = p; }
 
-   inline void SetOwnership(bool _self_alloc) { self_alloc = _self_alloc; };
-
-   /// Returns the indices pointer
-   inline int *GetIndices() { return indices; };
+   inline void SetOwnership(bool _self_alloc) { self_alloc = _self_alloc; }
 
    /// Returns the indices pointer
-   inline int *&GetIndicesRef() { return indices; };
+   inline int *GetIndices() { return indices; }
+
+   /// Returns the indices pointer
+   inline int *&GetIndicesRef() { return indices; }
 
    /// Return the attribute pointer
-   inline const int *GetAttributePtr() const { return ptr_attribute; };
+   inline const int *GetAttributePtr() const { return ptr_attribute; }
 
    /// Set the attribute pointer
-   inline void SetAttributePtr(int *p) { ptr_attribute = p; };
+   inline void SetAttributePtr(int *p) { ptr_attribute = p; }
 
    /// Returns element's type
    virtual int GetType() const = 0;
 
    /// Does this element own it's indices allocation
-   inline bool IsSelfAlloc() { return self_alloc; };
+   inline bool IsSelfAlloc() { return self_alloc; }
 
    int GetGeometryType() const { return base_geom; }
 
