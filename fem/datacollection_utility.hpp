@@ -125,6 +125,7 @@ public:
     *  \note only registers gf when dc is not null
     *  \param gf A (non-null) pointer to a GridFunction or ParGridFunction
     *  \param fes A (non-null) pointer to a FiniteElementSpace or ParFiniteElementSpace
+    *  \param srcField FIXME
     *  \param srcVec The (non-null) source vector to which gf's data will point
     *  \param offset The offset within srcVec for gf's data
     *  \param dc A pointer to the data collection instance (may be null)
@@ -136,7 +137,8 @@ public:
     */
    static void AllocateGridFuncInPlace( GridFunction* gf,
                                         FiniteElementSpace* fes,
-                                        const std::string& srcField, Vector* srcVec, int offset,
+                                        const std::string& srcField,
+                                        Vector* srcVec, int offset,
                                         DataCollection* dc,
                                         const std::string& fldName,
                                         int arr_idx = -1);

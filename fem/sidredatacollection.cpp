@@ -598,42 +598,41 @@ void SidreDataCollection::Save(const std::string& filename,
    }
    // FIXME: any reason to keep this?
 #if 0
-}
-// If not hdf5, use sidre group writer for both parallel and serial.  SPIO only
-// supports HDF5.
-else
-{
-   if (myid == 0)
+   // If not hdf5, use sidre group writer for both parallel and serial.  SPIO
+   // only supports HDF5.
+   else
    {
-      sidre::DataGroup * blueprint_indicies_grp = bp_index_grp->getParent();
-      blueprint_indicies_grp->getDataStore()->save(file_path + ".root",
-                                                   protocol);//, sidre_dc_group);
+      if (myid == 0)
+      {
+         sidre::DataGroup * blueprint_indicies_grp = bp_index_grp->getParent();
+         blueprint_indicies_grp->getDataStore()->save(file_path + ".root",
+                                                      protocol);//, sidre_dc_group);
+      }
+
+      fNameSstr << "_" << myid;
+      file_path = fNameSstr.str();
+      bp_grp->getDataStore()->save(file_path, protocol);//, sidre_dc_group);
+
    }
-
-   fNameSstr << "_" << myid;
-   file_path = fNameSstr.str();
-   bp_grp->getDataStore()->save(file_path, protocol);//, sidre_dc_group);
-
-}
 #endif
 
-// FIXME: any reason to keep this?
-/*
-   std::string _protocol;
-   std::string _filename;
+   // FIXME: any reason to keep this?
+   /*
+      std::string _protocol;
+      std::string _filename;
 
-   _protocol = "conduit_json";
-   _filename = fNameSstr.str() + ".conduit_json";
-   bp_grp->getDataStore()->save(_filename, _protocol);//, sidre_dc_group);
+      _protocol = "conduit_json";
+      _filename = fNameSstr.str() + ".conduit_json";
+      bp_grp->getDataStore()->save(_filename, _protocol);//, sidre_dc_group);
 
-   _protocol = "json";
-   _filename = fNameSstr.str() + ".json";
-   bp_grp->getDataStore()->save(_filename, _protocol);//, sidre_dc_group);
+      _protocol = "json";
+      _filename = fNameSstr.str() + ".json";
+      bp_grp->getDataStore()->save(_filename, _protocol);//, sidre_dc_group);
 
-   _protocol = "sidre_hdf5";
-   _filename = fNameSstr.str() + ".sidre_hdf5";
-   bp_grp->getDataStore()->save(_filename, _protocol);//, sidre_dc_group);
-*/
+      _protocol = "sidre_hdf5";
+      _filename = fNameSstr.str() + ".sidre_hdf5";
+      bp_grp->getDataStore()->save(_filename, _protocol);//, sidre_dc_group);
+   */
 }
 
 bool SidreDataCollection::HasFieldData(const std::string& field_name)

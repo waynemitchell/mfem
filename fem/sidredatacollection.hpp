@@ -48,14 +48,14 @@ public:
                        const std::string meshNodesGFName = "mfem_default_mesh_nodes_gf",
                        bool owns_mesh_data=false);
 
-   void DeregisterField(const std::string& field_name);
+   virtual void DeregisterField(const std::string& field_name);
 
-   void RegisterField(const std::string& field_name, GridFunction *gf);
+   virtual void RegisterField(const std::string& field_name, GridFunction *gf);
 
    /// Delete all owned data.
    virtual ~SidreDataCollection();
 
-   void SetMesh(Mesh *new_mesh);
+   virtual void SetMesh(Mesh *new_mesh);
 
    /// Reset the domain and global (root) datastore group pointers.
    /** These are set in the constructor, but if a host code changes the
@@ -70,7 +70,7 @@ public:
    asctoolkit::sidre::DataGroup * GetBPIndexGroup() { return bp_index_grp; }
    asctoolkit::sidre::DataGroup * GetSimGroup() { return simdata_grp; }
 
-   void Save();
+   virtual void Save();
 
    void Save(const std::string& filename, const std::string& protocol);
 
@@ -88,17 +88,17 @@ public:
        array of doubles).
 
        If the field does not exist, it will create a view of size @a sz. */
-   double* GetFieldData(const std::string& field_name, int sz = 0);
+   virtual double* GetFieldData(const std::string& field_name, int sz = 0);
 
    /// Gets a pointer to the data of @a field_name (always an array of doubles).
    /** Data is relative to the data associated with @a base_field.
        Returns null if @a base_field does not exist.
     */
-   double* GetFieldData(const std::string& field_name, int sz,
-                        const std::string& base_field, int offset = 0,
-                        int stride = 1);
+   virtual double* GetFieldData(const std::string& field_name, int sz,
+                                const std::string& base_field, int offset = 0,
+                                int stride = 1);
 
-   bool HasFieldData(const std::string& field_name);
+   virtual bool HasFieldData(const std::string& field_name);
 
    /// Gets a pointer to the data (an array of template type T).
    /** If the array named by field_name does not exist, it will create a view of
