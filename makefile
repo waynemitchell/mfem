@@ -183,7 +183,11 @@ endif
 # PETSc library configuration
 ifeq ($(MFEM_USE_PETSC),YES)
    INCFLAGS += -I$(PETSC_DIR)/include -I$(PETSC_DIR)/$(PETSC_ARCH)/include
-   ALL_LIBS += $(PETSC_LIB)
+   # If we have 'config' target, resolve PETSC_LIB
+   ifneq (,$(filter config,$(MAKECMDGOALS)))
+     include ${PETSC_DIR}/${PETSC_ARCH}/lib/petsc/conf/petscvariables
+     ALL_LIBS += $(PETSC_LIB)
+   endif
 endif
 
 # MPFR library configuration

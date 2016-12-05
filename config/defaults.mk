@@ -159,12 +159,8 @@ NETCDF_LIB  = -L$(NETCDF_DIR)/lib -lnetcdf -L$(HDF5_DIR)/lib -lhdf5_hl -lhdf5\
 # PETSc library configuration (version greater or equal then 3.8 or the dev branch)
 # Some notes:
 #   PETSC_ARCH should be void for prefix installations of PETSc
-#   PETSC_LIB is printed by the PETSC makefile
-#     you can also find it as the Libs.private entry in
-#     $PETSC_DIR/$PETSC_ARCH/lib/pkgconfig/PETSc.pc
 PETSC_DIR  ?= @MFEM_DIR@/../petsc
 PETSC_ARCH ?= arch-linux2-c-debug
-PETSC_LIB = -L$(PETSC_DIR)/$(PETSC_ARCH)/lib -lpetsc
 
 # MPFR library configuration
 MPFR_OPT =
