@@ -903,10 +903,8 @@ void Hybridization::Reset()
 #ifdef MFEM_USE_MPI
    delete pH;
    pH = NULL;
-#ifdef MFEM_USE_PETSC
    delete ppH;
    ppH = NULL;
-#endif
 #endif
 }
 

@@ -79,6 +79,8 @@ protected:
    HypreParMatrix *pH;
 #ifdef MFEM_USE_PETSC
    PetscParMatrix *ppH;
+#else
+   HypreParMatrix *ppH;
 #endif
 #endif
    bool usepetsc;
@@ -160,11 +162,16 @@ public:
    void SetUsePetsc(bool use = true)
    {
 #ifndef MFEM_USE_PETSC
-      if (true) { MFEM_ABORT("You did not configure MFEM with PETSc support"); }
+      if (use) { MFEM_ABORT("You did not configure MFEM with PETSc support"); }
       usepetsc = false;
 #else
       usepetsc = use;
 #endif
+      if (!usepetsc)
+      {
+         delete ppH;
+         ppH = NULL;
+      }
    }
 
    /// Assemble the matrix in "unassembled format" for non-overlapping DD
@@ -172,11 +179,12 @@ public:
    void SetUseNonoverlappingFormat(bool use = true)
    {
 #ifndef MFEM_USE_PETSC
-      if (true) { MFEM_ABORT("You did not configure MFEM with PETSc support"); }
+      if (use) { MFEM_ABORT("You did not configure MFEM with PETSc support"); }
       unassembled = false;
 #else
       unassembled = use;
 #endif
+      if (unassembled) { SetUsePetsc(true); }
    }
 
 };

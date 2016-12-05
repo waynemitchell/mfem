@@ -473,7 +473,9 @@ void StaticCondensation::ReduceSystem(Vector &x, Vector &b, Vector &X,
    else
    {
 #ifdef MFEM_USE_MPI
-      EliminateBC(*pS, *pS_e, ess_rtdof_list, X, B);
+      // If ppS is present, we are using PETSc
+      if (ppS) { EliminateBC(*ppS, *ppS_e, ess_rtdof_list, X, B); }
+      else { EliminateBC(*pS, *pS_e, ess_rtdof_list, X, B); }
 #endif
    }
    if (!copy_interior)

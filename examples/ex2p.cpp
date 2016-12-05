@@ -36,7 +36,7 @@
 //               meshes with curved elements, and the definition of piece-wise
 //               constant and vector coefficient objects. Static condensation is
 //               also illustrated. The example also shows how to form a linear
-//               system using a PETSc matrix.
+//               system using a PETSc matrix and solve with a PETSc solver.
 //
 //               We recommend viewing Example 1 before viewing this example.
 

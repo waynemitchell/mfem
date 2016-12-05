@@ -72,7 +72,7 @@ public:
    void SetUseNonoverlappingFormat(bool use = true)
    {
 #ifndef MFEM_USE_PETSC
-      if (true) { MFEM_ABORT("You did not configure MFEM with PETSc support"); }
+      if (use) { MFEM_ABORT("You did not configure MFEM with PETSc support"); }
       unassembled = false;
 #else
       unassembled = use;
@@ -170,18 +170,11 @@ public:
        recovered by calling RecoverFEMSolution (with the same vectors X, b, and
        x). */
    void FormLinearSystem(const Array<int> &ess_tdof_list, Vector &x, Vector &b,
-                         HypreParMatrix &A, Vector &X, Vector &B,
+                         Operator &A, Vector &X, Vector &B,
                          int copy_interior = 0);
-
-#ifdef MFEM_USE_PETSC
-   /// Form linear system matrix for PETSc solvers
-   void FormLinearSystem(Array<int> &ess_tdof_list, Vector &x, Vector &b,
-                         PetscParMatrix &A, Vector &X, Vector &B,
-                         int copy_interior = 0);
-#endif
 
    /// Form the linear sytem matrix A, see FormLinearSystem for details.
-   void FormSystemMatrix(const Array<int> &ess_tdof_list, HypreParMatrix &A);
+   void FormSystemMatrix(const Array<int> &ess_tdof_list, Operator &A);
 
    /** Call this method after solving a linear system constructed using the
        FormLinearSystem method to recover the solution as a ParGridFunction-size
@@ -231,7 +224,7 @@ public:
    void SetUseNonoverlappingFormat(bool use = true)
    {
 #ifndef MFEM_USE_PETSC
-      if (true) { MFEM_ABORT("You did not configure MFEM with PETSc support"); }
+      if (use) { MFEM_ABORT("You did not configure MFEM with PETSc support"); }
       unassembled = false;
 #else
       unassembled = use;
