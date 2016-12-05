@@ -31,7 +31,7 @@
 //               (preconditioned) inner solver. Note that implementing the
 //               method HyperelasticOperator::ImplicitSolve is the only
 //               requirement for high-order implicit (SDIRK) time integration.
-//               Is using PETSc to solve the nonlinear problem, use the option
+//               If using PETSc to solve the nonlinear problem, use the option
 //               file provided (.petsc_rc_ex10p) that customizes the
 //               Newton-Krylov method.
 //
