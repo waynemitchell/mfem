@@ -457,7 +457,6 @@ public:
    Mesh(int nx, int ny, int nz, Element::Type type, int generate_edges = 0,
         double sx = 1.0, double sy = 1.0, double sz = 1.0)
    {
-
       Make3D(nx, ny, nz, type, generate_edges, sx, sy, sz);
    }
 
@@ -468,14 +467,12 @@ public:
    Mesh(int nx, int ny, Element::Type type, int generate_edges = 0,
         double sx = 1.0, double sy = 1.0)
    {
-
       Make2D(nx, ny, type, generate_edges, sx, sy);
    }
 
    /** Creates 1D mesh , divided into n equal intervals. */
    explicit Mesh(int n, double sx = 1.0)
    {
-
       Make1D(n, sx);
    }
 
@@ -556,31 +553,40 @@ public:
    double *GetVertex(int i) { return vertices[i](); }
 
    void CopyElementObjectData(Array<Element*>& array_of_elements,
-                              size_t len_array_of_elements,
-                              int* indices, size_t len_indices, int* attributes, size_t len_attributes);
+                              int len_array_of_elements,
+                              int* indices, int len_indices,
+                              int* attributes, int len_attributes);
 
    void ChangeElementObjectDataOwnership(Array<Element*>& array_of_elements,
-                                         size_t len_array_of_elements,
-                                         int* indices, size_t len_indices, int* attributes, size_t len_attributes,
+                                         int len_array_of_elements,
+                                         int* indices, int len_indices,
+                                         int* attributes, int len_attributes,
                                          bool zerocopy);
 
-   void ChangeElementDataOwnership(int *indices, size_t len_indices,
-                                   int *attributes,
-                                   size_t len_attributes, bool zerocopy = false);
+   void ChangeElementDataOwnership(int *indices, int len_indices,
+                                   int *attributes, int len_attributes,
+                                   bool zerocopy = false);
 
-   void CopyElementData(int *indices, size_t len_indices, int *attributes,
-                        size_t len_attributes);
+   void CopyElementData(int *indices, int len_indices,
+                        int *attributes, int len_attributes);
 
-   void ChangeBoundaryElementDataOwnership(int *indices, size_t len_indices,
-                                           int *attributes,
-                                           size_t len_attributes, bool zerocopy = false);
+   void ChangeBoundaryElementDataOwnership(int *indices, int len_indices,
+                                           int *attributes, int len_attributes,
+                                           bool zerocopy = false);
 
-   void CopyBoundaryElementData(int *indices, size_t len_indices, int *attributes,
-                                size_t len_attributes);
+   void CopyBoundaryElementData(int *indices, int len_indices,
+                                int *attributes, int len_attributes);
 
-   void CopyVertexData(double* vertices, size_t len_vertices);
+   /// Copy the vertex coordinates to the given array.
+   /** Vertices are stored as an array of 3 doubles per vertex. */
+   void CopyVertexData(double* vertices, int len_vertices);
 
-   void ChangeVertexDataOwnership(double *vertices, size_t len_vertices,
+   /** @brief Set the internal Vertex array to point to the given @a vertices
+       array without assuming ownership of the pointer. */
+   /** If @zerocopy is `true`, the vertices must be given as an array of 3
+       doubles per vertex. If @a zerocopy is `false` then the current Vertex
+       data is first copied to the @a vertices array. */
+   void ChangeVertexDataOwnership(double *vertices, int len_vertices,
                                   bool zerocopy = false);
 
    const Element* const *GetElementsArray() const

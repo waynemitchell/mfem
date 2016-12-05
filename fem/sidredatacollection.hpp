@@ -40,13 +40,14 @@ public:
    typedef double mfem_double_t;
 
    SidreDataCollection(const std::string& collection_name, Mesh *the_mesh,
-                       bool owns_mesh_data=false);
+                       bool owns_mesh_data = false);
 
    SidreDataCollection(const std::string& collection_name,
                        asctoolkit::sidre::DataGroup * global_grp,
                        asctoolkit::sidre::DataGroup * domain_grp,
-                       const std::string meshNodesGFName = "mfem_default_mesh_nodes_gf",
-                       bool owns_mesh_data=false);
+                       const std::string &meshNodesGFName =
+                          "mfem_default_mesh_nodes_gf",
+                       bool owns_mesh_data = false);
 
    virtual void DeregisterField(const std::string& field_name);
 
@@ -141,14 +142,19 @@ private:
    // GF objects. Can we use one flag and just have DC own all objects vs none?
    const bool m_owns_mesh_data;
 
+   // Empty string indicates that Nodes GridFunction has not been registered.
+   // Set to "_mesh_nodes_gf" in SetMesh() or to the argument meshNodesGFName in
+   // the second ctor (the default value there is "mfem_default_mesh_nodes_gf").
    std::string m_meshNodesGFName;
    bool m_loadCalled;
 
    // If the data collection owns the datastore, it will store a pointer to it.
+   // FIXME - question: if the dc doesn't own the datastore, it still needs this
+   //         pointer, right?
    asctoolkit::sidre::DataStore * m_datastore_ptr;
 
 protected:
-   // why is this protected, but sidre dc is private?
+   // FIXME - why is this protected, but sidre dc is private?
    asctoolkit::sidre::DataGroup *parent_datagroup;
 
 private:
@@ -166,6 +172,8 @@ private:
    void DeregisterFieldInBPIndex(const std::string & field_name);
    void RegisterFieldInBPIndex(asctoolkit::sidre::DataGroup * bp_field_group);
 
+   /** @brief Return a string with the conduit blueprint name for the given
+       Element::Type. */
    std::string getElementName( Element::Type elementEnum );
 
    /**
@@ -215,7 +223,8 @@ private:
    /**
     * \param hasBP Indicates whether the blueprint has already been set up.
     * \param mesh_name The name of the topology.
-    * \note Valid values for @a mesh_name are "mesh" and "boundary".
+    * \note Valid values for @a mesh_name are "mesh" and "boundary" and the
+            former has to be created with this method before the latter.
     */
    void createMeshBlueprintTopologies(bool hasBP, const std::string& mesh_name);
 

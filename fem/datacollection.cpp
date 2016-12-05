@@ -158,8 +158,8 @@ void DataCollection::SetMesh(Mesh *new_mesh)
    }
 #endif
 
+   // FIXME - this should be handled in SaveMesh()
    create_directory(prefix_path, mesh, myid);
-
 }
 
 void DataCollection::DeregisterField(const std::string& name)
