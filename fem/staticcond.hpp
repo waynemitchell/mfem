@@ -220,7 +220,7 @@ public:
    void SetUsePetsc(bool use = true)
    {
 #ifndef MFEM_USE_PETSC
-      if (true) { MFEM_ABORT("You did not configured MFEM with PETSc support"); }
+      if (true) { MFEM_ABORT("You did not configure MFEM with PETSc support"); }
       usepetsc = false;
 #else
       usepetsc = use;
@@ -232,7 +232,7 @@ public:
    void SetUseNonoverlappingFormat(bool use = true)
    {
 #ifndef MFEM_USE_PETSC
-      if (true) { MFEM_ABORT("You did not configured MFEM with PETSc support"); }
+      if (true) { MFEM_ABORT("You did not configure MFEM with PETSc support"); }
       unassembled = false;
 #else
       unassembled = use;

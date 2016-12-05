@@ -238,7 +238,7 @@ int main(int argc, char *argv[])
 #ifdef MFEM_USE_PETSC
       PetscInitialize(NULL,NULL,petscrc_file,NULL);
 #else
-      MFEM_ABORT("You did not configured MFEM with PETSc");
+      MFEM_ABORT("You did not configure MFEM with PETSc");
 #endif
    }
 
