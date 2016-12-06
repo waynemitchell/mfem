@@ -316,7 +316,10 @@ public:
    virtual void SetOperator(const Operator &op);
 
    /// Set the linear solver for inverting the Jacobian.
-   /** This is method is equivalent to calling SetPreconditioner(). */
+   /** This is method is equivalent to calling SetPreconditioner().
+       @note This function assumes that Operator::GetGradient(const Vector &)
+             is implemented by the Operator specified by
+             SetOperator(const Operator &). */
    virtual void SetSolver(Solver &solver);
 
    /// Set KINSOL's scaled step tolerance.
@@ -326,6 +329,10 @@ public:
    /** The default tolerance is U^(1/3), where U = machine unit roundoff.
         @note This function is equivalent to SetAbsTol(int). */
    void SetFuncNormTol(double ftol) { abs_tol = ftol; }
+
+   /// Set maximum number of nonlinear iterations without a Jacobian update.
+   /** The default is 10. */
+   void SetMaxSetupCalls(int max_calls);
 
    /// Solve the nonlinear system F(x) = 0.
    /** Calls the other Mult(Vector&, Vector&, Vector&) const method with

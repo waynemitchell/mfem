@@ -142,12 +142,12 @@ static int LinSysSolve(KINMem kin_mem, N_Vector x, N_Vector b,
    Vector mx(x);
    const Vector mb(b);
 
-   // mx = J(u)^-1 mb.
    SundialsSolver::UserData &ud =
          *static_cast<SundialsSolver::UserData *>(kin_mem->kin_lmem);
 
-   if( !ud.jac_solver->iterative_mode) { mx = 0.0; }
+   if (!ud.jac_solver->iterative_mode) { mx = 0.0; }
 
+   // mx = J(u)^-1 mb.
    ud.jac_solver->Mult(mb, mx);
 
    // Compute required norms.
@@ -155,7 +155,7 @@ static int LinSysSolve(KINMem kin_mem, N_Vector x, N_Vector b,
         (kin_mem->kin_globalstrategy != KIN_FP &&
          kin_mem->kin_etaflag == KIN_ETACHOICE1) )
    {
-      booleantype new_uu = (kin_mem->kin_jacCurrent) ? false : true;
+      booleantype new_uu = false;
       SundialsSolver::GradientMult(x, b, kin_mem->kin_uu, &new_uu, &ud);
       *sJpnorm = N_VWL2Norm(b, kin_mem->kin_fscale);
       N_VProd(b, kin_mem->kin_fscale, b);
@@ -755,8 +755,9 @@ KinSolver::KinSolver(int strategy, bool oper_grad)
    MFEM_ASSERT(sundials_mem, "Error in KINCreate().");
 
    Mem(this)->kin_globalstrategy = strategy;
-   // Default abs_tol.
+   // Default abs_tol, print_level.
    abs_tol = Mem(this)->kin_fnormtol;
+   print_level = 0;
 
    flag = KIN_SUCCESS;
 }
@@ -764,7 +765,7 @@ KinSolver::KinSolver(int strategy, bool oper_grad)
 #ifdef MFEM_USE_MPI
 
 KinSolver::KinSolver(MPI_Comm comm, int strategy, bool oper_grad)
-   : use_oper_grad(oper_grad), fnorm_tol(0.0), user_data()
+   : use_oper_grad(oper_grad), user_data()
 {
    if (comm == MPI_COMM_NULL)
    {
@@ -787,8 +788,9 @@ KinSolver::KinSolver(MPI_Comm comm, int strategy, bool oper_grad)
    MFEM_ASSERT(sundials_mem, "Error in KINCreate().");
 
    Mem(this)->kin_globalstrategy = strategy;
-   // Default abs_tol.
+   // Default abs_tol, print_level.
    abs_tol = Mem(this)->kin_fnormtol;
+   print_level = 0;
 
    flag = KIN_SUCCESS;
 }
@@ -804,6 +806,7 @@ static inline void kinCopyInit(KINMem src, KINMem dest)
    dest->kin_lfree        = src->kin_lfree;
    dest->kin_lmem         = src->kin_lmem;
    dest->kin_setupNonNull = src->kin_setupNonNull;
+   dest->kin_msbset       = src->kin_msbset;
 
    dest->kin_globalstrategy = src->kin_globalstrategy;
    dest->kin_printfl        = src->kin_printfl;
@@ -891,9 +894,9 @@ void KinSolver::SetOperator(const Operator &op)
       MFEM_ASSERT(flag >= 0, "KINSpgmr() failed!");
    }
 
-   // Define the Jacobian action.
-   if (use_oper_grad)
+   if (use_oper_grad && !prec)
    {
+      // Define the Jacobian action.
       flag = KINSpilsSetJacTimesVecFn(sundials_mem, GradientMult);
       MFEM_ASSERT(flag >= 0, "KINSpilsSetJacTimesVecFn() failed!");
    }
@@ -901,8 +904,6 @@ void KinSolver::SetOperator(const Operator &op)
 
 void KinSolver::SetSolver(Solver &solver)
 {
-   MFEM_ABORT("Not implemented yet, see comments in LinSysSolve(KINMem ...)");
-
    prec = &solver;
 
    KINMem mem = Mem(this);
@@ -923,10 +924,17 @@ void KinSolver::SetScaledStepTol(double sstol)
    Mem(this)->kin_scsteptol = sstol;
 }
 
+void KinSolver::SetMaxSetupCalls(int max_calls)
+{
+   Mem(this)->kin_msbset = max_calls;
+}
+
 void KinSolver::Mult(const Vector &b, Vector &x) const
 {
    // Uses c = 1, corresponding to x_scale.
    c = 1.0;
+
+   if (!iterative_mode) { x = 0.0; }
 
    // For relative tolerance, r = 1 / |residual(x)|, corresponding to fx_scale.
    if (rel_tol > 0.0)
@@ -934,12 +942,16 @@ void KinSolver::Mult(const Vector &b, Vector &x) const
       oper->Mult(x, r);
 
       // Note that KINSOL uses infinity norms.
+      double norm;
+      if (Parallel())
+      {
 #ifdef MFEM_USE_MPI
-      double lnorm = r.Normlinf(), norm;
+      double lnorm = r.Normlinf();
       MPI_Allreduce(&lnorm, &norm, 1, MPI_DOUBLE, MPI_MAX, NV_COMM_P(y));
-#else
-      double norm = r.Normlinf();
 #endif
+      }
+      else { norm = r.Normlinf(); }
+
       if (abs_tol > rel_tol * norm)
       {
          r = 1.0;
@@ -951,7 +963,11 @@ void KinSolver::Mult(const Vector &b, Vector &x) const
          Mem(this)->kin_fnormtol = rel_tol;
       }
    }
-   else { r = 1.0; }
+   else
+   {
+      Mem(this)->kin_fnormtol = abs_tol;
+      r = 1.0;
+   }
 
    Mult(x, c, r);
 }

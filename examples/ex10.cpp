@@ -693,8 +693,11 @@ HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
    if (use_kinsol)
    {
 #ifdef MFEM_USE_SUNDIALS
-      newton_solver = new KinSolver(KIN_NONE, true);
+      KinSolver *kinsolver = new KinSolver(KIN_NONE, true);
+      kinsolver->SetMaxSetupCalls(2);
+      newton_solver = kinsolver;
       newton_solver->SetMaxIter(200);
+      newton_solver->SetRelTol(1e-3);
 #else
       MFEM_ABORT("MFEM is not configured with SUNDIALS!");
 #endif
@@ -702,14 +705,12 @@ HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
    else
    {
       newton_solver = new NewtonSolver();
-      newton_solver->iterative_mode = false;
-      newton_solver->SetSolver(*J_solver);
       newton_solver->SetMaxIter(10);
+      newton_solver->SetRelTol(rel_tol);
    }
+   newton_solver->SetSolver(*J_solver);
+   newton_solver->iterative_mode = false;
    newton_solver->SetOperator(*backward_euler_oper);
-   newton_solver->SetPrintLevel(2); // print Newton iterations
-   newton_solver->SetRelTol(rel_tol);
-   newton_solver->SetAbsTol(0.0);
 }
 
 void HyperelasticOperator::Mult(const Vector &vx, Vector &dvx_dt) const
