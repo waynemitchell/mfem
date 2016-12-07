@@ -277,8 +277,10 @@ int main(int argc, char *argv[])
       case 3: ode_solver = new SDIRK33Solver; break;
 #ifdef MFEM_USE_SUNDIALS
       case 4:
-         cvode = new CVODESolver(CV_BDF, CV_NEWTON, dt, 1.0, 1.0);
+      {
+         cvode = new CVODESolver(CV_BDF, CV_NEWTON, dt, 1.0e-2, 1.0e-2);
          ode_solver = cvode; break;
+      }
       case 5:
       {
          cvode = new CVODESolver(CV_BDF, CV_NEWTON, dt, 1.0e-2, 1.0e-2);
@@ -287,8 +289,10 @@ int main(int argc, char *argv[])
          ode_solver = cvode; break;
       }
       case 6:
+      {
          arkode = new ARKODESolver(true, 1.0e-2, 1.0e-2);
          ode_solver = arkode; break;
+      }
       case 7:
       {
          arkode = new ARKODESolver(true, 1.0e-2, 1.0e-2);

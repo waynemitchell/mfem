@@ -21,7 +21,6 @@
 #include <nvector/nvector_serial.h>
 #ifdef MFEM_USE_MPI
 #include <nvector/nvector_parallel.h>
-#include <nvector/nvector_parhyp.h>
 #endif
 
 #include <cvode/cvode_impl.h>
@@ -116,13 +115,6 @@ static int LinSysFree(ARKodeMem ark_mem)
    return to_solver(ark_mem->ark_lmem)->FreeSystem(ark_mem);
 }
 
-/*
-static int LinSysInit(KINMem kin_mem)
-{
-   return KIN_SUCCESS;
-}
-*/
-
 static int LinSysSetup(KINMem kin_mem)
 {
    const Vector u(kin_mem->kin_uu);
@@ -166,13 +158,6 @@ static int LinSysSolve(KINMem kin_mem, N_Vector x, N_Vector b,
 
    return KIN_SUCCESS;
 }
-
-/*
-static int LinSysFree(KINMem kin_mem)
-{
-   return KIN_SUCCESS;
-}
-*/
 
 const double SundialsSolver::default_rel_tol = 1e-4;
 const double SundialsSolver::default_abs_tol = 1e-9;
@@ -1063,10 +1048,10 @@ void KinSolver::SetSolver(Solver &solver)
 
    user_data.jac_solver = prec;
 
-   mem->kin_linit  = NULL; //LinSysInit;
+   mem->kin_linit  = NULL;
    mem->kin_lsetup = LinSysSetup;
    mem->kin_lsolve = LinSysSolve;
-   mem->kin_lfree  = NULL; //LinSysFree;
+   mem->kin_lfree  = NULL;
    mem->kin_lmem   = &user_data;
    mem->kin_setupNonNull = TRUE;
 }
