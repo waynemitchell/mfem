@@ -90,11 +90,11 @@ Miscellaneous
   make-based build system (e.g. for out-of-source building). For more details,
   see the INSTALL file and the config/cmake directory.
 
+- Added support for out-of-source builds with GNU make, see the INSTALL file.
+
 - Added optional support for the time integration and non-linear solvers methods
   from the CVODE, ARKODE and KINSOL libraries of the SUNDIALS suite (version 2.7
   or higher of SUNDIALS is required).
-
-- Added support for "out of source" builds with GNU make, see the INSTALL file.
 
 - Added optional support for software-based higher-precision arithmetic with
   the MPFR library. When MFEM_USE_MPFR is enabled, the 1D quadrature rules will

@@ -10,8 +10,8 @@
 // Software Foundation) version 2.1 dated February 1999.
 
 
-// Support out of source tree builds: if MFEM_BUILD_DIR is defined, load the
-// config file MFEM_BUILD_DIR/config/_config.hpp.
+// Support out-of-source builds: if MFEM_BUILD_DIR is defined, load the config
+// file MFEM_BUILD_DIR/config/_config.hpp.
 //
 // Otherwise, use the local file: _config.hpp.
 

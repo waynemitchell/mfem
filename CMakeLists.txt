@@ -217,7 +217,7 @@ else()
   target_link_libraries(mfem ${TPL_LIBRARIES})
 endif()
 
-# If building out of source, define MFEM_BUILD_DIR to point to the build
+# If building out-of-source, define MFEM_BUILD_DIR to point to the build
 # directory.
 if (NOT ("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}"))
   target_compile_definitions(mfem PRIVATE
