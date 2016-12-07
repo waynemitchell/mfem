@@ -167,9 +167,8 @@ public:
    virtual ~SumIntegrator();
 };
 
-/** An abstract class for integrating the product of two scalar basis
-    functions with an optional scalar coefficient.
- */
+/** An abstract class for integrating the product of two scalar basis functions
+    with an optional scalar coefficient. */
 class MixedScalarIntegrator: public BilinearFormIntegrator
 {
 public:
@@ -225,10 +224,8 @@ private:
 
 };
 
-/** An abstract class for integrating the inner product of two vector
-    basis functions with an optional scalar, vector, or matrix
-    coefficient.
- */
+/** An abstract class for integrating the inner product of two vector basis
+    functions with an optional scalar, vector, or matrix coefficient. */
 class MixedVectorIntegrator: public BilinearFormIntegrator
 {
 public:
@@ -296,11 +293,9 @@ private:
 
 };
 
-/** An abstract class for integrating the product of a scalar basis
-    function and the inner product of a vector coefficient with a
-    vector basis function.  In 2D the inner product can be replaced
-    with a cross product.
- */
+/** An abstract class for integrating the product of a scalar basis function and
+    the inner product of a vector basis function with a vector coefficient. In
+    2D the inner product can be replaced with a cross product. */
 class MixedScalarVectorIntegrator: public BilinearFormIntegrator
 {
 public:

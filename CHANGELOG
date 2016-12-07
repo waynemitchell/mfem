@@ -60,18 +60,17 @@ FEM <-> linear system interface for action-only linear operators
 
 New general BilinearFormIntegrators for common families of operators
 --------------------------------------------------------------------
-- Added MixedScalarIntegrator and seven derived classes for integrating
-  products of two scalar basis functions and optional
-  scalar coefficients.
+- Added MixedScalarIntegrator and 7 derived classes for integrating products of
+  two scalar basis functions and optional scalar coefficients.
 
-- Added MixedVectorIntegrator and fifteen derived classes for integrating the
-  inner product of two vector basis functions with optional scalar, vector, or
-  matrix coefficients.
+- Added MixedVectorIntegrator and 15 derived classes for integrating the inner
+  product of two vector basis functions with optional scalar, vector, or matrix
+  coefficients.
 
-- Added MixedScalarVectorIntegrator and twelve derived classes for integrating
-  the product of a scalar basis function with the inner product of a vector
-  coefficient with a vector coefficient.  In 2D the inner product can
-  optionally be replaced with a cross product.
+- Added MixedScalarVectorIntegrator and 12 derived classes for integrating the
+  product of a scalar basis function with the inner product of a vector basis
+  function with a vector coefficient. In 2D the inner product can optionally be
+  replaced with a cross product.
 
 New and updated examples and miniapps
 -------------------------------------
