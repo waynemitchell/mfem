@@ -30,10 +30,10 @@ public:
 
    IntegerSet(IntegerSet &s);
 
-	/// Create integer set from a block of memory containing integer values
-	/// ( like an array ).
-	/// n - length ( number of integers )
-	/// p - pointer to block of memory containing integer values
+   /// Create integer set from a block of memory containing integer values
+   /// ( like an array ).
+   /// n - length ( number of integers )
+   /// p - pointer to block of memory containing integer values
    IntegerSet(const int n, const int *p) { Recreate(n, p); }
 
    int Size() { return me.Size(); }

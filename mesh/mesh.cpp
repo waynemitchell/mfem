@@ -2570,7 +2570,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    }
 
    if (ncmesh) { ncmesh->spaceDim = spaceDim; }
-   
+
    // If a parse tag was supplied, keep reading the stream until the tag is
    // encountered.
    if (!parse_tag.empty())
@@ -2580,7 +2580,8 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
       while ( !input.eof() && line != parse_tag )
       {
          input >> line;
-         MFEM_VERIFY(!input.eof(), "Reached end of mesh file without finding an end mesh tag.");
+         MFEM_VERIFY(!input.eof(),
+                     "Reached end of mesh file without finding an end mesh tag.");
       }
    }
 }

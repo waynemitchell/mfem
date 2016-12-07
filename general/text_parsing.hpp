@@ -23,9 +23,9 @@ inline void skip_comment_lines(std::istream &is, const char comment_char)
    {
       is >> std::ws;
       if (is.peek() != comment_char)
-		{
-			break;
-		}
+      {
+         break;
+      }
       is.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
    }
 }
@@ -35,8 +35,8 @@ inline void filter_dos(std::string &line)
 {
    if (!line.empty() && *line.rbegin() == '\r')
    {
-		line.resize(line.size()-1);
-	}
+      line.resize(line.size()-1);
+   }
 }
 
 }

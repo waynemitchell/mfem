@@ -869,7 +869,8 @@ public:
 
    /// Print the mesh to the given stream using the default MFEM mesh format.
    /// \see mfem::ogzstream() for on-the-fly compression of ascii outputs
-   virtual void Print(std::ostream &out = std::cout, std::string section_delimiter="mfem_end_mesh") const;
+   virtual void Print(std::ostream &out = std::cout,
+                      std::string section_delimiter="mfem_end_mesh") const;
 
    /// Print the mesh in VTK format (linear and quadratic meshes only).
    /// \see mfem::ogzstream() for on-the-fly compression of ascii outputs

@@ -208,13 +208,14 @@ void GroupTopology::Save(ostream &out) const
       int group_size = GetGroupSize(group_id);
       const int * group_ptr = GetGroup(group_id);
       out << group_size;
-      for ( int group_member_index = 0; group_member_index < group_size; ++group_member_index)
+      for ( int group_member_index = 0; group_member_index < group_size;
+            ++group_member_index)
       {
          out << " " << GetNeighborRank( group_ptr[group_member_index] );
       }
       out << "\n";
    }
-  
+
    // For future use, optional ownership strategy.
    // out << "# ownership";
 }
@@ -230,9 +231,10 @@ void GroupTopology::Load(istream &in)
    // Read in number of groups
    int number_of_groups = -1;
    in >> ident;
-   MFEM_VERIFY(ident == "number_of_groups", "GroupTopology::Load - expected 'number_of_groups' entry.");
+   MFEM_VERIFY(ident == "number_of_groups",
+               "GroupTopology::Load - expected 'number_of_groups' entry.");
    in >> number_of_groups;
-   
+
    // Skip number of entries in each group comment.
    skip_comment_lines(in, '#');
 
@@ -246,7 +248,7 @@ void GroupTopology::Load(istream &in)
       array.Reserve(group_size);
       for ( int index = 0; index < group_size; ++index )
       {
-         int value; 
+         int value;
          in >> value;
          array.Append(value);
       }

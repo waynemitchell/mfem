@@ -4308,7 +4308,7 @@ void ParMesh::ParPrint(ostream &out) const
    // output with 'mfem_ser_mesh_end' instead of 'mfem_mesh_end', as we will
    // be adding additional parallel mesh information.
    Mesh::Print(out, "mfem_ser_mesh_end" );
-   
+
    // write out group topology info.
    gtopo.Save(out);
 
