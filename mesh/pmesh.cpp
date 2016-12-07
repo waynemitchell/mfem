@@ -764,7 +764,11 @@ ParMesh::ParMesh(MPI_Comm comm, istream &input)
    int gen_edges = 1;
    int refine    = 1;
    bool fix_orientation = false;
-   Load(input, gen_edges, refine, fix_orientation);
+
+   // Tell serial mesh Load() to read up to 'mfem_ser_mesh_end' instead
+   // of 'mfem_mesh_end', as we have additional parallel mesh data to
+   // load in from the stream.
+   Load(input, gen_edges, refine, fix_orientation, "mfem_ser_mesh_end");
 
    skip_comment_lines(input, '#');
 
@@ -907,9 +911,6 @@ ParMesh::ParMesh(MPI_Comm comm, istream &input)
       delete old_elem_vert;
    }
    delete v_to_v;
-
-#else
-#endif
 
    // If the mesh has Nodes, convert them from GridFunction to ParGridFunction?
 
@@ -4303,10 +4304,10 @@ long ParMesh::ReduceInt(int value) const
 
 void ParMesh::ParPrint(ostream &out) const
 {
-   // write out serial mesh.
-   // Second parameter specifies to serial mesh to not write out an
-   // 'end_mfem_mesh' tag.
-   Mesh::Print(out, false);
+   // write out serial mesh.  Tell serial mesh to deliniate the end of it's
+   // output with 'mfem_ser_mesh_end' instead of 'mfem_mesh_end', as we will
+   // be adding additional parallel mesh information.
+   Mesh::Print(out, "mfem_ser_mesh_end" );
    
    // write out group topology info.
    gtopo.Save(out);
@@ -4354,7 +4355,9 @@ void ParMesh::ParPrint(ostream &out) const
       }
    }
 
-   out << "end_mfem_mesh\n";
+   // Write out section end tag for mesh.
+   out << "mfem_mesh_end\n";
+
    // TODO: AMR meshes, NURBS meshes?
 }
 
@@ -4378,3 +4381,4 @@ ParMesh::~ParMesh()
 }
 
 }
+#endif

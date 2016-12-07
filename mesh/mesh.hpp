@@ -469,7 +469,7 @@ public:
        (default) edges are not generated, if 1 edges are generated. */
    /// \see mfem::igzstream() for on-the-fly decompression of compressed ascii inputs.
    void Load(std::istream &input, int generate_edges = 0, int refine = 1,
-             bool fix_orientation = true);
+             bool fix_orientation = true, std::string parse_tag="");
 
    /// Clear the contents of the Mesh.
    void Clear() { Destroy(); SetEmpty(); }
@@ -869,7 +869,7 @@ public:
 
    /// Print the mesh to the given stream using the default MFEM mesh format.
    /// \see mfem::ogzstream() for on-the-fly compression of ascii outputs
-   virtual void Print(std::ostream &out = std::cout, bool append_end_tag=true) const;
+   virtual void Print(std::ostream &out = std::cout, std::string section_delimiter="mfem_end_mesh") const;
 
    /// Print the mesh in VTK format (linear and quadratic meshes only).
    /// \see mfem::ogzstream() for on-the-fly compression of ascii outputs

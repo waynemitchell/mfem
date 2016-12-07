@@ -20,6 +20,9 @@
 //               mpirun -np 4 ex1p -m ../data/mobius-strip.mesh
 //               mpirun -np 4 ex1p -m ../data/mobius-strip.mesh -o -1 -sc
 //
+// Sample run from a parallel mesh file:
+//               mpirun -np 4 ex1p -p ../data/square-disc/pmesh -r 0
+//
 // Description:  This example code demonstrates the use of MFEM to define a
 //               simple finite element discretization of the Laplace problem
 //               -Delta u = 1 with homogeneous Dirichlet boundary conditions.
@@ -68,7 +71,7 @@ int main(int argc, char *argv[])
    args.AddOption(&par_mesh_prefix, "-p", "--parallel-mesh-prefix",
                   "Specify a parallel mesh file prefix, for example '/output/ex1p/pmesh'.");
    args.AddOption(&par_ref_levels, "-r", "--par_ref_levels",
-                  "Levels of parallel refinement to make to mesh.");
+                  "Levels of refinement to apply to parallel mesh, after it is partitioned amongst mpi tasks.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
@@ -107,9 +110,9 @@ int main(int argc, char *argv[])
       //    'ref_levels' to be the largest number that gives a final mesh with
       //    no more than 10,000 elements.
       {
-//         int ref_levels =
-//            (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
-           int ref_levels = 0;
+         int ref_levels =
+            (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
+
          for (int l = 0; l < ref_levels; l++)
          {
             mesh->UniformRefinement();

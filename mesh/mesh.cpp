@@ -2322,7 +2322,7 @@ void Mesh::SetMeshGen()
 }
 
 void Mesh::Load(std::istream &input, int generate_edges, int refine,
-                bool fix_orientation)
+                bool fix_orientation, std::string parse_tag)
 {
    using text_parsing::filter_dos;
 
@@ -2341,10 +2341,19 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    filter_dos(mesh_type);
 
    bool mfem_v10 = (mesh_type == "MFEM mesh v1.0");
+   bool mfem_v10a = (mesh_type == "MFEM mesh v1.0a");
    bool mfem_v11 = (mesh_type == "MFEM mesh v1.1");
-
-   if (mfem_v10 || mfem_v11) // MFEM's own mesh formats
+   if (mfem_v10 || mfem_v10a || mfem_v11)
    {
+      // mfem_v10a or newer have a tag to indicate the end of the mesh section
+      // in the stream.  A user provided parse tag can also be provided via
+      // the arguments.  For example, if this is called from the parallel
+      // mesh object, it will indiciate to read until the parallel mesh section
+      // begins.
+      if ( mfem_v10a && parse_tag.empty() )
+      {
+         parse_tag = "mfem_mesh_end";
+      }
       ReadMFEMMesh(input, mfem_v11, curved);
    }
    else if (mesh_type == "linemesh") // 1D mesh
@@ -2561,6 +2570,19 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    }
 
    if (ncmesh) { ncmesh->spaceDim = spaceDim; }
+   
+   // If a parse tag was supplied, keep reading the stream until the tag is
+   // encountered.
+   if (!parse_tag.empty())
+   {
+      std::string line;
+      input >> line;
+      while ( !input.eof() && line != parse_tag )
+      {
+         input >> line;
+         MFEM_VERIFY(!input.eof(), "Reached end of mesh file without finding an end mesh tag.");
+      }
+   }
 }
 
 Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
@@ -6713,7 +6735,7 @@ void Mesh::PrintXG(std::ostream &out) const
    out << flush;
 }
 
-void Mesh::Print(std::ostream &out, bool append_end_tag) const
+void Mesh::Print(std::ostream &out, std::string section_delimiter) const
 {
    int i, j;
 
@@ -6724,11 +6746,6 @@ void Mesh::Print(std::ostream &out, bool append_end_tag) const
       out << '\n';
       Nodes->Save(out);
 
-      if (append_end_tag)
-      {
-         out << "end_mfem_mesh\n";
-      }
-
       // patch-wise format
       // NURBSext->ConvertToPatches(*Nodes);
       // NURBSext->Print(out);
@@ -6736,7 +6753,7 @@ void Mesh::Print(std::ostream &out, bool append_end_tag) const
       return;
    }
 
-   out << (ncmesh ? "MFEM mesh v1.1\n" : "MFEM mesh v1.0\n");
+   out << (ncmesh ? "MFEM mesh v1.1\n" : "MFEM mesh v1.0a\n");
 
    // optional
    out <<
@@ -6792,10 +6809,7 @@ void Mesh::Print(std::ostream &out, bool append_end_tag) const
       Nodes->Save(out);
    }
 
-   if (append_end_tag)
-   {
-      out << "end_mfem_mesh\n";
-   }
+   out << section_delimiter << "\n";
 }
 
 void Mesh::PrintTopo(std::ostream &out,const Array<int> &e_to_k) const
