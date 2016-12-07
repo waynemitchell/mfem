@@ -10,8 +10,10 @@
 # Software Foundation) version 2.1 dated February 1999.
 
 # Use the MFEM build directory
-MFEM_DIR = ../..
-CONFIG_MK = $(MFEM_DIR)/config/config.mk
+MFEM_DIR ?= ../..
+MFEM_BUILD_DIR ?= ../..
+SRC = $(if $(MFEM_DIR:../..=),$(MFEM_DIR)/miniapps/electromagnetics/,)
+CONFIG_MK = $(MFEM_BUILD_DIR)/config/config.mk
 TEST_MK = $(MFEM_DIR)/config/test.mk
 # Use the MFEM install directory
 # MFEM_DIR = ../../mfem
@@ -29,29 +31,28 @@ else
    MINIAPPS = $(PAR_MINIAPPS) $(SEQ_MINIAPPS)
 endif
 
+.SUFFIXES:
+.SUFFIXES: .o .cpp .mk
 .PHONY: all clean clean-build clean-exec
 .PRECIOUS: %.o
 
-COMMON_HPP=../common/pfem_extras.hpp
-COMMON_O=$(COMMON_HPP:.hpp=.o)
+COMMON_O=../common/pfem_extras.o
 
-.PRECIOUS: %.o
-
-# Remove built-in rule
+# Remove built-in rules
 %: %.cpp
-
-# Replace the default implicit rule for *.cpp files
-%: %.cpp %_solver.o $(COMMON_O) $(MFEM_LIB_FILE) $(CONFIG_MK)
-	$(MFEM_CXX) $(MFEM_FLAGS) $< -o $@ $@_solver.o $(COMMON_O) $(MFEM_LIBS)
-
-# Remove built-in rule
 %.o: %.cpp
 
-# Replace the default implicit rule for *.cpp files
-%.o: %.cpp %.hpp $(COMMON_HPP) $(CONFIG_MK)
-	$(MFEM_CXX) $(MFEM_FLAGS) -c $(<) -o $(@)
-
 all: $(MINIAPPS)
+
+# Rules for building the miniapps
+$(MINIAPPS): \
+%: $(SRC)%.cpp %_solver.o $(COMMON_O) $(MFEM_LIB_FILE) $(CONFIG_MK)
+	$(MFEM_CXX) $(MFEM_FLAGS) $< -o $@ $@_solver.o $(COMMON_O) $(MFEM_LIBS)
+
+# Rules for compiling miniapp dependencies
+$(COMMON_O) $(addsuffix _solver.o,$(MINIAPPS)): \
+%.o: $(SRC)%.cpp $(SRC)%.hpp $(CONFIG_MK)
+	$(MFEM_CXX) $(MFEM_FLAGS) -c $(<) -o $(@)
 
 MFEM_TESTS = MINIAPPS
 include $(TEST_MK)
@@ -65,7 +66,7 @@ tesla-test-par: tesla
 	-maxit 2 -cr '0 0 -0.2 0 0 0.2 0.2 0.4 1')
 joule-test-par: joule
 	@$(call mfem-test,$<, mpirun -np 4, Electromagnetic miniapp,\
-	-p rod -tf 3)
+	-p rod -tf 3 -m $(SRC)cylinder-hex.mesh)
 
 # Testing: "test" target and mfem-test* variables are defined in config/test.mk
 

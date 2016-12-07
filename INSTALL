@@ -91,8 +91,23 @@ its path/name can be changed with
 
    make config USER_CONFIG=<user_config_file>
 
+The build system can be configured to use a separate build directory, for an
+"out of source" build. There are two ways to do that: the first one is
+
+   mkdir <mfem-build-dir> ; cd <mfem-build-dir>
+   make -f <mfem-source-dir>/makefile config [OPTIONS] ...
+
+and the second one is
+
+   cd <mfem-source-dir>
+   make BUILD_DIR=<mfem-build-dir> config [OPTIONS] ...
+
+Note that in both cases the default location for the (optional) user
+configuration file is <mfem-build-dir>/config/user.mk.
+
 Once configured, the library can be built simply with
 
+   cd <mfem-build-dir>   (if building out of source)
    make
 
 Note that re-configuration is only needed to change the currently configured

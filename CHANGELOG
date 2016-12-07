@@ -94,6 +94,8 @@ Miscellaneous
   from the CVODE, ARKODE and KINSOL libraries of the SUNDIALS suite (version 2.7
   or higher of SUNDIALS is required).
 
+- Added support for "out of source" builds with GNU make, see the INSTALL file.
+
 - Added optional support for software-based higher-precision arithmetic with
   the MPFR library. When MFEM_USE_MPFR is enabled, the 1D quadrature rules will
   be computed precisely, at least for rules with up to 65-points.
