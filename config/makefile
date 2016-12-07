@@ -12,7 +12,7 @@
 # Helper print-info function
 mfem-info = $(if $(filter YES,$(VERBOSE)),$(info *** [info]$(1)),)
 
-# The list of all defines that may be enabled in config.hpp and config.mk
+# The list of all defines that may be enabled in $(CONFIG_HPP) and $(CONFIG_MK)
 # is kept in the MFEM_DEFINES variable, exported here from ../makefile
 
 # The list of variables to set in config.mk using their current values
@@ -23,7 +23,7 @@ mfem-info = $(if $(filter YES,$(VERBOSE)),$(info *** [info]$(1)),)
 # $(foreach var,$(MFEM_CONFIG_VARS),$(info $(var) = $(value $(var))))
 
 # Output path + file name for the config header
-CONFIG_HPP = config.hpp
+CONFIG_HPP = _config.hpp
 
 # Output path + file name for the config makefile
 CONFIG_MK = config.mk

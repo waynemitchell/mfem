@@ -11,7 +11,9 @@
 
 // Finite Element classes
 
-#include "fem.hpp"
+#include "fe.hpp"
+#include "../mesh/nurbs.hpp"
+#include "bilininteg.hpp"
 #include <cmath>
 
 namespace mfem
