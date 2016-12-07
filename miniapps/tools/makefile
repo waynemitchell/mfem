@@ -10,8 +10,10 @@
 # Software Foundation) version 2.1 dated February 1999.
 
 # Use the MFEM build directory
-MFEM_DIR = ../..
-CONFIG_MK = $(MFEM_DIR)/config/config.mk
+MFEM_DIR ?= ../..
+MFEM_BUILD_DIR ?= ../..
+SRC = $(if $(MFEM_DIR:../..=),$(MFEM_DIR)/miniapps/tools/,)
+CONFIG_MK = $(MFEM_BUILD_DIR)/config/config.mk
 TEST_MK = $(MFEM_DIR)/config/test.mk
 # Use the MFEM install directory
 # MFEM_DIR = ../../mfem
@@ -29,24 +31,26 @@ else
    MINIAPPS = $(PAR_MINIAPPS) $(SEQ_MINIAPPS)
 endif
 
+.SUFFIXES:
+.SUFFIXES: .o .cpp .mk
 .PHONY: all clean clean-build clean-exec
 .PRECIOUS: %.o
 
-COMMON_HPP=../common/fem_extras.hpp ../common/mesh_extras.hpp
-COMMON_O=$(COMMON_HPP:.hpp=.o)
+COMMON_O=../common/fem_extras.o ../common/mesh_extras.o
 
-# Remove built-in rule
+# Remove built-in rules
 %: %.cpp
+%.o: %.cpp
 
 # Replace the default implicit rule for *.cpp files
-%: %.cpp $(COMMON_O) $(MFEM_LIB_FILE) $(CONFIG_MK)
+%: $(SRC)%.cpp $(COMMON_O) $(MFEM_LIB_FILE) $(CONFIG_MK)
 	$(MFEM_CXX) $(MFEM_FLAGS) $< -o $@ $(COMMON_O) $(MFEM_LIBS)
 
-# Replace the default implicit rule for *.cpp files
-%.o: %.cpp %.hpp $(COMMON_HPP) $(CONFIG_MK)
-	$(MFEM_CXX) $(MFEM_FLAGS) -c $(<) -o $(@)
-
 all: $(MINIAPPS)
+
+# Rules for compiling dependencies
+$(COMMON_O): %.o: $(SRC)%.cpp $(SRC)%.hpp $(CONFIG_MK)
+	$(MFEM_CXX) $(MFEM_FLAGS) -c $< -o $@
 
 MFEM_TESTS = MINIAPPS
 include $(TEST_MK)
