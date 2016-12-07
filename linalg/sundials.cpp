@@ -128,7 +128,7 @@ static int LinSysSetup(KINMem kin_mem)
    const Vector u(kin_mem->kin_uu);
 
    SundialsSolver::UserData &ud =
-         *static_cast<SundialsSolver::UserData *>(kin_mem->kin_lmem);
+      *static_cast<SundialsSolver::UserData *>(kin_mem->kin_lmem);
    // Compute J(u).
    ud.jacobian = &ud.oper->GetGradient(u);
    ud.jac_solver->SetOperator(*ud.jacobian);
@@ -143,7 +143,7 @@ static int LinSysSolve(KINMem kin_mem, N_Vector x, N_Vector b,
    const Vector mb(b);
 
    SundialsSolver::UserData &ud =
-         *static_cast<SundialsSolver::UserData *>(kin_mem->kin_lmem);
+      *static_cast<SundialsSolver::UserData *>(kin_mem->kin_lmem);
 
    if (!ud.jac_solver->iterative_mode) { mx = 0.0; }
 
@@ -946,8 +946,8 @@ void KinSolver::Mult(const Vector &b, Vector &x) const
       if (Parallel())
       {
 #ifdef MFEM_USE_MPI
-      double lnorm = r.Normlinf();
-      MPI_Allreduce(&lnorm, &norm, 1, MPI_DOUBLE, MPI_MAX, NV_COMM_P(y));
+         double lnorm = r.Normlinf();
+         MPI_Allreduce(&lnorm, &norm, 1, MPI_DOUBLE, MPI_MAX, NV_COMM_P(y));
 #endif
       }
       else { norm = r.Normlinf(); }
