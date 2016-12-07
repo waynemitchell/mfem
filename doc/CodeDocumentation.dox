@@ -65,7 +65,6 @@ namespace mfem {
  * - <a class="el" href="ex16_8cpp_source.html">Example 16</a>: time-dependent nonlinear heat equation
  * - <a class="el" href="ex16p_8cpp_source.html">Example 16p</a>: parallel time-dependent nonlinear heat equation
  * - <a class="el" href="ex17_8cpp_source.html">Example 17</a>: Discontinuous Galerkin (DG) for linear elasticity
-time-dependent nonlinear heat equation
  * - <a class="el" href="ex17p_8cpp_source.html">Example 17p</a>: parallel Discontinuous Galerkin (DG) for linear elasticity
  *
  * <H3>Miniapps</H3>
