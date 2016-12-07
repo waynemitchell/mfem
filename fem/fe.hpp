@@ -306,8 +306,6 @@ protected:
 
 #ifndef MFEM_THREAD_SAFE
    mutable Vector c_shape;
-   // mutable DenseMatrix d_shape;
-   // mutable DenseMatrix Jinv;
 #endif
 
 public:
