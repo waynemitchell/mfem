@@ -26,6 +26,7 @@ option(MFEM_USE_LAPACK "Enable LAPACK usage" OFF)
 option(MFEM_THREAD_SAFE "Enable thread safety" OFF)
 option(MFEM_USE_OPENMP "Enable OpenMP usage" OFF)
 option(MFEM_USE_MEMALLOC "Enable the internal MEMALLOC option." ON)
+option(MFEM_USE_SUNDIALS "Enable SUNDIALS usage" OFF)
 option(MFEM_USE_MESQUITE "Enable MESQUITE usage" OFF)
 option(MFEM_USE_SUITESPARSE "Enable SuiteSparse usage" OFF)
 option(MFEM_USE_SUPERLU "Enable SuperLU_DIST usage" OFF)
@@ -61,6 +62,8 @@ set(HYPRE_DIR "${MFEM_DIR}/../hypre-2.10.0b/src/hypre" CACHE PATH "Path to the h
 set(METIS_DIR "${MFEM_DIR}/../metis-4.0" CACHE PATH "Path to the METIS library.")
 
 set(LIBUNWIND_DIR "" CACHE PATH "Path to Libunwind.")
+
+set(SUNDIALS_DIR "${MFEM_DIR}/../sundials-2.7.0" CACHE PATH "Path to the SUNDIALS library.")
 
 set(MESQUITE_DIR "${MFEM_DIR}/../mesquite-2.99" CACHE PATH "Path to the Mesquite library.")
 

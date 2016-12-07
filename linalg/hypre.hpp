@@ -224,7 +224,7 @@ public:
        which must be in CSR format (finalized). The new HypreParMatrix does not
        take ownership of any of the input arrays.
        @warning The ordering of the columns in each row in @a *diag may be
-       changed by this contructor to ensure that the first entry in each row is
+       changed by this constructor to ensure that the first entry in each row is
        the diagonal one. This is expected by most hypre functions. */
    HypreParMatrix(MPI_Comm comm, HYPRE_Int glob_size, HYPRE_Int *row_starts,
                   SparseMatrix *diag);
@@ -506,7 +506,7 @@ protected:
 
    /// l1 norms of the rows of A
    double *l1_norms;
-   /// If set, take absolute values of the computed l1_norms.
+   /// If set, take absolute values of the computed l1_norms
    bool pos_l1_norms;
    /// Maximal eigenvalue estimate for polynomial smoothing
    double max_eig_est;

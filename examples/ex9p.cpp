@@ -14,7 +14,8 @@
 //    mpirun -np 4 ex9p -m ../data/disc-nurbs.mesh -p 2 -rp 1 -dt 0.005 -tf 9
 //    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 3 -rp 2 -dt 0.0025 -tf 9 -vs 20
 //    mpirun -np 4 ex9p -m ../data/periodic-cube.mesh -p 0 -o 2 -rp 1 -dt 0.01 -tf 8
-//    mpirun -np 4 ex9p -s 11 -dt 0.0018 -vs 25
+//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -s 11 -dt 0.0018 -vs 25
+//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -s 13 -dt 0.01 -vs 15
 //
 // Description:  This example code solves the time-dependent advection equation
 //               du/dt + v.grad(u) = 0, where v is a given fluid velocity, and
@@ -166,28 +167,16 @@ int main(int argc, char *argv[])
       case 6: ode_solver = new RK6Solver; break;
 #ifdef MFEM_USE_SUNDIALS
       case 11:
-      {
-         cvode = new CVODESolver(MPI_COMM_WORLD, CV_ADAMS, CV_FUNCTIONAL);
-         cvode->SetSStolerances(1.0, 1.0);
-         CVodeSetMaxStep(cvode->SundialsMem(), dt);
-         ode_solver = cvode;
-         break;
-      }
+         cvode = new CVODESolver(MPI_COMM_WORLD, CV_ADAMS, CV_FUNCTIONAL,
+                                 dt, 1.0e-2, 1.0e-2);
+         ode_solver = cvode; break;
       case 12:
-      {
-         ode_solver = arkode = new ARKODESolver(false);
-         arkode->SetSStolerances(1.0e-2, .01e-2);
-         break;
-      }
+         arkode = new ARKODESolver(MPI_COMM_WORLD, false, 1.0e-2, 1.0e-4);
+         ode_solver = arkode; break;
       case 13:
-      {
-         ode_solver = arkode = new ARKODESolver(false);
-         arkode->SetSStolerances(1.0e-2, .01e-2);
-         arkode->SetERKTableNum(rk_order);
-         // Always use dt (no internal temporal adaptivity).
-         arkode->SetFixedStep(dt);
-         break;
-      }
+         arkode = new ARKODESolver(MPI_COMM_WORLD, false, rk_order,
+                                   dt, 1.0e-2, 1.0e-4);
+         ode_solver = arkode; break;
 #else
       case 11:
       case 12:
@@ -349,7 +338,6 @@ int main(int argc, char *argv[])
          if (myid == 0)
          {
             cout << "time step: " << ti << ", time: " << t << endl;
-
 #ifdef MFEM_USE_SUNDIALS
             if (cvode) { cvode->PrintInfo(); }
             if (arkode) { arkode->PrintInfo(); }

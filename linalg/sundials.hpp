@@ -48,7 +48,7 @@ protected:
 
 public:
    /** @name Linear solver interface methods.
-       These four functions and their parameters are explained in Section 7 of
+       These four functions and their parameters are documented in Section 7 of
        http://computation.llnl.gov/sites/default/files/public/cv_guide.pdf
        and Section 7.4 of
        http://computation.llnl.gov/sites/default/files/public/ark_guide.pdf
@@ -92,7 +92,7 @@ protected:
    // The real type of user_data is UserData.
    static int Mult(N_Vector u, N_Vector fu, void *user_data);
 
-   // Note: the contructors are protected.
+   // Note: the constructors are protected.
    SundialsSolver() : sundials_mem(NULL) { }
    SundialsSolver(void *mem) : sundials_mem(mem) { }
 
@@ -115,13 +115,13 @@ public:
    };
 };
 
-/// Wrapper for SUNDIALS' CVODE library.
+/// Wrapper for SUNDIALS' CVODE library -- Multi-step time integration.
 /**
    - http://computation.llnl.gov/projects/sundials
    - http://computation.llnl.gov/sites/default/files/public/cv_guide.pdf
 
    @note All methods except Step() can be called before Init().
- */
+*/
 class CVODESolver : public ODESolver, public SundialsSolver
 {
 public:
@@ -135,6 +135,10 @@ public:
        For parameter desciption, see the CVodeCreate documentation (cvode.h). */
    CVODESolver(int lmm, int iter);
 
+   /** Construct a CVODE solver with prescribed max timestep and scalar
+       relative/absolute tolerances. */
+   CVODESolver(int lmm, int iter, double dt, double reltol, double abstol);
+
 #ifdef MFEM_USE_MPI
    /// Construct a parallel CVODESolver, a wrapper for SUNDIALS' CVODE solver.
    /** @param[in] comm  The MPI communicator used to partition the ODE system.
@@ -146,6 +150,11 @@ public:
                         problems).
        For parameter desciption, see the CVodeCreate documentation (cvode.h). */
    CVODESolver(MPI_Comm comm, int lmm, int iter);
+
+   /** Construct a parallel CVODE solver with prescribed max timestep and scalar
+       relative/absolute tolerances. */
+   CVODESolver(MPI_Comm comm, int lmm, int iter,
+               double dt, double reltol, double abstol);
 #endif
 
    /// Set the scalar relative and scalar absolute tolerances.
@@ -165,7 +174,7 @@ public:
    /// Set the maximum order of the linear multistep method.
    /** The default is 12 (CV_ADAMS) or 5 (CV_BDF).
        CVODE uses adaptive-order integration, based on the local truncation
-       error. Use this if you know a-priori that your system is such that
+       error. Use this if you know a priori that your system is such that
        higher order integration formulas are unstable.
        @note @a max_order can't be higher than the current maximum order. */
    void SetMaxOrder(int max_order);
@@ -194,13 +203,13 @@ public:
    virtual ~CVODESolver();
 };
 
-/// Wrapper for SUNDIALS' ARKODE library.
+/// Wrapper for SUNDIALS' ARKODE library -- Runge-Kutta time integration.
 /**
   - http://computation.llnl.gov/projects/sundials
   - http://computation.llnl.gov/sites/default/files/public/ark_guide.pdf
 
    @note All methods except Step() can be called before Init().
- */
+*/
 class ARKODESolver: public ODESolver, public SundialsSolver
 {
 protected:
@@ -212,11 +221,29 @@ public:
    /** @param[in] implicit  Specifies if the time integrator is implicit. */
    ARKODESolver(bool implicit = false);
 
+   /** Construct an ARKODE solver with prescribed scalar relative/absolute
+       tolerances. */
+   ARKODESolver(bool implicit, double reltol, double abstol);
+
+   /** Construct an ARKODE solver with prescribed order, fixed time step and
+       scalar relative/absolute tolerances. */
+   ARKODESolver(bool implicit, int rk_order, double dt,
+                double reltol, double abstol);
+
 #ifdef MFEM_USE_MPI
    /// Construct a parallel ARKODESolver, a wrapper for SUNDIALS' ARKODE solver.
    /** @param[in] comm  The MPI communicator used to partition the ODE system.
        @param[in] implicit  Specifies if the time integrator is implicit. */
    ARKODESolver(MPI_Comm comm, bool implicit = false);
+
+   /** Construct a parallel ARKODE solver with prescribed scalar relative /
+       absolute tolerances. */
+   ARKODESolver(MPI_Comm comm, bool implicit, double reltol, double abstol);
+
+   /** Construct a parallel ARKODE solver with prescribed order, fixed time step
+       and scalar relative/absolute tolerances. */
+   ARKODESolver(MPI_Comm comm, bool implicit, int rk_order, double dt,
+                double reltol, double abstol);
 #endif
 
    /// Specify the scalar relative and scalar absolute tolerances.
@@ -277,11 +304,11 @@ public:
    virtual ~ARKODESolver();
 };
 
-/// Wrapper for SUNDIALS' KINSOL library.
+/// Wrapper for SUNDIALS' KINSOL library -- Nonlinear solvers.
 /**
    - http://computation.llnl.gov/projects/sundials
    - http://computation.llnl.gov/sites/default/files/public/kin_guide.pdf
- */
+*/
 class KinSolver : public NewtonSolver, public SundialsSolver
 {
 protected:

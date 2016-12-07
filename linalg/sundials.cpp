@@ -239,6 +239,26 @@ CVODESolver::CVODESolver(int lmm, int iter)
    flag = CV_SUCCESS;
 }
 
+CVODESolver::CVODESolver(int lmm, int iter,
+                         double dt, double reltol, double abstol)
+{
+   // Allocate an empty serial N_Vector wrapper in y.
+   y = N_VNewEmpty_Serial(0);
+   MFEM_ASSERT(y, "error in N_VNewEmpty_Serial()");
+
+   // Create the solver memory.
+   sundials_mem = CVodeCreate(lmm, iter);
+   MFEM_ASSERT(sundials_mem, "error in CVodeCreate()");
+
+   SetStepMode(CV_NORMAL);
+
+   SetSStolerances(reltol, abstol);
+
+   CVodeSetMaxStep(sundials_mem, dt);
+
+   flag = CV_SUCCESS;
+}
+
 #ifdef MFEM_USE_MPI
 
 CVODESolver::CVODESolver(MPI_Comm comm, int lmm, int iter)
@@ -264,6 +284,35 @@ CVODESolver::CVODESolver(MPI_Comm comm, int lmm, int iter)
 
    // Replace the zero defaults with some positive numbers.
    SetSStolerances(default_rel_tol, default_abs_tol);
+
+   flag = CV_SUCCESS;
+}
+
+CVODESolver::CVODESolver(MPI_Comm comm, int lmm, int iter,
+                         double dt, double reltol, double abstol)
+{
+   if (comm == MPI_COMM_NULL)
+   {
+      // Allocate an empty serial N_Vector wrapper in y.
+      y = N_VNewEmpty_Serial(0);
+      MFEM_ASSERT(y, "error in N_VNewEmpty_Serial()");
+   }
+   else
+   {
+      // Allocate an empty parallel N_Vector wrapper in y.
+      y = N_VNewEmpty_Parallel(comm, 0, 0); // calls MPI_Allreduce()
+      MFEM_ASSERT(y, "error in N_VNewEmpty_Parallel()");
+   }
+
+   // Create the solver memory.
+   sundials_mem = CVodeCreate(lmm, iter);
+   MFEM_ASSERT(sundials_mem, "error in CVodeCreate()");
+
+   SetStepMode(CV_NORMAL);
+
+   SetSStolerances(reltol, abstol);
+
+   CVodeSetMaxStep(sundials_mem, dt);
 
    flag = CV_SUCCESS;
 }
@@ -481,6 +530,48 @@ ARKODESolver::ARKODESolver(bool implicit)
    flag = ARK_SUCCESS;
 }
 
+ARKODESolver::ARKODESolver(bool implicit, double reltol, double abstol)
+   : use_implicit(implicit), irk_table(-1), erk_table(-1)
+{
+   // Allocate an empty serial N_Vector wrapper in y.
+   y = N_VNewEmpty_Serial(0);
+   MFEM_ASSERT(y, "error in N_VNewEmpty_Serial()");
+
+   // Create the solver memory.
+   sundials_mem = ARKodeCreate();
+   MFEM_ASSERT(sundials_mem, "error in ARKodeCreate()");
+
+   SetStepMode(ARK_NORMAL);
+
+   SetSStolerances(reltol, abstol);
+
+   flag = ARK_SUCCESS;
+}
+
+ARKODESolver::ARKODESolver(bool implicit, int rk_order, double dt,
+                           double reltol, double abstol)
+   : use_implicit(implicit), irk_table(-1), erk_table(-1)
+{
+   // Allocate an empty serial N_Vector wrapper in y.
+   y = N_VNewEmpty_Serial(0);
+   MFEM_ASSERT(y, "error in N_VNewEmpty_Serial()");
+
+   // Create the solver memory.
+   sundials_mem = ARKodeCreate();
+   MFEM_ASSERT(sundials_mem, "error in ARKodeCreate()");
+
+   SetStepMode(ARK_NORMAL);
+
+   SetSStolerances(reltol, abstol);
+
+   SetERKTableNum(rk_order);
+
+   // Always use dt (no internal temporal adaptivity).
+   SetFixedStep(dt);
+
+   flag = ARK_SUCCESS;
+}
+
 #ifdef MFEM_USE_MPI
 ARKODESolver::ARKODESolver(MPI_Comm comm, bool implicit)
    : use_implicit(implicit), irk_table(-1), erk_table(-1)
@@ -506,6 +597,67 @@ ARKODESolver::ARKODESolver(MPI_Comm comm, bool implicit)
 
    // Replace the zero defaults with some positive numbers.
    SetSStolerances(default_rel_tol, default_abs_tol);
+
+   flag = ARK_SUCCESS;
+}
+
+ARKODESolver::ARKODESolver(MPI_Comm comm, bool implicit,
+                           double reltol, double abstol)
+   : use_implicit(implicit), irk_table(-1), erk_table(-1)
+{
+   if (comm == MPI_COMM_NULL)
+   {
+      // Allocate an empty serial N_Vector wrapper in y.
+      y = N_VNewEmpty_Serial(0);
+      MFEM_ASSERT(y, "error in N_VNew_Serial()");
+   }
+   else
+   {
+      // Allocate an empty parallel N_Vector wrapper in y.
+      y = N_VNewEmpty_Parallel(comm, 0, 0); // calls MPI_Allreduce()
+      MFEM_ASSERT(y, "error in N_VNewEmpty_Parallel()");
+   }
+
+   // Create the solver memory.
+   sundials_mem = ARKodeCreate();
+   MFEM_ASSERT(sundials_mem, "error in ARKodeCreate()");
+
+   SetStepMode(ARK_NORMAL);
+
+   SetSStolerances(reltol, abstol);
+
+   flag = ARK_SUCCESS;
+}
+
+ARKODESolver::ARKODESolver(MPI_Comm comm, bool implicit, int rk_order,
+                           double dt, double reltol, double abstol)
+   : use_implicit(implicit), irk_table(-1), erk_table(-1)
+{
+   if (comm == MPI_COMM_NULL)
+   {
+      // Allocate an empty serial N_Vector wrapper in y.
+      y = N_VNewEmpty_Serial(0);
+      MFEM_ASSERT(y, "error in N_VNew_Serial()");
+   }
+   else
+   {
+      // Allocate an empty parallel N_Vector wrapper in y.
+      y = N_VNewEmpty_Parallel(comm, 0, 0); // calls MPI_Allreduce()
+      MFEM_ASSERT(y, "error in N_VNewEmpty_Parallel()");
+   }
+
+   // Create the solver memory.
+   sundials_mem = ARKodeCreate();
+   MFEM_ASSERT(sundials_mem, "error in ARKodeCreate()");
+
+   SetStepMode(ARK_NORMAL);
+
+   SetSStolerances(reltol, abstol);
+
+   SetERKTableNum(rk_order);
+
+   // Always use dt (no internal temporal adaptivity).
+   SetFixedStep(dt);
 
    flag = ARK_SUCCESS;
 }

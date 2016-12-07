@@ -224,7 +224,7 @@ int main(int argc, char *argv[])
                   "            4 - CVODE implicit, approximate Jacobian,\n\t"
                   "            5 - CVODE implicit, specified Jacobian,\n\t"
                   "            6 - ARKODE implicit, approximate Jacobian,\n\t"
-                  "            7 - ARKODE implicit, approximate Jacobian,\n\t"
+                  "            7 - ARKODE implicit, specified Jacobian,\n\t"
                   "            11 - Forward Euler, 12 - RK2,\n\t"
                   "            13 - RK3 SSP, 14 - RK4,\n\t"
                   "            15 - CVODE (adaptive order) explicit,\n\t"
@@ -272,48 +272,31 @@ int main(int argc, char *argv[])
    switch (ode_solver_type)
    {
       // Implicit L-stable methods
-      case 1:  ode_solver = new BackwardEulerSolver; break;
-      case 2:  ode_solver = new SDIRK23Solver(2); break;
-      case 3:  ode_solver = new SDIRK33Solver; break;
+      case 1: ode_solver = new BackwardEulerSolver; break;
+      case 2: ode_solver = new SDIRK23Solver(2); break;
+      case 3: ode_solver = new SDIRK33Solver; break;
 #ifdef MFEM_USE_SUNDIALS
       case 4:
-      {
-         ode_solver = cvode = new CVODESolver(CV_BDF, CV_NEWTON);
-         cvode->SetSStolerances(1.0, 1.0);
-         CVodeSetMaxStep(cvode->SundialsMem(), dt);
-         break;
-      }
+         cvode = new CVODESolver(CV_BDF, CV_NEWTON, dt, 1.0, 1.0);
+         ode_solver = cvode; break;
       case 5:
       {
-         ode_solver = cvode = new CVODESolver(CV_BDF, CV_NEWTON);
-         cvode->SetSStolerances(1.0e-2, 1.0e-2);
-         CVodeSetMaxStep(cvode->SundialsMem(), dt);
+         cvode = new CVODESolver(CV_BDF, CV_NEWTON, dt, 1.0e-2, 1.0e-2);
          sjsolver = new SundialsJacSolver;
          cvode->SetLinearSolve(*sjsolver);
-         break;
+         ode_solver = cvode; break;
       }
       case 6:
-      {
-         ode_solver = arkode = new ARKODESolver(true);
-         arkode->SetSStolerances(1.0e-2, 1.0e-2);
-         break;
-      }
+         arkode = new ARKODESolver(true, 1.0e-2, 1.0e-2);
+         ode_solver = arkode; break;
       case 7:
       {
-         ode_solver = arkode = new ARKODESolver(true);
-         arkode->SetSStolerances(1.0e-2, 1.0e-2);
+         arkode = new ARKODESolver(true, 1.0e-2, 1.0e-2);
          // Custom Jacobian inversion.
          sjsolver = new SundialsJacSolver;
          arkode->SetLinearSolve(*sjsolver);
-         break;
+         ode_solver = arkode; break;
       }
-#else
-      case 4:
-      case 5:
-      case 6:
-      case 7:
-      case 15:
-      case 16: MFEM_ABORT("MFEM is not configured with SUNDIALS!");
 #endif
       // Explicit methods
       case 11: ode_solver = new ForwardEulerSolver; break;
@@ -322,18 +305,18 @@ int main(int argc, char *argv[])
       case 14: ode_solver = new RK4Solver; break;
 #ifdef MFEM_USE_SUNDIALS
       case 15:
-      {
-         ode_solver = cvode = new CVODESolver(CV_ADAMS, CV_FUNCTIONAL);
-         cvode->SetSStolerances(1.0e-2, 1.0e-2);
-         CVodeSetMaxStep(cvode->SundialsMem(), dt);
-         break;
-      }
+         cvode = new CVODESolver(CV_ADAMS, CV_FUNCTIONAL, dt, 1.0e-2, 1.0e-2);
+         ode_solver = cvode; break;
       case 16:
-      {
-         ode_solver = arkode = new ARKODESolver(false);
-         arkode->SetSStolerances(1.0e-2, .01e-2);
-         break;
-      }
+         arkode = new ARKODESolver(false, 1.0e-2, 1.0e-4);
+         ode_solver = arkode; break;
+#else
+      case 4:
+      case 5:
+      case 6:
+      case 7:
+      case 15:
+      case 16: MFEM_ABORT("MFEM is not configured with SUNDIALS!");
 #endif
       // Implicit A-stable methods (not L-stable)
       case 22: ode_solver = new ImplicitMidpointSolver; break;

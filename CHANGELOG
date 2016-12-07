@@ -86,9 +86,9 @@ New and updated examples and miniapps
 
 Miscellaneous
 -------------
-- Added a new CMake build system, that can be used alternatively to the GNU
-  make-based build system. For more details, see the INSTALL file and the
-  config/cmake directory.
+- Added a new CMake build system, that can be used as an alternative to the GNU
+  make-based build system (e.g. for out-of-source building). For more details,
+  see the INSTALL file and the config/cmake directory.
 
 - Added optional support for the time integration and non-linear solvers methods
   from the CVODE, ARKODE and KINSOL libraries of the SUNDIALS suite (version 2.7
@@ -106,11 +106,11 @@ Miscellaneous
 - Provide an informative backtrace in mfem_error based on the cross-platform
   libunwind library (requires MFEM_USE_LIBUNWIND=YES).
 
-- Added method MemoryUsage to the classes Stack and MemAlloc.
-
-- In class SparseMatrix, added methods CheckFinite and PrintInfo.
+- In class SparseMatrix, added methods PrintInfo and CheckFinite.
 
 - GMRESSolver and MINRESSolver now support the same print levels as CGSolver.
+
+- Added method MemoryUsage to the classes Stack and MemAlloc.
 
 - Various other simplifications, extensions, and bugfixes in the code.
 

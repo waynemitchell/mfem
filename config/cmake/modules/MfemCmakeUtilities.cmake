@@ -133,7 +133,6 @@ function(add_mfem_miniapp MFEM_EXE_NAME)
 endfunction()
 
 
-#
 #   MFEM version of find_package that searches for header/library and if
 #   successful, optionally checks building (compile + link) one or more given
 #   code snippets. Additionally, a list of required/optional/alternative
