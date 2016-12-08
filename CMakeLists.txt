@@ -106,6 +106,12 @@ if (MFEM_USE_OPENMP)
   endif()
 endif()
 
+# SUNDIALS
+if (MFEM_USE_SUNDIALS)
+  find_package(SUNDIALS REQUIRED)
+  include_directories(${SUNDIALS_INCLUDE_DIRS})
+endif()
+
 # Mesquite
 if (MFEM_USE_MESQUITE)
   find_package(Mesquite REQUIRED)
@@ -169,8 +175,9 @@ if (NOT DEFINED MFEM_TIMER_TYPE)
 endif()
 
 # List all possible libraries in order of dependencies.
-set(MFEM_TPLS HYPRE OPENMP MESQUITE SuiteSparse SuperLUDist ParMETIS METIS
-    LAPACK BLAS GECKO GNUTLS NETCDF MPFR POSIXCLOCKS MFEMBacktrace ZLIB)
+set(MFEM_TPLS HYPRE OPENMP SUNDIALS MESQUITE SuiteSparse SuperLUDist
+  ParMETIS METIS LAPACK BLAS GECKO GNUTLS NETCDF MPFR POSIXCLOCKS
+  MFEMBacktrace ZLIB)
 # Add all *_FOUND libraries in the variable TPL_LIBRARIES.
 set(TPL_LIBRARIES "")
 foreach(TPL IN LISTS MFEM_TPLS)

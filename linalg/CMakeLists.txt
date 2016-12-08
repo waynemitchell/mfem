@@ -16,7 +16,6 @@ list(APPEND SRCS
   densemat.cpp
   matrix.cpp
   ode.cpp
-  sundials.cpp
   operator.cpp
   solvers.cpp
   sparsemat.cpp
@@ -32,7 +31,6 @@ list(APPEND HDRS
   linalg.hpp
   matrix.hpp
   ode.hpp
-  sundials.hpp
   operator.hpp
   solvers.hpp
   sparsemat.hpp
@@ -52,6 +50,11 @@ if (MFEM_USE_MPI)
   list(APPEND HDRS
     hypre.hpp
     hypre_parcsr.hpp)
+endif()
+
+if (MFEM_USE_SUNDIALS)
+  list(APPEND SRCS sundials.cpp)
+  list(APPEND HDRS sundials.hpp)
 endif()
 
 if (MFEM_USE_SUPERLU)
