@@ -99,6 +99,8 @@ Miscellaneous
   make-based build system. For more details, see the INSTALL file and the
   config/cmake directory.
 
+- Added support for "out of source" builds with GNU make, see the INSTALL file.
+
 - Added optional support for software-based higher-precision arithmetic with
   the MPFR library. When MFEM_USE_MPFR is enabled, the 1D quadrature rules will
   be computed precisely, at least for rules with up to 65-points.
