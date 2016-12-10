@@ -70,13 +70,12 @@ static PetscErrorCode __mfem_mat_shell_apply(Mat,Vec,Vec);
 static PetscErrorCode __mfem_mat_shell_apply_transpose(Mat,Vec,Vec);
 static PetscErrorCode __mfem_mat_shell_destroy(Mat);
 static PetscErrorCode __mfem_array_container_destroy(void*);
-static PetscErrorCode __mfem_sparsemat_container_destroy(void*);
+static PetscErrorCode __mfem_matarray_container_destroy(void*);
 
 // auxiliary functions
 static PetscErrorCode Convert_Array_IS(MPI_Comm,bool,mfem::Array<int>*,PetscInt,
                                        IS*);
-static PetscErrorCode Convert_Vmarks_IS(MPI_Comm,int,
-                                        std::vector<mfem::SparseMatrix*>&,
+static PetscErrorCode Convert_Vmarks_IS(MPI_Comm,mfem::Array<Mat>&,
                                         mfem::Array<int>*,PetscInt,IS*);
 static PetscErrorCode MatConvert_hypreParCSR_AIJ(hypre_ParCSRMatrix*,Mat*);
 static PetscErrorCode MatConvert_hypreParCSR_IS(hypre_ParCSRMatrix*,Mat*);
@@ -665,19 +664,44 @@ void PetscParMatrix::ConvertOperator(MPI_Comm comm, const Operator &op, Mat* A,
    }
    else if (pB)
    {
-      Mat      *mats;
+      Mat      *mats,*matsl2l = NULL;
       PetscInt i,j,nr,nc;
 
       nr = pB->NumRowBlocks();
       nc = pB->NumColBlocks();
       ierr = PetscCalloc1(nr*nc,&mats); CCHKERRQ(PETSC_COMM_SELF,ierr);
+      if (!assembled)
+      {
+         ierr = PetscCalloc1(nr,&matsl2l); CCHKERRQ(PETSC_COMM_SELF,ierr);
+      }
       for (i=0; i<nr; i++)
       {
+         PetscBool needl2l = PETSC_TRUE;
+
          for (j=0; j<nc; j++)
          {
             if (!pB->IsZeroBlock(i,j))
             {
                ConvertOperator(comm,pB->GetBlock(i,j),&mats[i*nc+j],assembled);
+               if (!assembled && needl2l)
+               {
+                  PetscContainer c;
+                  ierr = PetscObjectQuery((PetscObject)mats[i*nc+j],"__mfem_l2l",(PetscObject*)&c);
+                  PCHKERRQ(mats[i*nc+j],ierr);
+                  // special case for block operators: the local Vdofs should be ordered as
+                  // [f1_1,...f1_N1,f2_1,...,f2_N2,...,fm_1,...,fm_Nm]
+                  // with m fields, Ni the number of Vdofs for the i-th field
+                  if (c)
+                  {
+                     Array<Mat> *l2l = NULL;
+                     ierr = PetscContainerGetPointer(c,(void**)&l2l); PCHKERRQ(c,ierr);
+                     MFEM_VERIFY(l2l->Size() == 1,"Unexpected size " << l2l->Size() << " for block"
+                                 " row " << i );
+                     ierr = PetscObjectReference((PetscObject)(*l2l)[0]); PCHKERRQ(c,ierr);
+                     matsl2l[i] = (*l2l)[0];
+                     needl2l = PETSC_FALSE;
+                  }
+               }
             }
          }
       }
@@ -685,6 +709,19 @@ void PetscParMatrix::ConvertOperator(MPI_Comm comm, const Operator &op, Mat* A,
       if (!assembled)
       {
          ierr = MatConvert(*A,MATIS,MAT_INPLACE_MATRIX,A); CCHKERRQ(comm,ierr);
+
+         mfem::Array<Mat> *vmatsl2l = new mfem::Array<Mat>(nr);
+         for (PetscInt i=0;i<nr;i++) { (*vmatsl2l)[i] = matsl2l[i]; }
+         ierr = PetscFree(matsl2l); CCHKERRQ(PETSC_COMM_SELF,ierr);
+
+         PetscContainer c;
+         ierr = PetscContainerCreate(comm,&c); CCHKERRQ(comm,ierr);
+         ierr = PetscContainerSetPointer(c,vmatsl2l); PCHKERRQ(c,ierr);
+         ierr = PetscContainerSetUserDestroy(c,__mfem_matarray_container_destroy);
+         PCHKERRQ(c,ierr);
+         ierr = PetscObjectCompose((PetscObject)(*A),"__mfem_l2l",(PetscObject)c);
+         PCHKERRQ((*A),ierr);
+         ierr = PetscContainerDestroy(&c); CCHKERRQ(comm,ierr);
       }
       for (i=0; i<nr*nc; i++) { ierr = MatDestroy(&mats[i]); CCHKERRQ(comm,ierr); }
       ierr = PetscFree(mats); CCHKERRQ(PETSC_COMM_SELF,ierr);
@@ -936,7 +973,6 @@ PetscParMatrix * RAP(PetscParMatrix *Rt, PetscParMatrix *A, PetscParMatrix *P)
       Mat                    lA,lP,lB,lRt;
       ISLocalToGlobalMapping cl2gP,cl2gRt;
       PetscInt               rlsize,clsize,rsize,csize;
-      SparseMatrix           *l2l = NULL;
 
       ierr = MatGetLocalToGlobalMapping(pP,NULL,&cl2gP); PCHKERRQ(pA,ierr);
       ierr = MatGetLocalToGlobalMapping(pRt,NULL,&cl2gRt); PCHKERRQ(pA,ierr);
@@ -954,8 +990,6 @@ PetscParMatrix * RAP(PetscParMatrix *Rt, PetscParMatrix *A, PetscParMatrix *P)
       if (lRt == lP)
       {
          ierr = MatPtAP(lA,lP,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&lB); PCHKERRQ(lA,ierr);
-         // Get CSR of l2l matrix : Vdofs to subdomain true dofs
-         ierr = MatCopyIJ(lP,&l2l); PCHKERRQ(lP,ierr);
       }
       else
       {
@@ -964,26 +998,28 @@ PetscParMatrix * RAP(PetscParMatrix *Rt, PetscParMatrix *A, PetscParMatrix *P)
          ierr = MatMatMatMult(lR,lA,lP,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&lB);
          PCHKERRQ(lRt,ierr);
          ierr = MatDestroy(&lR); PCHKERRQ(lRt,ierr);
-         // Get CSR of l2l matrix : Vdofs to subdomain true dofs
-         ierr = MatCopyIJ(lRt,&l2l); PCHKERRQ(lRt,ierr);
       }
 
-      // attach l2l matrix to subdomain local matrix
-      // it may be used when lists or markers on vdofs have to be mapped on
+      // attach lRt matrix to the subdomain local matrix
+      // it may be used if markers on vdofs have to be mapped on
       // subdomain true dofs
-      if (l2l)
       {
-         PetscContainer c;
+         mfem::Array<Mat> *vmatsl2l = new mfem::Array<Mat>(1);
+         ierr = PetscObjectReference((PetscObject)lRt); PCHKERRQ(lRt,ierr);
+         (*vmatsl2l)[0] = lRt;
 
+         PetscContainer c;
          ierr = PetscContainerCreate(PetscObjectComm((PetscObject)B),&c);
-         PCHKERRQ(lB,ierr);
-         ierr = PetscContainerSetPointer(c,l2l); PCHKERRQ(c,ierr);
-         ierr = PetscContainerSetUserDestroy(c,__mfem_sparsemat_container_destroy);
+         PCHKERRQ(B,ierr);
+         ierr = PetscContainerSetPointer(c,vmatsl2l); PCHKERRQ(c,ierr);
+         ierr = PetscContainerSetUserDestroy(c,__mfem_matarray_container_destroy);
          PCHKERRQ(c,ierr);
-         ierr = PetscObjectCompose((PetscObject)B,"_mfem_l2l",(PetscObject)c);
-         PCHKERRQ(c,ierr);
+         ierr = PetscObjectCompose((PetscObject)B,"__mfem_l2l",(PetscObject)c);
+         PCHKERRQ(B,ierr);
          ierr = PetscContainerDestroy(&c); PCHKERRQ(B,ierr);
       }
+
+      // Set local problem
       ierr = MatISSetLocalMat(B,lB); PCHKERRQ(lB,ierr);
       ierr = MatDestroy(&lB); PCHKERRQ(lA,ierr);
       ierr = MatAssemblyBegin(B,MAT_FINAL_ASSEMBLY); PCHKERRQ(B,ierr);
@@ -1757,6 +1793,15 @@ void PetscBDDCSolver::BDDCSolverConstructor(PetscBDDCSolverParams opts)
    Mat pA;
    ierr = PCGetOperators(pc,NULL,&pA); PCHKERRQ(pc,ierr);
 
+   // matrix type should be of type MATIS
+   PetscBool ismatis;
+   ierr = PetscObjectTypeCompare((PetscObject)pA,MATIS,&ismatis);
+   PCHKERRQ(pA,ierr);
+   MFEM_VERIFY(ismatis,"PetscBDDCSolver needs the matrix in unassembled format");
+
+   // set PETSc PC type to PCBDDC
+   ierr = PCSetType(pc,PCBDDC); PCHKERRQ(obj,ierr);
+
    // index sets for fields splitting
    IS *fields = NULL;
    PetscInt nf = 0;
@@ -1766,64 +1811,15 @@ void PetscBDDCSolver::BDDCSolverConstructor(PetscBDDCSolverParams opts)
    PetscInt rst;
 
    // Extract l2l matrices
-   // special case for block operators, that also needs to be converted into MATIS
-   // format
-   PetscBool isnest;
-   std::vector<SparseMatrix*> l2l;
-   int nl2l = 0;
-   ierr = PetscObjectTypeCompare((PetscObject)pA,MATNEST,&isnest);
-   PCHKERRQ(pA,ierr);
-   if (isnest)
+   Array<Mat> *l2l = NULL;
+   if (opts.ess_dof_local || opts.nat_dof_local)
    {
-      if (opts.ess_dof_local || opts.nat_dof_local)
-      {
-         Mat **nest;
-         PetscInt nr,nc;
-         ierr = MatNestGetSubMats(pA,&nr,&nc,&nest); PCHKERRQ(pA,ierr);
-         MFEM_VERIFY(nr == nc,"Number of nested submats is not square");
+      PetscContainer c;
 
-         l2l.reserve(nr);
-         for (PetscInt i = 0; i < nr; i++)
-         {
-            PetscContainer pl2l;
-
-            PetscInt j = 0;
-            Mat usedmat = nest[i][j];
-            while (!usedmat && j < nc) { usedmat = nest[i][j++]; }
-            MFEM_VERIFY(usedmat,"Void nested row");
-
-            ierr = PetscObjectQuery((PetscObject)usedmat,"_mfem_l2l",(PetscObject*)&pl2l);
-            PCHKERRQ(pA,ierr);
-            MFEM_VERIFY(pl2l,"Local-to-local PETSc container not present for nested mat " <<
-                        i);
-            ierr = PetscContainerGetPointer(pl2l,(void **)&l2l[i]); PCHKERRQ(pl2l,ierr);
-         }
-         nl2l = nr;
-      }
-      // convert to MATIS
-      // this will trigger an error if the nested matrices are not of type MATIS
-      ierr = MatConvert(pA,MATIS,MAT_INPLACE_MATRIX,&pA); PCHKERRQ(obj,ierr);
+      ierr = PetscObjectQuery((PetscObject)pA,"__mfem_l2l",(PetscObject*)&c);
+      MFEM_VERIFY(c,"Local-to-local PETSc container not present");
+      ierr = PetscContainerGetPointer(c,(void**)&l2l); PCHKERRQ(c,ierr);
    }
-   else if (opts.ess_dof_local || opts.nat_dof_local)
-   {
-      nl2l = 1;
-      l2l.reserve(nl2l);
-
-      PetscContainer pl2l;
-      ierr = PetscObjectQuery((PetscObject)pA,"_mfem_l2l",(PetscObject*)&pl2l);
-      PCHKERRQ(pA,ierr);
-      MFEM_VERIFY(pl2l,"Local-to-local PETSc container not present");
-      ierr = PetscContainerGetPointer(pl2l,(void **)&l2l[0]); PCHKERRQ(pl2l,ierr);
-   }
-
-   // matrix type should be of type MATIS
-   PetscBool ismatis;
-   ierr = PetscObjectTypeCompare((PetscObject)pA,MATIS,&ismatis);
-   PCHKERRQ(pA,ierr);
-   MFEM_VERIFY(ismatis,"PetscBDDCSolver needs the matrix in unassembled format");
-
-   // set PETSc PC type to PCBDDC
-   ierr = PCSetType(pc,PCBDDC); PCHKERRQ(obj,ierr);
 
    // check information about index sets (essential dofs, fields, etc.)
 #ifdef MFEM_DEBUG
@@ -1863,7 +1859,7 @@ void PetscBDDCSolver::BDDCSolverConstructor(PetscBDDCSolverParams opts)
       else
       {
          // need to compute a list for the marked boundary dofs in local ordering
-         ierr = Convert_Vmarks_IS(comm,nl2l,l2l,opts.ess_dof,st,&dir);
+         ierr = Convert_Vmarks_IS(comm,*l2l,opts.ess_dof,st,&dir);
          CCHKERRQ(comm,ierr);
          ierr = PCBDDCSetDirichletBoundariesLocal(pc,dir); PCHKERRQ(pc,ierr);
       }
@@ -1880,7 +1876,7 @@ void PetscBDDCSolver::BDDCSolverConstructor(PetscBDDCSolverParams opts)
       else
       {
          // need to compute a list for the marked boundary dofs in local ordering
-         ierr = Convert_Vmarks_IS(comm,nl2l,l2l,opts.nat_dof,st,&neu);
+         ierr = Convert_Vmarks_IS(comm,*l2l,opts.nat_dof,st,&neu);
          CCHKERRQ(comm,ierr);
          ierr = PCBDDCSetNeumannBoundariesLocal(pc,neu); PCHKERRQ(pc,ierr);
       }
@@ -2638,13 +2634,20 @@ static PetscErrorCode __mfem_array_container_destroy(void *ptr)
 }
 
 #undef __FUNCT__
-#define __FUNCT__ "__mfem_sparsemat_container_destroy"
-static PetscErrorCode __mfem_sparsemat_container_destroy(void *ptr)
+#define __FUNCT__ "__mfem_matarray_container_destroy"
+static PetscErrorCode __mfem_matarray_container_destroy(void *ptr)
 {
-   mfem::SparseMatrix *mptr = (mfem::SparseMatrix*)ptr;
+   mfem::Array<Mat> *a = (mfem::Array<Mat>*)ptr;
+   PetscErrorCode   ierr;
 
    PetscFunctionBeginUser;
-   delete mptr;
+   for (int i=0; i<a->Size(); i++)
+   {
+      Mat M = (*a)[i];
+      MPI_Comm comm = PetscObjectComm((PetscObject)M);
+      ierr = MatDestroy(&M); CCHKERRQ(comm,ierr);
+   }
+   delete a;
    PetscFunctionReturn(0);
 }
 
@@ -2682,25 +2685,37 @@ static PetscErrorCode Convert_Array_IS(MPI_Comm comm, bool islist,
 
 // Converts from a marked Array of Vdofs to an IS
 // st indicates the offset where to start numbering
-// l2l is a vector of SparseMatrix generated during RAP
+// l2l is a vector of matrices generated during RAP
 #undef __FUNCT__
 #define __FUNCT__ "Convert_Vmarks_IS"
-static PetscErrorCode Convert_Vmarks_IS(MPI_Comm comm, int nl2l,
-                                        std::vector<mfem::SparseMatrix*> &l2l,
+static PetscErrorCode Convert_Vmarks_IS(MPI_Comm comm,
+                                        mfem::Array<Mat> &pl2l,
                                         mfem::Array<int> *mark, PetscInt st, IS* is)
 {
    mfem::Array<int> sub_dof_marker;
+   mfem::Array<mfem::SparseMatrix*> l2l(pl2l.Size());
    PetscInt         nl;
    PetscErrorCode   ierr;
 
    PetscFunctionBeginUser;
+   for (int i = 0; i < pl2l.Size(); i++)
+   {
+      PetscInt  m,n,*ii,*jj;
+      PetscBool done;
+      ierr = MatGetRowIJ(pl2l[i],0,PETSC_FALSE,PETSC_FALSE,&m,(const PetscInt**)&ii,
+                         (const PetscInt**)&jj,&done); CHKERRQ(ierr);
+      MFEM_VERIFY(done,"Unable to perform MatGetRowIJ on " << i << " l2l matrix");
+      ierr = MatGetSize(pl2l[i],NULL,&n); CHKERRQ(ierr);
+      l2l[i] = new mfem::SparseMatrix(ii,jj,NULL,m,n,false,true,true);
+      nl += l2l[i]->Width();
+   }
    nl = 0;
-   for (int i = 0; i < nl2l; i++) { nl += l2l[i]->Width(); }
+   for (int i = 0; i < l2l.Size(); i++) { nl += l2l[i]->Width(); }
    sub_dof_marker.SetSize(nl);
    int* vdata = mark->GetData();
    int* sdata = sub_dof_marker.GetData();
    int cumh = 0, cumw = 0;
-   for (int i = 0; i < nl2l; i++)
+   for (int i = 0; i < l2l.Size(); i++)
    {
       mfem::Array<int> vf_marker(vdata+cumh,l2l[i]->Height());
       mfem::Array<int> sf_marker(sdata+cumw,l2l[i]->Width());
@@ -2709,6 +2724,16 @@ static PetscErrorCode Convert_Vmarks_IS(MPI_Comm comm, int nl2l,
       cumw += l2l[i]->Width();
    }
    ierr = Convert_Array_IS(comm,false,&sub_dof_marker,st,is); CCHKERRQ(comm,ierr);
+   for (int i = 0; i < pl2l.Size(); i++)
+   {
+      PetscInt  m = l2l[i]->Height();
+      PetscInt  *ii = l2l[i]->GetI(),*jj = l2l[i]->GetJ();
+      PetscBool done;
+      ierr = MatRestoreRowIJ(pl2l[i],0,PETSC_FALSE,PETSC_FALSE,&m,(const PetscInt**)&ii,
+                             (const PetscInt**)&jj,&done); CHKERRQ(ierr);
+      MFEM_VERIFY(done,"Unable to perform MatRestoreRowIJ on " << i << " l2l matrix");
+      delete l2l[i];
+   }
    PetscFunctionReturn(0);
 }
 
