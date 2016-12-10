@@ -332,7 +332,7 @@ void ParBilinearForm::FormLinearSystem(
    HypreParMatrix *pA = NULL;
 #endif
    MFEM_VERIFY(hA || pA, "Unexpected operator! FormLinearSystem "
-                         "needs an HypreParMatrix or a PetscParMatrix");
+               "needs an HypreParMatrix or a PetscParMatrix");
    bool use_petsc = false;
    if (pA) { use_petsc = true; }
 
@@ -402,7 +402,7 @@ void ParBilinearForm::FormSystemMatrix(const Array<int> &ess_tdof_list,
    HypreParMatrix *pA = NULL;
 #endif
    MFEM_VERIFY(hA || pA, "Unexpected operator! FormSystemMatrix "
-                         "needs an HypreParMatrix or a PetscParMatrix");
+               "needs an HypreParMatrix or a PetscParMatrix");
 
    // Finish the matrix assembly and perform BC elimination, storing the
    // eliminated part of the matrix.

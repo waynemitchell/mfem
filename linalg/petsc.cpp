@@ -659,7 +659,8 @@ void PetscParMatrix::ConvertOperator(MPI_Comm comm, const Operator &op, Mat* A,
       if (assembled)
       {
 #if defined(PETSC_HAVE_HYPRE)
-         ierr = MatCreateFromParCSR(const_cast<HypreParMatrix&>(*pH),MATAIJ,PETSC_USE_POINTER,A);
+         ierr = MatCreateFromParCSR(const_cast<HypreParMatrix&>(*pH),MATAIJ,
+                                    PETSC_USE_POINTER,A);
 #else
          ierr = MatConvert_hypreParCSR_AIJ(const_cast<HypreParMatrix&>(*pH),A);
 #endif
@@ -667,7 +668,8 @@ void PetscParMatrix::ConvertOperator(MPI_Comm comm, const Operator &op, Mat* A,
       else
       {
 #if defined(PETSC_HAVE_HYPRE)
-         ierr = MatCreateFromParCSR(const_cast<HypreParMatrix&>(*pH),MATIS,PETSC_USE_POINTER,A);
+         ierr = MatCreateFromParCSR(const_cast<HypreParMatrix&>(*pH),MATIS,
+                                    PETSC_USE_POINTER,A);
 #else
          ierr = MatConvert_hypreParCSR_IS(const_cast<HypreParMatrix&>(*pH),A);
 #endif
@@ -698,7 +700,8 @@ void PetscParMatrix::ConvertOperator(MPI_Comm comm, const Operator &op, Mat* A,
                if (!assembled && needl2l)
                {
                   PetscContainer c;
-                  ierr = PetscObjectQuery((PetscObject)mats[i*nc+j],"__mfem_l2l",(PetscObject*)&c);
+                  ierr = PetscObjectQuery((PetscObject)mats[i*nc+j],"__mfem_l2l",
+                                          (PetscObject*)&c);
                   PCHKERRQ(mats[i*nc+j],ierr);
                   // special case for block operators: the local Vdofs should be ordered as
                   // [f1_1,...f1_N1,f2_1,...,f2_N2,...,fm_1,...,fm_Nm]
@@ -723,7 +726,7 @@ void PetscParMatrix::ConvertOperator(MPI_Comm comm, const Operator &op, Mat* A,
          ierr = MatConvert(*A,MATIS,MAT_INPLACE_MATRIX,A); CCHKERRQ(comm,ierr);
 
          mfem::Array<Mat> *vmatsl2l = new mfem::Array<Mat>(nr);
-         for (PetscInt i=0;i<nr;i++) { (*vmatsl2l)[i] = matsl2l[i]; }
+         for (PetscInt i=0; i<nr; i++) { (*vmatsl2l)[i] = matsl2l[i]; }
          ierr = PetscFree(matsl2l); CCHKERRQ(PETSC_COMM_SELF,ierr);
 
          PetscContainer c;
@@ -2741,7 +2744,8 @@ static PetscErrorCode Convert_Vmarks_IS(MPI_Comm comm,
       PetscInt  m = l2l[i]->Height();
       PetscInt  *ii = l2l[i]->GetI(),*jj = l2l[i]->GetJ();
       PetscBool done;
-      ierr = MatRestoreRowIJ(pl2l[i],0,PETSC_FALSE,PETSC_FALSE,&m,(const PetscInt**)&ii,
+      ierr = MatRestoreRowIJ(pl2l[i],0,PETSC_FALSE,PETSC_FALSE,&m,
+                             (const PetscInt**)&ii,
                              (const PetscInt**)&jj,&done); CHKERRQ(ierr);
       MFEM_VERIFY(done,"Unable to perform MatRestoreRowIJ on " << i << " l2l matrix");
       delete l2l[i];
