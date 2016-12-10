@@ -17,6 +17,9 @@
 #ifdef MFEM_USE_PETSC
 
 #include "linalg.hpp"
+#if defined(PETSC_HAVE_HYPRE)
+#include "petscmathypre.h"
+#endif
 #include "../fem/fem.hpp"
 
 #include <fstream>
@@ -77,9 +80,14 @@ static PetscErrorCode Convert_Array_IS(MPI_Comm,bool,mfem::Array<int>*,PetscInt,
                                        IS*);
 static PetscErrorCode Convert_Vmarks_IS(MPI_Comm,mfem::Array<Mat>&,
                                         mfem::Array<int>*,PetscInt,IS*);
+
+// Equivalent functions are present in PETSc source code
+// if PETSc has been compiled with hypre support
+// We provide them here in case PETSC_HAVE_HYPRE is not defined
+#if !defined(PETSC_HAVE_HYPRE)
 static PetscErrorCode MatConvert_hypreParCSR_AIJ(hypre_ParCSRMatrix*,Mat*);
 static PetscErrorCode MatConvert_hypreParCSR_IS(hypre_ParCSRMatrix*,Mat*);
-static PetscErrorCode MatCopyIJ(Mat A,mfem::SparseMatrix**);
+#endif
 
 // structs used by PETSc code
 typedef struct
@@ -375,16 +383,8 @@ PetscParMatrix::PetscParMatrix(const HypreParMatrix *hmat, bool wrap,
    }
    else
    {
-      if (assembled)
-      {
-         ierr = MatConvert_hypreParCSR_AIJ(const_cast<HypreParMatrix&>(*hmat),&A);
-         CCHKERRQ(hmat->GetComm(),ierr);
-      }
-      else
-      {
-         ierr = MatConvert_hypreParCSR_IS(const_cast<HypreParMatrix&>(*hmat),&A);
-         CCHKERRQ(hmat->GetComm(),ierr);
-      }
+      ConvertOperator(hmat->GetComm(),const_cast<HypreParMatrix&>(*hmat),&A,
+                      assembled);
    }
 }
 
@@ -434,7 +434,11 @@ PetscParMatrix& PetscParMatrix::operator=(const HypreParMatrix& B)
    }
    height = B.Height();
    width  = B.Width();
-   ierr   = MatConvert_hypreParCSR_AIJ(B,&A); CCHKERRQ(B.GetComm(),ierr);
+#if defined(PETSC_HAVE_HYPRE)
+   ierr = MatCreateFromParCSR(B,MATAIJ,PETSC_USE_POINTER,&A);
+#else
+   ierr = MatConvert_hypreParCSR_AIJ(B,&A); CCHKERRQ(B.GetComm(),ierr);
+#endif
    return *this;
 }
 
@@ -654,11 +658,19 @@ void PetscParMatrix::ConvertOperator(MPI_Comm comm, const Operator &op, Mat* A,
    {
       if (assembled)
       {
+#if defined(PETSC_HAVE_HYPRE)
+         ierr = MatCreateFromParCSR(const_cast<HypreParMatrix&>(*pH),MATAIJ,PETSC_USE_POINTER,A);
+#else
          ierr = MatConvert_hypreParCSR_AIJ(const_cast<HypreParMatrix&>(*pH),A);
+#endif
       }
       else
       {
+#if defined(PETSC_HAVE_HYPRE)
+         ierr = MatCreateFromParCSR(const_cast<HypreParMatrix&>(*pH),MATIS,PETSC_USE_POINTER,A);
+#else
          ierr = MatConvert_hypreParCSR_IS(const_cast<HypreParMatrix&>(*pH),A);
+#endif
       }
       CCHKERRQ(pH->GetComm(),ierr);
    }
@@ -2737,8 +2749,8 @@ static PetscErrorCode Convert_Vmarks_IS(MPI_Comm comm,
    PetscFunctionReturn(0);
 }
 
+#if !defined(PETSC_HAVE_HYPRE)
 
-// TODO: These functions can be eventually moved to PETSc source code.
 #include "_hypre_parcsr_mv.h"
 #undef __FUNCT__
 #define __FUNCT__ "MatConvert_hypreParCSR_AIJ"
@@ -2940,43 +2952,7 @@ static PetscErrorCode MatConvert_hypreParCSR_IS(hypre_ParCSRMatrix* hA,Mat* pA)
    ierr = MatAssemblyEnd(*pA,MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
    PetscFunctionReturn(0);
 }
-
-#undef __FUNCT__
-#define __FUNCT__ "MatCopyIJ"
-static PetscErrorCode MatCopyIJ(Mat A, mfem::SparseMatrix** l2l)
-{
-   const PetscInt  *ii,*jj;
-   int             *iI,*iJ;
-   PetscInt        m,n;
-   PetscBool       done;
-   PetscErrorCode  ierr;
-
-   PetscFunctionBeginUser;
-   ierr = MatGetLocalSize(A,&m,&n); CHKERRQ(ierr);
-   ierr = MatGetRowIJ(A,0,PETSC_FALSE,PETSC_FALSE,&m,&ii,&jj,&done); CHKERRQ(ierr);
-   if (done)
-   {
-      iI = new int[m+1];
-      iJ = new int[ii[m]];
-      for (PetscInt i=0; i<m; i++)
-      {
-         iI[i] = ii[i];
-         for (PetscInt j=ii[i]; j<ii[i+1]; j++)
-         {
-            iJ[j] = jj[j];
-         }
-      }
-      iI[m] = ii[m];
-      *l2l = new mfem::SparseMatrix(iI,iJ,NULL,m,n,true,false,true);
-      ierr = MatRestoreRowIJ(A,0,PETSC_FALSE,PETSC_FALSE,&m,&ii,&jj,&done);
-      CHKERRQ(ierr);
-   }
-   else
-   {
-      *l2l = NULL;
-   }
-   PetscFunctionReturn(0);
-}
-
 #endif
-#endif
+
+#endif  // MFEM_USE_PETSC
+#endif  // MFEM_USE_MPI
