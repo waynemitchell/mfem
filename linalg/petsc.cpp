@@ -636,22 +636,50 @@ void PetscParMatrix::ConvertOperator(MPI_Comm comm, const Operator &op, Mat* A,
                           (dynamic_cast<const IdentityOperator *>(&op));
    if (pA)
    {
-      PetscBool ismatis;
-      ierr = PetscObjectTypeCompare((PetscObject)(pA->A),MATIS,&ismatis);
+      Mat       At = NULL;
+      PetscBool ismatis,istrans;
+
+      ierr = PetscObjectTypeCompare((PetscObject)(pA->A),MATTRANSPOSEMAT,&istrans);
       CCHKERRQ(pH->GetComm(),ierr);
+      if (!istrans)
+      {
+         ierr = PetscObjectTypeCompare((PetscObject)(pA->A),MATIS,&ismatis);
+         CCHKERRQ(pH->GetComm(),ierr);
+      }
+      else
+      {
+         ierr = MatTransposeGetMat(pA->A,&At); CCHKERRQ(pH->GetComm(),ierr);
+         ierr = PetscObjectTypeCompare((PetscObject)(At),MATIS,&ismatis);
+         CCHKERRQ(pH->GetComm(),ierr);
+      }
       if (assembled && ismatis)
       {
-         ierr = MatISGetMPIXAIJ(pA->A,MAT_INITIAL_MATRIX,A); PCHKERRQ(pA->A,ierr);
+         if (At)
+         {
+            Mat B;
+
+            ierr = MatISGetMPIXAIJ(At,MAT_INITIAL_MATRIX,&B); PCHKERRQ(pA->A,ierr);
+            ierr = MatCreateTranspose(B,A); PCHKERRQ(pA->A,ierr);
+            ierr = MatDestroy(&B); PCHKERRQ(pA->A,ierr);
+         }
+         else
+         {
+            ierr = MatISGetMPIXAIJ(pA->A,MAT_INITIAL_MATRIX,A); PCHKERRQ(pA->A,ierr);
+         }
       }
       else
       {
          if ((!assembled && !ismatis))
          {
-            MFEM_ABORT("Unsupported operation");
+            // call MatConvert and see if a converter is available
+            ierr = MatConvert(pA->A,MATIS,MAT_INITIAL_MATRIX,A); CCHKERRQ(comm,ierr);
          }
-         ierr = PetscObjectReference((PetscObject)(pA->A));
-         CCHKERRQ(pH->GetComm(),ierr);
-         *A = pA->A;
+         else
+         {
+            ierr = PetscObjectReference((PetscObject)(pA->A));
+            CCHKERRQ(pH->GetComm(),ierr);
+            *A = pA->A;
+         }
       }
    }
    else if (pH)
