@@ -40,7 +40,7 @@
 # deluxe scaling (needs PETSc compiled with support for MUMPS)
 #-prec_pc_bddc_use_deluxe_scaling
 -prec_pc_bddc_deluxe_zerorows
--sub_schurs_mat_mumps_icntl_14 500
+-prec_sub_schurs_mat_mumps_icntl_14 500
 
 # adaptive generation of primal space (needs MUMPS)
 #-prec_pc_bddc_adaptive_threshold 5
