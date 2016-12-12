@@ -2338,6 +2338,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    getline(input, mesh_type);
    filter_dos(mesh_type);
 
+   // MFEM's native mesh formats
    bool mfem_v10 = (mesh_type == "MFEM mesh v1.0");
    bool mfem_v10a = (mesh_type == "MFEM mesh v1.0a");
    bool mfem_v11 = (mesh_type == "MFEM mesh v1.1");

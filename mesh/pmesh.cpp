@@ -4354,7 +4354,7 @@ void ParMesh::ParPrint(ostream &out) const
    }
 
    // Write out section end tag for mesh.
-   out << "mfem_mesh_end\n";
+   out << "\nmfem_mesh_end\n";
 
    // TODO: AMR meshes, NURBS meshes?
 }

@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
    args.AddOption(&par_mesh_prefix, "-p", "--parallel-mesh-prefix",
-                  "Specify a parallel mesh file prefix, for example '/output/ex1p/pmesh'.");
+                  "Specify a parallel mesh file prefix, for example '/output/Example-Parallel/pmesh'.");
    args.AddOption(&par_ref_levels, "-r", "--par_ref_levels",
                   "Levels of refinement to apply to parallel mesh, after it is partitioned amongst mpi tasks.");
    args.AddOption(&order, "-o", "--order",
@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
       dim = pmesh->Dimension();
    }
 
-   DataCollection dc("ex1p", pmesh);
+   DataCollection dc("Example1-Parallel", pmesh);
    dc.SetPrefixPath("output");
 
    // Refine in parallel.

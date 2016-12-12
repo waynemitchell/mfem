@@ -23,7 +23,6 @@
 #include "../general/gzstream.hpp"
 #include <iostream>
 #include <fstream>
-//#include <limits>
 
 namespace mfem
 {
