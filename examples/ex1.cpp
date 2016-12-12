@@ -75,6 +75,9 @@ int main(int argc, char *argv[])
    Mesh *mesh = new Mesh(mesh_file, 1, 1);
    int dim = mesh->Dimension();
 
+   DataCollection dc("Example1-Serial", mesh);
+   dc.SetPrefixPath("output");
+
    // 3. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
    //    largest number that gives a final mesh with no more than 50,000
@@ -87,7 +90,6 @@ int main(int argc, char *argv[])
          mesh->UniformRefinement();
       }
    }
-
    // 4. Define a finite element space on the mesh. Here we use continuous
    //    Lagrange finite elements of the specified order. If order < 1, we
    //    instead use an isoparametric/isogeometric space.
@@ -133,6 +135,7 @@ int main(int argc, char *argv[])
    //    corresponding to fespace. Initialize x with initial guess of zero,
    //    which satisfies the boundary conditions.
    GridFunction x(fespace);
+   dc.RegisterField("sol", &x);
    x = 0.0;
 
    // 8. Set up the bilinear form a(.,.) on the finite element space
@@ -172,12 +175,7 @@ int main(int argc, char *argv[])
 
    // 12. Save the refined mesh and the solution. This output can be viewed later
    //     using GLVis: "glvis -m refined.mesh -g sol.gf".
-   ofstream mesh_ofs("refined.mesh");
-   mesh_ofs.precision(8);
-   mesh->Print(mesh_ofs);
-   ofstream sol_ofs("sol.gf");
-   sol_ofs.precision(8);
-   x.Save(sol_ofs);
+   dc.Save();
 
    // 13. Send the solution by socket to a GLVis server.
    if (visualization)
