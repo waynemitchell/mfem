@@ -11,7 +11,7 @@
 
 #include "mesh_headers.hpp"
 #include "../fem/fem.hpp"
-#include "../general/text_parsing.hpp"
+#include "../general/text.hpp"
 
 #include <algorithm>
 #if defined(_MSC_VER) && (_MSC_VER < 1800)
@@ -1162,8 +1162,6 @@ NURBSPatch *Revolve3D(NURBSPatch &patch, double n[], double ang, int times)
 
 NURBSExtension::NURBSExtension(std::istream &input)
 {
-   using text_parsing::skip_comment_lines;
-
    // Read topology
    patchTopo = new Mesh;
    patchTopo->LoadPatchTopo(input, edge_to_knot);

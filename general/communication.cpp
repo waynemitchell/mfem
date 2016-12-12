@@ -22,7 +22,7 @@
 #include "table.hpp"
 #include "sets.hpp"
 #include "communication.hpp"
-#include "text_parsing.hpp"
+#include "text.hpp"
 
 #include <iostream>
 #include <map>
@@ -224,8 +224,6 @@ void GroupTopology::Load(istream &in)
 {
    // Load in group topology and create list of integer sets.  Use constructor
    // that uses list of integer sets.
-   using text_parsing::skip_comment_lines;
-
    std::string ident;
 
    // Read in number of groups

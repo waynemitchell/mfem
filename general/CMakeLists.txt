@@ -39,6 +39,7 @@ list(APPEND HDRS
   table.hpp
   tassign.hpp
   tic_toc.hpp
+  text.hpp
   )
 
 if (MFEM_USE_MPI)

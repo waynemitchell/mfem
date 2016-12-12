@@ -175,21 +175,19 @@ public:
    void Print(std::ostream &out = std::cout, int width = 4);
 
    /** @brief Save the Array to the stream @a out using the format @a fmt.
-
        The format @a fmt can be:
-       |        |                                        |
-       |-------:|:---------------------------------------|
-       |   0    | write the size followed by all entries |
-       |   1    | write only the entries                 | */
+
+          0 - write the size followed by all entries
+          1 - write only the entries
+   */
    void Save(std::ostream &out, int fmt = 0) const;
 
    /** @brief Read an Array from the stream @a in using format @a fmt.
-
        The format @a fmt can be:
-       |        |                                |
-       |-------:|:-------------------------------|
-       |  0     | read the size then the entries |
-       |  1     | read Size() entries.           | */
+
+          0 - read the size then the entries
+          1 - read Size() entries
+   */
    void Load(std::istream &in, int fmt = 0);
 
    /** @brief Set the Array size to @a new_size and read that many entries from

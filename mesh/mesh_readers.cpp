@@ -11,7 +11,7 @@
 
 #include "mesh_headers.hpp"
 #include "../fem/fem.hpp"
-#include "../general/text_parsing.hpp"
+#include "../general/text.hpp"
 
 #include <iostream>
 
@@ -26,8 +26,6 @@ namespace mfem
 
 void Mesh::ReadMFEMMesh(std::istream &input, bool mfem_v11, int &curved)
 {
-   using text_parsing::skip_comment_lines;
-
    // Read MFEM mesh v1.0 format
    string ident;
 
@@ -364,8 +362,6 @@ const int Mesh::vtk_quadratic_hex[27] =
 
 void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf)
 {
-   using text_parsing::filter_dos;
-
    int i, j, n, attr;
 
    string buff;
@@ -708,8 +704,6 @@ void Mesh::ReadNURBSMesh(std::istream &input, int &curved, int &read_gf)
 
 void Mesh::ReadInlineMesh(std::istream &input, int generate_edges)
 {
-   using text_parsing::skip_comment_lines;
-
    // Initialize to negative numbers so that we know if they've been set.  We're
    // using Element::POINT as our flag, since we're not going to make a 0D mesh,
    // ever.

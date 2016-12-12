@@ -9,13 +9,15 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#ifndef MFEM_TEXT_PARSING
-#define MFEM_TEXT_PARSING
+#ifndef MFEM_TEXT
+#define MFEM_TEXT
 
 #include <limits>
 
-namespace text_parsing
+namespace mfem
 {
+
+// Utilities for text parsing
 
 inline void skip_comment_lines(std::istream &is, const char comment_char)
 {

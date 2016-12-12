@@ -14,7 +14,7 @@
 #include "mesh_headers.hpp"
 #include "../fem/fem.hpp"
 #include "../general/sort_pairs.hpp"
-#include "../general/text_parsing.hpp"
+#include "../general/text.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -2324,8 +2324,6 @@ void Mesh::SetMeshGen()
 void Mesh::Load(std::istream &input, int generate_edges, int refine,
                 bool fix_orientation, std::string parse_tag)
 {
-   using text_parsing::filter_dos;
-
    int i, j, curved = 0, read_gf = 1;
 
    if (!input)
@@ -2883,8 +2881,6 @@ void Mesh::UpdateNURBS()
 
 void Mesh::LoadPatchTopo(std::istream &input, Array<int> &edge_to_knot)
 {
-   using text_parsing::skip_comment_lines;
-
    SetEmpty();
 
    int j;
