@@ -1936,8 +1936,11 @@ void PetscBDDCSolver::BDDCSolverConstructor(PetscBDDCSolverParams opts)
       ierr = PetscFree(fields); PCHKERRQ(pc,ierr);
    }
 
+   // code for block size is disabled since we cannot change the matrix
+   // block size after it has been setup
+   // int bs = 1;
+
    // Customize using the finite element space (if any)
-   int bs = 1;
    ParFiniteElementSpace *fespace = opts.fespace;
    if (fespace)
    {
@@ -1950,8 +1953,8 @@ void PetscBDDCSolver::BDDCSolverConstructor(PetscBDDCSolverParams opts)
 
       ParMesh *pmesh = (ParMesh *) fespace->GetMesh();
       dim = pmesh->Dimension();
-      bs = fec->DofForGeometry(Geometry::POINT);
-      bs = bs ? bs : 1;
+      // bs = fec->DofForGeometry(Geometry::POINT);
+      // bs = bs ? bs : 1;
       rtspace = dynamic_cast<const RT_FECollection*>(fec);
       edgespace = dynamic_cast<const ND_FECollection*>(fec);
       edge_tracespace = dynamic_cast<const ND_Trace_FECollection*>(fec);
@@ -2030,10 +2033,10 @@ void PetscBDDCSolver::BDDCSolverConstructor(PetscBDDCSolverParams opts)
             needint = false;
          }
       }
-      else if (bs == dim) // Elasticity?
-      {
-         needint = true;
-      }
+      //else if (bs == dim) // Elasticity?
+      //{
+      //   needint = true;
+      //}
 
       PetscParMatrix *B = NULL;
       if (needint)
@@ -2100,10 +2103,6 @@ void PetscBDDCSolver::BDDCSolverConstructor(PetscBDDCSolverParams opts)
       if (B)
       {
          ierr = PCBDDCSetDivergenceMat(pc,*B,B_is_Trans,NULL); PCHKERRQ(pc,ierr);
-      }
-      if (bs)
-      {
-         ierr = MatSetBlockSize(pA,bs); PCHKERRQ(pc,ierr);
       }
       delete B;
    }
