@@ -172,12 +172,20 @@ HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
 #ifdef MFEM_USE_PETSC
 // this function is almost a verbatim copy of the one before
 // we may want to glue them together?
-PetscParMatrix *ParBilinearForm::PetscParallelAssemble(SparseMatrix *m)
+PetscParMatrix *ParBilinearForm::PetscParallelAssemble(SparseMatrix *m, bool usenatively)
 {
    if (m == NULL) { return NULL; }
 
    MFEM_VERIFY(m->Finalized(), "local matrix needs to be finalized for "
                "ParallelAssemble");
+
+   if (!unassembled && !usenatively)
+   {
+      HypreParMatrix *hrap = ParallelAssemble(m);
+      PetscParMatrix *trap = new PetscParMatrix(hrap);
+      delete hrap;
+      return trap;
+   }
 
    PetscParMatrix *A;
    if (fbfi.Size() == 0)
@@ -567,8 +575,16 @@ HypreParMatrix *ParMixedBilinearForm::ParallelAssemble()
 #ifdef MFEM_USE_PETSC
 // this function is almost a verbatim copy of the one before
 // we may want to glue them together?
-PetscParMatrix *ParMixedBilinearForm::PetscParallelAssemble()
+PetscParMatrix *ParMixedBilinearForm::PetscParallelAssemble(bool usenatively)
 {
+   if (!unassembled && !usenatively)
+   {
+      HypreParMatrix *hrap = ParallelAssemble();
+      PetscParMatrix *trap = new PetscParMatrix(hrap);
+      delete hrap;
+      return trap;
+   }
+
    // construct the block-diagonal matrix A
    PetscParMatrix *A =
       new PetscParMatrix(trial_pfes->GetComm(),

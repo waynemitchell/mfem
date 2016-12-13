@@ -87,7 +87,9 @@ public:
 
 #ifdef MFEM_USE_PETSC
    /// Returns the matrix assembled on the true dofs, i.e. P^t A P as a PetscParMatrix.
-   PetscParMatrix *PetscParallelAssemble() { return PetscParallelAssemble(mat); }
+   /// If usenatively is false and the non-overlapping format has not been requested,
+   /// then Hypre RAP operations are used and the final matrix is converted into PETSc format.
+   PetscParMatrix *PetscParallelAssemble(bool usenatively = false) { return PetscParallelAssemble(mat,usenatively); }
 #endif
 
    /// Returns the eliminated matrix assembled on the true dofs, i.e. P^t A_e P.
@@ -98,7 +100,9 @@ public:
 
 #ifdef MFEM_USE_PETSC
    /// Return the matrix m assembled on the true dofs, i.e. P^t A P as a PetscParMatrix.
-   PetscParMatrix *PetscParallelAssemble(SparseMatrix *m);
+   /// If usenatively is false and the non-overlapping format has not been requested,
+   /// then Hypre RAP operations are used and the final matrix is converted into PETSc format.
+   PetscParMatrix *PetscParallelAssemble(SparseMatrix *m, bool usenatively = false);
 #endif
 
    /** Eliminate essential boundary DOFs from a parallel assembled system.
@@ -213,7 +217,9 @@ public:
 
 #ifdef MFEM_USE_PETSC
    /// Returns the matrix assembled on the true dofs, i.e. P^t A P (PETSc version).
-   PetscParMatrix *PetscParallelAssemble();
+   /// If usenatively is false and the non-overlapping format has not been requested,
+   /// then Hypre RAP operations are used and the final matrix is converted into PETSc format.
+   PetscParMatrix *PetscParallelAssemble(bool usenatively = false);
 #endif
 
    /// Compute y += a (P^t A P) x, where x and y are vectors on the true dofs
