@@ -989,7 +989,7 @@ PetscParMatrix * RAP(PetscParMatrix *Rt, PetscParMatrix *A, PetscParMatrix *P)
 {
    Mat       pA = *A,pP = *P,pRt = *Rt;
    Mat       B;
-   PetscBool Aismatis,Aisaij,Pismatis,Pisaij,Rtismatis,Rtisaij;
+   PetscBool Aismatis,Pismatis,Rtismatis;
 
    MFEM_VERIFY(A->Width() == P->Height(),
                "Petsc RAP: Number of local cols of A " << A->Width() <<
@@ -999,15 +999,9 @@ PetscParMatrix * RAP(PetscParMatrix *Rt, PetscParMatrix *A, PetscParMatrix *P)
                " differs from number of local rows of Rt " << Rt->Height());
    ierr = PetscObjectTypeCompare((PetscObject)pA,MATIS,&Aismatis);
    PCHKERRQ(pA,ierr);
-   ierr = PetscObjectTypeCompare((PetscObject)pA,MATAIJ,&Aisaij);
-   PCHKERRQ(pA,ierr);
    ierr = PetscObjectTypeCompare((PetscObject)pP,MATIS,&Pismatis);
    PCHKERRQ(pA,ierr);
-   ierr = PetscObjectTypeCompare((PetscObject)pP,MATAIJ,&Pisaij);
-   PCHKERRQ(pA,ierr);
    ierr = PetscObjectTypeCompare((PetscObject)pRt,MATIS,&Rtismatis);
-   PCHKERRQ(pA,ierr);
-   ierr = PetscObjectTypeCompare((PetscObject)pRt,MATAIJ,&Rtisaij);
    PCHKERRQ(pA,ierr);
    if (Aismatis &&
        Pismatis &&
