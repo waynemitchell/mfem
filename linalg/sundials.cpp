@@ -1000,6 +1000,14 @@ void KinSolver::SetOperator(const Operator &op)
 
    kinCopyInit(mem, &backup);
    flag = KINInit(sundials_mem, SundialsSolver::Mult, y);
+   // Initialization of kin_pp -- bug in SUNDIALS?
+   if (!Parallel())
+   {
+      for (int i = 0; i < NV_LENGTH_S(mem->kin_pp); i++)
+      {
+         NV_DATA_S(mem->kin_pp)[i] = 0.0;
+      }
+   }
    MFEM_ASSERT(flag >= 0, "KINInit() failed!");
    kinCopyInit(&backup, mem);
 
@@ -1042,11 +1050,9 @@ void KinSolver::SetOperator(const Operator &op)
 void KinSolver::SetSolver(Solver &solver)
 {
    prec = &solver;
+   user_data.jac_solver = prec;
 
    KINMem mem = Mem(this);
-   if (mem->kin_lfree != NULL) { mem->kin_lfree(mem); }
-
-   user_data.jac_solver = prec;
 
    mem->kin_linit  = NULL;
    mem->kin_lsetup = LinSysSetup;
@@ -1074,6 +1080,7 @@ void KinSolver::Mult(const Vector &b, Vector &x) const
    if (!iterative_mode) { x = 0.0; }
 
    // For relative tolerance, r = 1 / |residual(x)|, corresponding to fx_scale.
+   r = 0.0;
    if (rel_tol > 0.0)
    {
       oper->Mult(x, r);
