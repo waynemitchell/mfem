@@ -137,8 +137,6 @@ static int LinSysSolve(KINMem kin_mem, N_Vector x, N_Vector b,
    SundialsSolver::UserData &ud =
       *static_cast<SundialsSolver::UserData *>(kin_mem->kin_lmem);
 
-   if (!ud.jac_solver->iterative_mode) { mx = 0.0; }
-
    // mx = J(u)^-1 mb.
    ud.jac_solver->Mult(mb, mx);
 
@@ -1000,14 +998,10 @@ void KinSolver::SetOperator(const Operator &op)
 
    kinCopyInit(mem, &backup);
    flag = KINInit(sundials_mem, SundialsSolver::Mult, y);
-   // Initialization of kin_pp -- bug in SUNDIALS?
-   if (!Parallel())
-   {
-      for (int i = 0; i < NV_LENGTH_S(mem->kin_pp); i++)
-      {
-         NV_DATA_S(mem->kin_pp)[i] = 0.0;
-      }
-   }
+   // Initialization of kin_pp; otherwise, for a custom Jacobian inversion,
+   // the first time we enter the linear solve, we will get uninitialized
+   // initial guess (matters when iterative_mode = true).
+   N_VConst(ZERO, mem->kin_pp);
    MFEM_ASSERT(flag >= 0, "KINInit() failed!");
    kinCopyInit(&backup, mem);
 
