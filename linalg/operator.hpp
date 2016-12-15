@@ -112,7 +112,7 @@ public:
        forms, though currently @a b is not used in the implementation. */
    virtual void RecoverFEMSolution(const Vector &X, const Vector &b, Vector &x);
 
-   /// Prints operator with input size n and output size m in matlab format.
+   /// Prints operator with input size n and output size m in Matlab format.
    void PrintMatlab(std::ostream & out, int n = 0, int m = 0) const;
 
    /// Virtual destructor.
@@ -177,15 +177,15 @@ public:
       mfem_error("TimeDependentOperator::ImplicitSolve() is not overloaded!");
    }
 
-   /** implements F(x,dxdt,t) */
+   /** Implements F(x,dxdt,t) */
    virtual void Mult(const Vector &x, const Vector &dxdt, Vector &k) const
    {
       mfem_error("TimeDependentOperator::Mult(y,dydt,k) is not overloaded!");
    }
 
-   /** Implements F_dxdt(y,dydt) * shift + F_x(y,dydt), with F_dxdt and F_x the jacobians of
-       F with respect to dx/dt and x evaluated at y and dydt.
-       For more details, see PETSc Manual */
+   /** Implements F_dxdt(y,dydt) * shift + F_x(y,dydt), with F_dxdt and F_x the
+       Jacobians of F with respect to dx/dt and x evaluated at y and dydt.  For
+       more details, see PETSc Manual */
    virtual Operator& GetGradient(const Vector &y, const Vector &dydt,
                                  double shift) const
    {
@@ -205,7 +205,7 @@ public:
 
    /** @brief Initialize a square Solver with size @a s.
 
-       @warning Use a boolean expression for the second parameter (not an int)
+       @warning Use a Boolean expression for the second parameter (not an int)
        to distinguish this call from the general rectangular constructor. */
    explicit Solver(int s = 0, bool iter_mode = false)
       : Operator(s) { iterative_mode = iter_mode; }

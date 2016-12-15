@@ -31,7 +31,7 @@ set(PETSC_VALID_COMPONENTS
 if(NOT PETSc_FIND_COMPONENTS)
   set(PETSC_LANGUAGE_BINDINGS "C")
 else()
-  # Right now, this is designed for compatability with the --with-clanguage option, so
+  # Right now, this is designed for compatibility with the --with-clanguage option, so
   # only allow one item in the components list.
   list(LENGTH ${PETSc_FIND_COMPONENTS} components_length)
   if(${components_length} GREATER 1)

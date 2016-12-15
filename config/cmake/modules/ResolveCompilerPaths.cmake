@@ -55,7 +55,7 @@ macro (RESOLVE_LIBRARIES LIBS LINK_LINE)
       list (APPEND _directory_list ${token})
     elseif (token MATCHES "^(-l([^\" ]+|\"[^\"]+\")|[^\" ]+\\.(a|so|dll|lib))")
       # It's a library, resolve the path by looking in the list and then (by default) in system directories
-      if (WIN32) #windows expects "libfoo", linux expects "foo"
+      if (WIN32) #windows expects "libfoo", Linux expects "foo"
         string (REGEX REPLACE "^-l" "lib" token ${token})
       else (WIN32)
         string (REGEX REPLACE "^-l" "" token ${token})
@@ -80,7 +80,7 @@ macro (RESOLVE_LIBRARIES LIBS LINK_LINE)
     endif (token MATCHES "-L([^\" ]+|\"[^\"]+\")")
   endforeach (token)
   set (_lib "NOTFOUND" CACHE INTERNAL "Scratch variable" FORCE)
-  # only the LAST occurence of each library is required since there should be no circular dependencies
+  # only the LAST occurrence of each library is required since there should be no circular dependencies
   if (_libs_found)
     list (REVERSE _libs_found)
     list (REMOVE_DUPLICATES _libs_found)

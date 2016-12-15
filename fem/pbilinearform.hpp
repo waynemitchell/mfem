@@ -177,7 +177,7 @@ public:
                          Operator &A, Vector &X, Vector &B,
                          int copy_interior = 0);
 
-   /// Form the linear sytem matrix A, see FormLinearSystem for details.
+   /// Form the linear system matrix A, see FormLinearSystem for details.
    void FormSystemMatrix(const Array<int> &ess_tdof_list, Operator &A);
 
    /** Call this method after solving a linear system constructed using the
@@ -187,7 +187,8 @@ public:
 
    virtual void Update(FiniteElementSpace *nfes = NULL);
 
-   virtual ~ParBilinearForm() { delete p_mat_e; delete p_mat; delete pp_mat; delete pp_mat_e; }
+   virtual ~ParBilinearForm()
+   { delete p_mat_e; delete p_mat; delete pp_mat; delete pp_mat_e; }
 };
 
 /// Class for parallel bilinear form
