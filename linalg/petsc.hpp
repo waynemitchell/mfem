@@ -94,7 +94,7 @@ public:
    /// Replace PetscParVector array
    void SetData(PetscScalar *_data);
 
-   /// Restore PetscParVector array to its orignal state
+   /// Restore PetscParVector array to its original state
    void ResetData();
 
    /// Set random values

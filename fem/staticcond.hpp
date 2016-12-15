@@ -172,7 +172,8 @@ public:
    /// Return the parallel Schur complement matrix (PetscParMatrix).
    PetscParMatrix &GetPetscParallelMatrix() { return *ppS; }
 
-   /// Return the eliminated part of the parallel Schur complement matrix (PetscParMatrix).
+   /** Return the eliminated part of the parallel Schur complement matrix
+       (PetscParMatrix). */
    PetscParMatrix &GetPetscParallelMatrixElim() { return *ppS_e; }
 #endif
 #endif
@@ -233,7 +234,7 @@ public:
       }
    }
 
-   /// Assemble the matrix in "unassembled format" for non-overlapping DD
+   /// Assemble the matrix in "unassembled format" for non-overlapping DD.
    /// Only significant with PETSc backend
    void SetUseNonoverlappingFormat(bool use = true)
    {

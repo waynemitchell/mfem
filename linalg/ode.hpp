@@ -29,8 +29,8 @@ public:
 
    virtual void Init(TimeDependentOperator &_f)
    {
-      MFEM_VERIFY(!_f.HasLHS(),"Unsupported TimeDependentOperator")
-      MFEM_VERIFY(_f.HasRHS(),"Unsupported TimeDependentOperator")
+      MFEM_VERIFY(!_f.HasLHS(),"Unsupported TimeDependentOperator");
+      MFEM_VERIFY(_f.HasRHS(),"Unsupported TimeDependentOperator");
       f = &_f;
    }
 

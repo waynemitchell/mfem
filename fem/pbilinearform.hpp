@@ -86,7 +86,8 @@ public:
    HypreParMatrix *ParallelAssemble() { return ParallelAssemble(mat); }
 
 #ifdef MFEM_USE_PETSC
-   /// Returns the matrix assembled on the true dofs, i.e. P^t A P as a PetscParMatrix.
+   /// Returns the matrix assembled on the true dofs, i.e. P^t A P as a
+   /// PetscParMatrix.
    PetscParMatrix *PetscParallelAssemble() { return PetscParallelAssemble(mat); }
 #endif
 
@@ -97,7 +98,8 @@ public:
    HypreParMatrix *ParallelAssemble(SparseMatrix *m);
 
 #ifdef MFEM_USE_PETSC
-   /// Return the matrix m assembled on the true dofs, i.e. P^t A P as a PetscParMatrix.
+   /// Return the matrix m assembled on the true dofs, i.e. P^t A P as a
+   /// PetscParMatrix.
    PetscParMatrix *PetscParallelAssemble(SparseMatrix *m);
 #endif
 
@@ -173,7 +175,7 @@ public:
                          Operator &A, Vector &X, Vector &B,
                          int copy_interior = 0);
 
-   /// Form the linear sytem matrix A, see FormLinearSystem for details.
+   /// Form the linear system matrix A, see FormLinearSystem for details.
    void FormSystemMatrix(const Array<int> &ess_tdof_list, Operator &A);
 
    /** Call this method after solving a linear system constructed using the
@@ -183,7 +185,8 @@ public:
 
    virtual void Update(FiniteElementSpace *nfes = NULL);
 
-   virtual ~ParBilinearForm() { delete p_mat_e; delete p_mat; delete pp_mat; delete pp_mat_e; }
+   virtual ~ParBilinearForm()
+   { delete p_mat_e; delete p_mat; delete pp_mat; delete pp_mat_e; }
 };
 
 /// Class for parallel bilinear form
@@ -212,7 +215,8 @@ public:
    HypreParMatrix *ParallelAssemble();
 
 #ifdef MFEM_USE_PETSC
-   /// Returns the matrix assembled on the true dofs, i.e. P^t A P (PETSc version).
+   /// Returns the matrix assembled on the true dofs, i.e. P^t A P (PETSc
+   /// version).
    PetscParMatrix *PetscParallelAssemble();
 #endif
 
