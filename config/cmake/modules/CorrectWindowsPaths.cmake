@@ -3,8 +3,8 @@
 # CorrectWindowsPaths - this module defines one macro
 #
 # CONVERT_CYGWIN_PATH( PATH )
-#  This uses the command cygpath (provided by cygwin) to convert
-#  unix-style paths into paths useable by cmake on windows
+#  This uses the command cygpath (provided by Cygwin) to convert
+#  Unix-style paths into paths usable by cmake on windows
 
 macro (CONVERT_CYGWIN_PATH _path)
   if (WIN32)

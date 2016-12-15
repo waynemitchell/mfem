@@ -156,7 +156,7 @@ NETCDF_OPT  = -I$(NETCDF_DIR)/include
 NETCDF_LIB  = -L$(NETCDF_DIR)/lib -lnetcdf -L$(HDF5_DIR)/lib -lhdf5_hl -lhdf5\
  -L$(ZLIB_DIR)/lib -lz
 
-# PETSc library configuration (version greater or equal then 3.8 or the dev branch)
+# PETSc library configuration (version greater or equal to 3.8 or the dev branch)
 # Some notes:
 #   PETSC_ARCH should be void for prefix installations of PETSc
 PETSC_DIR  ?= @MFEM_DIR@/../petsc
