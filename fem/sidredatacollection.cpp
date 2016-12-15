@@ -516,7 +516,7 @@ void SidreDataCollection::Load(const std::string& path,
    // read in serial for debugging, or if MPI unavailable
    if (useSerial)
    {
-      datastore->load(path, protocol); //, sidre_dc_group);
+      bp_grp->load(path, protocol); //, sidre_dc_group);
    }
 
    // If the data collection created the datastore, it knows the layout of where
@@ -592,7 +592,7 @@ void SidreDataCollection::Save(const std::string& filename,
    writer.write(datastore->getRoot(), num_procs, file_path, protocol);
 #else
    // If serial, use sidre group writer.
-   bp_grp->getDataStore()->save( file_path, protocol);//, sidre_dc_group);
+   bp_grp->save( file_path, protocol);//, sidre_dc_group);
 #endif
 
    if (myid == 0)
@@ -610,7 +610,7 @@ void SidreDataCollection::Save(const std::string& filename,
       }
 #else
       // If serial, use sidre group writer.
-      blueprint_indicies_grp->getDataStore()->save(
+      blueprint_indicies_grp->save(
          file_path + ".root", protocol);//, sidre_dc_group);
 #endif
 
