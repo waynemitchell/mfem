@@ -43,7 +43,7 @@
 using namespace std;
 using namespace mfem;
 
-class BackwardEulerOperator;
+class ReducedSystemOperator;
 #ifdef MFEM_USE_SUNDIALS
 class SundialsJacSolver;
 #endif
@@ -74,7 +74,7 @@ protected:
 
    /** Nonlinear operator defining the reduced backward Euler equation for the
        velocity. Used in the implementation of method ImplicitSolve. */
-   BackwardEulerOperator *backward_euler_oper;
+   ReducedSystemOperator *backward_euler_oper;
 
    /// Newton solver for the backward Euler equation
    NewtonSolver *newton_solver;
@@ -108,7 +108,7 @@ public:
     k --> (M + dt*S)*k + H(x + dt*v + dt^2*k) + S*v,
     where M and S are given BilinearForms, H is a given NonlinearForm, v and x
     are given vectors, and dt is a scalar. */
-class BackwardEulerOperator : public Operator
+class ReducedSystemOperator : public Operator
 {
 private:
    BilinearForm *M, *S;
@@ -119,7 +119,7 @@ private:
    mutable Vector w, z;
 
 public:
-   BackwardEulerOperator(BilinearForm *M_, BilinearForm *S_, NonlinearForm *H_);
+   ReducedSystemOperator(BilinearForm *M_, BilinearForm *S_, NonlinearForm *H_);
 
    /// Set current dt, v, x values - needed to compute action and Jacobian.
    void SetParameters(double dt_, const Vector *v_, const Vector *x_);
@@ -130,7 +130,7 @@ public:
    /// Compute J = M + dt S + dt^2 grad_H(x + dt (v + dt k)).
    virtual Operator &GetGradient(const Vector &k) const;
 
-   virtual ~BackwardEulerOperator();
+   virtual ~ReducedSystemOperator();
 };
 
 #ifdef MFEM_USE_SUNDIALS
@@ -162,10 +162,10 @@ public:
        (M + dt S + dt^2 grad_H) v_hat = M b_v - dt grad_H b_x. */
    int InitSystem(void *sundials_mem);
    int SetupSystem(void *sundials_mem, int conv_fail,
-                   Vector &y_pred, Vector &f_pred, int &jac_cur,
+                   const Vector &y_pred, const Vector &f_pred, int &jac_cur,
                    Vector &v_temp1, Vector &v_temp2, Vector &v_temp3);
-   int SolveSystem(void *sundials_mem, Vector &b, Vector &weight,
-                   Vector &y_cur, Vector &f_cur);
+   int SolveSystem(void *sundials_mem, Vector &b, const Vector &weight,
+                   const Vector &y_cur, const Vector &f_cur);
    int FreeSystem(void *sundials_mem);
 };
 #endif
@@ -507,19 +507,19 @@ void visualize(ostream &out, Mesh *mesh, GridFunction *deformed_nodes,
    out << flush;
 }
 
-BackwardEulerOperator::BackwardEulerOperator(
+ReducedSystemOperator::ReducedSystemOperator(
    BilinearForm *M_, BilinearForm *S_, NonlinearForm *H_)
    : Operator(M_->Height()), M(M_), S(S_), H(H_), Jacobian(NULL),
      v(NULL), x(NULL), w(height), z(height)
 { }
 
-void BackwardEulerOperator::SetParameters(double gamma_, const Vector *v_,
+void ReducedSystemOperator::SetParameters(double gamma_, const Vector *v_,
                                           const Vector *x_)
 {
    dt=gamma_;  v = v_;  x = x_;
 }
 
-void BackwardEulerOperator::Mult(const Vector &k, Vector &y) const
+void ReducedSystemOperator::Mult(const Vector &k, Vector &y) const
 {
    add(*v, dt, k, w);
    add(*x, dt, w, z);
@@ -528,7 +528,7 @@ void BackwardEulerOperator::Mult(const Vector &k, Vector &y) const
    S->AddMult(w, y);
 }
 
-Operator &BackwardEulerOperator::GetGradient(const Vector &k) const
+Operator &ReducedSystemOperator::GetGradient(const Vector &k) const
 {
    delete Jacobian;
    Jacobian = Add(1.0, M->SpMat(), dt, S->SpMat());
@@ -539,7 +539,7 @@ Operator &BackwardEulerOperator::GetGradient(const Vector &k) const
    return *Jacobian;
 }
 
-BackwardEulerOperator::~BackwardEulerOperator()
+ReducedSystemOperator::~ReducedSystemOperator()
 {
    delete Jacobian;
 }
@@ -560,12 +560,12 @@ int SundialsJacSolver::InitSystem(void *sundials_mem)
 }
 
 int SundialsJacSolver::SetupSystem(void *sundials_mem, int conv_fail,
-                                   Vector &y_pred, Vector &f_pred,
+                                   const Vector &y_pred, const Vector &f_pred,
                                    int &jac_cur, Vector &v_temp1,
                                    Vector &v_temp2, Vector &v_temp3)
 {
    int sc = y_pred.Size() / 2;
-   Vector x(y_pred.GetData() + sc, sc);
+   const Vector x(y_pred.GetData() + sc, sc);
    double dt = GetTimeStep(sundials_mem);
 
 #ifdef MFEM_DEBUG
@@ -585,8 +585,8 @@ int SundialsJacSolver::SetupSystem(void *sundials_mem, int conv_fail,
 }
 
 int SundialsJacSolver::SolveSystem(void *sundials_mem, Vector &b,
-                                   Vector &weight, Vector &y_cur,
-                                   Vector &f_cur)
+                                   const Vector &weight, const Vector &y_cur,
+                                   const Vector &f_cur)
 {
    int sc = b.Size() / 2;
    // Vector x(y_cur.GetData() + sc, sc);
@@ -661,7 +661,7 @@ HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
    S.EliminateEssentialBC(ess_bdr);
    S.Finalize(skip_zero_entries);
 
-   backward_euler_oper = new BackwardEulerOperator(&M, &S, &H);
+   backward_euler_oper = new ReducedSystemOperator(&M, &S, &H);
 
 #ifndef MFEM_USE_SUITESPARSE
    J_prec = new DSmoother(1);

@@ -161,10 +161,11 @@ const double SundialsSolver::default_rel_tol = 1e-4;
 const double SundialsSolver::default_abs_tol = 1e-9;
 
 // static method
-int SundialsSolver::ODEMult(realtype t, N_Vector y,
+int SundialsSolver::ODEMult(realtype t, const N_Vector y,
                             N_Vector ydot, void *td_oper)
 {
-   Vector mfem_y(y), mfem_ydot(ydot);
+   const Vector mfem_y(y);
+   Vector mfem_ydot(ydot);
 
    // Compute y' = f(t, y).
    TimeDependentOperator *f = static_cast<TimeDependentOperator *>(td_oper);
@@ -174,9 +175,10 @@ int SundialsSolver::ODEMult(realtype t, N_Vector y,
 }
 
 // static method
-int SundialsSolver::Mult(N_Vector u, N_Vector fu, void *user_data)
+int SundialsSolver::Mult(const N_Vector u, N_Vector fu, void *user_data)
 {
-   Vector mfem_u(u), mfem_fu(fu);
+   const Vector mfem_u(u);
+   Vector mfem_fu(fu);
 
    // Computes the non-linear action F(u).
    static_cast<UserData*>(user_data)->oper->Mult(mfem_u, mfem_fu);
@@ -184,14 +186,16 @@ int SundialsSolver::Mult(N_Vector u, N_Vector fu, void *user_data)
 }
 
 // static method
-int SundialsSolver::GradientMult(N_Vector v, N_Vector Jv, N_Vector u,
+int SundialsSolver::GradientMult(const N_Vector v, N_Vector Jv,
+                                 const N_Vector u,
                                  booleantype *new_u, void *user_data)
 {
-   Vector mfem_v(v), mfem_Jv(Jv);
+   const Vector mfem_v(v);
+   Vector mfem_Jv(Jv);
    UserData &ud = *static_cast<UserData *>(user_data);
    if (*new_u)
    {
-      Vector mfem_u(u);
+      const Vector mfem_u(u);
       ud.jacobian = &ud.oper->GetGradient(mfem_u);
       *new_u = FALSE;
    }
@@ -1110,7 +1114,8 @@ void KinSolver::Mult(const Vector &b, Vector &x) const
    Mult(x, c, r);
 }
 
-void KinSolver::Mult(Vector &x, Vector &x_scale, Vector &fx_scale) const
+void KinSolver::Mult(Vector &x,
+                     const Vector &x_scale, const Vector &fx_scale) const
 {
    KINMem mem = Mem(this);
 

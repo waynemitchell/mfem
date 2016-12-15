@@ -59,11 +59,11 @@ public:
    ///@{
    virtual int InitSystem(void *sundials_mem) = 0;
    virtual int SetupSystem(void *sundials_mem, int conv_fail,
-                           Vector &y_pred, Vector &f_pred, int &jac_cur,
-                           Vector &v_temp1, Vector &v_temp2,
-                           Vector &v_temp3) = 0;
-   virtual int SolveSystem(void *sundials_mem, Vector &b, Vector &weight,
-                           Vector &y_cur, Vector &f_cur) = 0;
+                           const Vector &y_pred, const Vector &f_pred,
+                           int &jac_cur, Vector &v_temp1,
+                           Vector &v_temp2, Vector &v_temp3) = 0;
+   virtual int SolveSystem(void *sundials_mem, Vector &b, const Vector &weight,
+                           const Vector &y_cur, const Vector &f_cur) = 0;
    virtual int FreeSystem(void *sundials_mem) = 0;
    ///@}
 };
@@ -86,11 +86,12 @@ protected:
    static const double default_abs_tol;
 
    // Computes the action of a time-dependent operator.
-   static int ODEMult(realtype t, N_Vector y, N_Vector ydot, void *td_oper);
+   static int ODEMult(realtype t, const N_Vector y,
+                      N_Vector ydot, void *td_oper);
 
    // Computes the non-linear operator action F(u).
    // The real type of user_data is UserData.
-   static int Mult(N_Vector u, N_Vector fu, void *user_data);
+   static int Mult(const N_Vector u, N_Vector fu, void *user_data);
 
    // Note: the constructors are protected.
    SundialsSolver() : sundials_mem(NULL) { }
@@ -104,13 +105,13 @@ public:
    int GetFlag() const { return flag; }
 
    // Computes J(u)v. The real type of user_data is UserData.
-   static int GradientMult(N_Vector v, N_Vector Jv, N_Vector u,
+   static int GradientMult(const N_Vector v, N_Vector Jv, const N_Vector u,
                            booleantype *new_u, void *user_data);
 
    struct UserData
    {
       const Operator *oper;
-      Operator *jacobian;
+      const Operator *jacobian;
       Solver   *jac_solver;
    };
 };
@@ -384,7 +385,7 @@ public:
        @param[in]    fx_scale  Elements of a diagonal scaling matrix E, s.t.
                                D*F(x) has all elements roughly the same when
                                x is not too close to a solution. */
-   void Mult(Vector &x, Vector &x_scale, Vector &fx_scale) const;
+   void Mult(Vector &x, const Vector &x_scale, const Vector &fx_scale) const;
 };
 
 }  // namespace mfem
