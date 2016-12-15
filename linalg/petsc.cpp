@@ -30,8 +30,6 @@
 // Error handling
 // Prints PETSc's stacktrace and then calls MFEM_ABORT
 // We cannot use PETSc's CHKERRQ since it returns a PetscErrorCode
-// TODO this can be improved
-#ifdef PETSC_USE_DEBUG
 #define PCHKERRQ(obj,err) do {                                                 \
      if ((err))                                                                \
      {                                                                         \
@@ -48,12 +46,8 @@
         MFEM_ABORT("Error in PETSc. See stacktrace above."); \
      }                                                       \
   } while(0);
-#else
-#define PCHKERRQ(obj,err) do {} while(0);
-#define CCHKERRQ(comm,err) do {} while(0);
-#endif
 
-// these functions will be called inside PETSc
+// these functions will be called by PETSc
 static PetscErrorCode __mfem_ts_monitor(TS,PetscInt,PetscReal,Vec,void*);
 static PetscErrorCode __mfem_ts_rhsfunction(TS,PetscReal,Vec,Vec,void*);
 static PetscErrorCode __mfem_ts_rhsjacobian(TS,PetscReal,Vec,Mat,Mat,
@@ -604,7 +598,7 @@ void PetscParMatrix::BlockDiagonalConstructor(MPI_Comm comm,
 //{
 //}
 
-// TODO This should take a reference but how?
+// TODO This should take a reference on op but how?
 void PetscParMatrix::MakeWrapper(MPI_Comm comm, const Operator* op, Mat *A)
 {
    mat_shell_ctx *ctx = new mat_shell_ctx;
@@ -2641,7 +2635,6 @@ static PetscErrorCode __mfem_pc_shell_apply_transpose(PC pc, Vec x, Vec y)
 static PetscErrorCode __mfem_pc_shell_setup(PC pc)
 {
    PetscFunctionBeginUser;
-   // TODO ask: is there a way to trigger the setup of ctx->op?
    PetscFunctionReturn(0);
 }
 
@@ -2805,9 +2798,8 @@ static PetscErrorCode MatConvert_hypreParCSR_AIJ(hypre_ParCSRMatrix* hA,Mat* pA)
    CHKERRQ(ierr);
    ierr  = PetscMemcpy(da,hypre_CSRMatrixData(hdiag),dnnz*sizeof(PetscScalar));
    CHKERRQ(ierr);
-   /* TODO should we add a case when the J pointer is already sorted? */
-   iptr = djj;
-   aptr = da;
+   iptr  = djj;
+   aptr  = da;
    for (i=0; i<m; i++)
    {
       PetscInt nc = dii[i+1]-dii[i];
@@ -2830,9 +2822,8 @@ static PetscErrorCode MatConvert_hypreParCSR_AIJ(hypre_ParCSRMatrix* hA,Mat* pA)
       for (i=0; i<onnz; i++) { ojj[i] = coffd[offdj[i]]; }
       ierr  = PetscMemcpy(oa,hypre_CSRMatrixData(hoffd),onnz*sizeof(PetscScalar));
       CHKERRQ(ierr);
-      /* TODO should we add a case when the J pointer is already sorted? */
-      iptr = ojj;
-      aptr = oa;
+      iptr  = ojj;
+      aptr  = oa;
       for (i=0; i<m; i++)
       {
          PetscInt nc = oii[i+1]-oii[i];
