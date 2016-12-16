@@ -37,17 +37,15 @@ all: header config-mk
 
 header:
 	$(call mfem-info, Writing $(CONFIG_HPP) ...)
-	@cp -f $(SRC)config.hpp.in $(CONFIG_HPP) && \
-	set -- && \
+	@set -- && \
 	for def in $${MFEM_DEFINES}; do \
 	   eval var=\$$$$def && \
 	   if [ "NO" != "$${var}" ]; then \
-	      set -- "$$@" "-e" "s|// \(#define $${def}\)|\1|" && \
-	      set -- "$$@" "-e" "s#@$${def}@#$${var}#g"; \
+	      set -- "$$@" -e "s|// \(#define $${def}\)|\1|" && \
+	      set -- "$$@" -e "s#@$${def}@#$${var}#g"; \
 	   fi; \
 	done && \
-	sed "$$@" $(CONFIG_HPP) > $(CONFIG_HPP).tmp && \
-	mv -f $(CONFIG_HPP).tmp $(CONFIG_HPP)
+	sed "$$@" $(SRC)config.hpp.in > $(CONFIG_HPP)
 
 # The target below uses the values of the shell variables listed in
 # the shell variables MFEM_DEFINES and MFEM_CONFIG_VARS
@@ -56,9 +54,11 @@ config-mk:
 	@set -- && \
 	for ref in $${MFEM_DEFINES} $${MFEM_CONFIG_VARS}; do \
 	   eval var=\$$$$ref && \
-	   set -- "$$@" "-e" "s#@$${ref}@#$${var}#g"; \
+	   set -- "$$@" -e "s#@$${ref}@#$${var}#g"; \
 	done && \
-	set -- "$$@" "-e" 's/@\([^@]*\)@/$$(\1)/g' "-e" 's/ *$$//g' && \
+	set -- "$$@" -e 's/@\([^@]*\)@/$$(\1)/g' -e 's/  *$$//g' && \
+	set -- "$$@" -e tb -e ba -e ":b" -e 's/^$$//' -e tc -e ba && \
+	set -- "$$@" -e ":c" -e d -e ":a" && \
 	sed "$$@" $(SRC)config.mk.in > $(CONFIG_MK)
 
 clean:
