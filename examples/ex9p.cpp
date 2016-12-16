@@ -224,10 +224,6 @@ int main(int argc, char *argv[])
    {
       args.PrintOptions(cout);
    }
-   // 2b. We initialize PETSc
-#ifdef MFEM_USE_PETSC
-   if (use_petsc) { PetscInitialize(NULL,NULL,petscrc_file,NULL); }
-#endif
 
    // 3. Read the serial mesh from the given mesh file on all processors. We can
    //    handle geometrically periodic meshes in this code.
@@ -239,6 +235,7 @@ int main(int argc, char *argv[])
    ODESolver *ode_solver = NULL;
 #ifdef MFEM_USE_PETSC
    PetscODESolver *pode_solver = NULL;
+   UserMonitor *pmon = NULL;
 #endif
    if (!use_petsc)
    {
@@ -263,7 +260,8 @@ int main(int argc, char *argv[])
    {
       // When using PETSc, we just create the ODE solver. We use command line
       // customization to select a specific solver.
-      pode_solver = new PetscODESolver(MPI_COMM_WORLD);
+      PetscInitialize(NULL, NULL, petscrc_file, NULL);
+      ode_solver = pode_solver = new PetscODESolver(MPI_COMM_WORLD);
    }
 #endif
 
@@ -360,9 +358,6 @@ int main(int argc, char *argv[])
       visit_dc.Save();
    }
 
-#ifdef MFEM_USE_PETSC
-   UserMonitor *pmon = NULL;
-#endif
    socketstream sout;
    if (visualization)
    {
@@ -392,32 +387,20 @@ int main(int argc, char *argv[])
                  << " Press space (in the GLVis window) to resume it.\n";
       }
 #ifdef MFEM_USE_PETSC
-      else
+      else if (use_petsc)
       {
-         // create the UserMonitor
+         // Set the monitoring routine for the PETScODESolver.
          sout.precision(precision);
          pmon = new UserMonitor(sout,pmesh,u);
+         pode_solver->SetMonitor(pmon);
       }
 #endif
    }
 
    // 10. Define the time-dependent evolution operator describing the ODE
    FE_Evolution *adv = new FE_Evolution(*M, *K, *B, implicit);
-#ifdef MFEM_USE_PETSC
-   if (use_petsc)
-   {
-      pode_solver->Init(*adv);
-      if (pmon)
-      {
-         // Set the monitoring routine for the PETScODESolver
-         pode_solver->SetMonitor(pmon);
-      }
-   }
-   else
-#endif
-   {
-      ode_solver->Init(*adv);
-   }
+   ode_solver->Init(*adv);
+
    // Explicitly perform time-integration (looping over the time iterations,
    // ti, with a time-step dt), or use the Mult method of the solver class.
    double t = 0.0;
@@ -429,16 +412,8 @@ int main(int argc, char *argv[])
          {
             break;
          }
-#ifdef MFEM_USE_PETSC
-         if (use_petsc)
-         {
-            pode_solver->Step(*U, t, dt);
-         }
-         else
-#endif
-         {
-            ode_solver->Step(*U, t, dt);
-         }
+
+         ode_solver->Step(*U, t, dt);
          ti++;
 
          if (ti % vis_steps == 0)
@@ -467,18 +442,7 @@ int main(int argc, char *argv[])
          }
       }
    }
-   else
-   {
-#ifdef MFEM_USE_PETSC
-      // we set the final time for the simulation and the initial time step
-      // these values can be altered by options in the .petsc_rc_ex9p_* files
-      pode_solver->SetFinalTime(t_final);
-      pode_solver->SetTimeStep(dt);
-      pode_solver->Mult(*U,*U);
-#else
-      // ode_solver->Mult(*U,*U);
-#endif
-   }
+   else { ode_solver->Steps(*U, t, dt, t_final); }
 
    // 12. Save the final solution in parallel. This output can be viewed later
    //     using GLVis: "glvis -np <np> -m ex9-mesh -g ex9-final".
@@ -505,7 +469,6 @@ int main(int argc, char *argv[])
    delete ode_solver;
    delete adv;
 #ifdef MFEM_USE_PETSC
-   delete pode_solver;
    delete pmon;
    if (use_petsc) { PetscFinalize(); }
 #endif
