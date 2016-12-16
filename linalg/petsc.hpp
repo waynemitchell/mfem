@@ -471,45 +471,25 @@ public:
    void SetSolver(Solver &precond)
    {
       MFEM_ABORT("Set Solver not implemented!")
-   };
+   }
 
    /// Typecasting to PETSc's SNES
    operator SNES() const { return (SNES)obj; }
 };
 
-/// Abstract class for PETSC's ODE solvers
-class PetscODESolver : public PetscSolver
+/// Abstract class for PETSC's ODE solvers.
+class PetscODESolver : public PetscSolver, public ODESolver
 {
 public:
    PetscODESolver(MPI_Comm comm, std::string prefix = std::string());
-
-   PetscODESolver(MPI_Comm comm, Operator &op, std::string prefix = std::string());
-
-   /// virtual methods for base classes
-   virtual void SetOperator(const Operator &op);
    virtual ~PetscODESolver();
 
-   /// Typecasting to PETSc's TS
-   operator TS() const { return (TS)obj; }
-
-   /// For compatibility with the ODESolver class
-   void Init(TimeDependentOperator &_f)
-   {
-      SetOperator(_f);
-      SetTime(_f.GetTime());
-   }
-
-   /// For compatibility with the ODESolver class
-   void Step(Vector &x, double &t, double &dt);
-
-   /// Set final time (valid when using the Mult method to solve the ODE)
-   void SetFinalTime(double t);
-
-   /// Set time step
-   void SetTimeStep(double dt);
-
-   /// Set time
-   void SetTime(double t);
+   /// Methods corresponding to the ODESolver interface.
+   ///@{
+   virtual void Init(TimeDependentOperator &_f);
+   virtual void Step(Vector &x, double &t, double &dt);
+   virtual void Steps(Vector &x, double &t, double &dt, double t_final);
+   ///@}
 };
 
 /// Abstract class for monitoring PETSc's solvers
@@ -519,20 +499,20 @@ public:
    bool _msol;
    bool _mres;
    PetscSolverMonitorCtx(bool msol = false, bool mres = true) : _msol(msol),
-      _mres(mres) {};
-   virtual ~PetscSolverMonitorCtx() {};
+      _mres(mres) {}
+   virtual ~PetscSolverMonitorCtx() {}
 
    /// Monitor the solution vector x
    virtual void MonitorSolution(PetscInt it, PetscReal norm, Vector &x)
    {
       MFEM_ABORT("MonitorSolution() not implemented!")
-   };
+   }
 
    /// Monitor the residual vector r
    virtual void MonitorResidual(PetscInt it, PetscReal norm, Vector &r)
    {
       MFEM_ABORT("MonitorResidual() not implemented!")
-   };
+   }
 };
 
 }

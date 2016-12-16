@@ -29,12 +29,16 @@ public:
 
    virtual void Init(TimeDependentOperator &_f)
    {
-      MFEM_VERIFY(!_f.HasLHS(),"Unsupported TimeDependentOperator");
-      MFEM_VERIFY(_f.HasRHS(),"Unsupported TimeDependentOperator");
+      MFEM_VERIFY(_f.HasRHS() && !_f.HasLHS(),
+                  "Unsupported TimeDependentOperator.");
       f = &_f;
    }
 
    virtual void Step(Vector &x, double &t, double &dt) = 0;
+   virtual void Steps(Vector &x, double &t, double &dt, double t_final)
+   {
+      while (t < t_final) { Step(x, t, dt); }
+   }
 
    virtual ~ODESolver() { }
 };

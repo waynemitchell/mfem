@@ -2220,26 +2220,6 @@ PetscODESolver::PetscODESolver(MPI_Comm comm,
    PCHKERRQ(ts,ierr);
 }
 
-PetscODESolver::PetscODESolver(MPI_Comm comm, Operator &op,
-                               std::string prefix) : PetscSolver()
-{
-   TS ts;
-   ierr = TSCreate(comm,&ts); CCHKERRQ(comm,ierr);
-   obj  = (PetscObject)ts;
-   ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
-   SetPrefix(prefix);
-   SetOperator(op);
-
-   // some defaults, to comply with the current interface to ODESolver
-   ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_STEPOVER);
-   PCHKERRQ(ts,ierr);
-   TSAdapt tsad;
-   ierr = TSGetAdapt(ts,&tsad);
-   PCHKERRQ(ts,ierr);
-   ierr = TSAdaptSetType(tsad,TSADAPTNONE);
-   PCHKERRQ(ts,ierr);
-}
-
 PetscODESolver::~PetscODESolver()
 {
    MPI_Comm comm;
@@ -2248,36 +2228,31 @@ PetscODESolver::~PetscODESolver()
    ierr = TSDestroy(&ts); CCHKERRQ(comm,ierr);
 }
 
-void PetscODESolver::SetOperator(const Operator &op)
+void PetscODESolver::Init(TimeDependentOperator &_f)
 {
-   TimeDependentOperator *td = const_cast<TimeDependentOperator *>
-                               (dynamic_cast<const TimeDependentOperator *>(&op));
-   MFEM_VERIFY(td,"Should be a TimeDependentOperator");
-   height = op.Height();
-   width  = op.Width();
+   f = &_f;
+   height = f->Height();
+   width  = f->Width();
 
    TS ts = (TS)obj;
-   if (td->HasLHS())
+   if (f->HasLHS())
    {
-      ierr = TSSetIFunction(ts,NULL,__mfem_ts_ifunction,(void *)&op);
-      PCHKERRQ(ts,ierr);
-      ierr = TSSetIJacobian(ts,NULL,NULL,__mfem_ts_ijacobian,(void *)&op);
-      PCHKERRQ(ts,ierr);
-      ierr = TSSetEquationType(ts,TS_EQ_IMPLICIT);
-      PCHKERRQ(ts,ierr);
+      ierr = TSSetIFunction(ts, NULL, __mfem_ts_ifunction, (void *)f);
+      PCHKERRQ(ts, ierr);
+      ierr = TSSetIJacobian(ts, NULL, NULL, __mfem_ts_ijacobian, (void *)f);
+      PCHKERRQ(ts, ierr);
+      ierr = TSSetEquationType(ts, TS_EQ_IMPLICIT);
+      PCHKERRQ(ts, ierr);
    }
-   if (td->HasRHS())
+   if (f->HasRHS())
    {
-      ierr = TSSetRHSFunction(ts,NULL,__mfem_ts_rhsfunction,(void *)&op);
-      PCHKERRQ(ts,ierr);
-      ierr = TSSetRHSJacobian(ts,NULL,NULL,__mfem_ts_rhsjacobian,(void *)&op);
-      PCHKERRQ(ts,ierr);
+      ierr = TSSetRHSFunction(ts, NULL, __mfem_ts_rhsfunction, (void *)f);
+      PCHKERRQ(ts, ierr);
+      ierr = TSSetRHSJacobian(ts, NULL, NULL, __mfem_ts_rhsjacobian, (void *)f);
+      PCHKERRQ(ts, ierr);
    }
 }
 
-// This function is for compatibility with the ODESolver class
-// PETSc ODE solvers can be also used with the Mult method to solve
-// for a given time interval
 void PetscODESolver::Step(Vector &x, double &t, double &dt)
 {
    Customize();
@@ -2287,14 +2262,16 @@ void PetscODESolver::Step(Vector &x, double &t, double &dt)
    X->SetData(x.GetData());
    ierr = TSSetSolution(ts,*X); PCHKERRQ(ts,ierr);
 
-   SetTime(t);
-   SetTimeStep(dt);
+   ierr = TSSetTime(ts, t);
+   PCHKERRQ(ts, ierr);
+   ierr = TSSetTimeStep(ts, dt);
+   PCHKERRQ(ts, ierr);
 
    ierr = TSStep(ts); PCHKERRQ(ts,ierr);
 
    X->ResetData();
 
-   /* get back time and time step to caller */
+   // Get back current time and time step to caller.
    PetscReal pt;
    ierr = TSGetTime(ts,&pt); PCHKERRQ(ts,ierr);
    t = pt;
@@ -2302,26 +2279,28 @@ void PetscODESolver::Step(Vector &x, double &t, double &dt)
    dt = pt;
 }
 
-void PetscODESolver::SetFinalTime(double t)
+void PetscODESolver::Steps(Vector &x, double &t, double &dt, double t_final)
 {
    TS ts = (TS)obj;
-   ierr = TSSetDuration(ts,PETSC_DECIDE,t); PCHKERRQ(ts,ierr);
-   ierr = TSSetExactFinalTime(ts,TS_EXACTFINALTIME_MATCHSTEP);
-   PCHKERRQ(ts,ierr);
-}
+   ierr = TSSetTime(ts, t);
+   PCHKERRQ(ts, ierr);
+   ierr = TSSetTimeStep(ts, dt);
+   PCHKERRQ(ts, ierr);
+   ierr = TSSetDuration(ts, PETSC_DECIDE, t_final);
+   PCHKERRQ(ts, ierr);
+   ierr = TSSetExactFinalTime(ts, TS_EXACTFINALTIME_MATCHSTEP);
+   PCHKERRQ(ts, ierr);
 
-void PetscODESolver::SetTimeStep(double dt)
-{
-   TS ts = (TS)obj;
-   ierr = TSSetTimeStep(ts,dt); PCHKERRQ(ts,ierr);
-   PCHKERRQ(ts,ierr);
-}
+   Mult(x, x);
 
-void PetscODESolver::SetTime(double t)
-{
-   TS ts = (TS)obj;
-   ierr = TSSetTime(ts,t); PCHKERRQ(ts,ierr);
+   // Get back final time and time step to caller.
+   PetscReal pt;
+   ierr = TSGetTime(ts, &pt);
    PCHKERRQ(ts,ierr);
+   t = pt;
+   ierr = TSGetTimeStep(ts,&pt);
+   PCHKERRQ(ts,ierr);
+   dt = pt;
 }
 
 }  // namespace mfem
