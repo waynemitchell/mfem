@@ -2665,7 +2665,7 @@ void DGElasticityIntegrator::AssembleFaceMatrix(
 
       if (ndofs2 == 0) { continue; }
 
-      // In both elamt and jmat, shape2 appears only with a minus sign.
+      // In both elmat and jmat, shape2 appears only with a minus sign.
       shape2.Neg();
 
       // (1,2) block

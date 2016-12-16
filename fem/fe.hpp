@@ -139,9 +139,9 @@ public:
                           Vector &shape) const = 0;
 
    /** pure virtual function which evaluates the values of all
-        partial derivatives of all shape functions at a given
-        point ip and stores them in the matrix dshape (Dof x Dim)
-        so that each row contains the derivatives of one shape function */
+       partial derivatives of all shape functions at a given
+       point ip and stores them in the matrix dshape (Dof x Dim)
+       so that each row contains the derivatives of one shape function */
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const = 0;
 
