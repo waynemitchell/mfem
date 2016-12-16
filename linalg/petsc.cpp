@@ -2066,7 +2066,6 @@ void PetscBDDCSolver::BDDCSolverConstructor(PetscBDDCSolverParams opts)
          b->Finalize();
          B = b->PetscParallelAssemble();
 
-         // Support for this is in master.
          if (dir) // if essential dofs are present, we need to zero the columns
          {
             Mat pB = *B;
@@ -2086,8 +2085,6 @@ void PetscBDDCSolver::BDDCSolverConstructor(PetscBDDCSolverParams opts)
          delete auxcoll;
       }
 
-      // this API call is still not in master.
-      // You need to checkout next to use it
       if (B)
       {
          ierr = PCBDDCSetDivergenceMat(pc,*B,B_is_Trans,NULL); PCHKERRQ(pc,ierr);
