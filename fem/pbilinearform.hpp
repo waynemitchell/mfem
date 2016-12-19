@@ -102,7 +102,8 @@ public:
    /// Return the matrix m assembled on the true dofs, i.e. P^t A P as a PetscParMatrix.
    /// If usenatively is false and the non-overlapping format has not been requested,
    /// then Hypre RAP operations are used and the final matrix is converted into PETSc format.
-   PetscParMatrix *PetscParallelAssemble(SparseMatrix *m, bool usenatively = false);
+   PetscParMatrix *PetscParallelAssemble(SparseMatrix *m,
+                                         bool usenatively = false);
 #endif
 
    /** Eliminate essential boundary DOFs from a parallel assembled system.

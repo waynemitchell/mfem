@@ -172,7 +172,8 @@ HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
 #ifdef MFEM_USE_PETSC
 // this function is almost a verbatim copy of the one before
 // we may want to glue them together?
-PetscParMatrix *ParBilinearForm::PetscParallelAssemble(SparseMatrix *m, bool usenatively)
+PetscParMatrix *ParBilinearForm::PetscParallelAssemble(SparseMatrix *m,
+                                                       bool usenatively)
 {
    if (m == NULL) { return NULL; }
 
