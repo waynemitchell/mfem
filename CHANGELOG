@@ -112,6 +112,9 @@ Miscellaneous
 
 - Various other simplifications, extensions, and bugfixes in the code.
 
+- Addition of a new mesh file format, mfem mesh v1.2, which adds supports for
+  parallel conforming meshes.  For non-conforming meshes, only serial is
+  supported.  See ex1p for an example of reading/writing this format.
 
 Version 3.2, released on June 30, 2016
 ======================================
