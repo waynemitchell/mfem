@@ -344,11 +344,12 @@ public:
    virtual void SetOperator(const Operator &op);
 
    /// Set the linear solver for inverting the Jacobian.
-   /** This is method is equivalent to calling SetPreconditioner().
-       @note This function assumes that Operator::GetGradient(const Vector &)
+   /** @note This function assumes that Operator::GetGradient(const Vector &)
              is implemented by the Operator specified by
              SetOperator(const Operator &). */
    virtual void SetSolver(Solver &solver);
+   /// Equivalent to SetSolver(Solver).
+   virtual void SetPreconditioner(Solver &solver) { SetSolver(solver); }
 
    /// Set KINSOL's scaled step tolerance.
    /** The default tolerance is U^(2/3), where U = machine unit roundoff. */
