@@ -50,7 +50,9 @@ function(add_mfem_examples EXE_SRCS)
         target_include_directories(${EXE_NAME} PRIVATE "${MPI_CXX_INCLUDE_PATH}")
       endif()
       if (MPI_CXX_COMPILE_FLAGS)
-        target_compile_options(${EXE_NAME} PRIVATE ${MPI_CXX_COMPILE_FLAGS})
+        separate_arguments(MPI_CXX_COMPILE_ARGS UNIX_COMMAND
+          "${MPI_CXX_COMPILE_FLAGS}")
+        target_compile_options(${EXE_NAME} PRIVATE ${MPI_CXX_COMPILE_ARGS})
       endif()
 
       if (MPI_CXX_LINK_FLAGS)
