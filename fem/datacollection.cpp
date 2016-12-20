@@ -98,28 +98,11 @@ int to_int(const std::string& str)
 
 // class DataCollection implementation
 
-DataCollection::DataCollection(const std::string& collection_name)
+DataCollection::DataCollection(const std::string& collection_name, Mesh *mesh_)
 {
    name = collection_name;
    // leave prefix_path empty
-   mesh = NULL;
-   myid = 0;
-   num_procs = 1;
-   serial = true;
-   own_data = false;
-   cycle = -1;
-   time = 0.0;
-   time_step = 0.0;
-   precision = precision_default;
-   pad_digits = pad_digits_default;
-   error = NO_ERROR;
-}
-
-DataCollection::DataCollection(const std::string& collection_name, Mesh *_mesh)
-{
-   name = collection_name;
-   // leave prefix_path empty
-   mesh = _mesh;
+   mesh = mesh_;
    myid = 0;
    num_procs = 1;
    serial = true;
@@ -143,7 +126,7 @@ DataCollection::DataCollection(const std::string& collection_name, Mesh *_mesh)
 
 void DataCollection::SetMesh(Mesh *new_mesh)
 {
-   if (own_data) { delete mesh; }
+   if (own_data && new_mesh != mesh) { delete mesh; }
    mesh = new_mesh;
    myid = 0;
    num_procs = 1;
@@ -157,133 +140,55 @@ void DataCollection::SetMesh(Mesh *new_mesh)
       serial = false;
    }
 #endif
-
-   // FIXME - this should be handled in SaveMesh()
-   create_directory(prefix_path, mesh, myid);
-}
-
-void DataCollection::DeregisterField(const std::string& name)
-{
-   if (own_data)
-   {
-      delete field_map[name];
-   }
-   field_map.erase(name);
 }
 
 void DataCollection::RegisterField(const std::string& name, GridFunction *gf)
 {
-   if (own_data && HasField(name))
+   GridFunction *&ref = field_map[name];
+   if (own_data)
    {
-      DeregisterField(name);
+      delete ref; // if newly allocated -> ref is null -> OK
    }
-   field_map[name] = gf;
+   ref = gf;
 }
 
-std::vector<std::string> DataCollection::GetFieldNames() const
+void DataCollection::DeregisterField(const std::string& name)
 {
-   std::vector<std::string> res;
-   res.reserve(field_map.size());
-
-   for (FieldMapConstIterator it = field_map.begin(), itEnd = field_map.end();
-        it != itEnd; ++it)
+   FieldMapIterator it = field_map.find(name);
+   if (it != field_map.end())
    {
-      res.push_back( it->first);
+      if (own_data)
+      {
+         delete it->second;
+      }
+      field_map.erase(it);
    }
-   return res;
 }
 
+void DataCollection::RegisterQField(const std::string& q_field_name,
+                                    QuadratureFunction *qf)
+{
+   QuadratureFunction *&ref = q_field_map[q_field_name];
+   if (own_data)
+   {
+      delete ref; // if newly allocated -> ref is null -> OK
+   }
+   ref = qf;
+}
 
 GridFunction *DataCollection::GetField(const std::string& field_name)
 {
-   if (HasField(field_name))
-   {
-      return field_map[field_name];
-   }
-   else
-   {
-      return NULL;
-   }
+   FieldMapConstIterator it = field_map.find(field_name);
+
+   return (it != field_map.end()) ? it->second : NULL;
 }
 
-
-double* DataCollection::GetFieldData(const std::string& field_name, int sz)
+QuadratureFunction *DataCollection::GetQField(const std::string& q_field_name)
 {
-   // Check if we already have the grid function, if so, return its data
-   if (HasField(field_name))
-   {
-      return field_map[field_name]->GetData();
-   }
+   QFieldMapConstIterator it = q_field_map.find(q_field_name);
 
-
-   // Otherwise, if the data does not exist, and sz > 0, allocate it
-   if (!HasFieldData(field_name))
-   {
-      if (sz <= 0)
-      {
-         return NULL;
-      }
-      else
-      {
-         managed_field_data_map[field_name] = new double[sz];
-      }
-   }
-
-   // Return a pointer to the data
-   return managed_field_data_map[field_name];
+   return (it != q_field_map.end()) ? it->second : NULL;
 }
-
-double* DataCollection::GetFieldData(const std::string& field_name, int sz,
-                                     const std::string& base_field, int offset,
-                                     int stride)
-{
-   // If <field_name> is a field, return its pointer
-   if (HasField(field_name))
-   {
-      return field_map[field_name]->GetData();
-   }
-
-   // Else, if we are explicitly managing its memory, return a pointer
-   if (HasFieldData(field_name))
-   {
-      return managed_field_data_map[field_name];
-   }
-
-   // Else, check if base_field exists as a field and return the appropriate offset
-   if (HasField(base_field))
-   {
-      // Ignore sz and stride for now
-      // TODO: Check that there is sufficient space for this pointer
-      return field_map[base_field]->GetData() + offset;
-   }
-
-   // Else, check if we are explicitly managing base_field and return offset
-   if (HasFieldData(base_field))
-   {
-      return managed_field_data_map[base_field] + offset;
-   }
-
-   // At this point, we give up
-   return NULL;
-
-}
-
-
-bool DataCollection::HasFieldData(const std::string& field_name)
-{
-   if (HasField(field_name))
-   {
-      return true;
-   }
-
-   if (managed_field_data_map.find(field_name) == managed_field_data_map.end())
-   {
-      return false;
-   }
-
-   return (managed_field_data_map[field_name] != NULL);
-}
-
 
 void DataCollection::SetPrefixPath(const std::string& prefix)
 {
@@ -317,7 +222,6 @@ void DataCollection::Save()
       SaveOneField(it);
    }
 }
-
 
 void DataCollection::SaveMesh()
 {
@@ -412,35 +316,28 @@ void DataCollection::SaveField(const std::string& field_name)
 
 void DataCollection::DeleteData()
 {
-   if (own_data)
-   {
-      delete mesh;
-   }
+   if (own_data) { delete mesh; }
    mesh = NULL;
 
    for (FieldMapIterator it = field_map.begin(); it != field_map.end(); ++it)
    {
-      if (own_data)
-      {
-         delete it->second;
-      }
+      if (own_data) { delete it->second; }
+      it->second = NULL;
+   }
+   for (QFieldMapIterator it = q_field_map.begin();
+        it != q_field_map.end(); ++it)
+   {
+      if (own_data) { delete it->second; }
       it->second = NULL;
    }
    own_data = false;
-
-   // Delete data that the data collection explicitly allocated
-   for (FieldDataMapIterator it = managed_field_data_map.begin();
-        it != managed_field_data_map.end(); ++it)
-   {
-      delete [] it->second;
-      it->second = NULL;
-   }
 }
 
 void DataCollection::DeleteAll()
 {
    DeleteData();
    field_map.clear();
+   q_field_map.clear();
 }
 
 DataCollection::~DataCollection()
@@ -451,17 +348,6 @@ DataCollection::~DataCollection()
 
 // class VisItDataCollection implementation
 
-VisItDataCollection::VisItDataCollection(const std::string& collection_name)
-   : DataCollection(collection_name)
-{
-   serial = false; // always include rank in file names
-   cycle  = 0;     // always include cycle in directory names
-
-   spatial_dim = 0;
-   topo_dim = 0;
-   visit_max_levels_of_detail = 32;
-}
-
 VisItDataCollection::VisItDataCollection(const std::string& collection_name,
                                          Mesh *mesh)
    : DataCollection(collection_name, mesh)
@@ -469,8 +355,16 @@ VisItDataCollection::VisItDataCollection(const std::string& collection_name,
    serial = false; // always include rank in file names
    cycle  = 0;     // always include cycle in directory names
 
-   spatial_dim = mesh->SpaceDimension();
-   topo_dim = mesh->Dimension();
+   if (mesh)
+   {
+      spatial_dim = mesh->SpaceDimension();
+      topo_dim = mesh->Dimension();
+   }
+   else
+   {
+      spatial_dim = 0;
+      topo_dim = 0;
+   }
    visit_max_levels_of_detail = 32;
 }
 
@@ -523,10 +417,10 @@ void VisItDataCollection::SaveRootFile()
    }
 }
 
-void VisItDataCollection::Load(int _cycle)
+void VisItDataCollection::Load(int cycle_)
 {
    DeleteAll();
-   cycle = _cycle;
+   cycle = cycle_;
    std::string root_name = prefix_path + name + "_" +
                            to_padded_string(cycle, pad_digits) + ".mfem_root";
    LoadVisItRootFile(root_name);
@@ -569,7 +463,7 @@ void VisItDataCollection::LoadMesh()
    std::string mesh_fname = prefix_path + name + "_" +
                             to_padded_string(cycle, pad_digits) +
                             "/mesh." + to_padded_string(myid, pad_digits);
-   std::ifstream file(mesh_fname.c_str());
+   named_ifgzstream file(mesh_fname.c_str());
    if (!file)
    {
       error = READ_ERROR;
@@ -590,7 +484,7 @@ void VisItDataCollection::LoadFields()
    std::string path_right = "." + to_padded_string(myid, pad_digits);
 
    field_map.clear();
-   for (std::map<std::string,VisItFieldInfo>::iterator it = field_info_map.begin();
+   for (FieldInfoMapIterator it = field_info_map.begin();
         it != field_info_map.end(); ++it)
    {
       std::string fname = path_left + it->first + path_right;
@@ -624,7 +518,7 @@ std::string VisItDataCollection::GetVisItRootString()
    mesh["tags"] = picojson::value(mtags);
 
    // Build the fields data entries
-   for (std::map<std::string,VisItFieldInfo>::iterator it = field_info_map.begin();
+   for (FieldInfoMapIterator it = field_info_map.begin();
         it != field_info_map.end(); ++it)
    {
       ftags["assoc"] = picojson::value((it->second).association);

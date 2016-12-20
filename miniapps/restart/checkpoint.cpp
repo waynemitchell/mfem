@@ -143,12 +143,12 @@ int main(int argc, char *argv[])
    //    which satisfies the boundary conditions.
    //
    ParGridFunction x;
-   DataCollectionUtility::AllocateGridFunc(&x,
-                                           fespace,
-                                           dc,
-                                           "solution",
-                                           -1,
-                                           !isRestart);
+   x.MakeRef(fespace, NULL);
+   dc->RegisterField("solution", &x);
+   if (!isRestart)
+   {
+      x = 0.0;
+   }
 
    //   ParGridFunction x(fespace);
    //   x = 0.0;

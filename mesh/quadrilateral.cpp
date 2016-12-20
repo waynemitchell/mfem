@@ -15,10 +15,10 @@
 namespace mfem
 {
 
-Quadrilateral::Quadrilateral( const int *ind, int attr, int_ptr_pair p )
-   : Element(Geometry::SQUARE, p.first, 4, p.second)
+Quadrilateral::Quadrilateral( const int *ind, int attr )
+   : Element(Geometry::SQUARE)
 {
-   SetAttribute(attr);
+   attribute = attr;
    for (int i=0; i<4; i++)
    {
       indices[i] = ind[i];
@@ -26,10 +26,9 @@ Quadrilateral::Quadrilateral( const int *ind, int attr, int_ptr_pair p )
 }
 
 Quadrilateral::Quadrilateral( int ind1, int ind2, int ind3, int ind4,
-                              int attr, int_ptr_pair p )
-   : Element(Geometry::SQUARE, p.first, 4, p.second)
+                              int attr ) : Element(Geometry::SQUARE)
 {
-   SetAttribute(attr);
+   attribute  = attr;
    indices[0] = ind1;
    indices[1] = ind2;
    indices[2] = ind3;

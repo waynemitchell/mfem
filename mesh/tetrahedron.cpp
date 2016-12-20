@@ -16,8 +16,8 @@
 namespace mfem
 {
 
-Tetrahedron::Tetrahedron(const int *ind, int attr, int_ptr_pair p)
-   : Element(Geometry::TETRAHEDRON, p.first, 4, p.second)
+Tetrahedron::Tetrahedron(const int *ind, int attr)
+   : Element(Geometry::TETRAHEDRON)
 {
    attribute = attr;
    for (int i = 0; i < 4; i++)
@@ -28,9 +28,8 @@ Tetrahedron::Tetrahedron(const int *ind, int attr, int_ptr_pair p)
    transform = 0;
 }
 
-Tetrahedron::Tetrahedron(int ind1, int ind2, int ind3, int ind4, int attr,
-                         int_ptr_pair p)
-   : Element(Geometry::TETRAHEDRON, p.first, 4, p.second)
+Tetrahedron::Tetrahedron(int ind1, int ind2, int ind3, int ind4, int attr)
+   : Element(Geometry::TETRAHEDRON)
 {
    attribute  = attr;
    indices[0] = ind1;

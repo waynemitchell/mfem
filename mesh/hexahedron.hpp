@@ -21,23 +21,20 @@ namespace mfem
 /// Data type hexahedron element
 class Hexahedron : public Element
 {
+protected:
+   int indices[8];
 
 public:
-   static const size_t NUM_INDICES = 8;
    typedef Geometry::Constants<Geometry::CUBE> geom_t;
 
-   Hexahedron() : Element(Geometry::CUBE, NULL, 8, NULL) { };
-   Hexahedron(int_ptr_pair p)
-      : Element(Geometry::CUBE, p.first, 8, p.second) { };
+   Hexahedron() : Element(Geometry::CUBE) { }
 
    /// Constructs hexahedron by specifying the indices and the attribute.
-   Hexahedron(const int *ind, int attr = 1, int_ptr_pair = int_ptr_pair(NULL,
-                                                                        NULL));
+   Hexahedron(const int *ind, int attr = 1);
 
    /// Constructs hexahedron by specifying the indices and the attribute.
    Hexahedron(int ind1, int ind2, int ind3, int ind4,
-              int ind5, int ind6, int ind7, int ind8, int attr = 1,
-              int_ptr_pair = int_ptr_pair(NULL, NULL));
+              int ind5, int ind6, int ind7, int ind8, int attr = 1);
 
    /// Return element's type
    int GetType() const { return Element::HEXAHEDRON; }

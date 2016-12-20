@@ -14,8 +14,7 @@
 namespace mfem
 {
 
-Triangle::Triangle(const int *ind, int attr, int_ptr_pair p)
-   : Element(Geometry::TRIANGLE, p.first, 3, p.second)
+Triangle::Triangle(const int *ind, int attr) : Element(Geometry::TRIANGLE)
 {
    attribute = attr;
    for (int i = 0; i < 3; i++)
@@ -25,8 +24,8 @@ Triangle::Triangle(const int *ind, int attr, int_ptr_pair p)
    transform = 0;
 }
 
-Triangle::Triangle(int ind1, int ind2, int ind3, int attr, int_ptr_pair p)
-   : Element(Geometry::TRIANGLE, p.first, 3, p.second)
+Triangle::Triangle(int ind1, int ind2, int ind3, int attr)
+   : Element(Geometry::TRIANGLE)
 {
    attribute  = attr;
    indices[0] = ind1;

@@ -22,6 +22,7 @@ namespace mfem
 class Tetrahedron : public Element
 {
 protected:
+   int indices[4];
 
    /** The refinement flag keeps (in order) :
        1. Two marked edges given with local index (0..5) for the two faces
@@ -37,25 +38,18 @@ protected:
 
 public:
    typedef Geometry::Constants<Geometry::TETRAHEDRON> geom_t;
-   static const size_t NUM_INDICES = 4;
 
    /// Constants for different types of tetrahedrons.
    enum { TYPE_PU=0, TYPE_A=1, TYPE_PF=2, TYPE_O=3, TYPE_M=4 };
 
-   Tetrahedron() : Element(Geometry::TETRAHEDRON, NULL, 4)
-   { refinement_flag = 0; transform = 0; }
-
-   Tetrahedron(int_ptr_pair p) : Element(Geometry::TETRAHEDRON, p.first, 4,
-                                            p.second)
+   Tetrahedron() : Element(Geometry::TETRAHEDRON)
    { refinement_flag = 0; transform = 0; }
 
    /// Constructs tetrahedron by specifying the indices and the attribute.
-   Tetrahedron(const int *ind, int attr = 1, int_ptr_pair = int_ptr_pair(NULL,
-                                                                         NULL));
+   Tetrahedron(const int *ind, int attr = 1);
 
    /// Constructs tetrahedron by specifying the indices and the attribute.
-   Tetrahedron(int ind1, int ind2, int ind3, int ind4, int attr = 1,
-               int_ptr_pair = int_ptr_pair(NULL, NULL));
+   Tetrahedron(int ind1, int ind2, int ind3, int ind4, int attr = 1);
 
    /// Return element's type.
    virtual int GetType() const { return Element::TETRAHEDRON; }

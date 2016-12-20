@@ -164,8 +164,7 @@ int main(int argc, char *argv[])
 
    if (amr == 1)
    {
-      Vertex theVertex;
-      theVertex.SetCoords(0,0,1);
+      Vertex theVertex(0., 0., 1.);
       for (int l = 0; l < 3; l++)
       {
          mesh->RefineAtVertex(theVertex);
@@ -203,8 +202,7 @@ int main(int argc, char *argv[])
 
    if (amr == 1)
    {
-      Vertex theVertex;
-      theVertex.SetCoords(0,0,1);
+      Vertex theVertex(0., 0., 1.);
       for (int l = 0; l < 2; l++)
       {
          pmesh->RefineAtVertex(theVertex);

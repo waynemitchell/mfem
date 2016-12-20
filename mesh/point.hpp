@@ -21,16 +21,16 @@ namespace mfem
 /// Data type point element
 class Point : public Element
 {
+protected:
+   int indices[1];
 
 public:
-   static const size_t NUM_INDICES = 1;
    typedef Geometry::Constants<Geometry::POINT> geom_t;
 
-   Point() : Element(Geometry::POINT, NULL, 1, NULL) {}
-   Point(int_ptr_pair p) : Element(Geometry::POINT, p.first, 1, p.second) { }
+   Point() : Element(Geometry::POINT) {}
 
    /// Constructs triangle by specifying the indices and the attribute.
-   Point( const int *ind, int attr = -1, int_ptr_pair = int_ptr_pair(NULL, NULL) );
+   Point( const int *ind, int attr = -1 );
 
    /// Return element's type.
    virtual int GetType() const { return Element::POINT; }

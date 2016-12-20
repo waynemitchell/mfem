@@ -37,8 +37,4 @@
 #include "mesh/mesh_headers.hpp"
 #include "fem/fem.hpp"
 
-#ifdef MFEM_USE_SIDRE
-#include "fem/sidredatacollection.hpp"
-#endif
-
 #endif

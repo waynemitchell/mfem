@@ -13,14 +13,6 @@
 
 namespace mfem
 {
-int NumOfIndices[6] = {1, 2, 3, 4, 4, 8};
-
-Element::Element(int bg, int *_indices, size_t indices_count,
-                 int *_attribute)
-{
-   base_geom = bg;
-   init(_indices, indices_count, _attribute);
-}
 
 void Element::SetVertices(const int *ind)
 {
@@ -32,24 +24,6 @@ void Element::SetVertices(const int *ind)
    for (i = 0; i < n; i++)
    {
       v[i] = ind[i];
-   }
-}
-
-void Element::init(int *_indices, size_t indices_count,
-                   int *_attribute)
-{
-   if (_indices == NULL && indices_count > 0)
-   {
-      indices = new int[indices_count];
-      attribute = -1;
-      //printf("new self alloc at %p\n", indices);
-      self_alloc = true;
-   }
-   else
-   {
-      indices = _indices;
-      ptr_attribute = _attribute;
-      self_alloc = false;
    }
 }
 

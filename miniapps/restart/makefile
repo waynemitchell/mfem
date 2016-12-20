@@ -10,8 +10,10 @@
 # Software Foundation) version 2.1 dated February 1999.
 
 # Use the MFEM build directory
-MFEM_DIR = ../..
-CONFIG_MK = $(MFEM_DIR)/config/config.mk
+MFEM_DIR ?= ../..
+MFEM_BUILD_DIR ?= ../..
+SRC = $(if $(MFEM_DIR:../..=),$(MFEM_DIR)/miniapps/restart/,)
+CONFIG_MK = $(MFEM_BUILD_DIR)/config/config.mk
 TEST_MK = $(MFEM_DIR)/config/test.mk
 # Use the MFEM install directory
 # MFEM_DIR = ../mfem
@@ -21,13 +23,13 @@ TEST_MK = $(MFEM_DIR)/config/test.mk
 MFEM_LIB_FILE = mfem_is_not_built
 -include $(CONFIG_MK)
 
-SEQ_EXAMPLES =
-PAR_EXAMPLES = checkpoint
+SEQ_MINIAPPS =
+PAR_MINIAPPS = checkpoint
 
 ifeq ($(MFEM_USE_MPI),NO)
-   EXAMPLES = $(SEQ_EXAMPLES)
+   MINIAPPS = $(SEQ_MINIAPPS)
 else
-   EXAMPLES = $(PAR_EXAMPLES) $(SEQ_EXAMPLES)
+   MINIAPPS = $(PAR_MINIAPPS) $(SEQ_MINIAPPS)
 endif
 
 .PHONY: all clean clean-build clean-exec
@@ -36,18 +38,19 @@ endif
 %: %.cpp
 
 # Replace the default implicit rule for *.cpp files
-%: %.cpp $(MFEM_LIB_FILE) $(CONFIG_MK)
+%: $(SRC)%.cpp $(MFEM_LIB_FILE) $(CONFIG_MK)
 	$(MFEM_CXX) $(MFEM_FLAGS) $< -o $@ $(MFEM_LIBS)
 
-all: $(EXAMPLES)
+all: $(MINIAPPS)
 
-MFEM_TESTS = EXAMPLES
+MFEM_TESTS = MINIAPPS
 include $(TEST_MK)
 
 # Testing: Specific execution options
 checkpoint-test-par: checkpoint
 	@$(call mfem-test,$<, mpirun -np 4, Parallel checkpoint save test)
-	@$(call mfem-test,$<, mpirun -np 4, Parallel checkpoint load test, -c output/problem.root)
+	@$(call mfem-test,$<, mpirun -np 4, Parallel checkpoint load test, \
+	   -c output/problem.root)
 
 # Testing: "test" target and mfem-test* variables are defined in config/test.mk
 
@@ -58,9 +61,8 @@ $(MFEM_LIB_FILE):
 clean: clean-build clean-exec
 
 clean-build:
-	rm -f *.o *~ $(SEQ_EXAMPLES) $(PAR_EXAMPLES)
+	rm -f *.o *~ $(SEQ_MINIAPPS) $(PAR_MINIAPPS)
 	rm -rf *.dSYM *.TVD.*breakpoints
-	rm -rf output
 
 clean-exec:
-	@rm -f ex1p
+	rm -rf output

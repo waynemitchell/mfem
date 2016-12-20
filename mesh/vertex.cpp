@@ -10,23 +10,17 @@
 // Software Foundation) version 2.1 dated February 1999.
 
 
-#include "mesh_headers.hpp"
+#include "vertex.hpp"
 
 namespace mfem
 {
 
-Point::Point( const int *ind, int attr ) : Element(Geometry::POINT)
+Vertex::Vertex (double *xx, int dim)
 {
-   attribute = attr;
-   indices[0] = ind[0];
+   for (int i = 0; i < dim; i++)
+   {
+      coord[i] = xx[i];
+   }
 }
-
-void Point::GetVertices( Array<int> &v ) const
-{
-   v.SetSize( 1 );
-   v[0] = indices[0];
-}
-
-PointFiniteElement PointFE;
 
 }

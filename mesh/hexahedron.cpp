@@ -15,8 +15,8 @@
 namespace mfem
 {
 
-Hexahedron::Hexahedron(const int *ind, int attr, int_ptr_pair p)
-   : Element(Geometry::CUBE, p.first, 8, p.second)
+Hexahedron::Hexahedron(const int *ind, int attr)
+   : Element(Geometry::CUBE)
 {
    attribute = attr;
    for (int i = 0; i < 8; i++)
@@ -27,8 +27,7 @@ Hexahedron::Hexahedron(const int *ind, int attr, int_ptr_pair p)
 
 Hexahedron::Hexahedron(int ind1, int ind2, int ind3, int ind4,
                        int ind5, int ind6, int ind7, int ind8,
-                       int attr, int_ptr_pair p)
-   : Element(Geometry::CUBE, p.first, 8, p.second)
+                       int attr) : Element(Geometry::CUBE)
 {
    attribute  = attr;
    indices[0] = ind1;

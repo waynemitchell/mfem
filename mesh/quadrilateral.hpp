@@ -22,28 +22,18 @@ namespace mfem
 class Quadrilateral : public Element
 {
 protected:
+   int indices[4];
 
 public:
    typedef Geometry::Constants<Geometry::SQUARE> geom_t;
-   static const size_t NUM_INDICES = 4;
 
-   Quadrilateral() : Element(Geometry::SQUARE, NULL, 4, NULL) {}
-   Quadrilateral(int_ptr_pair p) : Element(Geometry::SQUARE, p.first, 4,
-                                              p.second) {};
-
+   Quadrilateral() : Element(Geometry::SQUARE) {}
 
    /// Constructs quadrilateral by specifying the indices and the attribute.
-   /// We also allow an external memory location for the indices to be
-   /// Specified.
-   Quadrilateral(const int *ind, int attr = 1,
-                 int_ptr_pair = int_ptr_pair(NULL, NULL));
+   Quadrilateral(const int *ind, int attr = 1);
 
    /// Constructs quadrilateral by specifying the indices and the attribute.
-   /// We also allow an external memory location for the indices to be
-   /// Specified.
-   Quadrilateral(int ind1, int ind2, int ind3, int ind4, int attr = 1,
-                 int_ptr_pair = int_ptr_pair(NULL, NULL));
-
+   Quadrilateral(int ind1, int ind2, int ind3, int ind4, int attr = 1);
 
    /// Return element's type
    int GetType() const { return Element::QUADRILATERAL; }
@@ -69,7 +59,7 @@ public:
    virtual const int *GetFaceVertices(int fi) const { return NULL; }
 
    virtual Element *Duplicate(Mesh *m) const
-   { return new Quadrilateral(indices, GetAttribute()); }
+   { return new Quadrilateral(indices, attribute); }
 
    virtual ~Quadrilateral() { }
 };

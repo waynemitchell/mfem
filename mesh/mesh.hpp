@@ -377,6 +377,10 @@ protected:
    /// like 'ncmesh' and 'NURBSExt' are only swapped when 'non_geometry' is set.
    void Swap(Mesh& other, bool non_geometry = false);
 
+   // used in GetElementData() and GetBdrElementData()
+   void GetElementData(const Array<Element*> &elem_array, int geom,
+                       Array<int> &elem_vtx, Array<int> &attr) const;
+
 public:
 
    Mesh() { SetEmpty(); }
@@ -408,8 +412,7 @@ public:
       InitMesh(_Dim, _spaceDim, NVert, NElem, NBdrElem);
    }
 
-   Element *NewElement(int geom,
-                       Element::int_ptr_pair = Element::int_ptr_pair(NULL, NULL));
+   Element *NewElement(int geom);
 
    void AddVertex(const double *);
    void AddTri(const int *vi, int attr = 1);
@@ -543,8 +546,8 @@ public:
    int SpaceDimension() const { return spaceDim; }
 
    /// @brief Return pointer to vertex i's coordinates.
-   /// @warning For high-order meshes (when Nodes != NULL) vertices may not
-   /// being updated and should not be used!
+   /// @warning For high-order meshes (when #Nodes != NULL) vertices may not be
+   /// updated and should not be used!
    const double *GetVertex(int i) const { return vertices[i](); }
 
    /// @brief Return pointer to vertex i's coordinates.
@@ -552,38 +555,16 @@ public:
    /// being updated and should not be used!
    double *GetVertex(int i) { return vertices[i](); }
 
-   void CopyElementObjectData(Array<Element*>& array_of_elements,
-                              int len_array_of_elements,
-                              int* indices, int len_indices,
-                              int* attributes, int len_attributes);
+   void GetElementData(int geom, Array<int> &elem_vtx, Array<int> &attr) const
+   { GetElementData(elements, geom, elem_vtx, attr); }
 
-   void ChangeElementObjectDataOwnership(Array<Element*>& array_of_elements,
-                                         int len_array_of_elements,
-                                         int* indices, int len_indices,
-                                         int* attributes, int len_attributes,
-                                         bool zerocopy);
-
-   void ChangeElementDataOwnership(int *indices, int len_indices,
-                                   int *attributes, int len_attributes,
-                                   bool zerocopy = false);
-
-   void CopyElementData(int *indices, int len_indices,
-                        int *attributes, int len_attributes);
-
-   void ChangeBoundaryElementDataOwnership(int *indices, int len_indices,
-                                           int *attributes, int len_attributes,
-                                           bool zerocopy = false);
-
-   void CopyBoundaryElementData(int *indices, int len_indices,
-                                int *attributes, int len_attributes);
-
-   /// Copy the vertex coordinates to the given array.
-   /** Vertices are stored as an array of 3 doubles per vertex. */
-   void CopyVertexData(double* vertices, int len_vertices);
+   void GetBdrElementData(int geom, Array<int> &bdr_elem_vtx,
+                          Array<int> &bdr_attr) const
+   { GetElementData(boundary, geom, bdr_elem_vtx, bdr_attr); }
 
    /** @brief Set the internal Vertex array to point to the given @a vertices
        array without assuming ownership of the pointer. */
-   /** If @zerocopy is `true`, the vertices must be given as an array of 3
+   /** If @a zerocopy is `true`, the vertices must be given as an array of 3
        doubles per vertex. If @a zerocopy is `false` then the current Vertex
        data is first copied to the @a vertices array. */
    void ChangeVertexDataOwnership(double *vertices, int len_vertices,
@@ -829,6 +810,10 @@ public:
    /// Return a pointer to the internal node GridFunction (may be NULL).
    GridFunction *GetNodes() { return Nodes; }
    const GridFunction *GetNodes() const { return Nodes; }
+   /// Return the mesh nodes ownership flag.
+   bool OwnsNodes() const { return own_nodes; }
+   /// Set the mesh nodes ownership flag.
+   void SetNodesOwner(bool nodes_owner) { own_nodes = nodes_owner; }
    /// Replace the internal node GridFunction with the given GridFunction.
    void NewNodes(GridFunction &nodes, bool make_owner = false);
    /** Swap the internal node GridFunction pointer and ownership flag members

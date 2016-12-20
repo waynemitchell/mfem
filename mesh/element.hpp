@@ -26,87 +26,31 @@ class Mesh;
 /// Abstract data type element
 class Element
 {
-public:
-   typedef std::pair<int*, int*> int_ptr_pair;
-   static int NumOfIndices[6];
-
 protected:
-   int *indices;
-   /// Element's attribute (specifying material property, etc).
-   union
-   {
-      int attribute;
-      int *ptr_attribute;
-   };
-   int base_geom;
-   bool self_alloc;
 
-   /// Assign or allocate storage for this element's indices
-   void init(int *indices, size_t indices_count, int *attribute);
+   /// Element's attribute (specifying material property, etc).
+   int attribute, base_geom;
 
 public:
+
    /// Constants for the classes derived from Element.
    enum Type { POINT, SEGMENT, TRIANGLE, QUADRILATERAL, TETRAHEDRON,
                HEXAHEDRON
              };
 
    /// Default element constructor.
-   explicit Element(int bg = Geometry::POINT, int *_indices = NULL,
-                    size_t indices_count = 0, int *_attribute = NULL);
-
-   /// Set where the indices pointer is pointing.
-   /// Useful if the memory location of indices data
-   ///  has moved
-   inline void SetIndices(int *p) { indices = p; }
-
-   inline void SetOwnership(bool _self_alloc) { self_alloc = _self_alloc; }
-
-   /// Returns the indices pointer
-   inline int *GetIndices() { return indices; }
-
-   /// Returns the indices pointer
-   inline int *&GetIndicesRef() { return indices; }
-
-   /// Return the attribute pointer
-   inline const int *GetAttributePtr() const { return ptr_attribute; }
-
-   /// Set the attribute pointer
-   inline void SetAttributePtr(int *p) { ptr_attribute = p; }
+   explicit Element(int bg = Geometry::POINT) { attribute = -1; base_geom = bg; }
 
    /// Returns element's type
    virtual int GetType() const = 0;
 
-   /// Does this element own it's indices allocation
-   inline bool IsSelfAlloc() { return self_alloc; }
-
    int GetGeometryType() const { return base_geom; }
 
    /// Return element's attribute.
-   inline int GetAttribute() const
-   {
-      return self_alloc ? attribute :
-             (ptr_attribute ? *ptr_attribute : 1);
-   }
+   inline int GetAttribute() const { return attribute; }
 
    /// Set element's attribute.
-   /// You cannot set a NULL pointer attribute (always returned as 1)
-   // TODO: better exception
-   inline void SetAttribute(const int attr)
-   {
-      if (self_alloc)
-      {
-         attribute = attr;
-      }
-      else if (ptr_attribute)
-      {
-         *ptr_attribute = attr;
-      }
-      else
-      {
-         MFEM_ABORT("Cannot assign an attribute to an externally allocated "
-                    "Element with NULL attribute pointer");
-      }
-   }
+   inline void SetAttribute(const int attr) { attribute = attr; }
 
    /// Set the indices the element according to the input.
    virtual void SetVertices(const int *ind);
@@ -152,7 +96,7 @@ public:
    virtual Element *Duplicate(Mesh *m) const = 0;
 
    /// Destroys element.
-   virtual ~Element() { if (self_alloc) { delete indices; }  }
+   virtual ~Element() { }
 };
 
 }

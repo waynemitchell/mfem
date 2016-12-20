@@ -150,8 +150,7 @@ int main(int argc, char *argv[])
 
    if (amr == 1)
    {
-      Vertex theVertex;
-      theVertex.SetCoords(0,0,1);
+      Vertex theVertex(0., 0., 1.);
       for (int l = 0; l < 5; l++)
       {
          mesh->RefineAtVertex( theVertex );

@@ -13,18 +13,23 @@
 #define MFEM_VERTEX
 
 #include "../config/config.hpp"
-#include <stdio.h>
-#include <string.h>
 
 namespace mfem
 {
 
 /// Data type for vertex
-struct Vertex
+class Vertex
 {
+protected:
    double coord[3];
 
-   inline void operator=(const Vertex *v) { memcpy(coord, v->coord, 3 * sizeof(double)); }
+public:
+   Vertex() { }
+
+   Vertex (double *xx, int dim);
+   Vertex( double x, double y) { coord[0] = x; coord[1] = y; coord[2] = 0.; }
+   Vertex( double x, double y, double z)
+   { coord[0] = x; coord[1] = y; coord[2] = z; }
 
    /// Returns pointer to the coordinates of the vertex.
    inline double * operator() () const { return (double*)coord; }
@@ -35,9 +40,10 @@ struct Vertex
    /// Returns the i'th coordinate of the vertex.
    inline const double & operator() (int i) const { return coord[i]; }
 
-   void SetCoords(const double *p, size_t dim) { memcpy(coord, p, dim * sizeof(double)); }
-   void SetCoords(const double *p) { coord[0] = p[0]; coord[1] = p[1]; coord[2] = p[2]; }
-   void SetCoords(double x, double y, double z) { coord[0] = x; coord[1] = y; coord[2] = z; }
+   void SetCoords(const double *p)
+   { coord[0] = p[0]; coord[1] = p[1]; coord[2] = p[2]; }
+
+   ~Vertex() { }
 };
 
 }

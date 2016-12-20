@@ -21,20 +21,19 @@ namespace mfem
 /// Data type line segment element
 class Segment : public Element
 {
+protected:
+   int indices[2];
 
 public:
    typedef Geometry::Constants<Geometry::SEGMENT> geom_t;
-   static const size_t NUM_INDICES = 2;
 
-   Segment() : Element(Geometry::SEGMENT, NULL, 2, NULL) { }
-   Segment(int_ptr_pair p) : Element(Geometry::SEGMENT, p.first, 2, p.second) { }
+   Segment() : Element(Geometry::SEGMENT) {}
 
    /// Constructs triangle by specifying the indices and the attribute.
-   Segment(const int *ind, int attr = 1, int_ptr_pair = int_ptr_pair(NULL, NULL));
+   Segment(const int *ind, int attr = 1);
 
    /// Constructs triangle by specifying the indices and the attribute.
-   Segment(int ind1, int ind2, int attr = 1, int_ptr_pair = int_ptr_pair(NULL,
-                                                                         NULL));
+   Segment(int ind1, int ind2, int attr = 1);
 
    /// Set the indices the element according to the input.
    virtual void SetVertices(const int *ind);

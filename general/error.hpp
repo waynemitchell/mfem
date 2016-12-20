@@ -87,10 +87,16 @@ void mfem_warning(const char *msg = NULL);
                     << #x << ") is false: " << msg, 0); \
    }
 
+// A macro that exposes it argument in debug mode only.
+#define MFEM_DEBUG_DO(x) x
+
 #else
 
 // Get rid of all this code, since we're not checking.
 #define MFEM_ASSERT(x, msg)
+
+// A macro that exposes it argument in debug mode only.
+#define MFEM_DEBUG_DO(x)
 
 #endif
 
