@@ -390,7 +390,7 @@ void CVODESolver::Init(TimeDependentOperator &f_)
    if (!Parallel())
    {
       NV_LENGTH_S(y) = loc_size;
-      NV_DATA_S(y) = new double[loc_size](); // value-initizalize
+      NV_DATA_S(y) = new double[loc_size](); // value-initialize
    }
    else
    {
@@ -400,7 +400,7 @@ void CVODESolver::Init(TimeDependentOperator &f_)
                     NV_COMM_P(y));
       NV_LOCLENGTH_P(y) = local_size;
       NV_GLOBLENGTH_P(y) = global_size;
-      NV_DATA_P(y) = new double[loc_size](); // value-initalize
+      NV_DATA_P(y) = new double[loc_size](); // value-initialize
 #endif
    }
 
