@@ -2644,8 +2644,6 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
 
 Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
 {
-
-
    int      i, j, ie, ib, iv, *v, nv;
    Element *el;
    Mesh    *m;

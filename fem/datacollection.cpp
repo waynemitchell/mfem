@@ -178,7 +178,7 @@ void DataCollection::RegisterQField(const std::string& q_field_name,
 
 void DataCollection::DeregisterQField(const std::string& name)
 {
-   FieldMapIterator it = q_field_map.find(name);
+   QFieldMapIterator it = q_field_map.find(name);
    if (it != q_field_map.end())
    {
       if (own_data)

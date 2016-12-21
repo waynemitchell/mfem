@@ -28,7 +28,6 @@
 #include "general/socketstream.hpp"
 #include "general/optparser.hpp"
 #include "general/gzstream.hpp"
-
 #ifdef MFEM_USE_MPI
 #include "general/communication.hpp"
 #endif
