@@ -269,8 +269,12 @@ int main(int argc, char *argv[])
       else
       {
          dc = new VisItDataCollection("Example9-Parallel", pmesh);
+         dc->SetPrecision(precision);
       }
       dc->RegisterField("solution", u);
+      dc->SetCycle(0);
+      dc->SetTime(0.0);
+      dc->Save();
    }
 
    socketstream sout;
