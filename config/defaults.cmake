@@ -91,7 +91,15 @@ set(NetCDF_REQUIRED_PACKAGES "" CACHE STRING
 
 set(MPFR_DIR "" CACHE PATH "Path to the MPFR library.")
 
+set(CONDUIT_DIR "${MFEM_DIR}/../conduit" CACHE PATH
+    "Path to the Conduit library.")
+set(Conduit_REQUIRED_PACKAGES "HDF5" CACHE STRING
+    "Additional packages required by Conduit.")
+
 set(SIDRE_DIR "${MFEM_DIR}/../asctoolkit" CACHE PATH "Path to the Sidre library.")
+# Remove "Boost" when not needed
+set(Sidre_REQUIRED_PACKAGES "Conduit" "Boost" CACHE STRING
+    "Additional packages required by Sidre.")
 
 set(BLAS_INCLUDE_DIRS "" CACHE STRING "Path to BLAS headers.")
 set(BLAS_LIBRARIES "" CACHE STRING "The BLAS library.")

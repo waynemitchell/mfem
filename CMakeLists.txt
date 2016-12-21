@@ -47,8 +47,11 @@ if (${PROJECT_SOURCE_DIR} STREQUAL ${PROJECT_BINARY_DIR})
     "MFEM does not support in-source CMake builds at this time.")
 endif (${PROJECT_SOURCE_DIR} STREQUAL ${PROJECT_BINARY_DIR})
 
-if (CMAKE_VERSION VERSION_LESS 3.2)
-   # This seems to be needed by: find_package(BLAS REQUIRED)
+if (CMAKE_VERSION VERSION_LESS 3.2 OR MFEM_USE_SIDRE)
+   # This seems to be needed by:
+   #  * find_package(BLAS REQUIRED) and
+   #  * find_package(HDF5 REQUIRED) needed, in turn, by:
+   #    - find_package(SIDRE REQUIRED)
    enable_language(C)
 endif()
 
@@ -152,9 +155,9 @@ if (MFEM_USE_MPFR)
   include_directories(${MPFR_INCLUDE_DIRS})
 endif()
 
-# SIDRE
+# Sidre
 if (MFEM_USE_SIDRE)
-  find_package(SIDRE REQUIRED)
+  find_package(Sidre REQUIRED)
   include_directories(${SIDRE_INCLUDE_DIRS})
 endif()
 
