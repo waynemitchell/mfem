@@ -263,7 +263,7 @@ function(mfem_find_package Name Prefix DirVar IncSuffixes Header LibSuffixes
       endif()
       string(TOUPPER ${ReqPack} ReqPACK)
       if (NOT (${ReqPack}_FOUND OR ${ReqPACK}_FOUND))
-	find_package(${ReqPack} ${Required} ${Quiet})
+        find_package(${ReqPack} ${Required} ${Quiet})
       endif()
       if ("${ReqPack}" STREQUAL "MPI")
         list(APPEND ${Prefix}_LIBRARIES ${MPI_CXX_LIBRARIES})

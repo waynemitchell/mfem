@@ -28,7 +28,6 @@ set(SRCS
   nonlinearform.cpp
   nonlininteg.cpp
   staticcond.cpp
-  sidredatacollection.cpp
   )
 
 set(HDRS
@@ -59,8 +58,12 @@ set(HDRS
   tfe.hpp
   tfespace.hpp
   tintrules.hpp
-  sidredatacollection.hpp
   )
+
+if (MFEM_USE_SIDRE)
+  list(APPEND SRCS sidredatacollection.cpp)
+  list(APPEND HDRS sidredatacollection.hpp)
+endif()
 
 if (MFEM_USE_MPI)
   list(APPEND SRCS
