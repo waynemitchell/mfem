@@ -113,6 +113,9 @@ public:
    virtual void RegisterQField(const std::string& q_field_name,
                                QuadratureFunction *qf);
 
+   /// Remove a QuadratureFunction from the collection
+   virtual void DeregisterQField(const std::string& field_name);
+
    /// Check if a grid function is part of the collection
    bool HasField(const std::string& name) const
    { return field_map.find(name) != field_map.end(); }
@@ -192,7 +195,7 @@ public:
    /// Save one field, assuming the collection directory already exists.
    virtual void SaveField(const std::string& field_name);
 
-   /// Load the collection. Not imlemented in the base class DataCollection.
+   /// Load the collection. Not implemented in the base class DataCollection.
    virtual void Load(int cycle_ = 0);
 
    /// Delete the mesh and fields if owned by the collection

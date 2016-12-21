@@ -166,7 +166,6 @@ SIDRE_DIR = @MFEM_DIR@/../asctoolkit
 CONDUIT_DIR = @MFEM_DIR@/../conduit
 SIDRE_OPT = -I$(SIDRE_DIR)/include -I$(CONDUIT_DIR)/include/conduit\
  -I$(HDF5_DIR)/include
-
 SIDRE_LIB = -L$(SIDRE_DIR)/lib \
             -L$(CONDUIT_DIR)/lib \
             -Wl,-rpath -Wl,$(CONDUIT_DIR)/lib \

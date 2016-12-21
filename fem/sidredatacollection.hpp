@@ -22,8 +22,17 @@
 namespace mfem
 {
 
-/// Data collection with Sidre routines.
-/**
+/** @brief Data collection with Sidre routines following the Conduit mesh
+    blueprint specification. */
+/** SidreDataCollection provides an HDF5-based file format for visualization or
+    restart capability.  This functionality is aimed primarily at customers of
+    LLNL's ASC Toolkit that run problems at extreme scales.
+
+    For more information, see:
+    - LLNL ASC toolkit Sidre component (to be open-sourced), http://goo.gl/cZyJdn
+    - LLNL conduit/blueprint library, https://github.com/LLNL/conduit
+    - HDF5 library, https://support.hdfgroup.org/HDF5
+
     The layout created in the Sidre DataStore is: (`"──"` denote groups,
     `"─•"` denote views, `"─>"` denote links, i.e. shallow-copy view)
 
@@ -125,22 +134,14 @@ namespace mfem
               │         │         └─• x2 = view into <ext-double-array>/<named-buffer>
               │         ├── ...
               │        ...
-              ├── sim                          (simulation group)
-              │    └─• loadCalled = 1 (added by the Load method)
               └── named_buffers                (named_buffers group)
                    ├─• vertex_coords = <double-array>
                    ├─• grid-function-1 = <double-array>
                    ├─• grid-function-2 = <double-array>
                   ...
 
-    @note blueprint_index is used both in serial and in parallel. In the latter
-    case, only rank 0 will add things to the blueprint index.
-
-    FIXME - _Improve description ..._
-
-    ### Loading SidreDataCollection from file(s).
-
-    ...
+    @note blueprint_index is used both in serial and in parallel. In parallel,
+    only rank 0 will add entries to the blueprint index.
 
     @note SidreDataCollection does not manage the FiniteElementSpace%s and
     FiniteElementCollection%s associated with registered GridFunction%s.
@@ -148,16 +149,18 @@ namespace mfem
     there are no methods that automatically register GridFunction%s using just
     the content of the Sidre DataStore. Such capabilities can be implemented in
     a derived class, adding any desired object management routines.
- */
+*/
 class SidreDataCollection : public DataCollection
 {
 public:
 
    /// Constructor that allocates and initializes a Sidre DataStore.
    /**
-       @param[in] collection_name FIXME - _description_
-       @param[in] the_mesh        FIXME - _description_ (can be NULL)
-       @param[in] owns_mesh_data  FIXME - _description_
+       @param[in] collection_name  Name of the collection used as a file name
+                                   when saving
+       @param[in] the_mesh         Mesh shared by all grid functions in the
+                                   collection (can be NULL)
+       @param[in] owns_mesh_data   Does the SidreDC own the mesh vertices?
 
        With this constructor, the SidreDataCollection owns the allocated Sidre
        DataStore.
@@ -169,10 +172,13 @@ public:
    /// Constructor that links to an external Sidre DataStore.
    /** Specifically, the global and domain groups can be at arbitrary paths.
 
-       @param[in] collection_name FIXME - _description_
-       @param[in] global_grp      FIXME - _description_
-       @param[in] domain_grp      FIXME - _description_
-       @param[in] owns_mesh_data  FIXME - _description_
+       @param[in] collection_name  Name of the collection used as a file name
+                                   when saving
+       @param[in] global_grp       Pointer to the global group in the datastore,
+                                   see the above schematic
+       @param[in] domain_grp       Pointer to the domain group in the datastore,
+                                   see the above schematic
+       @param[in] owns_mesh_data   Does the SidreDC own the mesh vertices?
 
        With this constructor, the SidreDataCollection does not own the Sidre
        DataStore.
@@ -239,7 +245,7 @@ public:
    /// Delete all owned data.
    virtual ~SidreDataCollection();
 
-   /// FIXME - _add description_.
+   /// Set/change the mesh associated with the collection
    /** Uses the field name "mesh_nodes" or the value set by SetMeshNodesName()
        to register the mesh nodes GridFunction, if the mesh uses nodes. */
    virtual void SetMesh(Mesh *new_mesh);
@@ -256,8 +262,6 @@ public:
 
    asctoolkit::sidre::DataGroup * GetBPGroup() { return bp_grp; }
    asctoolkit::sidre::DataGroup * GetBPIndexGroup() { return bp_index_grp; }
-   /// FIXME - delete this method before merging the PR?
-   asctoolkit::sidre::DataGroup * GetSimGroup() { return simdata_grp; }
 
    /// Save the collection to file.
    /** This method calls `Save(collection_name, "sidre_hdf5")`. */
@@ -293,7 +297,7 @@ public:
       Load(get_file_path(name), "sidre_hdf5");
    }
 
-   /// FIXME - add description.
+   /// Load external data after registering externally owned fields.
    void LoadExternalData(const std::string& path, const std::string& protocol);
 
    /** @brief Updates the DataCollection's cycle, time, and time-step variables
@@ -352,9 +356,6 @@ private:
    // Default value: "mesh_nodes".
    std::string m_meshNodesGFName;
 
-   // Set to true in the Load() method.
-   bool m_loadCalled;
-
    // If the data collection owns the datastore, it will store a pointer to it.
    // Otherwise, this pointer is NULL.
    asctoolkit::sidre::DataStore * m_datastore_ptr;
@@ -389,7 +390,6 @@ private:
    asctoolkit::sidre::DataGroup * bp_index_grp;
 
    // This is stored for convenience.
-   asctoolkit::sidre::DataGroup * simdata_grp;
    asctoolkit::sidre::DataGroup * named_bufs_grp;
 
    // Private helper functions

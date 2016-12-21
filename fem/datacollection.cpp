@@ -176,6 +176,19 @@ void DataCollection::RegisterQField(const std::string& q_field_name,
    ref = qf;
 }
 
+void DataCollection::DeregisterQField(const std::string& name)
+{
+   FieldMapIterator it = q_field_map.find(name);
+   if (it != q_field_map.end())
+   {
+      if (own_data)
+      {
+         delete it->second;
+      }
+      q_field_map.erase(it);
+   }
+}
+
 GridFunction *DataCollection::GetField(const std::string& field_name)
 {
    FieldMapConstIterator it = field_map.find(field_name);
@@ -192,7 +205,7 @@ QuadratureFunction *DataCollection::GetQField(const std::string& q_field_name)
 
 void DataCollection::SetPrefixPath(const std::string& prefix)
 {
-   if (! prefix.empty() )
+   if (!prefix.empty())
    {
       prefix_path = prefix;
       if (!prefix_path.empty() && prefix_path[prefix_path.size()-1] != '/')

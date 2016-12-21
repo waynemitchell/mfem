@@ -2098,7 +2098,6 @@ void Mesh::Make1D(int n, double sx)
 
 Mesh::Mesh(const Mesh &mesh, bool copy_nodes)
 {
-
    Dim = mesh.Dim;
    spaceDim = mesh.spaceDim;
 
@@ -2270,11 +2269,9 @@ Mesh::Mesh(double *_vertices, int num_vertices,
    int boundary_index_stride = Geometry::NumVerts[boundary_type];
 
    // assuming Vertex is POD
-   printf("setting vertices\n");
    vertices.MakeRef(reinterpret_cast<Vertex*>(_vertices), num_vertices);
    NumOfVertices = num_vertices;
 
-   printf("setting elements\n");
    for (int i = 0; i < num_elements; i++)
    {
       elements[i] = NewElement(element_type);
@@ -2291,7 +2288,8 @@ Mesh::Mesh(double *_vertices, int num_vertices,
       case Geometry::SQUARE: FinalizeQuadMesh(generate_faces, refine,
                                                  fix_orientation);
          break;
-      case Geometry::CUBE: FinalizeHexMesh(generate_faces, refine, fix_orientation);
+      case Geometry::CUBE: FinalizeHexMesh(generate_faces, refine,
+                                              fix_orientation);
          break;
       case Geometry::TETRAHEDRON: FinalizeTetMesh(generate_faces, refine,
                                                      fix_orientation);
@@ -2299,7 +2297,6 @@ Mesh::Mesh(double *_vertices, int num_vertices,
       default: MFEM_ABORT("cannot finialize mesh");
    }
 
-   printf("setting boundary elements\n");
    if (num_boundary_elements > 0)
    {
       for (int i = 0; i < num_boundary_elements; i++)
@@ -2312,11 +2309,9 @@ Mesh::Mesh(double *_vertices, int num_vertices,
    else
    {
       GenerateBoundaryElements();
+      bdr_attributes.Append(1);
    }
    NumOfBdrElements = num_boundary_elements;
-
-   // need?
-   // SetAttributes();
 }
 
 Element *Mesh::NewElement(int geom)
@@ -5304,8 +5299,6 @@ void Mesh::QuadUniformRefinement()
       v[2] = oelem+i;
       v[3] = oedge+e[3];
    }
-
-
 
    boundary.SetSize(2 * NumOfBdrElements);
    for (i = 0; i < NumOfBdrElements; i++)

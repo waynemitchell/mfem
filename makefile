@@ -75,7 +75,7 @@ $(if $(MFEM_REAL_DIR),,$(error Source directory "$(MFEM_DIR)" is not valid))
 SRC := $(if $(MFEM_REAL_DIR:$(CURDIR)=),$(MFEM_DIR)/,)
 $(if $(word 2,$(SRC)),$(error Spaces in SRC = "$(SRC)" are not supported))
 
-MINIAPP_SUBDIRS = common electromagnetics meshing performance tools restart
+MINIAPP_SUBDIRS = common electromagnetics meshing performance tools
 MINIAPP_DIRS := $(addprefix miniapps/,$(MINIAPP_SUBDIRS))
 MINIAPP_TEST_DIRS := $(filter-out %/common,$(MINIAPP_DIRS))
 MINIAPP_USE_COMMON := $(addprefix miniapps/,electromagnetics tools)
@@ -159,7 +159,7 @@ endif
 
 DEP_CXX ?= $(MFEM_CXX)
 
-# SIDRE library and required libraries.
+# Sidre library and dependencies
 ifeq ($(MFEM_USE_SIDRE),YES)
    INCFLAGS += $(SIDRE_OPT)
    ALL_LIBS += $(SIDRE_LIB)
@@ -430,7 +430,6 @@ status info:
 	$(info MFEM_USE_GZSTREAM    = $(MFEM_USE_GZSTREAM))
 	$(info MFEM_USE_LIBUNWIND   = $(MFEM_USE_LIBUNWIND))
 	$(info MFEM_USE_LAPACK      = $(MFEM_USE_LAPACK))
-	$(info MFEM_USE_SIDRE       = $(MFEM_USE_SIDRE))
 	$(info MFEM_THREAD_SAFE     = $(MFEM_THREAD_SAFE))
 	$(info MFEM_USE_OPENMP      = $(MFEM_USE_OPENMP))
 	$(info MFEM_USE_MEMALLOC    = $(MFEM_USE_MEMALLOC))
@@ -442,6 +441,7 @@ status info:
 	$(info MFEM_USE_GNUTLS      = $(MFEM_USE_GNUTLS))
 	$(info MFEM_USE_NETCDF      = $(MFEM_USE_NETCDF))
 	$(info MFEM_USE_MPFR        = $(MFEM_USE_MPFR))
+	$(info MFEM_USE_SIDRE       = $(MFEM_USE_SIDRE))
 	$(info MFEM_CXX             = $(value MFEM_CXX))
 	$(info MFEM_CPPFLAGS        = $(value MFEM_CPPFLAGS))
 	$(info MFEM_CXXFLAGS        = $(value MFEM_CXXFLAGS))

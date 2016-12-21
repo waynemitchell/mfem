@@ -164,10 +164,10 @@ int main(int argc, char *argv[])
 
    if (amr == 1)
    {
-      Vertex theVertex(0., 0., 1.);
+      Vertex target(0.0, 0.0, 1.0);
       for (int l = 0; l < 3; l++)
       {
-         mesh->RefineAtVertex(theVertex);
+         mesh->RefineAtVertex(target);
       }
       SnapNodes(*mesh);
    }
@@ -202,10 +202,10 @@ int main(int argc, char *argv[])
 
    if (amr == 1)
    {
-      Vertex theVertex(0., 0., 1.);
+      Vertex target(0.0, 0.0, 1.0);
       for (int l = 0; l < 2; l++)
       {
-         pmesh->RefineAtVertex(theVertex);
+         pmesh->RefineAtVertex(target);
       }
       SnapNodes(*pmesh);
    }

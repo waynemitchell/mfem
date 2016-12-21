@@ -36,8 +36,7 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name,
    : mfem::DataCollection(collection_name, the_mesh),
      m_owns_datastore(true),
      m_owns_mesh_data(own_mesh_data),
-     m_meshNodesGFName("mesh_nodes"),
-     m_loadCalled(false)
+     m_meshNodesGFName("mesh_nodes")
 {
    m_datastore_ptr = new sidre::DataStore();
 
@@ -49,7 +48,6 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name,
    bp_grp = domain_grp->createGroup("blueprint");
    // Currently only rank 0 adds anything to bp_index.
    bp_index_grp = global_grp->createGroup("blueprint_index/" + name);
-   simdata_grp = domain_grp->createGroup("sim");
 
    named_bufs_grp = domain_grp->createGroup("named_buffers");
 
@@ -69,8 +67,8 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name,
 // domain and global data in.
 
 // TODO - Conduit will have the capability to generate a blueprint index group
-// in the future.  When this is available, all the blueprint index code and the
-// rootfile_dg can be removed from the data collection class.
+// in the future.  When this is available, all the blueprint index code can be
+// removed from the data collection class.
 SidreDataCollection::SidreDataCollection(const std::string& collection_name,
                                          asctoolkit::sidre::DataGroup* global_grp,
                                          asctoolkit::sidre::DataGroup* domain_grp,
@@ -79,15 +77,12 @@ SidreDataCollection::SidreDataCollection(const std::string& collection_name,
      m_owns_datastore(false),
      m_owns_mesh_data(own_mesh_data),
      m_meshNodesGFName("mesh_nodes"),
-     m_loadCalled(false),
      m_datastore_ptr(NULL)
 {
    bp_grp = domain_grp->createGroup("blueprint");
 
    // Currently only rank 0 adds anything to bp_index.
    bp_index_grp = global_grp->createGroup("blueprint_index/" + name);
-
-   simdata_grp = domain_grp->createGroup("sim");
 
    named_bufs_grp = domain_grp->createGroup("named_buffers");
 
@@ -491,18 +486,6 @@ void SidreDataCollection::verifyMeshBlueprint()
 {
    // Conduit will have a verify mesh blueprint capability in the future.
    // Add call to that when it's available to check actual contents in sidre.
-
-   // FIXME - do we want to keep this commented out code?
-   // If a nodes GF name was set, verify a field with that name was registered.
-   //if (!m_meshNodesGFName.empty())
-   //{
-   //   MFEM_VERIFY( HasField( m_meshNodesGFName ),
-   //                "A nodes' position GF was not found with the name '"
-   //                << m_meshNodesGFName <<
-   //                "'.\n\tEither the field was not registered, or the wrong "
-   //                "mesh nodes GF name was provided in the Sidre DC "
-   //                "constructor.");
-   //}
 }
 
 void SidreDataCollection::SetMesh(Mesh *new_mesh)
@@ -601,12 +584,9 @@ SetGroupPointers(asctoolkit::sidre::DataGroup *global_grp,
                "Domain group does not contain a blueprint group.");
    MFEM_VERIFY(global_grp->hasGroup("blueprint_index/" + name),
                "Global group does not contain a blueprint index group.");
-   MFEM_VERIFY(domain_grp->hasGroup("sim"),
-               "Domain group does not contain a sim group.");
 
    bp_grp = domain_grp->getGroup("blueprint");
    bp_index_grp = global_grp->getGroup("blueprint_index/" + name);
-   simdata_grp = domain_grp->getGroup("sim");
    named_bufs_grp = domain_grp->getGroup("named_buffers");
 }
 
@@ -615,17 +595,6 @@ void SidreDataCollection::Load(const std::string& path,
 {
    DataCollection::DeleteAll();
    // Reset DataStore?
-
-   if ( m_loadCalled )
-   {
-      MFEM_ABORT("Attempt to call SidreDataCollection::Load() more than once on"
-                 " collection: " << name);
-   }
-   else
-   {
-      simdata_grp->createViewScalar("loadCalled", 1);
-      m_loadCalled = true;
-   }
 
    sidre::DataStore * datastore = bp_grp->getDataStore();
 
@@ -638,7 +607,7 @@ void SidreDataCollection::Load(const std::string& path,
    else
 #endif
    {
-      bp_grp->load(path, protocol); //, sidre_dc_group);
+      bp_grp->load(path, protocol);
    }
 
    // If the data collection created the datastore, it knows the layout of where
@@ -659,7 +628,19 @@ void SidreDataCollection::Load(const std::string& path,
 void SidreDataCollection::LoadExternalData(const std::string& path,
                                            const std::string& protocol)
 {
-   // FIXME
+   sidre::DataStore * datastore = bp_grp->getDataStore();
+
+#ifdef MFEM_USE_MPI
+   if (m_comm != MPI_COMM_NULL)
+   {
+      asctoolkit::spio::IOManager reader(m_comm);
+      reader.loadExternalData(datastore->getRoot(), path);
+   }
+   else
+#endif
+   {
+      bp_grp->loadExternalData(path);
+   }
 }
 
 void SidreDataCollection::UpdateStateFromDS()
@@ -727,49 +708,11 @@ void SidreDataCollection::Save(const std::string& filename,
 #endif
    {
       // If serial, use sidre group writer.
-      bp_grp->save(file_path, protocol);//, sidre_dc_group);
+      bp_grp->save(file_path, protocol);
 
       blueprint_indicies_grp
-      ->save(file_path + ".root", protocol);//, sidre_dc_group);
+      ->save(file_path + ".root", protocol);
    }
-
-   // FIXME: any reason to keep this?
-#if 0
-   // If not hdf5, use sidre group writer for both parallel and serial.  SPIO
-   // only supports HDF5.
-   else
-   {
-      if (myid == 0)
-      {
-         sidre::DataGroup * blueprint_indicies_grp = bp_index_grp->getParent();
-         blueprint_indicies_grp->getDataStore()->save(file_path + ".root",
-                                                      protocol);//, sidre_dc_group);
-      }
-
-      fNameSstr << "_" << myid;
-      file_path = fNameSstr.str();
-      bp_grp->getDataStore()->save(file_path, protocol);//, sidre_dc_group);
-
-   }
-#endif
-
-   // FIXME: any reason to keep this?
-   /*
-      std::string _protocol;
-      std::string _filename;
-
-      _protocol = "conduit_json";
-      _filename = fNameSstr.str() + ".conduit_json";
-      bp_grp->getDataStore()->save(_filename, _protocol);//, sidre_dc_group);
-
-      _protocol = "json";
-      _filename = fNameSstr.str() + ".json";
-      bp_grp->getDataStore()->save(_filename, _protocol);//, sidre_dc_group);
-
-      _protocol = "sidre_hdf5";
-      _filename = fNameSstr.str() + ".sidre_hdf5";
-      bp_grp->getDataStore()->save(_filename, _protocol);//, sidre_dc_group);
-   */
 }
 
 // private method

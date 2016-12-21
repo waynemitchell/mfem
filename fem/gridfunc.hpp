@@ -331,8 +331,8 @@ public:
 std::ostream &operator<<(std::ostream &out, const GridFunction &sol);
 
 
-/** @brief Class representing a function by values (scalar or vector) at
-    quadrature points. */
+/** @brief Class representing a function through its values (scalar or vector)
+    at quadrature points. */
 class QuadratureFunction : public Vector
 {
 protected:

@@ -33,6 +33,7 @@ option(MFEM_USE_GECKO "Enable GECKO usage" OFF)
 option(MFEM_USE_GNUTLS "Enable GNUTLS usage" OFF)
 option(MFEM_USE_NETCDF "Enable NETCDF usage" OFF)
 option(MFEM_USE_MPFR "Enable MPFR usage." OFF)
+option(MFEM_USE_SIDRE "Enable Sidre usage" OFF)
 
 # Allow a user to disable testing, examples, and/or miniapps at CONFIGURE TIME
 # if they don't want/need them (e.g. if MFEM is "just a dependency" and all they
@@ -89,6 +90,8 @@ set(NetCDF_REQUIRED_PACKAGES "" CACHE STRING
     "Additional packages required by NetCDF.")
 
 set(MPFR_DIR "" CACHE PATH "Path to the MPFR library.")
+
+set(SIDRE_DIR "${MFEM_DIR}/../asctoolkit" CACHE PATH "Path to the Sidre library.")
 
 set(BLAS_INCLUDE_DIRS "" CACHE STRING "Path to BLAS headers.")
 set(BLAS_LIBRARIES "" CACHE STRING "The BLAS library.")

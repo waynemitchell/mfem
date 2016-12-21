@@ -404,7 +404,6 @@ public:
 
    Mesh(int _Dim, int NVert, int NElem, int NBdrElem = 0, int _spaceDim= -1)
    {
-
       if (_spaceDim == -1)
       {
          _spaceDim = _Dim;
@@ -574,9 +573,6 @@ public:
    { return elements.GetData(); }
 
    const Element *GetElement(int i) const { return elements[i]; }
-
-   int SetElementData(int *indices, size_t len_indices,
-                      int *attributes, size_t len_attributes);
 
    Element *GetElement(int i) { return elements[i]; }
 

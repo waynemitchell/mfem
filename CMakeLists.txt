@@ -152,6 +152,12 @@ if (MFEM_USE_MPFR)
   include_directories(${MPFR_INCLUDE_DIRS})
 endif()
 
+# SIDRE
+if (MFEM_USE_SIDRE)
+  find_package(SIDRE REQUIRED)
+  include_directories(${SIDRE_INCLUDE_DIRS})
+endif()
+
 # MFEM_TIMER_TYPE
 if (NOT DEFINED MFEM_TIMER_TYPE)
   if (APPLE)
@@ -170,7 +176,7 @@ endif()
 
 # List all possible libraries in order of dependencies.
 set(MFEM_TPLS HYPRE OPENMP MESQUITE SuiteSparse SuperLUDist ParMETIS METIS
-    LAPACK BLAS GECKO GNUTLS NETCDF MPFR POSIXCLOCKS MFEMBacktrace ZLIB)
+    LAPACK BLAS GECKO GNUTLS NETCDF MPFR SIDRE POSIXCLOCKS MFEMBacktrace ZLIB)
 # Add all *_FOUND libraries in the variable TPL_LIBRARIES.
 set(TPL_LIBRARIES "")
 foreach(TPL IN LISTS MFEM_TPLS)
