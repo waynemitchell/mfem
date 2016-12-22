@@ -234,8 +234,8 @@ public:
       }
    }
 
-   /// Assemble the matrix in "unassembled format" for non-overlapping DD.
-   /// Only significant with PETSc backend
+   /** Assemble the matrix in "unassembled format" for non-overlapping DD. Only
+       significant with PETSc backend. */
    void SetUseNonoverlappingFormat(bool use = true)
    {
 #ifndef MFEM_USE_PETSC
