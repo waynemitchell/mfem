@@ -253,7 +253,7 @@ int main(int argc, char *argv[])
       PetscSolver    *prec = NULL;
       pcg->SetTol(1e-10);
       pcg->SetMaxIter(500);
-      pcg->SetPrintLevel(2); //TODO
+      pcg->SetPrintLevel(2);
       if (use_nonoverlapping)
       {
          // Auxiliary class for BDDC customization
