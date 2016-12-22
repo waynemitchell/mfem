@@ -639,7 +639,7 @@ void SidreDataCollection::LoadExternalData(const std::string& path,
    else
 #endif
    {
-      bp_grp->loadExternalData(path);
+      bp_grp->loadExternalData(path, protocol);
    }
 }
 
