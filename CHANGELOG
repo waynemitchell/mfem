@@ -84,8 +84,8 @@ New and updated examples and miniapps
   requirements, and eliminates unnecessary computation. It also fixed a bug
   with divergence cleaning in the Tesla miniapp.
 
-- Added an option to ex9p to save a visualization file using the mesh
-  blueprint/hdf5 binary format.
+- Added an option to Example 9/9p to save a binary visualization file using the
+  Conduit mesh blueprint/hdf5 format.
 
 Miscellaneous
 -------------
@@ -98,11 +98,12 @@ Miscellaneous
 - Added on-the-fly compression of file streams input and output via gzstream,
   see the MFEM_USE_GZSTREAM option.
 
-- Added support for an HDF5-based file format following the Conduit mesh
-  blueprint specification for visualization or restart capability.  This
-  functionality is aimed primarily at customers of LLNL's ASC Toolkit (Sidre
-  component) that run problems at extreme scales.  Customers desiring a small
-  scale binary format may want to look at the gzstream functionality instead.
+- Added experimental support for an HDF5-based output file format following the
+  Conduit (https://github.com/LLNL/conduit) mesh blueprint specification for
+  visualization and/or restart capability. This functionality is aimed primarily
+  at user of LLNL's ASC Toolkit (Sidre component) that run problems at extreme
+  scales. Users desiring a small scale binary format may want to look at the
+  gzstream functionality instead.
 
 - Added optional support for software-based higher-precision arithmetic with
   the MPFR library. When MFEM_USE_MPFR is enabled, the 1D quadrature rules will

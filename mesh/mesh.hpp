@@ -402,7 +402,7 @@ public:
 
        This method calls the method FinalizeTopology(). The method Finalize()
        may be called after this constructor and after optionally setting the
-       Mesh nodes.*/
+       Mesh nodes. */
    Mesh(double *vertices, int num_vertices,
         int *element_indices, Geometry::Type element_type,
         int *element_attributes, int num_elements,
