@@ -122,6 +122,9 @@ public:
    - http://computation.llnl.gov/sites/default/files/public/cv_guide.pdf
 
    @note All methods except Step() can be called before Init().
+   To minimize uncertainty, we advise the user to adhere to the given
+   interface, instead of making similar calls by the CVODE's
+   internal CVodeMem object.
 */
 class CVODESolver : public ODESolver, public SundialsSolver
 {
@@ -210,6 +213,9 @@ public:
   - http://computation.llnl.gov/sites/default/files/public/ark_guide.pdf
 
    @note All methods except Step() can be called before Init().
+   To minimize uncertainty, we advise the user to adhere to the given
+   interface, instead of making similar calls by the ARKODE's
+   internal ARKodeMem object.
 */
 class ARKODESolver: public ODESolver, public SundialsSolver
 {
@@ -309,6 +315,10 @@ public:
 /**
    - http://computation.llnl.gov/projects/sundials
    - http://computation.llnl.gov/sites/default/files/public/kin_guide.pdf
+
+   @note To minimize uncertainty, we advise the user to adhere to the given
+   interface, instead of making similar calls by the KINSOL's
+   internal KINMem object.
 */
 class KinSolver : public NewtonSolver, public SundialsSolver
 {
