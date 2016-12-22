@@ -12,7 +12,6 @@
 #include "fem.hpp"
 #include "picojson.h"
 
-#include <limits>      // std::numeric_limits::infinity
 #include <fstream>
 #include <cerrno>      // errno
 #include <sstream>

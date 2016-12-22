@@ -149,6 +149,10 @@ namespace mfem
     there are no methods that automatically register GridFunction%s using just
     the content of the Sidre DataStore. Such capabilities can be implemented in
     a derived class, adding any desired object management routines.
+
+    @warning This class is still _experimental_, meaning that in future
+    releases, it may not be backward compatible, and the output files generated
+    by the current version may become unreadable.
 */
 class SidreDataCollection : public DataCollection
 {

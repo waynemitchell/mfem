@@ -1700,6 +1700,145 @@ void Mesh::FinalizeHexMesh(int generate_edges, int refine, bool fix_orientation)
    meshgen = 2;
 }
 
+void Mesh::FinalizeTopology()
+{
+   // Requirements: the following should be defined:
+   //   1) Dim
+   //   2) NumOfElements, elements
+   //   3) NumOfBdrElements, boundary
+   //   4) NumOfVertices
+   // Optional:
+   //   2) ncmesh may be defined
+   //   3) el_to_edge may be allocated (it will be re-computed)
+
+   bool generate_edges = true;
+
+   if (spaceDim == 0) { spaceDim = Dim; }
+   if (ncmesh) { ncmesh->spaceDim = spaceDim; }
+
+   InitBaseGeom();
+
+   // set the mesh type ('meshgen')
+   SetMeshGen();
+
+   if (NumOfBdrElements == 0 && Dim > 2)
+   {
+      // in 3D, generate boundary elements before we 'MarkForRefinement'
+      GetElementToFaceTable();
+      GenerateFaces();
+      GenerateBoundaryElements();
+   }
+   else if (Dim == 1)
+   {
+      GenerateFaces();
+   }
+
+   // generate the faces
+   if (Dim > 2)
+   {
+      GetElementToFaceTable();
+      GenerateFaces();
+   }
+   else
+   {
+      NumOfFaces = 0;
+   }
+
+   // generate edges if requested
+   if (Dim > 1 && generate_edges)
+   {
+      // el_to_edge may already be allocated (P2 VTK meshes)
+      if (!el_to_edge) { el_to_edge = new Table; }
+      NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+      if (Dim == 2)
+      {
+         GenerateFaces(); // 'Faces' in 2D refers to the edges
+         if (NumOfBdrElements == 0)
+         {
+            GenerateBoundaryElements();
+         }
+      }
+   }
+   else
+   {
+      NumOfEdges = 0;
+   }
+
+   if (ncmesh)
+   {
+      // tell NCMesh the numbering of edges/faces
+      ncmesh->OnMeshUpdated(this);
+
+      // update faces_info with NC relations
+      GenerateNCFaceInfo();
+   }
+
+   // generate the arrays 'attributes' and 'bdr_attributes'
+   SetAttributes();
+}
+
+void Mesh::Finalize(bool refine, bool fix_orientation)
+{
+   if (NURBSext || ncmesh)
+   {
+      MFEM_ASSERT(CheckElementOrientation(false) == 0, "");
+      MFEM_ASSERT(CheckBdrElementOrientation() == 0, "");
+      return;
+   }
+
+   // Requirements:
+   //  1) FinilizeTopology() or equivalent was called
+   //  2) if (Nodes == NULL), vertices must be defined
+   //  3) if (Nodes != NULL), Nodes must be defined
+
+   const bool check_orientation = true; // for regular elements, not boundary
+   const bool curved = (Nodes != NULL);
+   const bool may_change_topology =
+      ( refine && (Dim > 1 && (meshgen & 1)) ) ||
+      ( check_orientation && fix_orientation &&
+        (Dim == 2 || (Dim == 3 && (meshgen & 1))) );
+
+   DSTable *old_v_to_v = NULL;
+   Table *old_elem_vert = NULL;
+
+   if (curved && may_change_topology)
+   {
+      PrepareNodeReorder(&old_v_to_v, &old_elem_vert);
+   }
+
+   if (check_orientation)
+   {
+      // check and optionally fix element orientation
+      CheckElementOrientation(fix_orientation);
+   }
+   if (refine)
+   {
+      MarkForRefinement();   // may change topology!
+   }
+
+   if (may_change_topology)
+   {
+      if (curved)
+      {
+         DoNodeReorder(old_v_to_v, old_elem_vert); // updates the mesh topology
+         delete old_elem_vert;
+         delete old_v_to_v;
+
+         Nodes->FESpace()->RebuildElementToDofTable();
+      }
+      else
+      {
+         FinalizeTopology(); // Re-computes some data unnecessarily.
+      }
+
+      // TODO: maybe introduce Mesh::NODE_REORDER operation and FESpace::
+      // NodeReorderMatrix and do Nodes->Update() instead of DoNodeReorder?
+   }
+
+   // check and fix boundary element orientation
+   CheckBdrElementOrientation();
+}
+
 void Mesh::Make3D(int nx, int ny, int nz, Element::Type type,
                   int generate_edges, double sx, double sy, double sz)
 {
@@ -2254,8 +2393,7 @@ Mesh::Mesh(double *_vertices, int num_vertices,
            int *element_attributes, int num_elements,
            int *boundary_indices, Geometry::Type boundary_type,
            int *boundary_attributes, int num_boundary_elements,
-           int dimension, int space_dimension,
-           int generate_faces, int refine, bool fix_orientation)
+           int dimension, int space_dimension)
 {
    if (space_dimension == -1)
    {
@@ -2280,38 +2418,15 @@ Mesh::Mesh(double *_vertices, int num_vertices,
    }
    NumOfElements = num_elements;
 
-   switch (element_type)
+   for (int i = 0; i < num_boundary_elements; i++)
    {
-      case Geometry::TRIANGLE: FinalizeTriMesh(generate_faces, refine,
-                                                  fix_orientation);
-         break;
-      case Geometry::SQUARE: FinalizeQuadMesh(generate_faces, refine,
-                                                 fix_orientation);
-         break;
-      case Geometry::CUBE: FinalizeHexMesh(generate_faces, refine,
-                                              fix_orientation);
-         break;
-      case Geometry::TETRAHEDRON: FinalizeTetMesh(generate_faces, refine,
-                                                     fix_orientation);
-         break;
-      default: MFEM_ABORT("cannot finialize mesh");
-   }
-
-   if (num_boundary_elements > 0)
-   {
-      for (int i = 0; i < num_boundary_elements; i++)
-      {
-         boundary[i] = NewElement(boundary_type);
-         boundary[i]->SetVertices(boundary_indices + i * boundary_index_stride);
-         boundary[i]->SetAttribute(boundary_attributes[i]);
-      }
-   }
-   else
-   {
-      GenerateBoundaryElements();
-      bdr_attributes.Append(1);
+      boundary[i] = NewElement(boundary_type);
+      boundary[i]->SetVertices(boundary_indices + i * boundary_index_stride);
+      boundary[i]->SetAttribute(boundary_attributes[i]);
    }
    NumOfBdrElements = num_boundary_elements;
+
+   FinalizeTopology();
 }
 
 Element *Mesh::NewElement(int geom)
@@ -2403,7 +2518,7 @@ void Mesh::SetMeshGen()
 void Mesh::Load(std::istream &input, int generate_edges, int refine,
                 bool fix_orientation)
 {
-   int i, j, curved = 0, read_gf = 1;
+   int curved = 0, read_gf = 1;
 
    if (!input)
    {
@@ -2500,146 +2615,39 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    //         'input' must point to a GridFunction
    //  5c) if curved != 0 and read_gf == 0,
    //         vertices and Nodes must be defined
+   // optional:
+   //  1) el_to_edge may be allocated (as in the case of P2 VTK meshes)
+   //  2) ncmesh may be allocated
 
-   if (spaceDim == 0)
+   // FinalizeTopology() will:
+   // - assume that generate_edges is true
+   // - assume that refine is false
+   // - does not check the orientation of regular and boundary elements
+   FinalizeTopology();
+
+   if (curved && read_gf)
    {
-      spaceDim = Dim;
-   }
-
-   InitBaseGeom();
-
-   // set the mesh type ('meshgen')
-   SetMeshGen();
-
-   if (NumOfBdrElements == 0 && Dim > 2)
-   {
-      // in 3D, generate boundary elements before we 'MarkForRefinement'
-      GetElementToFaceTable();
-      GenerateFaces();
-      GenerateBoundaryElements();
-   }
-
-   if (!curved)
-   {
-      // check and fix element orientation
-      CheckElementOrientation(fix_orientation);
-
-      if (refine)
+      Nodes = new GridFunction(this, input);
+      own_nodes = 1;
+      spaceDim = Nodes->VectorDim();
+      // Set the 'vertices' from the 'Nodes'
+      for (int i = 0; i < spaceDim; i++)
       {
-         MarkForRefinement();
+         Vector vert_val;
+         Nodes->GetNodalValues(vert_val, i+1);
+         for (int j = 0; j < NumOfVertices; j++)
+         {
+            vertices[j](i) = vert_val(j);
+         }
       }
    }
 
-   if (Dim == 1)
-   {
-      GenerateFaces();
-   }
-
-   // generate the faces
-   if (Dim > 2)
-   {
-      GetElementToFaceTable();
-      GenerateFaces();
-      // check and fix boundary element orientation
-      if ( !(curved && (meshgen & 1)) )
-      {
-         CheckBdrElementOrientation();
-      }
-   }
-   else
-   {
-      NumOfFaces = 0;
-   }
-
-   // generate edges if requested
-   if (Dim > 1 && generate_edges == 1)
-   {
-      // el_to_edge may already be allocated (P2 VTK meshes)
-      if (!el_to_edge) { el_to_edge = new Table; }
-      NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
-      if (Dim == 2)
-      {
-         GenerateFaces(); // 'Faces' in 2D refers to the edges
-         if (NumOfBdrElements == 0)
-         {
-            GenerateBoundaryElements();
-         }
-         // check and fix boundary element orientation
-         if ( !(curved && (meshgen & 1)) )
-         {
-            CheckBdrElementOrientation();
-         }
-      }
-   }
-   else
-   {
-      NumOfEdges = 0;
-   }
-
-   if (ncmesh)
-   {
-      // tell NCMesh the numbering of edges/faces
-      ncmesh->OnMeshUpdated(this);
-
-      // update faces_info with NC relations
-      GenerateNCFaceInfo();
-   }
-
-   // generate the arrays 'attributes' and ' bdr_attributes'
-   SetAttributes();
-
-   if (curved)
-   {
-      if (read_gf)
-      {
-         Nodes = new GridFunction(this, input);
-         own_nodes = 1;
-         spaceDim = Nodes->VectorDim();
-         // Set the 'vertices' from the 'Nodes'
-         for (i = 0; i < spaceDim; i++)
-         {
-            Vector vert_val;
-            Nodes->GetNodalValues(vert_val, i+1);
-            for (j = 0; j < NumOfVertices; j++)
-            {
-               vertices[j](i) = vert_val(j);
-            }
-         }
-      }
-
-      // Check orientation and mark edges; only for triangles / tets
-      if (meshgen & 1)
-      {
-         DSTable *old_v_to_v = NULL;
-         Table *old_elem_vert = NULL;
-         if (fix_orientation || refine)
-         {
-            PrepareNodeReorder(&old_v_to_v, &old_elem_vert);
-         }
-
-         // check orientation and mark for refinement using just vertices
-         // (i.e. higher order curvature is not used)
-         CheckElementOrientation(fix_orientation);
-         if (refine)
-         {
-            MarkForRefinement();   // changes topology!
-         }
-
-         if (fix_orientation || refine)
-         {
-            DoNodeReorder(old_v_to_v, old_elem_vert);
-            delete old_elem_vert;
-            delete old_v_to_v;
-         }
-
-         Nodes->FESpace()->RebuildElementToDofTable();
-
-         // TODO: maybe introduce Mesh::NODE_REORDER operation and FESpace::
-         // NodeReorderMatrix and do Nodes->Update() instead of DoNodeReorder?
-      }
-   }
-
-   if (ncmesh) { ncmesh->spaceDim = spaceDim; }
+   // Finalize() will:
+   // - check and optionally fix the orientation of regular elements
+   // - check and fix the orientation of boundary elements
+   // - assume that vertices are defined, if Nodes == NULL
+   // - assume that Nodes are defined, if Nodes != NULL
+   Finalize(refine, fix_orientation);
 }
 
 Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
@@ -3126,7 +3134,7 @@ int Mesh::GetNumFaces() const
 static const char *fixed_or_not[] = { "fixed", "NOT FIXED" };
 #endif
 
-void Mesh::CheckElementOrientation(bool fix_it)
+int Mesh::CheckElementOrientation(bool fix_it)
 {
    int i, j, k, wo = 0, fo = 0, *vi = 0;
    double *v[4];
@@ -3234,6 +3242,7 @@ void Mesh::CheckElementOrientation(bool fix_it)
            << NumOfElements << " (" << fixed_or_not[(wo == fo) ? 0 : 1]
            << ")" << endl;
 #endif
+   return wo;
 }
 
 int Mesh::GetTriOrientation(const int *base, const int *test)
@@ -3332,7 +3341,7 @@ int Mesh::GetQuadOrientation(const int *base, const int *test)
    return 2*i+1;
 }
 
-void Mesh::CheckBdrElementOrientation(bool fix_it)
+int Mesh::CheckBdrElementOrientation(bool fix_it)
 {
    int i, wo = 0;
 
@@ -3384,6 +3393,11 @@ void Mesh::CheckBdrElementOrientation(bool fix_it)
                      if (fix_it)
                      {
                         mfem::Swap<int>(bv[0], bv[1]);
+                        if (bel_to_edge)
+                        {
+                           int *be = bel_to_edge->GetRow(i);
+                           mfem::Swap<int>(be[1], be[2]);
+                        }
                      }
                      wo++;
                   }
@@ -3402,6 +3416,12 @@ void Mesh::CheckBdrElementOrientation(bool fix_it)
                      if (fix_it)
                      {
                         mfem::Swap<int>(bv[0], bv[2]);
+                        if (bel_to_edge)
+                        {
+                           int *be = bel_to_edge->GetRow(i);
+                           mfem::Swap<int>(be[0], be[1]);
+                           mfem::Swap<int>(be[2], be[3]);
+                        }
                      }
                      wo++;
                   }
@@ -3420,6 +3440,7 @@ void Mesh::CheckBdrElementOrientation(bool fix_it)
            << ")" << endl;
    }
 #endif
+   return wo;
 }
 
 void Mesh::GetElementEdges(int i, Array<int> &edges, Array<int> &cor) const
