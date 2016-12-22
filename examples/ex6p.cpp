@@ -14,6 +14,9 @@
 //               mpirun -np 4 ex6p -m ../data/star-surf.mesh -o 2
 //               mpirun -np 4 ex6p -m ../data/square-disc-surf.mesh -o 2
 //               mpirun -np 4 ex6p -m ../data/amr-quad.mesh
+//               mpirun -np 4 ex6p -m ../data/amr-quad.mesh -usepetsc
+//               mpirun -np 4 ex6p -m ../data/amr-quad.mesh -usepetsc
+//                                 -nonoverlapping
 //
 // Description:  This is a version of Example 1 with a simple adaptive mesh
 //               refinement loop. The problem being solved is again the Laplace
@@ -28,6 +31,9 @@
 //               linear, curved and surface meshes. Interpolation of functions
 //               from coarse to fine meshes, as well as persistent GLVis
 //               visualization are also illustrated.
+//
+//               PETSc assembly timings can be benchmarked if requested by
+//               command line.
 //
 //               We recommend viewing Example 1 before viewing this example.
 
