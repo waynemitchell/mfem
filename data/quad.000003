@@ -1,0 +1,81 @@
+MFEM mesh v1.2
+
+#
+# MFEM Geometry Types (see mesh/geom.hpp):
+#
+# POINT       = 0
+# SEGMENT     = 1
+# TRIANGLE    = 2
+# SQUARE      = 3
+# TETRAHEDRON = 4
+# CUBE        = 5
+#
+
+dimension
+2
+
+elements
+4
+1 3 0 1 4 3
+1 3 1 2 5 4
+1 3 3 4 7 6
+1 3 4 5 8 7
+
+boundary
+4
+1 1 0 1
+1 1 1 2
+4 1 3 0
+4 1 6 3
+
+vertices
+9
+2
+0 0
+0.25 0
+0.5 0
+0 0.25
+0.25 0.25
+0.5 0.25
+0 0.5
+0.25 0.5
+0.5 0.5
+mfem_ser_mesh_end
+
+communication_groups
+number_of_groups 4
+
+# number of entities in each group, followed by group ids in group
+1 3
+2 0 3
+2 2 3
+4 0 1 2 3
+
+total_shared_vertices 5
+total_shared_edges 4
+
+#group 1
+shared_vertices 2
+2
+5
+
+shared_edges 2
+2 5
+5 8
+
+#group 2
+shared_vertices 2
+6
+7
+
+shared_edges 2
+6 7
+7 8
+
+#group 3
+shared_vertices 1
+8
+
+shared_edges 0
+
+mfem_mesh_end

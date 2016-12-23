@@ -2546,13 +2546,12 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    bool mfem_v10 = (mesh_type == "MFEM mesh v1.0");
    bool mfem_v11 = (mesh_type == "MFEM mesh v1.1");
    bool mfem_v12 = (mesh_type == "MFEM mesh v1.2");
-   if (mfem_v10 || mfem_v11 || mfem_v12)
+   if (mfem_v10 || mfem_v11 || mfem_v12) // MFEM's own mesh formats
    {
-      // mfem_v12 or newer have a tag to indicate the end of the mesh section
-      // in the stream.  A user provided parse tag can also be provided via
-      // the arguments.  For example, if this is called from the parallel
-      // mesh object, it will indiciate to read until the parallel mesh section
-      // begins.
+      // Formats mfem_v12 and newer have a tag indicating the end of the mesh
+      // section in the stream. A user provided parse tag can also be provided
+      // via the arguments. For example, if this is called from parallel mesh
+      // object, it can indicate to read until parallel mesh section begins.
       if ( mfem_v12 && parse_tag.empty() )
       {
          parse_tag = "mfem_mesh_end";

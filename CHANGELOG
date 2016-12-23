@@ -58,6 +58,15 @@ FEM <-> linear system interface for action-only linear operators
   for non-conforming AMR and eliminating boundary conditions. (Hybridization and
   static condensation are not supported.) See examples in miniapps/performance.
 
+Scalable parallel mesh support
+------------------------------
+- The new MFEM mesh format (v1.2) now supports parallel meshes so an MFEM
+  computation can start directly in parallel without serial refinement and
+  splitting. Non-conforming meshes are currently supported only in serial.
+
+- Added a parallel mesh constructor that does not require a serial parallel mesh
+  to be known on all processors.
+
 New and updated examples and miniapps
 -------------------------------------
 - Added a new example code, Example 16/16p, demonstrating the solution of a
@@ -87,14 +96,16 @@ New and updated examples and miniapps
 - Added an option to Example 9/9p to save a binary visualization file using the
   Conduit mesh blueprint/hdf5 format.
 
-Miscellaneous
--------------
+Improved building options
+-------------------------
 - Added a new CMake build system, that can be used alternatively to the GNU
   make-based build system. For more details, see the INSTALL file and the
   config/cmake directory.
 
 - Added support for "out of source" builds with GNU make, see the INSTALL file.
 
+Improved file output
+--------------------
 - Added on-the-fly compression of file streams input and output via gzstream,
   see the MFEM_USE_GZSTREAM option.
 
@@ -105,6 +116,8 @@ Miscellaneous
   scales. Users desiring a small scale binary format may want to look at the
   gzstream functionality instead.
 
+Miscellaneous
+-------------
 - Added optional support for software-based higher-precision arithmetic with
   the MPFR library. When MFEM_USE_MPFR is enabled, the 1D quadrature rules will
   be computed precisely, at least for rules with up to 65-points.
@@ -122,9 +135,6 @@ Miscellaneous
 
 - Various other simplifications, extensions, and bugfixes in the code.
 
-- Addition of a new mesh file format, mfem mesh v1.2, which adds supports for
-  parallel conforming meshes.  For non-conforming meshes, only serial is
-  supported.  See ex1p for an example of reading/writing this format.
 
 Version 3.2, released on June 30, 2016
 ======================================

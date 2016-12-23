@@ -26,7 +26,7 @@ MFEM_LIB_FILE = mfem_is_not_built
 
 SEQ_EXAMPLES = ex1 ex2 ex3 ex4 ex5 ex6 ex7 ex8 ex9 ex10 ex14 ex15 ex16 ex17
 PAR_EXAMPLES = ex1p ex2p ex3p ex4p ex5p ex6p ex7p ex8p ex9p ex10p ex11p ex12p\
- ex13p ex14p ex15p ex16p ex17p ex1p-test-parmesh
+ ex13p ex14p ex15p ex16p ex17p
 ifeq ($(MFEM_USE_MPI),NO)
    EXAMPLES = $(SEQ_EXAMPLES)
 else
@@ -61,7 +61,7 @@ ex1-test-seq: ex1
 ex1p-test-par: ex1p
 	@$(call mfem-test,$<, mpirun -np 4, Parallel example)
 ex1p-test-parmesh: ex1p
-	@$(call mfem-test,$<, mpirun -np 4, Parallel example w/parallel mesh,-p ../data/square-disc/pmesh -r 0)
+	@$(call mfem-test,$<, mpirun -np 4, Parallel example w/parallel mesh,-p ../data/quad -r 0)
 ex10-test-seq: ex10
 	@$(call mfem-test,$<,, Serial example,-tf 5)
 ex10p-test-par: ex10p
