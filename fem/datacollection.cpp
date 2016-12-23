@@ -388,17 +388,6 @@ DataCollection::~DataCollection()
 
 // class VisItDataCollection implementation
 
-VisItDataCollection::VisItDataCollection(const char *collection_name)
-   : DataCollection(collection_name)
-{
-   appendRankToFileName = true; // always include rank in file names
-   cycle  = 0;     // always include cycle in directory names
-
-   spatial_dim = 0;
-   topo_dim = 0;
-   visit_max_levels_of_detail = 32;
-}
-
 VisItDataCollection::VisItDataCollection(const std::string& collection_name,
                                          Mesh *mesh)
    : DataCollection(collection_name, mesh)
