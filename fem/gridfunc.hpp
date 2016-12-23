@@ -350,7 +350,7 @@ public:
    /** The QuadratureFunction does not assume ownership of the QuadratureSpace.
        @note The Vector data is not initialized. */
    QuadratureFunction(QuadratureSpace *qspace_, int vdim_ = 1)
-      : Vector(vdim*qspace_->GetSize()),
+      : Vector(vdim_*qspace_->GetSize()),
         qspace(qspace_), vdim(vdim_), own_qspace(false) { }
 
    /** @brief Create a QuadratureFunction based on the given QuadratureSpace,
@@ -358,7 +358,7 @@ public:
    /** The QuadratureFunction does not assume ownership of neither the
        QuadratureSpace nor the external data. */
    QuadratureFunction(QuadratureSpace *qspace_, double *qf_data, int vdim_ = 1)
-      : Vector(qf_data, vdim*qspace_->GetSize()),
+      : Vector(qf_data, vdim_*qspace_->GetSize()),
         qspace(qspace_), vdim(vdim_), own_qspace(false) { }
 
    /// Read a QuadratureFunction from the stream @a in.
