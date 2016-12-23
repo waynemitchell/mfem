@@ -47,8 +47,11 @@ if (${PROJECT_SOURCE_DIR} STREQUAL ${PROJECT_BINARY_DIR})
     "MFEM does not support in-source CMake builds at this time.")
 endif (${PROJECT_SOURCE_DIR} STREQUAL ${PROJECT_BINARY_DIR})
 
-if (CMAKE_VERSION VERSION_LESS 3.2)
-   # This seems to be needed by: find_package(BLAS REQUIRED)
+if (CMAKE_VERSION VERSION_LESS 3.2 OR MFEM_USE_SIDRE)
+   # This seems to be needed by:
+   #  * find_package(BLAS REQUIRED) and
+   #  * find_package(HDF5 REQUIRED) needed, in turn, by:
+   #    - find_package(SIDRE REQUIRED)
    enable_language(C)
 endif()
 
@@ -158,6 +161,12 @@ if (MFEM_USE_MPFR)
   include_directories(${MPFR_INCLUDE_DIRS})
 endif()
 
+# Sidre
+if (MFEM_USE_SIDRE)
+  find_package(Sidre REQUIRED)
+  include_directories(${SIDRE_INCLUDE_DIRS})
+endif()
+
 # MFEM_TIMER_TYPE
 if (NOT DEFINED MFEM_TIMER_TYPE)
   if (APPLE)
@@ -176,7 +185,7 @@ endif()
 
 # List all possible libraries in order of dependencies.
 set(MFEM_TPLS HYPRE OPENMP SUNDIALS MESQUITE SuiteSparse SuperLUDist
-  ParMETIS METIS LAPACK BLAS GECKO GNUTLS NETCDF MPFR POSIXCLOCKS
+  ParMETIS METIS LAPACK BLAS GECKO GNUTLS NETCDF MPFR SIDRE POSIXCLOCKS
   MFEMBacktrace ZLIB)
 # Add all *_FOUND libraries in the variable TPL_LIBRARIES.
 set(TPL_LIBRARIES "")

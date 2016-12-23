@@ -276,6 +276,13 @@ MFEM_USE_MPFR = YES/NO
    quadrature rules. When enabled, this option uses the MPFR_* library options,
    see below.
 
+MFEM_USE_SIDRE = YES/NO
+   Sidre is a componenf of LLNL's ASC toolkit, http://goo.gl/cZyJdn, that
+   provides an HDF5-based file format for visualization or restart capability
+   following the Conduit (https://github.com/LLNL/conduit) mesh blueprint
+   specification. When enabled, this option requires installation of HDF5 (see
+   also MFEM_USE_NETCDF), Conduit and LLNL's ASC toolkit.
+
 MFEM_USE_GZSTREAM = YES/NO
    Enables use of on-the-fly gzip compressed streams. With this feature enabled
    (YES), MFEM can compress its output files on-the-fly. In addition, it can
@@ -361,6 +368,12 @@ The specific libraries and their options are:
   don't need the C++ or parallel versions.
   URL: www.unidata.ucar.edu/software/netcdf
   Options: NETCDF_OPT, NETCDF_LIB.
+
+- Sidre (optional), used when MFEM_USE_SIDRE = YES.
+  URL: http://goo.gl/cZyJdn (ASC toolkit, to be released)
+       https://github.com/LLNL/conduit (Conduit)
+       https://support.hdfgroup.org/HDF5 (HDF5)
+  Options: SIDRE_OPT, SIDRE_LIB.
 
 - MPFR (optional), used when MFEM_USE_MPFR = YES.
   URL: http://mpfr.org, it depends on the GMP library: https://gmplib.org
