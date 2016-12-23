@@ -372,6 +372,48 @@ public:
    virtual ~FiniteElementSpace();
 };
 
+
+/// Class representing the storage layout of a QuadratureFunction.
+/** Multiple QuadratureFunction%s can share the same QuadratureSpace. */
+class QuadratureSpace
+{
+protected:
+   friend class QuadratureFunction; // Uses the element_offsets.
+
+   Mesh *mesh;
+   int order;
+   int size;
+
+   const IntegrationRule *int_rule[Geometry::NumGeom];
+   int *element_offsets; // scalar offsets; size = number of elements + 1
+
+   // protected functions
+
+   // Assuming mesh and order are set, construct the members: int_rule,
+   // element_offsets, and size.
+   void Construct();
+
+public:
+   /// Create a QuadratureSpace based on the global rules from #IntRules.
+   QuadratureSpace(Mesh *mesh_, int order_)
+      : mesh(mesh_), order(order_) { Construct(); }
+
+   /// Read a QuadratureSpace from the stream @a in.
+   QuadratureSpace(Mesh *mesh_, std::istream &in);
+
+   virtual ~QuadratureSpace() { delete [] element_offsets; }
+
+   /// Return the total number of quadrature points.
+   int GetSize() { return size; }
+
+   /// Get the IntegrationRule associated with mesh element @a idx.
+   const IntegrationRule &GetElementIntRule(int idx)
+   { return *int_rule[mesh->GetElementBaseGeometry(idx)]; }
+
+   /// Write the QuadratureSpace to the stream @a out.
+   void Save(std::ostream &out) const;
+};
+
 }
 
 #endif
