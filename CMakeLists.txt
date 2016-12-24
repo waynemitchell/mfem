@@ -111,8 +111,12 @@ endif()
 
 # SUNDIALS
 if (MFEM_USE_SUNDIALS)
-  find_package(SUNDIALS REQUIRED
-    NVector_Serial NVector_Parallel NVector_ParHyp CVODE ARKODE KINSOL)
+  if (NOT MFEM_USE_MPI)
+    find_package(SUNDIALS REQUIRED NVector_Serial CVODE ARKODE KINSOL)
+  else()
+    find_package(SUNDIALS REQUIRED
+      NVector_Serial NVector_Parallel NVector_ParHyp CVODE ARKODE KINSOL)
+  endif()
   include_directories(${SUNDIALS_INCLUDE_DIRS})
 endif()
 

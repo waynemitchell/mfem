@@ -24,8 +24,11 @@
 #include "sparsesmoothers.hpp"
 #include "densemat.hpp"
 #include "ode.hpp"
-#include "sundials.hpp"
 #include "solvers.hpp"
+
+#ifdef MFEM_USE_SUNDIALS
+#include "sundials.hpp"
+#endif
 
 #ifdef MFEM_USE_MPI
 #include "hypre_parcsr.hpp"

@@ -339,7 +339,7 @@ The specific libraries and their options are:
 - SUNDIALS (optional), used when MFEM_USE_SUNDIALS = YES.
   URL: http://computation.llnl.gov/projects/sundials/sundials-software
   In parallel we expect that SUNDIALS is built with support for MPI and hypre.
-  Options: SUNDIALS_OPT, SUNDIALS_LIB, SUNDIALS_PAR_LIB.
+  Options: SUNDIALS_OPT, SUNDIALS_LIB.
 
 - Mesquite (optional), used when MFEM_USE_MESQUITE = YES.
   URL: http://trilinos.org/oldsite/packages/mesquite

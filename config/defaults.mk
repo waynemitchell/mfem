@@ -14,8 +14,8 @@
 # Default options. To replace these, copy this file to user.mk and modify it.
 
 
-# Some choices below are based on the system name:
-SYSNAME = $(shell uname -s)
+# Some choices below are based on the OS type:
+NOTMAC := $(OSTYPE:darwin=)
 
 CXX = g++
 MPICXX = mpicxx
@@ -29,7 +29,7 @@ PREFIX = ./mfem
 # Install program
 INSTALL = /usr/bin/install
 
-ifneq ($(SYSNAME),Darwin)
+ifneq ($(NOTMAC),)
    AR      = ar
    ARFLAGS = cruv
    RANLIB  = ranlib
@@ -62,7 +62,7 @@ MFEM_USE_LAPACK      = NO
 MFEM_THREAD_SAFE     = NO
 MFEM_USE_OPENMP      = NO
 MFEM_USE_MEMALLOC    = YES
-MFEM_TIMER_TYPE      = $(if $(findstring Darwin,$(SYSNAME)),0,2)
+MFEM_TIMER_TYPE      = $(if $(NOTMAC),2,0)
 MFEM_USE_SUNDIALS    = NO
 MFEM_USE_MESQUITE    = NO
 MFEM_USE_SUITESPARSE = NO
@@ -74,11 +74,7 @@ MFEM_USE_MPFR        = NO
 MFEM_USE_SIDRE       = NO
 
 LIBUNWIND_OPT = -g
-ifneq ($(SYSNAME),Darwin)
-   LIBUNWIND_LIB = -lunwind -ldl
-else
-   LIBUNWIND_LIB =
-endif
+LIBUNWIND_LIB = $(if $(NOTMAC),-lunwind -ldl,)
 
 # HYPRE library configuration (needed to build the parallel version)
 HYPRE_DIR = @MFEM_DIR@/../hypre-2.10.0b/src/hypre
@@ -107,10 +103,7 @@ endif
 
 # LAPACK library configuration
 LAPACK_OPT =
-LAPACK_LIB = -llapack -lblas
-ifeq ($(SYSNAME),Darwin)
-   LAPACK_LIB = -framework Accelerate
-endif
+LAPACK_LIB = $(if $(NOTMAC),-llapack -lblas,-framework Accelerate)
 
 # OpenMP configuration
 OPENMP_OPT = -fopenmp
@@ -124,7 +117,10 @@ SUNDIALS_DIR = @MFEM_DIR@/../sundials-2.7.0
 SUNDIALS_OPT = -I$(SUNDIALS_DIR)/include
 SUNDIALS_LIB = -L$(SUNDIALS_DIR)/lib -lsundials_arkode -lsundials_cvode\
   -lsundials_nvecserial -lsundials_kinsol
-SUNDIALS_PAR_LIB = $(SUNDIALS_LIB) -lsundials_nvecparhyp -lsundials_nvecparallel
+
+ifeq ($(MFEM_USE_MPI),YES)
+   SUNDIALS_LIB += -lsundials_nvecparhyp -lsundials_nvecparallel
+endif
 
 # MESQUITE library configuration
 MESQUITE_DIR = @MFEM_DIR@/../mesquite-2.99
@@ -132,10 +128,7 @@ MESQUITE_OPT = -I$(MESQUITE_DIR)/include
 MESQUITE_LIB = -L$(MESQUITE_DIR)/lib -lmesquite
 
 # SuiteSparse library configuration
-LIB_RT = -lrt
-ifeq ($(SYSNAME),Darwin)
-   LIB_RT =
-endif
+LIB_RT = $(if $(NOTMAC),-lrt,)
 SUITESPARSE_DIR = @MFEM_DIR@/../SuiteSparse
 SUITESPARSE_OPT = -I$(SUITESPARSE_DIR)/include
 SUITESPARSE_LIB = -L$(SUITESPARSE_DIR)/lib -lklu -lbtf -lumfpack -lcholmod\

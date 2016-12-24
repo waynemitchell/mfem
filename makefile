@@ -143,11 +143,6 @@ ifeq ($(MFEM_DEBUG),YES)
 endif
 CXXFLAGS ?= $(OPTIM_FLAGS)
 
-ifeq ($(MFEM_USE_LIBUNWIND),YES)
-   INCFLAGS += $(LIBUNWIND_OPT)
-   ALL_LIBS += $(LIBUNWIND_LIB)
-endif
-
 # MPI configuration
 ifneq ($(MFEM_USE_MPI),YES)
    MFEM_CXX ?= $(CXX)
@@ -159,82 +154,32 @@ endif
 
 DEP_CXX ?= $(MFEM_CXX)
 
-# Sidre library and dependencies
-ifeq ($(MFEM_USE_SIDRE),YES)
-   INCFLAGS += $(SIDRE_OPT)
-   ALL_LIBS += $(SIDRE_LIB)
-endif
-
-# LAPACK library configuration
-ifeq ($(MFEM_USE_LAPACK),YES)
-   INCFLAGS += $(LAPACK_OPT)
-   ALL_LIBS += $(LAPACK_LIB)
-endif
-
-# OpenMP configuration
+# Check OpenMP configuration
 ifeq ($(MFEM_USE_OPENMP),YES)
    MFEM_THREAD_SAFE ?= YES
    ifneq ($(MFEM_THREAD_SAFE),YES)
       $(error Incompatible config: MFEM_USE_OPENMP requires MFEM_THREAD_SAFE)
    endif
-   INCFLAGS += $(OPENMP_OPT)
-   ALL_LIBS += $(OPENMP_LIB)
 endif
 
+# List of MFEM dependencies, processed below
+MFEM_DEPENDENCIES = LIBUNWIND SIDRE LAPACK OPENMP SUNDIALS MESQUITE SUITESPARSE\
+ SUPERLU GECKO GNUTLS NETCDF MPFR
+
+# Macro for adding dependencies
+define mfem_add_dependency
+ifeq ($(MFEM_USE_$(1)),YES)
+   INCFLAGS += $($(1)_OPT)
+   ALL_LIBS += $($(1)_LIB)
+endif
+endef
+
+# Process dependencies
+$(foreach dep,$(MFEM_DEPENDENCIES),$(eval $(call mfem_add_dependency,$(dep))))
+
+# Timer option
 ifeq ($(MFEM_TIMER_TYPE),2)
    ALL_LIBS += $(POSIX_CLOCKS_LIB)
-endif
-
-# SUNDIALS library configuration
-ifeq ($(MFEM_USE_SUNDIALS),YES)
-   INCFLAGS += $(SUNDIALS_OPT)
-   ifneq ($(MFEM_USE_MPI),YES)
-      ALL_LIBS += $(SUNDIALS_LIB)
-   else
-      ALL_LIBS += $(SUNDIALS_PAR_LIB)
-   endif
-endif
-
-# MESQUITE library configuration
-ifeq ($(MFEM_USE_MESQUITE),YES)
-   INCFLAGS += $(MESQUITE_OPT)
-   ALL_LIBS += $(MESQUITE_LIB)
-endif
-
-# SuiteSparse library configuration
-ifeq ($(MFEM_USE_SUITESPARSE),YES)
-   INCFLAGS += $(SUITESPARSE_OPT)
-   ALL_LIBS += $(SUITESPARSE_LIB)
-endif
-
-# SuperLU library configuration
-ifeq ($(MFEM_USE_SUPERLU),YES)
-   INCFLAGS += $(SUPERLU_OPT)
-   ALL_LIBS += $(SUPERLU_LIB)
-endif
-
-# Gecko library configuration
-ifeq ($(MFEM_USE_GECKO),YES)
-   INCFLAGS += $(GECKO_OPT)
-   ALL_LIBS += $(GECKO_LIB)
-endif
-
-# GnuTLS library configuration
-ifeq ($(MFEM_USE_GNUTLS),YES)
-   INCFLAGS += $(GNUTLS_OPT)
-   ALL_LIBS += $(GNUTLS_LIB)
-endif
-
-# NetCDF library configuration
-ifeq ($(MFEM_USE_NETCDF),YES)
-   INCFLAGS += $(NETCDF_OPT)
-   ALL_LIBS += $(NETCDF_LIB)
-endif
-
-# MPFR library configuration
-ifeq ($(MFEM_USE_MPFR),YES)
-   INCFLAGS += $(MPFR_OPT)
-   ALL_LIBS += $(MPFR_LIB)
 endif
 
 # gzstream configuration
