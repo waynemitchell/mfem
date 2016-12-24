@@ -99,6 +99,7 @@ SidreDataCollection::~SidreDataCollection()
    }
 }
 
+#ifdef MFEM_USE_MPI
 void SidreDataCollection::SetComm(MPI_Comm comm)
 {
    m_comm = comm;
@@ -106,6 +107,7 @@ void SidreDataCollection::SetComm(MPI_Comm comm)
    MPI_Comm_rank(m_comm, &myid);
    MPI_Comm_size(m_comm, &num_procs);
 }
+#endif
 
 // protected method
 sidre::DataGroup *SidreDataCollection::named_buffers_grp() const
@@ -596,13 +598,11 @@ void SidreDataCollection::Load(const std::string& path,
    DataCollection::DeleteAll();
    // Reset DataStore?
 
-   sidre::DataStore * datastore = bp_grp->getDataStore();
-
 #ifdef MFEM_USE_MPI
    if (m_comm != MPI_COMM_NULL)
    {
       asctoolkit::spio::IOManager reader(m_comm);
-      reader.read(datastore->getRoot(), path);
+      reader.read(bp_grp->getDataStore()->getRoot(), path);
    }
    else
 #endif
@@ -625,16 +625,13 @@ void SidreDataCollection::Load(const std::string& path,
    }
 }
 
-void SidreDataCollection::LoadExternalData(const std::string& path,
-                                           const std::string& protocol)
+void SidreDataCollection::LoadExternalData(const std::string& path)
 {
-   sidre::DataStore * datastore = bp_grp->getDataStore();
-
 #ifdef MFEM_USE_MPI
    if (m_comm != MPI_COMM_NULL)
    {
       asctoolkit::spio::IOManager reader(m_comm);
-      reader.loadExternalData(datastore->getRoot(), path);
+      reader.loadExternalData(bp_grp->getDataStore()->getRoot(), path);
    }
    else
 #endif
