@@ -27,11 +27,23 @@
 #include <arkode/arkode.h>
 #include <kinsol/kinsol.h>
 
+struct KINMemRec;
+
 namespace mfem
 {
 
-/// Abstract base class, wrapping the custom linear solvers interface in
-/// SUNDIALS' CVODE and ARKODE solvers.
+/** @brief Abstract base class, wrapping the custom linear solvers interface in
+    SUNDIALS' CVODE and ARKODE solvers. */
+/** For a given ODE system
+
+        dx/dt = f(x,t)
+
+    the purpose of this class is to facilitate the (approximate) solution of
+    linear systems of the form
+
+        (I - γJ) y = b,   J = J(x,t) = df/dx
+
+    for given b, x, t and γ, where γ = GetTimeStep() is a scaled time step. */
 class SundialsODELinearSolver
 {
 public:
@@ -68,13 +80,17 @@ public:
    ///@}
 };
 
+
+/// A base class for the MFEM classes wrapping SUNDIALS' solvers.
+/** This class defines some common data and functions used by the SUNDIALS
+    solvers, e.g the common @a #sundials_mem pointer and return @a #flag. */
 class SundialsSolver
 {
 protected:
-   void *sundials_mem;
-   mutable int flag;
+   void *sundials_mem; ///< Pointer to the SUNDIALS mem object.
+   mutable int flag;   ///< Flag returned by the last call to SUNDIALS.
 
-   N_Vector y;
+   N_Vector y;  ///< Auxiliary N_Vector.
 #ifdef MFEM_USE_MPI
    bool Parallel() const
    { return (y->ops->nvgetvectorid != N_VGetVectorID_Serial); }
@@ -86,16 +102,15 @@ protected:
    static const double default_abs_tol;
 
    // Computes the action of a time-dependent operator.
+   /// Callback function used in CVODESolver and ARKODESolver.
    static int ODEMult(realtype t, const N_Vector y,
                       N_Vector ydot, void *td_oper);
 
-   // Computes the non-linear operator action F(u).
-   // The real type of user_data is UserData.
-   static int Mult(const N_Vector u, N_Vector fu, void *user_data);
-
-   // Note: the constructors are protected.
+   /// @name The constructors are protected
+   ///@{
    SundialsSolver() : sundials_mem(NULL) { }
    SundialsSolver(void *mem) : sundials_mem(mem) { }
+   ///@}
 
 public:
    /// Access the underlying SUNDIALS object.
@@ -103,17 +118,6 @@ public:
 
    /// Return the flag returned by the last call to a SUNDIALS function.
    int GetFlag() const { return flag; }
-
-   // Computes J(u)v. The real type of user_data is UserData.
-   static int GradientMult(const N_Vector v, N_Vector Jv, const N_Vector u,
-                           booleantype *new_u, void *user_data);
-
-   struct UserData
-   {
-      const Operator *oper;
-      const Operator *jacobian;
-      Solver   *jac_solver;
-   };
 };
 
 /// Wrapper for SUNDIALS' CVODE library -- Multi-step time integration.
@@ -131,15 +135,15 @@ class CVODESolver : public ODESolver, public SundialsSolver
 public:
    /// Construct a serial CVODESolver, a wrapper for SUNDIALS' CVODE solver.
    /** @param[in] lmm   Specifies the linear multistep method, the options are
-                        CV_ADAMS (explicit problems) or CV_BDF (implicit
-                        problems).
-       @param[in] iter  Specifies type of solver iteration, the options are
-                        CV_FUNCTIONAL (linear problems) or CV_NEWTON (nonlinear
-                        problems).
+                        CV_ADAMS (explicit methods) or CV_BDF (implicit
+                        methods).
+       @param[in] iter  Specifies type of nonlinear solver iteration, the
+                        options are CV_FUNCTIONAL (usually with CV_ADAMS) or
+                        CV_NEWTON (usually with CV_BDF).
        For parameter desciption, see the CVodeCreate documentation (cvode.h). */
    CVODESolver(int lmm, int iter);
 
-   /** Construct a CVODE solver with prescribed max timestep and scalar
+   /** @brief Construct a CVODE solver with prescribed max timestep and scalar
        relative/absolute tolerances. */
    CVODESolver(int lmm, int iter, double dt, double reltol, double abstol);
 
@@ -147,16 +151,16 @@ public:
    /// Construct a parallel CVODESolver, a wrapper for SUNDIALS' CVODE solver.
    /** @param[in] comm  The MPI communicator used to partition the ODE system.
        @param[in] lmm   Specifies the linear multistep method, the options are
-                        CV_ADAMS (explicit problems) or CV_BDF (implicit
-                        problems).
-       @param[in] iter  Specifies type of solver iteration, the options are
-                        CV_FUNCTIONAL (linear problems) or CV_NEWTON (nonlinear
-                        problems).
+                        CV_ADAMS (explicit methods) or CV_BDF (implicit
+                        methods).
+       @param[in] iter  Specifies type of nonlinear solver iteration, the
+                        options are CV_FUNCTIONAL (usually with CV_ADAMS) or
+                        CV_NEWTON (usually with CV_BDF).
        For parameter desciption, see the CVodeCreate documentation (cvode.h). */
    CVODESolver(MPI_Comm comm, int lmm, int iter);
 
-   /** Construct a parallel CVODE solver with prescribed max timestep and scalar
-       relative/absolute tolerances. */
+   /** @brief Construct a parallel CVODE solver with prescribed max timestep and
+       scalar relative/absolute tolerances. */
    CVODESolver(MPI_Comm comm, int lmm, int iter,
                double dt, double reltol, double abstol);
 #endif
@@ -164,8 +168,9 @@ public:
    /// Set the scalar relative and scalar absolute tolerances.
    void SetSStolerances(double reltol, double abstol);
 
-   /// Set a custom Jacobian system solver for non-linear problems.
-   void SetLinearSolve(SundialsODELinearSolver &ls_spec);
+   /// Set a custom Jacobian system solver for the CV_NEWTON option usually used
+   /// with implicit CV_BDF.
+   void SetLinearSolver(SundialsODELinearSolver &ls_spec);
 
    /** @brief CVode supports two modes, specified by itask: CV_NORMAL (default)
        and CV_ONE_STEP. */
@@ -217,7 +222,7 @@ public:
    interface, instead of making similar calls by the ARKODE's
    internal ARKodeMem object.
 */
-class ARKODESolver: public ODESolver, public SundialsSolver
+class ARKODESolver : public ODESolver, public SundialsSolver
 {
 protected:
    bool use_implicit;
@@ -228,12 +233,12 @@ public:
    /** @param[in] implicit  Specifies if the time integrator is implicit. */
    ARKODESolver(bool implicit = false);
 
-   /** Construct an ARKODE solver with prescribed scalar relative/absolute
-       tolerances. */
+   /** @brief Construct an ARKODE solver with prescribed scalar
+       relative/absolute tolerances. */
    ARKODESolver(bool implicit, double reltol, double abstol);
 
-   /** Construct an ARKODE solver with prescribed order, fixed time step and
-       scalar relative/absolute tolerances. */
+   /** @brief Construct an ARKODE solver with prescribed order, fixed time step
+       and scalar relative/absolute tolerances. */
    ARKODESolver(bool implicit, int rk_order, double dt,
                 double reltol, double abstol);
 
@@ -256,8 +261,8 @@ public:
    /// Specify the scalar relative and scalar absolute tolerances.
    void SetSStolerances(double reltol, double abstol);
 
-   /// Set a custom Jacobian system solver for non-linear problems.
-   void SetLinearSolve(SundialsODELinearSolver &ls_spec);
+   /// Set a custom Jacobian system solver for implicit methods.
+   void SetLinearSolver(SundialsODELinearSolver &ls_spec);
 
    /** @brief ARKode supports two modes, specified by itask: ARK_NORMAL
        (default) and ARK_ONE_STEP. */
@@ -325,7 +330,23 @@ class KinSolver : public NewtonSolver, public SundialsSolver
 protected:
    bool use_oper_grad;
    mutable N_Vector y_scale, f_scale;
-   UserData user_data;
+   const Operator *jacobian; // stores the result of oper->GetGradient()
+
+   /// @name Auxiliary callback functions.
+   ///@{
+   // Computes the non-linear operator action F(u).
+   // The real type of user_data is pointer to KinSolver.
+   static int Mult(const N_Vector u, N_Vector fu, void *user_data);
+
+   // Computes J(u)v. The real type of user_data is pointer to KinSolver.
+   static int GradientMult(N_Vector v, N_Vector Jv, N_Vector u,
+                           booleantype *new_u, void *user_data);
+
+   static int LinSysSetup(KINMemRec *kin_mem);
+
+   static int LinSysSolve(KINMemRec *kin_mem, N_Vector x, N_Vector b,
+                          realtype *sJpnorm, realtype *sFdotJp);
+   ///@}
 
 public:
    /// Construct a serial KinSolver, a wrapper for SUNDIALS' KINSOL solver.
@@ -366,7 +387,7 @@ public:
    void SetScaledStepTol(double sstol);
    /// Set KINSOL's functional norm tolerance.
    /** The default tolerance is U^(1/3), where U = machine unit roundoff.
-        @note This function is equivalent to SetAbsTol(int). */
+        @note This function is equivalent to SetAbsTol(double). */
    void SetFuncNormTol(double ftol) { abs_tol = ftol; }
 
    /// Set maximum number of nonlinear iterations without a Jacobian update.

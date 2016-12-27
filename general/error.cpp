@@ -34,16 +34,8 @@
 namespace mfem
 {
 
-void mfem_error(const char *msg)
+void mfem_backtrace(int mode, int depth)
 {
-   if (msg)
-   {
-      // NOTE: By default, each call of the "operator <<" method of the
-      // std::cerr object results in flushing the I/O stream, which can be a
-      // very bad thing if all your processors try to do it at the same time.
-      std::cerr << "\n\n" << msg << "\n";
-   }
-
 #ifdef MFEM_USE_LIBUNWIND
    char name[UNW_NAME_LEN];
    unw_cursor_t cursor;
@@ -53,15 +45,12 @@ void mfem_error(const char *msg)
    int err = unw_getcontext(&uc);
    err = err ? err : unw_init_local(&cursor, &uc);
 
-   std::cerr << "Backtrace:" << std::endl;
-   int cntr = 0;
    Array<unw_word_t> addrs;
-   do
+   while (unw_step(&cursor) > 0 && addrs.Size() != depth)
    {
       err = err ? err : unw_get_proc_name(&cursor, name, UNW_NAME_LEN, &offp);
       err = err ? err : unw_get_reg(&cursor, UNW_REG_IP, &ip);
       if (err) { break; }
-      addrs.Append(ip - 1);
       char *name_p = name;
       int demangle_status;
 
@@ -73,21 +62,21 @@ void mfem_error(const char *msg)
          name_p = name_demangle;
       }
 
-      std::cerr << cntr++ << ") [0x" << std::hex << ip - 1 << "]: "
+      std::cerr << addrs.Size() << ") [0x" << std::hex << ip - 1 << "]: "
                 << name_p << std::endl;
+      addrs.Append(ip - 1);
 
       if (demangle_status == 0)
       {
          free(name_demangle);
       }
    }
-   while (unw_step(&cursor) > 0);
 #if defined(__APPLE__) || defined(__linux__)
-   if (cntr > 0)
+   if (addrs.Size() > 0 && (mode & 1))
    {
       std::cerr << "\nLookup backtrace source lines:";
       const char *fname = NULL;
-      for (int i = 0; i < cntr; i++)
+      for (int i = 0; i < addrs.Size(); i++)
       {
          Dl_info info;
          err = !dladdr((void*)addrs[i], &info);
@@ -111,8 +100,24 @@ void mfem_error(const char *msg)
       std::cerr << '\n';
    }
 #endif
-   std::cerr << std::endl;
 #endif // MFEM_USE_LIBUNWIND
+}
+
+void mfem_error(const char *msg)
+{
+   if (msg)
+   {
+      // NOTE: By default, each call of the "operator <<" method of the
+      // std::cerr object results in flushing the I/O stream, which can be a
+      // very bad thing if all your processors try to do it at the same time.
+      std::cerr << "\n\n" << msg << "\n";
+   }
+
+#ifdef MFEM_USE_LIBUNWIND
+   std::cerr << "Backtrace:" << std::endl;
+   mfem_backtrace(1, -1);
+   std::cerr << std::endl;
+#endif
 
 #ifdef MFEM_USE_MPI
    int flag;

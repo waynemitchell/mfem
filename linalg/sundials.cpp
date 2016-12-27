@@ -63,98 +63,56 @@ static inline SundialsODELinearSolver *to_solver(void *ptr)
    return static_cast<SundialsODELinearSolver *>(ptr);
 }
 
-static int LinSysInit(CVodeMem cv_mem)
+static int cvLinSysInit(CVodeMem cv_mem)
 {
    return to_solver(cv_mem->cv_lmem)->InitSystem(cv_mem);
 }
 
-static int LinSysSetup(CVodeMem cv_mem, int convfail,
-                       N_Vector ypred, N_Vector fpred, booleantype *jcurPtr,
-                       N_Vector vtemp1, N_Vector vtemp2, N_Vector vtemp3)
+static int cvLinSysSetup(CVodeMem cv_mem, int convfail,
+                         N_Vector ypred, N_Vector fpred, booleantype *jcurPtr,
+                         N_Vector vtemp1, N_Vector vtemp2, N_Vector vtemp3)
 {
    Vector yp(ypred), fp(fpred), vt1(vtemp1), vt2(vtemp2), vt3(vtemp3);
    return to_solver(cv_mem->cv_lmem)->SetupSystem(cv_mem, convfail, yp, fp,
                                                   *jcurPtr, vt1, vt2, vt3);
 }
 
-static int LinSysSolve(CVodeMem cv_mem, N_Vector b, N_Vector weight,
-                       N_Vector ycur, N_Vector fcur)
+static int cvLinSysSolve(CVodeMem cv_mem, N_Vector b, N_Vector weight,
+                         N_Vector ycur, N_Vector fcur)
 {
    Vector bb(b), w(weight), yc(ycur), fc(fcur);
    return to_solver(cv_mem->cv_lmem)->SolveSystem(cv_mem, bb, w, yc, fc);
 }
 
-static int LinSysFree(CVodeMem cv_mem)
+static int cvLinSysFree(CVodeMem cv_mem)
 {
    return to_solver(cv_mem->cv_lmem)->FreeSystem(cv_mem);
 }
 
-static int LinSysInit(ARKodeMem ark_mem)
+static int arkLinSysInit(ARKodeMem ark_mem)
 {
    return to_solver(ark_mem->ark_lmem)->InitSystem(ark_mem);
 }
 
-static int LinSysSetup(ARKodeMem ark_mem, int convfail,
-                       N_Vector ypred, N_Vector fpred, booleantype *jcurPtr,
-                       N_Vector vtemp1, N_Vector vtemp2, N_Vector vtemp3)
+static int arkLinSysSetup(ARKodeMem ark_mem, int convfail,
+                          N_Vector ypred, N_Vector fpred, booleantype *jcurPtr,
+                          N_Vector vtemp1, N_Vector vtemp2, N_Vector vtemp3)
 {
    Vector yp(ypred), fp(fpred), vt1(vtemp1), vt2(vtemp2), vt3(vtemp3);
    return to_solver(ark_mem->ark_lmem)->SetupSystem(ark_mem, convfail, yp, fp,
                                                     *jcurPtr, vt1, vt2, vt3);
 }
 
-static int LinSysSolve(ARKodeMem ark_mem, N_Vector b, N_Vector weight,
-                       N_Vector ycur, N_Vector fcur)
+static int arkLinSysSolve(ARKodeMem ark_mem, N_Vector b, N_Vector weight,
+                          N_Vector ycur, N_Vector fcur)
 {
    Vector bb(b), w(weight), yc(ycur), fc(fcur);
    return to_solver(ark_mem->ark_lmem)->SolveSystem(ark_mem, bb, w, yc, fc);
 }
 
-static int LinSysFree(ARKodeMem ark_mem)
+static int arkLinSysFree(ARKodeMem ark_mem)
 {
    return to_solver(ark_mem->ark_lmem)->FreeSystem(ark_mem);
-}
-
-static int LinSysSetup(KINMem kin_mem)
-{
-   const Vector u(kin_mem->kin_uu);
-
-   SundialsSolver::UserData &ud =
-      *static_cast<SundialsSolver::UserData *>(kin_mem->kin_lmem);
-   // Compute J(u).
-   ud.jacobian = &ud.oper->GetGradient(u);
-   ud.jac_solver->SetOperator(*ud.jacobian);
-
-   return KIN_SUCCESS;
-}
-
-static int LinSysSolve(KINMem kin_mem, N_Vector x, N_Vector b,
-                       realtype *sJpnorm, realtype *sFdotJp)
-{
-   Vector mx(x);
-   const Vector mb(b);
-
-   SundialsSolver::UserData &ud =
-      *static_cast<SundialsSolver::UserData *>(kin_mem->kin_lmem);
-
-   // mx = J(u)^-1 mb.
-   ud.jac_solver->Mult(mb, mx);
-
-   // Compute required norms.
-   if ( (kin_mem->kin_globalstrategy == KIN_LINESEARCH) ||
-        (kin_mem->kin_globalstrategy != KIN_FP &&
-         kin_mem->kin_etaflag == KIN_ETACHOICE1) )
-   {
-      booleantype new_uu = false;
-      SundialsSolver::GradientMult(x, b, kin_mem->kin_uu, &new_uu, &ud);
-      *sJpnorm = N_VWL2Norm(b, kin_mem->kin_fscale);
-      N_VProd(b, kin_mem->kin_fscale, b);
-      N_VProd(b, kin_mem->kin_fscale, b);
-      *sFdotJp = N_VDotProd(kin_mem->kin_fval, b);
-   }
-   else { sJpnorm = sFdotJp = NULL; }
-
-   return KIN_SUCCESS;
 }
 
 const double SundialsSolver::default_rel_tol = 1e-4;
@@ -171,35 +129,6 @@ int SundialsSolver::ODEMult(realtype t, const N_Vector y,
    TimeDependentOperator *f = static_cast<TimeDependentOperator *>(td_oper);
    f->SetTime(t);
    f->Mult(mfem_y, mfem_ydot);
-   return 0;
-}
-
-// static method
-int SundialsSolver::Mult(const N_Vector u, N_Vector fu, void *user_data)
-{
-   const Vector mfem_u(u);
-   Vector mfem_fu(fu);
-
-   // Computes the non-linear action F(u).
-   static_cast<UserData*>(user_data)->oper->Mult(mfem_u, mfem_fu);
-   return 0;
-}
-
-// static method
-int SundialsSolver::GradientMult(const N_Vector v, N_Vector Jv,
-                                 const N_Vector u,
-                                 booleantype *new_u, void *user_data)
-{
-   const Vector mfem_v(v);
-   Vector mfem_Jv(Jv);
-   UserData &ud = *static_cast<UserData *>(user_data);
-   if (*new_u)
-   {
-      const Vector mfem_u(u);
-      ud.jacobian = &ud.oper->GetGradient(mfem_u);
-      *new_u = FALSE;
-   }
-   ud.jacobian->Mult(mfem_v, mfem_Jv);
    return 0;
 }
 
@@ -315,7 +244,7 @@ void CVODESolver::SetSStolerances(double reltol, double abstol)
    // The call to CVodeSStolerances() is done after CVodeInit() in Init().
 }
 
-void CVODESolver::SetLinearSolve(SundialsODELinearSolver &ls_spec)
+void CVODESolver::SetLinearSolver(SundialsODELinearSolver &ls_spec)
 {
    CVodeMem mem = Mem(this);
    MFEM_ASSERT(mem->cv_iter == CV_NEWTON,
@@ -325,10 +254,10 @@ void CVODESolver::SetLinearSolve(SundialsODELinearSolver &ls_spec)
 
    // Set the linear solver function fields in mem.
    // Note that {linit,lsetup,lfree} can be NULL.
-   mem->cv_linit  = LinSysInit;
-   mem->cv_lsetup = LinSysSetup;
-   mem->cv_lsolve = LinSysSolve;
-   mem->cv_lfree  = LinSysFree;
+   mem->cv_linit  = cvLinSysInit;
+   mem->cv_lsetup = cvLinSysSetup;
+   mem->cv_lsolve = cvLinSysSolve;
+   mem->cv_lfree  = cvLinSysFree;
    mem->cv_lmem   = &ls_spec;
    mem->cv_setupNonNull = TRUE;
    ls_spec.type = SundialsODELinearSolver::CVODE;
@@ -659,7 +588,7 @@ void ARKODESolver::SetSStolerances(double reltol, double abstol)
    // The call to ARKodeSStolerances() is done after ARKodeInit() in Init().
 }
 
-void ARKODESolver::SetLinearSolve(SundialsODELinearSolver &ls_spec)
+void ARKODESolver::SetLinearSolver(SundialsODELinearSolver &ls_spec)
 {
    ARKodeMem mem = Mem(this);
    MFEM_VERIFY(use_implicit,
@@ -671,10 +600,10 @@ void ARKODESolver::SetLinearSolve(SundialsODELinearSolver &ls_spec)
    mem->ark_lsolve_type = 4;
    // Set the linear solver function fields in mem.
    // Note that {linit,lsetup,lfree} can be NULL.
-   mem->ark_linit  = LinSysInit;
-   mem->ark_lsetup = LinSysSetup;
-   mem->ark_lsolve = LinSysSolve;
-   mem->ark_lfree  = LinSysFree;
+   mem->ark_linit  = arkLinSysInit;
+   mem->ark_lsetup = arkLinSysSetup;
+   mem->ark_lsolve = arkLinSysSolve;
+   mem->ark_lfree  = arkLinSysFree;
    mem->ark_lmem   = &ls_spec;
    mem->ark_setupNonNull = TRUE;
    ls_spec.type = SundialsODELinearSolver::ARKODE;
@@ -876,13 +805,83 @@ ARKODESolver::~ARKODESolver()
    ARKodeFree(&sundials_mem);
 }
 
+
 static inline KINMem Mem(const KinSolver *self)
 {
    return KINMem(self->SundialsMem());
 }
 
+// static method
+int KinSolver::Mult(const N_Vector u, N_Vector fu, void *user_data)
+{
+   const Vector mfem_u(u);
+   Vector mfem_fu(fu);
+
+   // Computes the non-linear action F(u).
+   static_cast<KinSolver*>(user_data)->oper->Mult(mfem_u, mfem_fu);
+   return 0;
+}
+
+// static method
+int KinSolver::GradientMult(N_Vector v, N_Vector Jv, N_Vector u,
+                            booleantype *new_u, void *user_data)
+{
+   const Vector mfem_v(v);
+   Vector mfem_Jv(Jv);
+   KinSolver *self = static_cast<KinSolver*>(user_data);
+   if (*new_u)
+   {
+      const Vector mfem_u(u);
+      self->jacobian = &self->oper->GetGradient(mfem_u);
+      *new_u = FALSE;
+   }
+   self->jacobian->Mult(mfem_v, mfem_Jv);
+   return 0;
+}
+
+// static method
+int KinSolver::LinSysSetup(KINMemRec *kin_mem)
+{
+   const Vector u(kin_mem->kin_uu);
+
+   KinSolver *self = static_cast<KinSolver*>(kin_mem->kin_lmem);
+
+   self->jacobian = &self->oper->GetGradient(u);
+   self->prec->SetOperator(*self->jacobian);
+
+   return KIN_SUCCESS;
+}
+
+// static method
+int KinSolver::LinSysSolve(KINMemRec *kin_mem, N_Vector x, N_Vector b,
+                           realtype *sJpnorm, realtype *sFdotJp)
+{
+   Vector mx(x), mb(b);
+   KinSolver *self = static_cast<KinSolver*>(kin_mem->kin_lmem);
+
+   // Solve for mx = [J(u)]^{-1} mb, maybe approximately.
+   self->prec->Mult(mb, mx);
+
+   // Compute required norms.
+   if ( (kin_mem->kin_globalstrategy == KIN_LINESEARCH) ||
+        (kin_mem->kin_globalstrategy != KIN_FP &&
+         kin_mem->kin_etaflag == KIN_ETACHOICE1) )
+   {
+      // mb = J(u) mx - if the solve above was "exact", is this necessary?
+      self->jacobian->Mult(mx, mb);
+
+      *sJpnorm = N_VWL2Norm(b, kin_mem->kin_fscale);
+      N_VProd(b, kin_mem->kin_fscale, b);
+      N_VProd(b, kin_mem->kin_fscale, b);
+      *sFdotJp = N_VDotProd(kin_mem->kin_fval, b);
+      // Increment counters?
+   }
+
+   return KIN_SUCCESS;
+}
+
 KinSolver::KinSolver(int strategy, bool oper_grad)
-   : use_oper_grad(oper_grad), user_data()
+   : use_oper_grad(oper_grad), jacobian(NULL)
 {
    // Allocate empty serial N_Vectors.
    y = N_VNewEmpty_Serial(0);
@@ -904,7 +903,7 @@ KinSolver::KinSolver(int strategy, bool oper_grad)
 #ifdef MFEM_USE_MPI
 
 KinSolver::KinSolver(MPI_Comm comm, int strategy, bool oper_grad)
-   : use_oper_grad(oper_grad), user_data()
+   : use_oper_grad(oper_grad), jacobian(NULL)
 {
    if (comm == MPI_COMM_NULL)
    {
@@ -971,6 +970,7 @@ void KinSolver::SetOperator(const Operator &op)
    }
 
    NewtonSolver::SetOperator(op);
+   jacobian = NULL;
 
    // Set actual size and data in the N_Vector y.
    if (!Parallel())
@@ -1001,7 +1001,7 @@ void KinSolver::SetOperator(const Operator &op)
    }
 
    kinCopyInit(mem, &backup);
-   flag = KINInit(sundials_mem, SundialsSolver::Mult, y);
+   flag = KINInit(sundials_mem, KinSolver::Mult, y);
    // Initialization of kin_pp; otherwise, for a custom Jacobian inversion,
    // the first time we enter the linear solve, we will get uninitialized
    // initial guess (matters when iterative_mode = true).
@@ -1023,11 +1023,8 @@ void KinSolver::SetOperator(const Operator &op)
 #endif
    }
 
-   // The 'user_data' in KINSOL will be the data member with the same name.
-   user_data.oper       = oper;
-   user_data.jacobian   = NULL;
-   user_data.jac_solver = prec;
-   flag = KINSetUserData(sundials_mem, &user_data);
+   // The 'user_data' in KINSOL will be the pointer 'this'.
+   flag = KINSetUserData(sundials_mem, this);
    MFEM_ASSERT(flag >= 0, "KINSetUserData() failed!");
 
    if (!prec)
@@ -1035,29 +1032,28 @@ void KinSolver::SetOperator(const Operator &op)
       // Set scaled preconditioned GMRES linear solver.
       flag = KINSpgmr(sundials_mem, 0);
       MFEM_ASSERT(flag >= 0, "KINSpgmr() failed!");
-   }
-
-   if (use_oper_grad && !prec)
-   {
-      // Define the Jacobian action.
-      flag = KINSpilsSetJacTimesVecFn(sundials_mem, GradientMult);
-      MFEM_ASSERT(flag >= 0, "KINSpilsSetJacTimesVecFn() failed!");
+      if (use_oper_grad)
+      {
+         // Define the Jacobian action.
+         flag = KINSpilsSetJacTimesVecFn(sundials_mem, KinSolver::GradientMult);
+         MFEM_ASSERT(flag >= 0, "KINSpilsSetJacTimesVecFn() failed!");
+      }
    }
 }
 
 void KinSolver::SetSolver(Solver &solver)
 {
    prec = &solver;
-   user_data.jac_solver = prec;
 
    KINMem mem = Mem(this);
 
    mem->kin_linit  = NULL;
-   mem->kin_lsetup = LinSysSetup;
-   mem->kin_lsolve = LinSysSolve;
+   mem->kin_lsetup = KinSolver::LinSysSetup;
+   mem->kin_lsolve = KinSolver::LinSysSolve;
    mem->kin_lfree  = NULL;
-   mem->kin_lmem   = &user_data;
+   mem->kin_lmem   = this;
    mem->kin_setupNonNull = TRUE;
+   // Set mem->kin_inexact_ls? How?
 }
 
 void KinSolver::SetScaledStepTol(double sstol)
@@ -1078,7 +1074,6 @@ void KinSolver::Mult(const Vector &b, Vector &x) const
    if (!iterative_mode) { x = 0.0; }
 
    // For relative tolerance, r = 1 / |residual(x)|, corresponding to fx_scale.
-   r = 0.0;
    if (rel_tol > 0.0)
    {
       oper->Mult(x, r);

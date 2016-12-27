@@ -25,7 +25,7 @@
 //               class HyperelasticOperator defining H(x)), as well as their
 //               implicit time integration using a Newton method for solving an
 //               associated reduced backward-Euler type nonlinear equation
-//               (class BackwardEulerOperator). Each Newton step requires the
+//               (class ReducedSystemOperator). Each Newton step requires the
 //               inversion of a Jacobian matrix, which is done through a
 //               (preconditioned) inner solver. Note that implementing the
 //               method HyperelasticOperator::ImplicitSolve is the only
@@ -39,6 +39,8 @@
 #include <memory>
 #include <iostream>
 #include <fstream>
+#include <string>
+#include <map>
 
 using namespace std;
 using namespace mfem;
@@ -67,16 +69,15 @@ protected:
    NonlinearForm H;
    double viscosity;
    HyperelasticModel *model;
-   bool use_kinsol;
 
    CGSolver M_solver; // Krylov solver for inverting the mass matrix M
    DSmoother M_prec;  // Preconditioner for the mass matrix M
 
    /** Nonlinear operator defining the reduced backward Euler equation for the
        velocity. Used in the implementation of method ImplicitSolve. */
-   ReducedSystemOperator *backward_euler_oper;
+   ReducedSystemOperator *reduced_oper;
 
-   /// Newton solver for the backward Euler equation
+   /// Newton solver for the reduced backward Euler equation
    NewtonSolver *newton_solver;
 
    /// Solver and preconditioner for the Jacobian solve in the Newton method.
@@ -85,15 +86,28 @@ protected:
    mutable Vector z; // auxiliary vector
 
 public:
-   HyperelasticOperator(FiniteElementSpace &f, Array<int> &ess_bdr,
-                        double visc, double mu, double K, bool kinsol);
+   /// Solver type to use in the ImplicitSolve() method, used by SDIRK methods.
+   enum NonlinearSolverType
+   {
+      NEWTON = 0, ///< Use MFEM's plain NewtonSolver
+      KINSOL = 1  ///< Use SUNDIALS' KINSOL (through MFEM's class KinSolver)
+   };
 
+   HyperelasticOperator(FiniteElementSpace &f, Array<int> &ess_bdr,
+                        double visc, double mu, double K,
+                        NonlinearSolverType nls_type);
+
+   /// Compute the right-hand side of the ODE system.
    virtual void Mult(const Vector &vx, Vector &dvx_dt) const;
    /** Solve the Backward-Euler equation: k = f(x + dt*k, t), for the unknown k.
        This is the only requirement for high-order SDIRK implicit integration.*/
    virtual void ImplicitSolve(const double dt, const Vector &x, Vector &k);
 
 #ifdef MFEM_USE_SUNDIALS
+   /** Connect the Jacobian linear system solver (SundialsJacSolver) used by
+       SUNDIALS' CVODE and ARKODE time integrators to the internal objects
+       created by HyperelasticOperator. This method is called by the InitSystem
+       method of SundialsJacSolver. */
    void InitSundialsJacSolver(SundialsJacSolver &sjsolv);
 #endif
 
@@ -135,6 +149,17 @@ public:
 
 #ifdef MFEM_USE_SUNDIALS
 /// Custom Jacobian system solver for the SUNDIALS time integrators.
+/** For the ODE system represented by HyperelasticOperator
+
+        M dv/dt = -(H(x) + S*v)
+          dx/dt = v,
+
+    this class facilitates the solution of linear systems of the form
+
+        (M + γS) yv + γJ yx = M bv,   J=(dH/dx)(x)
+             - γ yv +    yx =   bx
+
+    for given bv, bx, x, and γ = GetTimeStep(). */
 class SundialsJacSolver : public SundialsODELinearSolver
 {
 private:
@@ -147,6 +172,7 @@ public:
    SundialsJacSolver()
       : M(), S(), H(), grad_H(), Jacobian(), J_solver() { }
 
+   /// Connect the solver to the objects created inside HyperelasticOperator.
    void SetOperators(BilinearForm &M_, BilinearForm &S_,
                      NonlinearForm &H_, Solver &solver)
    {
@@ -168,7 +194,7 @@ public:
                    const Vector &y_cur, const Vector &f_cur);
    int FreeSystem(void *sundials_mem);
 };
-#endif
+#endif // MFEM_USE_SUNDIALS
 
 
 /** Function representing the elastic energy density for the given hyperelastic
@@ -209,7 +235,7 @@ int main(int argc, char *argv[])
    double mu = 0.25;
    double K = 5.0;
    bool visualization = true;
-   bool use_kinsol    = false;
+   const char *nls = "newton";
    int vis_steps = 1;
 
    OptionsParser args(argc, argv);
@@ -229,6 +255,9 @@ int main(int argc, char *argv[])
                   "            13 - RK3 SSP, 14 - RK4,\n\t"
                   "            15 - CVODE (adaptive order) explicit,\n\t"
                   "            16 - ARKODE default (4th order) explicit.");
+   args.AddOption(&nls, "-nls", "--nonlinear-solver",
+                  "Nonlinear systems solver: "
+                  "\"newton\" (plain Newton) or \"kinsol\" (KINSOL).");
    args.AddOption(&t_final, "-tf", "--t-final",
                   "Final time; start time is 0.");
    args.AddOption(&dt, "-dt", "--time-step",
@@ -242,9 +271,6 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
-   args.AddOption(&use_kinsol, "-kin", "--kinsol", "-no-kin",
-                  "--no-kinsol",
-                  "Use or not use KINSOL to solve the non-linear system.");
    args.AddOption(&vis_steps, "-vs", "--visualization-steps",
                   "Visualize every n-th timestep.");
    args.Parse();
@@ -285,7 +311,7 @@ int main(int argc, char *argv[])
       {
          cvode = new CVODESolver(CV_BDF, CV_NEWTON, dt, 1.0e-2, 1.0e-2);
          sjsolver = new SundialsJacSolver;
-         cvode->SetLinearSolve(*sjsolver);
+         cvode->SetLinearSolver(*sjsolver);
          ode_solver = cvode; break;
       }
       case 6:
@@ -298,7 +324,7 @@ int main(int argc, char *argv[])
          arkode = new ARKODESolver(true, 1.0e-2, 1.0e-2);
          // Custom Jacobian inversion.
          sjsolver = new SundialsJacSolver;
-         arkode->SetLinearSolve(*sjsolver);
+         arkode->SetLinearSolver(*sjsolver);
          ode_solver = arkode; break;
       }
 #endif
@@ -312,7 +338,7 @@ int main(int argc, char *argv[])
          cvode = new CVODESolver(CV_ADAMS, CV_FUNCTIONAL, dt, 1.0e-2, 1.0e-2);
          ode_solver = cvode; break;
       case 16:
-         arkode = new ARKODESolver(false, 1.0e-2, 1.0e-4);
+         arkode = new ARKODESolver(false, 1.0e-2, 1.0e-2);
          ode_solver = arkode; break;
 #else
       case 4:
@@ -329,6 +355,15 @@ int main(int argc, char *argv[])
       default:
          cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
          return 3;
+   }
+
+   map<string,HyperelasticOperator::NonlinearSolverType> nls_map;
+   nls_map["newton"] = HyperelasticOperator::NEWTON;
+   nls_map["kinsol"] = HyperelasticOperator::KINSOL;
+   if (nls_map.find(nls) == nls_map.end())
+   {
+      cout << "Unknown type of nonlinear solver: " << nls << endl;
+      return 4;
    }
 
    // 4. Refine the mesh to increase the resolution. In this example we do
@@ -380,7 +415,7 @@ int main(int argc, char *argv[])
 
    // 7. Initialize the hyperelastic operator, the GLVis visualization and print
    //    the initial energies.
-   HyperelasticOperator oper(fespace, ess_bdr, visc, mu, K, use_kinsol);
+   HyperelasticOperator oper(fespace, ess_bdr, visc, mu, K, nls_map[nls]);
 
    socketstream vis_v, vis_w;
    if (visualization)
@@ -400,7 +435,6 @@ int main(int argc, char *argv[])
    }
 
    double ee0 = oper.ElasticEnergy(x);
-
    double ke0 = oper.KineticEnergy(v);
    cout << "initial elastic energy (EE) = " << ee0 << endl;
    cout << "initial kinetic energy (KE) = " << ke0 << endl;
@@ -474,6 +508,7 @@ int main(int argc, char *argv[])
    return 0;
 }
 
+
 void visualize(ostream &out, Mesh *mesh, GridFunction *deformed_nodes,
                GridFunction *field, const char *field_name, bool init_vis)
 {
@@ -507,20 +542,22 @@ void visualize(ostream &out, Mesh *mesh, GridFunction *deformed_nodes,
    out << flush;
 }
 
+
 ReducedSystemOperator::ReducedSystemOperator(
    BilinearForm *M_, BilinearForm *S_, NonlinearForm *H_)
    : Operator(M_->Height()), M(M_), S(S_), H(H_), Jacobian(NULL),
      v(NULL), x(NULL), w(height), z(height)
 { }
 
-void ReducedSystemOperator::SetParameters(double gamma_, const Vector *v_,
+void ReducedSystemOperator::SetParameters(double dt_, const Vector *v_,
                                           const Vector *x_)
 {
-   dt=gamma_;  v = v_;  x = x_;
+   dt = dt_;  v = v_;  x = x_;
 }
 
 void ReducedSystemOperator::Mult(const Vector &k, Vector &y) const
 {
+   // compute: y = H(x + dt*(v + dt*k)) + M*k + S*(v + dt*k)
    add(*v, dt, k, w);
    add(*x, dt, w, z);
    H->Mult(z, y);
@@ -544,17 +581,21 @@ ReducedSystemOperator::~ReducedSystemOperator()
    delete Jacobian;
 }
 
+
 #ifdef MFEM_USE_SUNDIALS
+
 int SundialsJacSolver::InitSystem(void *sundials_mem)
 {
    TimeDependentOperator *td_oper = GetTimeDependentOperator(sundials_mem);
    HyperelasticOperator *he_oper;
-#ifdef MFEM_DEBUG
+
+   // During development, we use dynamic_cast<> to ensure the setup is correct:
    he_oper = dynamic_cast<HyperelasticOperator*>(td_oper);
    MFEM_VERIFY(he_oper, "operator is not HyperelasticOperator");
-#else
-   he_oper= static_cast<HyperelasticOperator*>(td_oper);
-#endif
+
+   // When the implementation is finalized, we can switch to static_cast<>:
+   // he_oper = static_cast<HyperelasticOperator*>(td_oper);
+
    he_oper->InitSundialsJacSolver(*this);
    return 0;
 }
@@ -568,11 +609,7 @@ int SundialsJacSolver::SetupSystem(void *sundials_mem, int conv_fail,
    const Vector x(y_pred.GetData() + sc, sc);
    double dt = GetTimeStep(sundials_mem);
 
-#ifdef MFEM_DEBUG
-   cout << "\033[0;35m" "SundialsJacSolver::SetupSystem" "\033[0m"
-        << " gamma = " << dt << endl;
-#endif
-
+   // J = M + dt*(S + dt*grad(H))
    delete Jacobian;
    Jacobian = Add(1.0, M->SpMat(), dt, S->SpMat());
    grad_H = dynamic_cast<SparseMatrix *>(&H->GetGradient(x));
@@ -593,26 +630,15 @@ int SundialsJacSolver::SolveSystem(void *sundials_mem, Vector &b,
    Vector b_v(b.GetData() +  0, sc);
    Vector b_x(b.GetData() + sc, sc);
    Vector rhs(sc);
-
    double dt = GetTimeStep(sundials_mem);
 
-#ifdef MFEM_DEBUG
-   cout << "\033[0;36m" "SundialsJacSolver::SolveSystem" "\033[0m" << flush;
-#endif
-
+   // rhs = M b_v - dt*grad(H) b_x
    grad_H->Mult(b_x, rhs);
    rhs *= -dt;
    M->AddMult(b_v, rhs);
 
    J_solver->iterative_mode = false;
    J_solver->Mult(rhs, b_v);
-
-#ifdef MFEM_DEBUG
-   cout << " iter = "
-        << static_cast<MINRESSolver*>(J_solver)->GetNumIterations()
-        << ", final norm = "
-        << static_cast<MINRESSolver*>(J_solver)->GetFinalNorm() << endl;
-#endif
 
    b_x.Add(dt, b_v);
 
@@ -624,14 +650,17 @@ int SundialsJacSolver::FreeSystem(void *sundials_mem)
    delete Jacobian;
    return 0;
 }
-#endif
+
+#endif // MFEM_USE_SUNDIALS
+
 
 HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
                                            Array<int> &ess_bdr, double visc,
-                                           double mu, double K, bool kinsol)
+                                           double mu, double K,
+                                           NonlinearSolverType nls_type)
    : TimeDependentOperator(2*f.GetVSize(), 0.0), fespace(f),
      M(&fespace), S(&fespace), H(&fespace),
-     viscosity(visc), use_kinsol(kinsol), z(height/2)
+     viscosity(visc), z(height/2)
 {
    const double rel_tol = 1e-8;
    const int skip_zero_entries = 0;
@@ -661,7 +690,7 @@ HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
    S.EliminateEssentialBC(ess_bdr);
    S.Finalize(skip_zero_entries);
 
-   backward_euler_oper = new ReducedSystemOperator(&M, &S, &H);
+   reduced_oper = new ReducedSystemOperator(&M, &S, &H);
 
 #ifndef MFEM_USE_SUITESPARSE
    J_prec = new DSmoother(1);
@@ -677,14 +706,15 @@ HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
    J_prec = NULL;
 #endif
 
-   if (use_kinsol)
+   if (nls_type == KINSOL)
    {
 #ifdef MFEM_USE_SUNDIALS
       KinSolver *kinsolver = new KinSolver(KIN_NONE, true);
-      kinsolver->SetMaxSetupCalls(2);
+      kinsolver->SetMaxSetupCalls(5);
       newton_solver = kinsolver;
       newton_solver->SetMaxIter(200);
-      newton_solver->SetRelTol(1e-3);
+      newton_solver->SetRelTol(rel_tol);
+      newton_solver->SetPrintLevel(0);
 #else
       MFEM_ABORT("MFEM is not configured with SUNDIALS!");
 #endif
@@ -694,10 +724,11 @@ HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
       newton_solver = new NewtonSolver();
       newton_solver->SetMaxIter(10);
       newton_solver->SetRelTol(rel_tol);
+      newton_solver->SetPrintLevel(0);
    }
    newton_solver->SetSolver(*J_solver);
    newton_solver->iterative_mode = false;
-   newton_solver->SetOperator(*backward_euler_oper);
+   newton_solver->SetOperator(*reduced_oper);
 }
 
 void HyperelasticOperator::Mult(const Vector &vx, Vector &dvx_dt) const
@@ -733,12 +764,13 @@ void HyperelasticOperator::ImplicitSolve(const double dt,
    //    kv = -M^{-1}*[H(x + dt*kx) + S*(v + dt*kv)]
    //    kx = v + dt*kv
    // we reduce it to a nonlinear equation for kv, represented by the
-   // backward_euler_oper. This equation is solved with the newton_solver
+   // reduced_oper. This equation is solved with the newton_solver
    // object (using J_solver and J_prec internally).
-   backward_euler_oper->SetParameters(dt, &v, &x);
-   Vector zero;
+   reduced_oper->SetParameters(dt, &v, &x);
+   Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
    newton_solver->Mult(zero, dv_dt);
-   MFEM_VERIFY(newton_solver->GetConverged(), "Newton Solver didn't converge.");
+   MFEM_VERIFY(newton_solver->GetConverged(),
+               "Nonlinear solver did not converge.");
    add(v, dt, dv_dt, dx_dt);
 }
 
@@ -771,9 +803,10 @@ HyperelasticOperator::~HyperelasticOperator()
    delete newton_solver;
    delete J_solver;
    delete J_prec;
-   delete backward_euler_oper;
+   delete reduced_oper;
    delete model;
 }
+
 
 double ElasticEnergyCoefficient::Eval(ElementTransformation &T,
                                       const IntegrationPoint &ip)
