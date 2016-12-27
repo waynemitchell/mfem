@@ -1311,6 +1311,45 @@ public:
    { scalar_fe.CalcDivShape(Trans, shape); }
 };
 
+/** Class for integrating the bilinear form a(u,v) := (-V Div u, Grad v) in 2D
+    or 3D and where V is a vector coefficient, u is in RT and v is
+    in H1.
+ */
+class MixedDivGradIntegrator : public MixedScalarVectorIntegrator
+{
+public:
+   MixedDivGradIntegrator(VectorCoefficient &vq)
+      : MixedScalarVectorIntegrator(vq, false) {}
+
+   inline virtual bool VerifyFiniteElementTypes(
+      const FiniteElement & trial_fe,
+      const FiniteElement & test_fe) const
+   {
+      return (trial_fe.GetRangeType() == mfem::FiniteElement::VECTOR &&
+              trial_fe.GetDerivType() == mfem::FiniteElement::DIV    &&
+	      test_fe.GetRangeType()  == mfem::FiniteElement::SCALAR &&
+              test_fe.GetDerivType()  == mfem::FiniteElement::GRAD
+              );
+   }
+
+   inline virtual const char * FiniteElementTypeFailureMessage() const
+   {
+      return "MixedDivGradIntegrator:  "
+             "Trial space must be a vector field with a divergence"
+             "and the test space must be a scalar field with a gradient";
+   }
+
+   inline virtual void CalcVShape(const FiniteElement & vector_fe,
+                                  ElementTransformation &Trans,
+                                  DenseMatrix & shape)
+   { vector_fe.CalcDShape(Trans, shape); shape *= -1.0; }
+
+   inline virtual void CalcShape(const FiniteElement & scalar_fe,
+                                 ElementTransformation &Trans,
+                                 Vector & shape)
+   { scalar_fe.CalcDivShape(Trans, shape); }
+};
+
 /** Class for integrating the bilinear form a(u,v) := (-V u, Grad v) in 2D
     or 3D and where V is a vector coefficient, u is in H1 and v is
     in H1.
@@ -1725,7 +1764,7 @@ public:
                                        DenseMatrix &elmat);
 };
 
-/// Integrator for (curl u, v) for Nedelec and RT elements. If the trail and
+/// Integrator for (curl u, v) for Nedelec and RT elements. If the trial and
 /// test spaces are switched, assembles the form (u, curl v).
 class VectorFECurlIntegrator: public BilinearFormIntegrator
 {
@@ -1906,8 +1945,12 @@ public:
                                       DenseMatrix &elmat);
 };
 
-/** Integrator for (Q grad u, grad v) = sum_i (Q grad u_i, grad v_i)
-    for FE spaces defined by 'dim' copies of a scalar FE space. */
+/** Integrator for
+      (Q grad u, grad v) = sum_i (Q grad u_i, grad v_i) e_i e_i^T
+    for FE spaces defined by 'dim' copies of a scalar FE space. Where e_i
+    is the unit vector in the i-th direction.  The resulting local element
+    matrix is a block-diagonal matrix consisting of 'dim' copies of a scalar
+    diffusion matrix in each diagonal block. */
 class VectorDiffusionIntegrator : public BilinearFormIntegrator
 {
 private:
