@@ -161,7 +161,7 @@ TeslaSolver::TeslaSolver(ParMesh & pmesh, int order,
       k_ = new ParGridFunction(HCurlFESpace_);
 
       // Object to solve the subproblem of computing surface currents
-      SurfCur_ = new SurfaceCurrent(*H1FESpace_, *HCurlFESpace_, *grad_,
+      SurfCur_ = new SurfaceCurrent(*H1FESpace_, *grad_,
                                     kbcs, vbcs, vbcv);
    }
 
@@ -542,12 +542,10 @@ TeslaSolver::DisplayToGLVis()
 }
 
 SurfaceCurrent::SurfaceCurrent(ParFiniteElementSpace & H1FESpace,
-                               ParFiniteElementSpace & HCurlFESpace,
                                ParDiscreteGradOperator & grad,
                                Array<int> & kbcs,
                                Array<int> & vbcs, Vector & vbcv)
    : H1FESpace_(&H1FESpace),
-     HCurlFESpace_(&HCurlFESpace),
      grad_(&grad),
      kbcs_(&kbcs),
      vbcs_(&vbcs),
