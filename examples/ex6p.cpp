@@ -15,8 +15,7 @@
 //               mpirun -np 4 ex6p -m ../data/square-disc-surf.mesh -o 2
 //               mpirun -np 4 ex6p -m ../data/amr-quad.mesh
 //               mpirun -np 4 ex6p -m ../data/amr-quad.mesh -usepetsc
-//               mpirun -np 4 ex6p -m ../data/amr-quad.mesh -usepetsc
-//                                 -nonoverlapping
+//               mpirun -np 4 ex6p -m ../data/amr-quad.mesh -usepetsc -nonoverlapping
 //
 // Description:  This is a version of Example 1 with a simple adaptive mesh
 //               refinement loop. The problem being solved is again the Laplace

@@ -9,8 +9,7 @@
 //    mpirun -np 4 ex10p -m ../data/beam-tet.mesh -s 2 -rs 1 -dt 3
 //    mpirun -np 4 ex10p -m ../data/beam-quad.mesh -s 14 -rs 2 -dt 0.03 -vs 20
 //    mpirun -np 4 ex10p -m ../data/beam-hex.mesh -s 14 -rs 1 -dt 0.05 -vs 20
-//    mpirun -np 4 ex10p -m ../data/beam-quad.mesh --usepetsc --petscopts .petsc_rc_ex10p
-//                       -s 3 -rs 2 -dt 3
+//    mpirun -np 4 ex10p -m ../data/beam-quad.mesh --usepetsc --petscopts .petsc_rc_ex10p -s 3 -rs 2 -dt 3
 //
 // Description:  This examples solves a time dependent nonlinear elasticity
 //               problem of the form dv/dt = H(x) + S v, dx/dt = v, where H is a

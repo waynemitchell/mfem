@@ -39,8 +39,8 @@
 //               The example also shows how PETSc Krylov solvers can be used
 //               by wrapping a HypreParMatrix (or not) and a Solver, together
 //               with customization using an options file (see .petsc_rc_ex1p)
-//               We also provide an example on how to visualize the iterative solution
-//               inside a PETSc solver.
+//               We also provide an example on how to visualize the iterative
+//               solution inside a PETSc solver.
 
 #include "mfem.hpp"
 #include <fstream>
@@ -270,12 +270,13 @@ int main(int argc, char *argv[])
       // PetscParMatrix; the user can then experiment with PETSc command
       // line options.
       bool wrap = !strlen(petscrc_file);
-      PetscPCGSolver *pcg = new PetscPCGSolver(A,wrap);
+      PetscPCGSolver *pcg = new PetscPCGSolver(A, wrap);
       if (wrap)
       {
          pcg->SetPreconditioner(*amg);
       }
       pcg->SetTol(1e-12);
+      pcg->SetAbsTol(1e-12);
       pcg->SetMaxIter(200);
       pcg->SetPrintLevel(2);
 

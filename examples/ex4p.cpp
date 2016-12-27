@@ -18,10 +18,8 @@
 //               mpirun -np 4 ex4p -m ../data/amr-hex.mesh -o 2 -sc
 //               mpirun -np 4 ex4p -m ../data/amr-hex.mesh -o 2 -hb
 //               mpirun -np 4 ex4p -m ../data/star-surf.mesh -o 3 -hb
-//               mpirun -np 4 ex4p -m ../data/klein-bottle.mesh -o 2
-//                                 --usepetsc --nonoverlapping --petscopts .petsc_rc_ex4p_bddc
-//               mpirun -np 4 ex4p -m ../data/klein-bottle.mesh -o 2
-//                                 --usepetsc --petscopts .petsc_rc_ex4p
+//               mpirun -np 4 ex4p -m ../data/klein-bottle.mesh -o 2 --usepetsc --nonoverlapping --petscopts .petsc_rc_ex4p_bddc
+//               mpirun -np 4 ex4p -m ../data/klein-bottle.mesh -o 2 --usepetsc --petscopts .petsc_rc_ex4p
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
 //               problem corresponding to the second order definite equation
@@ -262,7 +260,7 @@ int main(int argc, char *argv[])
    else
    {
       PetscParMatrix A;
-      PetscSolver   *prec = NULL;
+      PetscPreconditioner *prec = NULL;
       if (use_nonoverlapping) { a->SetUseNonoverlappingFormat(); }
       a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
 
@@ -284,13 +282,12 @@ int main(int argc, char *argv[])
          // Inform the solver about essential dofs
          opts.SetEssBdrDofs(&ess_tdof_list);
          // Create a BDDC solver with parameters
-         prec = new PetscBDDCSolver(A,opts);
+         prec = new PetscBDDCSolver(A, opts);
       }
       else
       {
-         // Create an empty preconditioner object that can
-         // be customized at runtime
-         prec = new PetscPreconditioner(A,"solver_");
+         // Create an empty preconditioner that can be customized at runtime.
+         prec = new PetscPreconditioner(A, "solver_");
       }
       pcg->SetPreconditioner(*prec);
       pcg->Mult(B, X);

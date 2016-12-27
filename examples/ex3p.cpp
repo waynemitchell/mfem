@@ -17,10 +17,8 @@
 //               mpirun -np 4 ex3p -m ../data/star-surf.mesh -o 2
 //               mpirun -np 4 ex3p -m ../data/mobius-strip.mesh -o 2 -f 0.1
 //               mpirun -np 4 ex3p -m ../data/klein-bottle.mesh -o 2 -f 0.1
-//               mpirun -np 4 ex3p -m ../data/klein-bottle.mesh -o 2 -f 0.1
-//                                 --usepetsc --nonoverlapping --petscopts .petsc_rc_ex3p_bddc
-//               mpirun -np 4 ex3p -m ../data/klein-bottle.mesh -o 2 -f 0.1
-//                                 --usepetsc --petscopts .petsc_rc_ex3p
+//               mpirun -np 4 ex3p -m ../data/klein-bottle.mesh -o 2 -f 0.1 --usepetsc --nonoverlapping --petscopts .petsc_rc_ex3p_bddc
+//               mpirun -np 4 ex3p -m ../data/klein-bottle.mesh -o 2 -f 0.1 --usepetsc --petscopts .petsc_rc_ex3p
 //
 // Description:  This example code solves a simple electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell
@@ -250,7 +248,7 @@ int main(int argc, char *argv[])
       ParFiniteElementSpace *prec_fespace =
          (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);
       PetscPCGSolver *pcg = new PetscPCGSolver(A);
-      PetscSolver    *prec = NULL;
+      PetscPreconditioner *prec = NULL;
       pcg->SetTol(1e-10);
       pcg->SetMaxIter(500);
       pcg->SetPrintLevel(2);

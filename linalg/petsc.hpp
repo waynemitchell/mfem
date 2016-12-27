@@ -15,6 +15,7 @@
 #define MFEM_PETSC
 
 #include "../config/config.hpp"
+#include "linalg.hpp"
 
 #ifdef MFEM_USE_PETSC
 #ifdef MFEM_USE_MPI
@@ -34,7 +35,9 @@ protected:
    Vec x;
 
    friend class PetscParMatrix;
-   friend class PetscSolver;
+   friend class PetscODESolver;
+   friend class PetscLinearSolver;
+   friend class PetscPreconditioner;
    friend class PetscNonlinearSolver;
    friend class PetscBDDCSolver;
 
@@ -221,10 +224,10 @@ public:
    PetscInt N();
 
    /// Returns the global number of rows
-   PetscInt GetGlobalNumRows() { return M(); };
+   PetscInt GetGlobalNumRows() { return M(); }
 
    /// Returns the global number of columns
-   PetscInt GetGlobalNumCols() { return N(); };
+   PetscInt GetGlobalNumCols() { return N(); }
 
    /// Returns the number of nonzeros
    /// Differently from HYPRE, this call is collective on the communicator,
@@ -281,18 +284,15 @@ void EliminateBC(PetscParMatrix &A, PetscParMatrix &Ae,
 
 class PetscSolverMonitorCtx;
 
-/// Abstract class for PETSc's solvers
-class PetscSolver : public Solver
+/// Abstract class for PETSc's solvers.
+class PetscSolver
 {
 protected:
-   /// The actual PETSc object (KSP, SNES or TS)
+   /// The actual PETSc object (KSP, PC, SNES or TS).
    PetscObject obj;
 
    /// The class id of the actual PETSc object
    PetscClassId cid;
-
-   /// boolean to handle SetFromOptions calls
-   mutable bool clcustom;
 
    /// Right-hand side and solution vector
    mutable PetscParVector *B, *X;
@@ -300,79 +300,61 @@ protected:
    /// Monitor context
    PetscSolverMonitorCtx *monitor_ctx;
 
-   /// Call SetFromOptions
-   void Customize() const;
-
 public:
-   /// Initialize protected objects to NULL
+   /// Initialize protected objects to NULL.
    PetscSolver();
 
-   /// Destroy the PetscParVectors allocated (if any)
+   /// Destroy the PetscParVectors allocated (if any).
    virtual ~PetscSolver();
 
-   // Set Operator
-   virtual void SetOperator(const Operator &op)
-   {
-      MFEM_ABORT("Set Operator not implemented!")
-   };
-
-   // Apply the solver
-   virtual void Mult(const Vector &b, Vector &x) const;
-   void Mult(const PetscParVector &b, PetscParVector &x) const;
-
-   // Change prefix
-   void SetPrefix(std::string prefix);
-
-   // Comply with MFEM solvers
+   /// @name Update of PETSc options.
+   /** The following Set methods can be used to update the internal PETSc
+       options. They overwrite the options given by the input PETSC file. */
+   ///@{
    void SetTol(double tol);
    void SetRelTol(double tol);
    void SetAbsTol(double tol);
    void SetMaxIter(int max_iter);
    void SetPrintLevel(int plev);
+   ///@}
    int GetConverged();
    int GetNumIterations();
    double GetFinalNorm();
 
-   // Sets user-defined monitoring routine
+   /// Sets user-defined monitoring routine.
    void SetMonitor(PetscSolverMonitorCtx *ctx);
 
-   /// Typecasting to PETScObject
+   /// Typecasting to PETScObject.
    operator PetscObject() const { return obj; }
 };
 
-/// Abstract class for PETSc's linear solvers
-/// It inherits from Solver and not from IterativeSolver because we let PETSc
-/// handle the various SetOperator/SetPreconditioner methods.
-class PetscLinearSolver : public PetscSolver
+/// Abstract class for PETSc's linear solvers.
+class PetscLinearSolver : public PetscSolver, public Solver
 {
 private:
-   bool wrap; // internal flag to handle HypreParMatrix conversion or not
-   void Init();
+   /// Internal flag to handle HypreParMatrix conversion or not.
+   bool wrap;
 
 public:
    PetscLinearSolver(MPI_Comm comm, std::string prefix = std::string());
-
    PetscLinearSolver(PetscParMatrix &_A, std::string prefix = std::string());
-
    /// Constructs a solver using a HypreParMatrix.
-   /// If wrap is true, then the MatMult ops of HypreParMatrix are wrapped.
-   /// No preconditioner can be automatically constructed from PETSc.
-   /// If wrap is false, the HypreParMatrix is converted into PETSc format.
-   PetscLinearSolver(HypreParMatrix &_A,bool wrap = true,
+   /** If @a #wrap is true, then the MatMult ops of HypreParMatrix are wrapped.
+       No preconditioner can be automatically constructed from PETSc. If
+       @a #wrap is false, the HypreParMatrix is converted into PETSc format. */
+   PetscLinearSolver(HypreParMatrix &_A, bool wrap = true,
                      std::string prefix = std::string());
-
-   /// virtual methods for base classes
-   virtual void SetOperator(const Operator &op);
    virtual ~PetscLinearSolver();
 
-   /// Sets the solver to be used as a preconditioner
-   void SetPreconditioner(Solver &precond);
+   virtual void SetOperator(const Operator &op);
+   virtual void SetPreconditioner(Solver &precond);
 
-   /// Typecasting to PETSc's KSP
+   /// Application of the solver.
+   virtual void Mult(const Vector &b, Vector &x) const;
+
+   /// Typecasting to PETSc's KSP.
    operator KSP() const { return (KSP)obj; }
 };
-
-// iterative solvers
 
 class PetscPCGSolver : public PetscLinearSolver
 {
@@ -383,30 +365,26 @@ public:
                   std::string prefix = std::string());
 };
 
-/// Abstract class for PETSc's preconditioners
-class PetscPreconditioner : public PetscSolver
+/// Abstract class for PETSc's preconditioners.
+class PetscPreconditioner : public PetscSolver, public Solver
 {
-private:
-   void Init();
-
 public:
    PetscPreconditioner(MPI_Comm comm, std::string prefix = std::string());
-
    PetscPreconditioner(PetscParMatrix &_A, std::string prefix = std::string());
-
    PetscPreconditioner(MPI_Comm comm, Operator &op,
                        std::string prefix = std::string());
-
-   /// virtual methods for base classes
-   virtual void SetOperator(const Operator &op);
-   //virtual void SetPrintLevel(int plev);
-   //virtual void Mult(const PetscParVector &b, PetscParVector &x) const;
    virtual ~PetscPreconditioner();
-   /// Typecasting to PETSc's PC
+
+   virtual void SetOperator(const Operator &op);
+
+   /// Application of the preconditioner.
+   virtual void Mult(const Vector &b, Vector &x) const;
+
+   /// Typecasting to PETSc's PC.
    operator PC() const { return (PC)obj; }
 };
 
-// auxiliary class for BDDC customization
+/// Auxiliary class for BDDC customization.
 class PetscBDDCSolverParams
 {
 protected:
@@ -418,19 +396,27 @@ protected:
    friend class PetscBDDCSolver;
 
 public:
-   PetscBDDCSolverParams() : fespace(NULL),
-      ess_dof(NULL), ess_dof_local(false),
-      nat_dof(NULL), nat_dof_local(false) {};
-   void SetSpace(ParFiniteElementSpace *fe) { fespace = fe; };
-   /// Specify dofs on the essential boundary
-   /// If loc is false, it is a list of true dofs in local ordering
-   /// If loc is true, it is a marker for Vdofs in local ordering
-   void SetEssBdrDofs(Array<int> *essdofs, bool loc = false) { ess_dof = essdofs; ess_dof_local = loc; };
-   /// Specify dofs on the natural boundary
-   /// If loc is false, it is a list of true dofs in local ordering
-   /// If loc is true, it is a marker for Vdofs in local ordering
-   void SetNatBdrDofs(Array<int> *natdofs, bool loc = false) { nat_dof = natdofs; nat_dof_local = loc; };
-   ~PetscBDDCSolverParams() {};
+   PetscBDDCSolverParams() : fespace(NULL), ess_dof(NULL), ess_dof_local(false),
+                             nat_dof(NULL), nat_dof_local(false)
+   {}
+   void SetSpace(ParFiniteElementSpace *fe) { fespace = fe; }
+
+   /// Specify dofs on the essential boundary.
+   /** If loc is false, it is a list of true dofs in local ordering.
+       If loc is true, it is a marker for Vdofs in local ordering. */
+   void SetEssBdrDofs(Array<int> *essdofs, bool loc = false)
+   {
+      ess_dof = essdofs;
+      ess_dof_local = loc;
+   }
+   /// Specify dofs on the natural boundary.
+   /** If loc is false, it is a list of true dofs in local ordering.
+       If loc is true, it is a marker for Vdofs in local ordering. */
+   void SetNatBdrDofs(Array<int> *natdofs, bool loc = false)
+   {
+      nat_dof = natdofs;
+      nat_dof_local = loc;
+   }
 };
 
 class PetscBDDCSolver : public PetscPreconditioner
@@ -454,45 +440,42 @@ public:
                          std::string prefix = std::string());
 };
 
-/// Abstract class for PETSc's nonlinear solvers
-class PetscNonlinearSolver : public PetscSolver
+/// Abstract class for PETSc's nonlinear solvers.
+class PetscNonlinearSolver : public PetscSolver, public Solver
 {
 public:
    PetscNonlinearSolver(MPI_Comm comm, std::string prefix = std::string());
-
    PetscNonlinearSolver(MPI_Comm comm, Operator &op,
                         std::string prefix = std::string());
-
-   /// virtual methods for base classes
-   virtual void SetOperator(const Operator &op);
    virtual ~PetscNonlinearSolver();
 
-   /// Sets the inner linear solver
-   void SetSolver(Solver &precond)
-   {
-      MFEM_ABORT("Set Solver not implemented!")
-   }
+   /// Specification of the nonlinear operator.
+   virtual void SetOperator(const Operator &op);
 
-   /// Typecasting to PETSc's SNES
+   /// Application of the solver.
+   virtual void Mult(const Vector &b, Vector &x) const;
+
+   /// Typecasting to PETSc's SNES.
    operator SNES() const { return (SNES)obj; }
 };
 
-/// Abstract class for PETSC's ODE solvers.
+/// Abstract class for PETSc's ODE solvers.
 class PetscODESolver : public PetscSolver, public ODESolver
 {
 public:
    PetscODESolver(MPI_Comm comm, std::string prefix = std::string());
    virtual ~PetscODESolver();
 
-   /// Methods corresponding to the ODESolver interface.
-   ///@{
    virtual void Init(TimeDependentOperator &_f);
+
    virtual void Step(Vector &x, double &t, double &dt);
    virtual void Steps(Vector &x, double &t, double &dt, double t_final);
-   ///@}
+
+   /// Typecasting to PETSc's TS.
+   operator TS() const { return (TS)obj; }
 };
 
-/// Abstract class for monitoring PETSc's solvers
+/// Abstract class for monitoring PETSc's solvers.
 class PetscSolverMonitorCtx
 {
 public:

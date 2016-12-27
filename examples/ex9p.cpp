@@ -14,10 +14,8 @@
 //    mpirun -np 4 ex9p -m ../data/disc-nurbs.mesh -p 2 -rp 1 -dt 0.005 -tf 9
 //    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 3 -rp 2 -dt 0.0025 -tf 9 -vs 20
 //    mpirun -np 4 ex9p -m ../data/periodic-cube.mesh -p 0 -o 2 -rp 1 -dt 0.01 -tf 8
-//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh --usepetsc
-//                      --petscopts .petsc_rc_ex9p_expl
-//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh --usepetsc
-//                      --petscopts .petsc_rc_ex9p_impl -implicit
+//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh --usepetsc --petscopts .petsc_rc_ex9p_expl
+//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh --usepetsc --petscopts .petsc_rc_ex9p_impl -implicit
 //
 // Description:  This example code solves the time-dependent advection equation
 //               du/dt + v.grad(u) = 0, where v is a given fluid velocity, and

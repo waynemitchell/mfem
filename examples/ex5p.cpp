@@ -8,10 +8,8 @@
 //               mpirun -np 4 ex5p -m ../data/beam-hex.mesh
 //               mpirun -np 4 ex5p -m ../data/escher.mesh
 //               mpirun -np 4 ex5p -m ../data/fichera.mesh
-//               mpirun -np 4 ex5p -m ../data/beam-tet.mesh --usepetsc
-//                                 --petscopts .petsc_rc_ex5p_fieldsplit
-//               mpirun -np 4 ex5p -m ../data/star.mesh --usepetsc
-//                                 --petscopts .petsc_rc_ex5p_bddc --nonoverlapping
+//               mpirun -np 4 ex5p -m ../data/beam-tet.mesh --usepetsc --petscopts .petsc_rc_ex5p_fieldsplit
+//               mpirun -np 4 ex5p -m ../data/star.mesh --usepetsc --petscopts .petsc_rc_ex5p_bddc --nonoverlapping
 //
 // Description:  This example code solves a simple 2D/3D mixed Darcy problem
 //               corresponding to the saddle point system
@@ -284,7 +282,7 @@ int main(int argc, char *argv[])
    //     Here we use Symmetric Gauss-Seidel to approximate the inverse of the
    //     pressure Schur Complement.
 #ifdef MFEM_USE_PETSC
-   PetscSolver *pdarcyPr = NULL;
+   PetscPreconditioner *pdarcyPr = NULL;
 #endif
    BlockDiagonalPreconditioner *darcyPr = NULL;
    HypreSolver *invM = NULL, *invS = NULL;
