@@ -65,6 +65,9 @@
 // Enable secure socket streams based on the GNUTLS library
 // #define MFEM_USE_GNUTLS
 
+// Enable Sidre support
+// #define MFEM_USE_SIDRE
+
 // Enable functionality based on the NetCDF library (reading CUBIT files)
 // #define MFEM_USE_NETCDF
 

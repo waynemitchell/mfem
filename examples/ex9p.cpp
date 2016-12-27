@@ -94,6 +94,7 @@ int main(int argc, char *argv[])
    double dt = 0.01;
    bool visualization = true;
    bool visit = false;
+   bool binary = false;
    int vis_steps = 5;
 
    int precision = 8;
@@ -123,6 +124,9 @@ int main(int argc, char *argv[])
    args.AddOption(&visit, "-visit", "--visit-datafiles", "-no-visit",
                   "--no-visit-datafiles",
                   "Save data files for VisIt (visit.llnl.gov) visualization.");
+   args.AddOption(&binary, "-binary", "--binary-datafiles", "-ascii",
+                  "--ascii-datafiles",
+                  "Use binary (Sidre) or ascii format for VisIt data files.");
    args.AddOption(&vis_steps, "-vs", "--visualization-steps",
                   "Visualize every n-th timestep.");
    args.Parse();
@@ -249,13 +253,28 @@ int main(int argc, char *argv[])
       u->Save(osol);
    }
 
-   VisItDataCollection visit_dc("Example9-Parallel", pmesh);
-   visit_dc.RegisterField("solution", u);
+   // Create data collection for solution output: either VisItDataCollection for
+   // ascii data files, or SidreDataCollection for binary data files.
+   DataCollection *dc = NULL;
    if (visit)
    {
-      visit_dc.SetCycle(0);
-      visit_dc.SetTime(0.0);
-      visit_dc.Save();
+      if (binary)
+      {
+#ifdef MFEM_USE_SIDRE
+         dc = new SidreDataCollection("Example9-Parallel", pmesh);
+#else
+         MFEM_ABORT("Must build with MFEM_USE_SIDRE=YES for binary output.");
+#endif
+      }
+      else
+      {
+         dc = new VisItDataCollection("Example9-Parallel", pmesh);
+         dc->SetPrecision(precision);
+      }
+      dc->RegisterField("solution", u);
+      dc->SetCycle(0);
+      dc->SetTime(0.0);
+      dc->Save();
    }
 
    socketstream sout;
@@ -324,9 +343,9 @@ int main(int argc, char *argv[])
 
          if (visit)
          {
-            visit_dc.SetCycle(ti);
-            visit_dc.SetTime(t);
-            visit_dc.Save();
+            dc->SetCycle(ti);
+            dc->SetTime(t);
+            dc->Save();
          }
       }
    }
@@ -354,6 +373,7 @@ int main(int argc, char *argv[])
    delete fes;
    delete pmesh;
    delete ode_solver;
+   delete dc;
 
    MPI_Finalize();
    return 0;

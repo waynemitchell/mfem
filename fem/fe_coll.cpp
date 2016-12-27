@@ -1714,6 +1714,7 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type,
    {
       TriDofOrd[i] = NULL;
    }
+   OtherDofOrd = NULL;
 
    if (dim == 1)
    {
@@ -1777,6 +1778,12 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type,
             TriDofOrd[5][o] = TriDof - ((pp2-i)*(pp1-i))/2 + j;  // (0,2,1)
          }
       }
+      const int QuadDof = L2_Elements[Geometry::SQUARE]->GetDof();
+      OtherDofOrd = new int[QuadDof];
+      for (int j = 0; j < QuadDof; j++)
+      {
+         OtherDofOrd[j] = j; // for Or == 0
+      }
    }
    else if (dim == 3)
    {
@@ -1796,6 +1803,15 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type,
       // All trace element use the default Gauss-Legendre nodal points
       Tr_Elements[Geometry::TRIANGLE] = new L2_TriangleElement(p);
       Tr_Elements[Geometry::SQUARE] = new L2_QuadrilateralElement(p);
+
+      const int TetDof = L2_Elements[Geometry::TETRAHEDRON]->GetDof();
+      const int HexDof = L2_Elements[Geometry::CUBE]->GetDof();
+      const int MaxDof = std::max(TetDof, HexDof);
+      OtherDofOrd = new int[MaxDof];
+      for (int j = 0; j < MaxDof; j++)
+      {
+         OtherDofOrd[j] = j; // for Or == 0
+      }
    }
    else
    {
@@ -1807,19 +1823,22 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type,
 
 int *L2_FECollection::DofOrderForOrientation(int GeomType, int Or) const
 {
-   if (GeomType == Geometry::SEGMENT)
+   switch (GeomType)
    {
-      return (Or > 0) ? SegDofOrd[0] : SegDofOrd[1];
+      case Geometry::SEGMENT:
+         return (Or > 0) ? SegDofOrd[0] : SegDofOrd[1];
+
+      case Geometry::TRIANGLE:
+         return TriDofOrd[Or%6];
+
+      default:
+         return (Or == 0) ? OtherDofOrd : NULL;
    }
-   else if (GeomType == Geometry::TRIANGLE)
-   {
-      return TriDofOrd[Or%6];
-   }
-   return NULL;
 }
 
 L2_FECollection::~L2_FECollection()
 {
+   delete [] OtherDofOrd;
    delete [] SegDofOrd[0];
    delete [] TriDofOrd[0];
    for (int i = 0; i < Geometry::NumGeom; i++)

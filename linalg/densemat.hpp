@@ -53,16 +53,27 @@ public:
    DenseMatrix(double *d, int h, int w) : Matrix(h, w)
    { data = d; capacity = -h*w; }
 
-   /** Change the data array and the size of the DenseMatrix. The DenseMatrix
-       does not assume ownership of the data array, i.e. it will not delete the
-       array. This method should not be used with DenseMatrix that owns its
-       current data array. */
+   /// Change the data array and the size of the DenseMatrix.
+   /** The DenseMatrix does not assume ownership of the data array, i.e. it will
+       not delete the data array @a d. This method should not be used with
+       DenseMatrix that owns its current data array. */
    void UseExternalData(double *d, int h, int w)
    { data = d; height = h; width = w; capacity = -h*w; }
+
+   /// Change the data array and the size of the DenseMatrix.
+   /** The DenseMatrix does not assume ownership of the data array, i.e. it will
+       not delete the new array @a d. This method will delete the current data
+       array, if owned. */
+   void Reset(double *d, int h, int w)
+   { if (OwnsData()) { delete [] data; } UseExternalData(d, h, w); }
 
    /** Clear the data array and the dimensions of the DenseMatrix. This method
        should not be used with DenseMatrix that owns its current data array. */
    void ClearExternalData() { data = NULL; height = width = 0; capacity = 0; }
+
+   /// Delete the matrix data array (if owned) and reset the matrix state.
+   void Clear()
+   { if (OwnsData()) { delete [] data; } ClearExternalData(); }
 
    /// For backward compatibility define Size to be synonym of Width()
    int Size() const { return Width(); }
@@ -73,8 +84,12 @@ public:
    /// Change the size of the DenseMatrix to h x w.
    void SetSize(int h, int w);
 
-   /// Returns vector of the elements.
+   /// Returns the matrix data array.
    inline double *Data() const { return data; }
+   /// Returns the matrix data array.
+   inline double *GetData() const { return data; }
+
+   inline bool OwnsData() const { return (capacity > 0); }
 
    /// Returns reference to a_{ij}.
    inline double &operator()(int i, int j);

@@ -98,6 +98,9 @@ New and updated examples and miniapps
   requirements, and eliminates unnecessary computation. It also fixed a bug
   with divergence cleaning in the Tesla miniapp.
 
+- Added an option to Example 9/9p to save a binary visualization file using the
+  Conduit mesh blueprint/hdf5 format.
+
 Miscellaneous
 -------------
 - Added a new CMake build system, that can be used alternatively to the GNU
@@ -106,12 +109,19 @@ Miscellaneous
 
 - Added support for "out of source" builds with GNU make, see the INSTALL file.
 
+- Added on-the-fly compression of file streams input and output via gzstream,
+  see the MFEM_USE_GZSTREAM option.
+
+- Added experimental support for an HDF5-based output file format following the
+  Conduit (https://github.com/LLNL/conduit) mesh blueprint specification for
+  visualization and/or restart capability. This functionality is aimed primarily
+  at user of LLNL's ASC Toolkit (Sidre component) that run problems at extreme
+  scales. Users desiring a small scale binary format may want to look at the
+  gzstream functionality instead.
+
 - Added optional support for software-based higher-precision arithmetic with
   the MPFR library. When MFEM_USE_MPFR is enabled, the 1D quadrature rules will
   be computed precisely, at least for rules with up to 65-points.
-
-- Added on-the-fly compression of file streams input and output via gzstream,
-  see the MFEM_USE_GZSTREAM option.
 
 - Better support for METIS version 5 and above.
 

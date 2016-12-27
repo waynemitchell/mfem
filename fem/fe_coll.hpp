@@ -199,6 +199,7 @@ private:
    ScalarFiniteElement *Tr_Elements[Geometry::NumGeom];
    int *SegDofOrd[2]; // for rotating segment dofs in 1D
    int *TriDofOrd[6]; // for rotating triangle dofs in 2D
+   int *OtherDofOrd;  // for rotating other types of elements (for Or == 0)
 
 public:
    L2_FECollection(const int p, const int dim,
