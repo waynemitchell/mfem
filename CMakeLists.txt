@@ -167,12 +167,12 @@ if (MFEM_USE_MPFR)
   include_directories(${MPFR_INCLUDE_DIRS})
 endif()
 
-# ATK/SiDRe
+# ATK/Sidre
 if (MFEM_USE_SIDRE)
   if (NOT MFEM_USE_MPI)
-    find_package(ATK REQUIRED SiDRe SLIC common)
+    find_package(ATK REQUIRED Sidre SLIC common)
   else()
-    find_package(ATK REQUIRED SiDRe SPIO SLIC common)
+    find_package(ATK REQUIRED Sidre SPIO SLIC common)
   endif()
   include_directories(${ATK_INCLUDE_DIRS})
 endif()

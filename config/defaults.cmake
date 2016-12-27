@@ -34,7 +34,7 @@ option(MFEM_USE_GECKO "Enable GECKO usage" OFF)
 option(MFEM_USE_GNUTLS "Enable GNUTLS usage" OFF)
 option(MFEM_USE_NETCDF "Enable NETCDF usage" OFF)
 option(MFEM_USE_MPFR "Enable MPFR usage." OFF)
-option(MFEM_USE_SIDRE "Enable ATK/SiDRe usage" OFF)
+option(MFEM_USE_SIDRE "Enable ATK/Sidre usage" OFF)
 
 # Allow a user to disable testing, examples, and/or miniapps at CONFIGURE TIME
 # if they don't want/need them (e.g. if MFEM is "just a dependency" and all they
