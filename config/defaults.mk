@@ -15,7 +15,7 @@
 
 
 # Some choices below are based on the OS type:
-NOTMAC := $(OSTYPE:darwin=)
+NOTMAC := $(subst Darwin,,$(shell uname -s))
 
 CXX = g++
 MPICXX = mpicxx
