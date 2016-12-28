@@ -1,4 +1,5 @@
 //                                MFEM Example 9
+//                             SUNDIALS Modification
 //
 // Compile with: make ex9
 //

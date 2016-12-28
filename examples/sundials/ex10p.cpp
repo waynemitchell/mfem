@@ -1,4 +1,5 @@
 //                       MFEM Example 10 - Parallel Version
+//                             SUNDIALS Modification
 //
 // Compile with: make ex10p
 //

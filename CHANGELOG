@@ -75,6 +75,10 @@ New and updated examples and miniapps
   default in these examples, to switch to optimized matrix assembly instead use
   the -asm/--assembly option.
 
+- Added a new directory, examples/sundials with modifications of examples 9 and
+  10 (both serial and parallel) that illustrate the use of the SUNDIALS time
+  integrators and nonlinear solvers.
+
 - Added a simple miniapp, display-basis, for displaying the various types
   of finite element basis functions within single elements. This is part of
   the new miniapps/tools directory.
