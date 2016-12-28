@@ -4,14 +4,15 @@
 // Compile with: make ex10
 //
 // Sample runs:
-//    ex10 -m ../data/beam-quad.mesh -s 3 -r 2 -o 2 -dt 3
-//    ex10 -m ../data/beam-tri.mesh -s 3 -r 2 -o 2 -dt 3
-//    ex10 -m ../data/beam-hex.mesh -s 2 -r 1 -o 2 -dt 3
-//    ex10 -m ../data/beam-tet.mesh -s 2 -r 1 -o 2 -dt 3
-//    ex10 -m ../data/beam-quad.mesh -s 14 -r 2 -o 2 -dt 0.03 -vs 20
-//    ex10 -m ../data/beam-hex.mesh -s 14 -r 1 -o 2 -dt 0.05 -vs 20
-//    ex10 -m ../data/beam-quad.mesh -s 5 -r 2 -o 2 -dt 3
-//    ex10 -m ../data/beam-quad.mesh -r 2 -o 2 -dt 3 -tf 10 -s 2 -nls kinsol
+//    ex10 -m ../../data/beam-quad.mesh -r 2 -o 2 -dt 0.03 -vs 20 -s 15
+//    ex10 -m ../../data/beam-tri.mesh  -r 2 -o 2 -dt 0.03 -vs 20 -s 16
+//    ex10 -m ../../data/beam-hex.mesh  -r 1 -o 2 -dt 0.03 -vs 20 -s 15
+//    ex10 -m ../../data/beam-quad.mesh -r 2 -o 2 -dt 3 -s 5
+//    ex10 -m ../../data/beam-tri.mesh  -r 2 -o 2 -dt 3 -s 7
+//    ex10 -m ../../data/beam-hex.mesh  -r 1 -o 2 -dt 3 -s 5
+//    ex10 -m ../../data/beam-tri.mesh  -r 2 -o 2 -dt 3 -s 2 -nls kinsol
+//    ex10 -m ../../data/beam-quad.mesh -r 2 -o 2 -dt 3 -s 2 -nls kinsol
+//    ex10 -m ../../data/beam-hex.mesh  -r 1 -o 2 -dt 3 -s 2 -nls kinsol
 //
 // Description:  This examples solves a time dependent nonlinear elasticity
 //               problem of the form dv/dt = H(x) + S v, dx/dt = v, where H is a
@@ -300,24 +301,24 @@ int main(int argc, char *argv[])
       case 3: ode_solver = new SDIRK33Solver; break;
       case 4:
       {
-         cvode = new CVODESolver(CV_BDF, CV_NEWTON, dt, 1.0e-2, 1.0e-2);
+         cvode = new CVODESolver(CV_BDF, CV_NEWTON, dt, 1.0e-4, 1.0e-4);
          ode_solver = cvode; break;
       }
       case 5:
       {
-         cvode = new CVODESolver(CV_BDF, CV_NEWTON, dt, 1.0e-2, 1.0e-2);
+         cvode = new CVODESolver(CV_BDF, CV_NEWTON, dt, 1.0e-4, 1.0e-4);
          sjsolver = new SundialsJacSolver;
          cvode->SetLinearSolver(*sjsolver);
          ode_solver = cvode; break;
       }
       case 6:
       {
-         arkode = new ARKODESolver(true, 1.0e-2, 1.0e-2);
+         arkode = new ARKODESolver(true, 1.0e-4, 1.0e-4);
          ode_solver = arkode; break;
       }
       case 7:
       {
-         arkode = new ARKODESolver(true, 1.0e-2, 1.0e-2);
+         arkode = new ARKODESolver(true, 1.0e-4, 1.0e-4);
          // Custom Jacobian inversion.
          sjsolver = new SundialsJacSolver;
          arkode->SetLinearSolver(*sjsolver);
@@ -329,10 +330,10 @@ int main(int argc, char *argv[])
       case 13: ode_solver = new RK3SSPSolver; break;
       case 14: ode_solver = new RK4Solver; break;
       case 15:
-         cvode = new CVODESolver(CV_ADAMS, CV_FUNCTIONAL, dt, 1.0e-2, 1.0e-2);
+         cvode = new CVODESolver(CV_ADAMS, CV_FUNCTIONAL, dt, 1.0e-4, 1.0e-4);
          ode_solver = cvode; break;
       case 16:
-         arkode = new ARKODESolver(false, 1.0e-2, 1.0e-2);
+         arkode = new ARKODESolver(false, 1.0e-4, 1.0e-4);
          ode_solver = arkode; break;
       // Implicit A-stable methods (not L-stable)
       case 22: ode_solver = new ImplicitMidpointSolver; break;
@@ -687,7 +688,7 @@ HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
    if (nls_type == KINSOL)
    {
       KinSolver *kinsolver = new KinSolver(KIN_NONE, true);
-      kinsolver->SetMaxSetupCalls(5);
+      kinsolver->SetMaxSetupCalls(4);
       newton_solver = kinsolver;
       newton_solver->SetMaxIter(200);
       newton_solver->SetRelTol(rel_tol);

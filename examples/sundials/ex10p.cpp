@@ -4,13 +4,15 @@
 // Compile with: make ex10p
 //
 // Sample runs:
-//    mpirun -np 4 ex10p -m ../data/beam-quad.mesh -s 3 -rs 2 -dt 3
-//    mpirun -np 4 ex10p -m ../data/beam-tri.mesh -s 3 -rs 2 -dt 3
-//    mpirun -np 4 ex10p -m ../data/beam-hex.mesh -s 2 -rs 1 -dt 3
-//    mpirun -np 4 ex10p -m ../data/beam-tet.mesh -s 2 -rs 1 -dt 3
-//    mpirun -np 4 ex10p -m ../data/beam-quad.mesh -s 14 -rs 2 -dt 0.03 -vs 20
-//    mpirun -np 4 ex10p -m ../data/beam-hex.mesh -s 14 -rs 1 -dt 0.05 -vs 20
-//    mpirun -np 4 ex10p -m ../data/beam-quad.mesh -s 5 -rs 2 -dt 3
+//    mpirun -np 4 ex10p -m ../../data/beam-quad.mesh -rp 1 -o 2 -dt 0.03 -vs 20 -s 15
+//    mpirun -np 4 ex10p -m ../../data/beam-tri.mesh  -rp 1 -o 2 -dt 0.03 -vs 20 -s 16
+//    mpirun -np 4 ex10p -m ../../data/beam-hex.mesh  -rp 0 -o 2 -dt 0.03 -vs 20 -s 15
+//    mpirun -np 4 ex10p -m ../../data/beam-quad.mesh -rp 1 -o 2 -dt 3 -s 5
+//    mpirun -np 4 ex10p -m ../../data/beam-tri.mesh  -rp 1 -o 2 -dt 3 -s 7
+//    mpirun -np 4 ex10p -m ../../data/beam-hex.mesh  -rp 0 -o 2 -dt 2 -s 5
+//    mpirun -np 4 ex10p -m ../../data/beam-tri.mesh  -rp 1 -o 2 -dt 3 -s 2 -nls kinsol
+//    mpirun -np 4 ex10p -m ../../data/beam-quad.mesh -rp 1 -o 2 -dt 3 -s 2 -nls kinsol
+//    mpirun -np 4 ex10p -m ../../data/beam-hex.mesh  -rs 1 -o 2 -dt 3 -s 2 -nls kinsol
 //
 // Description:  This examples solves a time dependent nonlinear elasticity
 //               problem of the form dv/dt = H(x) + S v, dx/dt = v, where H is a
@@ -329,25 +331,25 @@ int main(int argc, char *argv[])
       case 4:
       {
          cvode = new CVODESolver(MPI_COMM_WORLD, CV_BDF, CV_NEWTON,
-                                 dt, 1.0e-2, 1.0e-2);
+                                 dt, 1.0e-4, 1.0e-4);
          ode_solver = cvode; break;
       }
       case 5:
       {
          cvode = new CVODESolver(MPI_COMM_WORLD, CV_BDF, CV_NEWTON,
-                                 dt, 1.0e-2, 1.0e-2);
+                                 dt, 1.0e-4, 1.0e-4);
          sjsolver = new SundialsJacSolver;
          cvode->SetLinearSolver(*sjsolver);
          ode_solver = cvode; break;
       }
       case 6:
       {
-         arkode = new ARKODESolver(MPI_COMM_WORLD, true, 1.0e-2, 1.0e-2);
+         arkode = new ARKODESolver(MPI_COMM_WORLD, true, 1.0e-4, 1.0e-4);
          ode_solver = arkode; break;
       }
       case 7:
       {
-         arkode = new ARKODESolver(MPI_COMM_WORLD, true, 1.0e-2, 1.0e-2);
+         arkode = new ARKODESolver(MPI_COMM_WORLD, true, 1.0e-4, 1.0e-4);
          // Custom Jacobian inversion.
          sjsolver = new SundialsJacSolver;
          arkode->SetLinearSolver(*sjsolver);
@@ -362,10 +364,10 @@ int main(int argc, char *argv[])
 #ifdef MFEM_USE_SUNDIALS
       case 15:
          cvode = new CVODESolver(MPI_COMM_WORLD, CV_ADAMS, CV_FUNCTIONAL,
-                                 dt, 1.0e-2, 1.0e-2);
+                                 dt, 1.0e-4, 1.0e-4);
          ode_solver = cvode; break;
       case 16:
-         arkode = new ARKODESolver(MPI_COMM_WORLD, false, 1.0e-2, 1.0e-2);
+         arkode = new ARKODESolver(MPI_COMM_WORLD, false, 1.0e-4, 1.0e-4);
          ode_solver = arkode; break;
 #else
       case 4:
@@ -788,7 +790,7 @@ HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
    {
 #ifdef MFEM_USE_SUNDIALS
       KinSolver *kinsolver = new KinSolver(f.GetComm(), KIN_NONE, true);
-      kinsolver->SetMaxSetupCalls(5);
+      kinsolver->SetMaxSetupCalls(4);
       newton_solver = kinsolver;
       newton_solver->SetMaxIter(200);
       newton_solver->SetRelTol(rel_tol);

@@ -4,19 +4,14 @@
 // Compile with: make ex9p
 //
 // Sample runs:
-//    mpirun -np 4 ex9p -m ../data/periodic-segment.mesh -p 0 -dt 0.005
-//    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 0 -dt 0.01
-//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -p 0 -dt 0.01
-//    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 1 -dt 0.005 -tf 9
-//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -p 1 -dt 0.005 -tf 9
-//    mpirun -np 4 ex9p -m ../data/amr-quad.mesh -p 1 -rp 1 -dt 0.002 -tf 9
-//    mpirun -np 4 ex9p -m ../data/star-q3.mesh -p 1 -rp 1 -dt 0.004 -tf 9
-//    mpirun -np 4 ex9p -m ../data/disc-nurbs.mesh -p 1 -rp 1 -dt 0.005 -tf 9
-//    mpirun -np 4 ex9p -m ../data/disc-nurbs.mesh -p 2 -rp 1 -dt 0.005 -tf 9
-//    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 3 -rp 2 -dt 0.0025 -tf 9 -vs 20
-//    mpirun -np 4 ex9p -m ../data/periodic-cube.mesh -p 0 -o 2 -rp 1 -dt 0.01 -tf 8
-//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -s 11 -dt 0.0018 -vs 25
-//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -s 13 -dt 0.01 -vs 15
+//    mpirun -np 4 ex9p -m ../../data/periodic-segment.mesh -p 1 -rp 1 -dt 0.005 -s 11
+//    mpirun -np 4 ex9p -m ../../data/periodic-square.mesh -p 1 -rp 1 -dt 0.005 -tf 9 -s 12
+//    mpirun -np 4 ex9p -m ../../data/periodic-hexagon.mesh -dt 0.0018 -vs 25 -s 11
+//    mpirun -np 4 ex9p -m ../../data/periodic-hexagon.mesh -dt 0.01 -vs 15 -s 13
+//    mpirun -np 4 ex9p -m ../../data/amr-quad.mesh -p 1 -rp 1 -dt 0.002 -tf 9 -s 13
+//    mpirun -np 4 ex9p -m ../../data/star-q3.mesh -p 1 -rp 1 -dt 0.002 -tf 9 -s 13
+//    mpirun -np 4 ex9p -m ../../data/disc-nurbs.mesh -p 1 -rp 1 -dt 0.005 -tf 9 -s 11
+//    mpirun -np 4 ex9p -m ../../data/periodic-cube.mesh -p 0 -rp 1 -o 2 -dt 0.02 -tf 8 -s 12
 //
 // Description:  This example code solves the time-dependent advection equation
 //               du/dt + v.grad(u) = 0, where v is a given fluid velocity, and
