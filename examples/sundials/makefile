@@ -17,7 +17,7 @@ CONFIG_MK = $(MFEM_BUILD_DIR)/config/config.mk
 TEST_MK = $(MFEM_DIR)/config/test.mk
 # Use the MFEM install directory
 # SRC = $(if $(MFEM_DIR),$(MFEM_DIR)/examples/,)
-# MFEM_DIR = ../mfem
+# MFEM_DIR = ../../mfem
 # CONFIG_MK = $(MFEM_DIR)/config.mk
 # TEST_MK = $(MFEM_DIR)/test.mk
 
@@ -45,6 +45,11 @@ endif
 
 all: $(EXAMPLES)
 
+ifeq ($(MFEM_USE_SUNDIALS),NO)
+$(EXAMPLES):
+	$(error MFEM is not configured with SUNDIALS)
+endif
+
 MFEM_TESTS = EXAMPLES
 include $(TEST_MK)
 
@@ -54,11 +59,16 @@ include $(TEST_MK)
 %-test-seq: %
 	@$(call mfem-test,$<,, Serial example)
 
-# Testing: Specific execution options
+# Testing: Specific execution options: test CVODE time stepper
+EX9_ARGS := -m ../../data/periodic-hexagon.mesh -s 11 -dt 0.0018 -vs 25
+ex9-test-seq: ex9
+	@$(call mfem-test,$<,, Serial example,$(EX9_ARGS))
+ex9p-test-par: ex9p
+	@$(call mfem-test,$<, mpirun -np 4, Parallel example,$(EX9_ARGS))
 ex10-test-seq: ex10
-	@$(call mfem-test,$<,, Serial example,-tf 5)
+	@$(call mfem-test,$<,, Serial example,-s 5)
 ex10p-test-par: ex10p
-	@$(call mfem-test,$<, mpirun -np 4, Parallel example,-tf 5)
+	@$(call mfem-test,$<, mpirun -np 4, Parallel example,-s 5)
 
 # Testing: "test" target and mfem-test* variables are defined in config/test.mk
 
@@ -73,9 +83,5 @@ clean-build:
 	rm -rf *.dSYM *.TVD.*breakpoints
 
 clean-exec:
-	@rm -f refined.mesh displaced.mesh mesh.* ex5.mesh
-	@rm -rf Example5* Example9* Example15* Example16*
-	@rm -f sphere_refined.* sol.* sol_u.* sol_p.*
-	@rm -f ex9.mesh ex9-mesh.* ex9-init.* ex9-final.*
-	@rm -f deformed.* velocity.* elastic_energy.* mode_*
-	@rm -f ex16.mesh ex16-mesh.* ex16-init.* ex16-final.*
+	@rm -f ex9.mesh ex9-mesh.* ex9-init.* ex9-final.* Example9*
+	@rm -f deformed.* velocity.* elastic_energy.*
