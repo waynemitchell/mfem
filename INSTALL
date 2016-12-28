@@ -369,7 +369,7 @@ The specific libraries and their options are:
   URL: www.unidata.ucar.edu/software/netcdf
   Options: NETCDF_OPT, NETCDF_LIB.
 
-- Sidre (optional), used when MFEM_USE_SIDRE = YES.
+- ATK/Sidre (optional), used when MFEM_USE_SIDRE = YES.
   URL: http://goo.gl/cZyJdn (ASC toolkit, to be released)
        https://github.com/LLNL/conduit (Conduit)
        https://support.hdfgroup.org/HDF5 (HDF5)
