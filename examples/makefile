@@ -60,8 +60,6 @@ ex1-test-seq: ex1
 	@$(call mfem-test,$<,, Serial example)
 ex1p-test-par: ex1p
 	@$(call mfem-test,$<, mpirun -np 4, Parallel example)
-ex1p-test-parmesh: ex1p
-	@$(call mfem-test,$<, mpirun -np 4, Parallel example w/parallel mesh,-p ../data/quad -r 0)
 ex10-test-seq: ex10
 	@$(call mfem-test,$<,, Serial example,-tf 5)
 ex10p-test-par: ex10p
