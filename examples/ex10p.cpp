@@ -85,7 +85,7 @@ public:
    /// Solver type to use in the ImplicitSolve() method, used by SDIRK methods.
    enum NonlinearSolverType
    {
-      NEWTON = 0, ///< Use MFEM's plain NewtonSolver
+      NEWTON = 0  ///< Use MFEM's plain NewtonSolver
    };
 
    HyperelasticOperator(ParFiniteElementSpace &f, Array<int> &ess_bdr,
@@ -579,7 +579,7 @@ HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
       newton_solver = new NewtonSolver(f.GetComm());
       newton_solver->SetMaxIter(10);
       newton_solver->SetRelTol(rel_tol);
-      newton_solver->SetPrintLevel(0);
+      newton_solver->SetPrintLevel(-1);
    }
    newton_solver->SetSolver(*J_solver);
    newton_solver->iterative_mode = false;

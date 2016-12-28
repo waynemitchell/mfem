@@ -33,7 +33,6 @@
 //               We recommend viewing examples 2 and 9 before viewing this
 //               example.
 
-
 #include "mfem.hpp"
 #include <memory>
 #include <iostream>
@@ -85,7 +84,7 @@ public:
    /// Solver type to use in the ImplicitSolve() method, used by SDIRK methods.
    enum NonlinearSolverType
    {
-      NEWTON = 0, ///< Use MFEM's plain NewtonSolver
+      NEWTON = 0  ///< Use MFEM's plain NewtonSolver
    };
 
    HyperelasticOperator(FiniteElementSpace &f, Array<int> &ess_bdr,
@@ -515,7 +514,7 @@ HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
       newton_solver = new NewtonSolver();
       newton_solver->SetMaxIter(10);
       newton_solver->SetRelTol(rel_tol);
-      newton_solver->SetPrintLevel(0);
+      newton_solver->SetPrintLevel(-1);
    }
    newton_solver->SetSolver(*J_solver);
    newton_solver->iterative_mode = false;

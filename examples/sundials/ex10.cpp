@@ -4,14 +4,14 @@
 // Compile with: make ex10
 //
 // Sample runs:
-//    ex10 -m ../data/beam-quad.mesh -s 3 -r 2 -o 2 -dt 3
-//    ex10 -m ../data/beam-tri.mesh -s 3 -r 2 -o 2 -dt 3
-//    ex10 -m ../data/beam-hex.mesh -s 2 -r 1 -o 2 -dt 3
-//    ex10 -m ../data/beam-tet.mesh -s 2 -r 1 -o 2 -dt 3
-//    ex10 -m ../data/beam-quad.mesh -s 14 -r 2 -o 2 -dt 0.03 -vs 20
-//    ex10 -m ../data/beam-hex.mesh -s 14 -r 1 -o 2 -dt 0.05 -vs 20
-//    ex10 -m ../data/beam-quad.mesh -s 5 -r 2 -o 2 -dt 3
-//    ex10 -m ../data/beam-quad.mesh -r 2 -o 2 -dt 3 -tf 10 -s 2 -nls kinsol
+//    ex10 -m ../../data/beam-quad.mesh -s 3 -r 2 -o 2 -dt 3
+//    ex10 -m ../../data/beam-tri.mesh -s 3 -r 2 -o 2 -dt 3
+//    ex10 -m ../../data/beam-hex.mesh -s 2 -r 1 -o 2 -dt 3
+//    ex10 -m ../../data/beam-tet.mesh -s 2 -r 1 -o 2 -dt 3
+//    ex10 -m ../../data/beam-quad.mesh -s 14 -r 2 -o 2 -dt 0.03 -vs 20
+//    ex10 -m ../../data/beam-hex.mesh -s 14 -r 1 -o 2 -dt 0.05 -vs 20
+//    ex10 -m ../../data/beam-quad.mesh -s 5 -r 2 -o 2 -dt 3
+//    ex10 -m ../../data/beam-quad.mesh -s 2 -r 2 -o 2 -dt 3 -nls kinsol
 //
 // Description:  This examples solves a time dependent nonlinear elasticity
 //               problem of the form dv/dt = H(x) + S v, dx/dt = v, where H is a
@@ -224,7 +224,7 @@ void visualize(ostream &out, Mesh *mesh, GridFunction *deformed_nodes,
 int main(int argc, char *argv[])
 {
    // 1. Parse command-line options.
-   const char *mesh_file = "../data/beam-quad.mesh";
+   const char *mesh_file = "../../data/beam-quad.mesh";
    int ref_levels = 2;
    int order = 2;
    int ode_solver_type = 3;
@@ -698,7 +698,7 @@ HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
       newton_solver = new NewtonSolver();
       newton_solver->SetMaxIter(10);
       newton_solver->SetRelTol(rel_tol);
-      newton_solver->SetPrintLevel(0);
+      newton_solver->SetPrintLevel(-1);
    }
    newton_solver->SetSolver(*J_solver);
    newton_solver->iterative_mode = false;
