@@ -10,6 +10,7 @@
 //    ex10 -m ../data/beam-quad.mesh -s 14 -r 2 -o 2 -dt 0.03 -vs 20
 //    ex10 -m ../data/beam-hex.mesh -s 14 -r 1 -o 2 -dt 0.05 -vs 20
 //    ex10 -m ../data/beam-quad.mesh -s 5 -r 2 -o 2 -dt 3
+//    ex10 -m ../data/beam-quad.mesh -r 2 -o 2 -dt 3 -tf 10 -s 2 -nls kinsol
 //
 // Description:  This examples solves a time dependent nonlinear elasticity
 //               problem of the form dv/dt = H(x) + S v, dx/dt = v, where H is a
