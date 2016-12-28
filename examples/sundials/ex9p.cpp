@@ -1,19 +1,21 @@
-//                                MFEM Example 9
+//                       MFEM Example 9 - Parallel Version
 //
-// Compile with: make ex9
+// Compile with: make ex9p
 //
 // Sample runs:
-//    ex9 -m ../data/periodic-segment.mesh -p 0 -r 2 -dt 0.005
-//    ex9 -m ../data/periodic-square.mesh -p 0 -r 2 -dt 0.01 -tf 10
-//    ex9 -m ../data/periodic-hexagon.mesh -p 0 -r 2 -dt 0.01 -tf 10
-//    ex9 -m ../data/periodic-square.mesh -p 1 -r 2 -dt 0.005 -tf 9
-//    ex9 -m ../data/periodic-hexagon.mesh -p 1 -r 2 -dt 0.005 -tf 9
-//    ex9 -m ../data/amr-quad.mesh -p 1 -r 2 -dt 0.002 -tf 9
-//    ex9 -m ../data/star-q3.mesh -p 1 -r 2 -dt 0.005 -tf 9
-//    ex9 -m ../data/disc-nurbs.mesh -p 1 -r 3 -dt 0.005 -tf 9
-//    ex9 -m ../data/disc-nurbs.mesh -p 2 -r 3 -dt 0.005 -tf 9
-//    ex9 -m ../data/periodic-square.mesh -p 3 -r 4 -dt 0.0025 -tf 9 -vs 20
-//    ex9 -m ../data/periodic-cube.mesh -p 0 -r 2 -o 2 -dt 0.02 -tf 8
+//    mpirun -np 4 ex9p -m ../data/periodic-segment.mesh -p 0 -dt 0.005
+//    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 0 -dt 0.01
+//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -p 0 -dt 0.01
+//    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 1 -dt 0.005 -tf 9
+//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -p 1 -dt 0.005 -tf 9
+//    mpirun -np 4 ex9p -m ../data/amr-quad.mesh -p 1 -rp 1 -dt 0.002 -tf 9
+//    mpirun -np 4 ex9p -m ../data/star-q3.mesh -p 1 -rp 1 -dt 0.004 -tf 9
+//    mpirun -np 4 ex9p -m ../data/disc-nurbs.mesh -p 1 -rp 1 -dt 0.005 -tf 9
+//    mpirun -np 4 ex9p -m ../data/disc-nurbs.mesh -p 2 -rp 1 -dt 0.005 -tf 9
+//    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 3 -rp 2 -dt 0.0025 -tf 9 -vs 20
+//    mpirun -np 4 ex9p -m ../data/periodic-cube.mesh -p 0 -o 2 -rp 1 -dt 0.01 -tf 8
+//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -s 11 -dt 0.0018 -vs 25
+//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -s 13 -dt 0.01 -vs 15
 //
 // Description:  This example code solves the time-dependent advection equation
 //               du/dt + v.grad(u) = 0, where v is a given fluid velocity, and
@@ -30,7 +32,10 @@
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
-#include <algorithm>
+
+#ifndef MFEM_USE_SUNDIALS
+#error This example requires that MFEM is built with MFEM_USE_SUNDIALS=YES
+#endif
 
 using namespace std;
 using namespace mfem;
@@ -60,15 +65,15 @@ Vector bb_min, bb_max;
 class FE_Evolution : public TimeDependentOperator
 {
 private:
-   SparseMatrix &M, &K;
+   HypreParMatrix &M, &K;
    const Vector &b;
-   DSmoother M_prec;
+   HypreSmoother M_prec;
    CGSolver M_solver;
 
    mutable Vector z;
 
 public:
-   FE_Evolution(SparseMatrix &_M, SparseMatrix &_K, const Vector &_b);
+   FE_Evolution(HypreParMatrix &_M, HypreParMatrix &_K, const Vector &_b);
 
    virtual void Mult(const Vector &x, Vector &y) const;
 
@@ -78,10 +83,17 @@ public:
 
 int main(int argc, char *argv[])
 {
-   // 1. Parse command-line options.
+   // 1. Initialize MPI.
+   int num_procs, myid;
+   MPI_Init(&argc, &argv);
+   MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
+   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+
+   // 2. Parse command-line options.
    problem = 0;
    const char *mesh_file = "../data/periodic-hexagon.mesh";
-   int ref_levels = 2;
+   int ser_ref_levels = 2;
+   int par_ref_levels = 0;
    int order = 3;
    int ode_solver_type = 4;
    double t_final = 10.0;
@@ -99,13 +111,18 @@ int main(int argc, char *argv[])
                   "Mesh file to use.");
    args.AddOption(&problem, "-p", "--problem",
                   "Problem setup to use. See options in velocity_function().");
-   args.AddOption(&ref_levels, "-r", "--refine",
-                  "Number of times to refine the mesh uniformly.");
+   args.AddOption(&ser_ref_levels, "-rs", "--refine-serial",
+                  "Number of times to refine the mesh uniformly in serial.");
+   args.AddOption(&par_ref_levels, "-rp", "--refine-parallel",
+                  "Number of times to refine the mesh uniformly in parallel.");
    args.AddOption(&order, "-o", "--order",
                   "Order (degree) of the finite elements.");
    args.AddOption(&ode_solver_type, "-s", "--ode-solver",
                   "ODE solver: 1 - Forward Euler,\n\t"
-                  "            2 - RK2 SSP, 3 - RK3 SSP, 4 - RK4, 6 - RK6.");
+                  "            2 - RK2 SSP, 3 - RK3 SSP, 4 - RK4, 6 - RK6,\n\t"
+                  "            11 - CVODE (adaptive order) explicit,\n\t"
+                  "            12 - ARKODE default (4th order) explicit,\n\t"
+                  "            13 - ARKODE RK8.");
    args.AddOption(&t_final, "-tf", "--t-final",
                   "Final time; start time is 0.");
    args.AddOption(&dt, "-dt", "--time-step",
@@ -124,19 +141,29 @@ int main(int argc, char *argv[])
    args.Parse();
    if (!args.Good())
    {
-      args.PrintUsage(cout);
+      if (myid == 0)
+      {
+         args.PrintUsage(cout);
+      }
+      MPI_Finalize();
       return 1;
    }
-   args.PrintOptions(cout);
+   if (myid == 0)
+   {
+      args.PrintOptions(cout);
+   }
 
-   // 2. Read the mesh from the given mesh file. We can handle geometrically
-   //    periodic meshes in this code.
+   // 3. Read the serial mesh from the given mesh file on all processors. We can
+   //    handle geometrically periodic meshes in this code.
    Mesh *mesh = new Mesh(mesh_file, 1, 1);
    int dim = mesh->Dimension();
 
-   // 3. Define the ODE solver used for time integration. Several explicit
+   // 4. Define the ODE solver used for time integration. Several explicit
    //    Runge-Kutta methods are available.
    ODESolver *ode_solver = NULL;
+   CVODESolver *cvode = NULL;
+   ARKODESolver *arkode = NULL;
+   const int rk_order = FEHLBERG_13_7_8;
    switch (ode_solver_type)
    {
       case 1: ode_solver = new ForwardEulerSolver; break;
@@ -144,16 +171,31 @@ int main(int argc, char *argv[])
       case 3: ode_solver = new RK3SSPSolver; break;
       case 4: ode_solver = new RK4Solver; break;
       case 6: ode_solver = new RK6Solver; break;
+      case 11:
+         cvode = new CVODESolver(MPI_COMM_WORLD, CV_ADAMS, CV_FUNCTIONAL,
+                                 dt, 1.0e-2, 1.0e-2);
+         ode_solver = cvode; break;
+      case 12:
+         arkode = new ARKODESolver(MPI_COMM_WORLD, false, 1.0e-2, 1.0e-4);
+         ode_solver = arkode; break;
+      case 13:
+         arkode = new ARKODESolver(MPI_COMM_WORLD, false, rk_order,
+                                   dt, 1.0e-2, 1.0e-4);
+         ode_solver = arkode; break;
       default:
-         cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
+         if (myid == 0)
+         {
+            cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
+         }
+         MPI_Finalize();
          return 3;
    }
 
-   // 4. Refine the mesh to increase the resolution. In this example we do
-   //    'ref_levels' of uniform refinement, where 'ref_levels' is a
-   //    command-line parameter. If the mesh is of NURBS type, we convert it to
-   //    a (piecewise-polynomial) high-order mesh.
-   for (int lev = 0; lev < ref_levels; lev++)
+   // 5. Refine the mesh in serial to increase the resolution. In this example
+   //    we do 'ser_ref_levels' of uniform refinement, where 'ser_ref_levels' is
+   //    a command-line parameter. If the mesh is of NURBS type, we convert it
+   //    to a (piecewise-polynomial) high-order mesh.
+   for (int lev = 0; lev < ser_ref_levels; lev++)
    {
       mesh->UniformRefinement();
    }
@@ -163,53 +205,75 @@ int main(int argc, char *argv[])
    }
    mesh->GetBoundingBox(bb_min, bb_max, max(order, 1));
 
-   // 5. Define the discontinuous DG finite element space of the given
-   //    polynomial order on the refined mesh.
+   // 6. Define the parallel mesh by a partitioning of the serial mesh. Refine
+   //    this mesh further in parallel to increase the resolution. Once the
+   //    parallel mesh is defined, the serial mesh can be deleted.
+   ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
+   delete mesh;
+   for (int lev = 0; lev < par_ref_levels; lev++)
+   {
+      pmesh->UniformRefinement();
+   }
+
+   // 7. Define the parallel discontinuous DG finite element space on the
+   //    parallel refined mesh of the given polynomial order.
    DG_FECollection fec(order, dim);
-   FiniteElementSpace fes(mesh, &fec);
+   ParFiniteElementSpace *fes = new ParFiniteElementSpace(pmesh, &fec);
 
-   cout << "Number of unknowns: " << fes.GetVSize() << endl;
+   HYPRE_Int global_vSize = fes->GlobalTrueVSize();
+   if (myid == 0)
+   {
+      cout << "Number of unknowns: " << global_vSize << endl;
+   }
 
-   // 6. Set up and assemble the bilinear and linear forms corresponding to the
-   //    DG discretization. The DGTraceIntegrator involves integrals over mesh
-   //    interior faces.
+   // 8. Set up and assemble the parallel bilinear and linear forms (and the
+   //    parallel hypre matrices) corresponding to the DG discretization. The
+   //    DGTraceIntegrator involves integrals over mesh interior faces.
    VectorFunctionCoefficient velocity(dim, velocity_function);
    FunctionCoefficient inflow(inflow_function);
    FunctionCoefficient u0(u0_function);
 
-   BilinearForm m(&fes);
-   m.AddDomainIntegrator(new MassIntegrator);
-   BilinearForm k(&fes);
-   k.AddDomainIntegrator(new ConvectionIntegrator(velocity, -1.0));
-   k.AddInteriorFaceIntegrator(
+   ParBilinearForm *m = new ParBilinearForm(fes);
+   m->AddDomainIntegrator(new MassIntegrator);
+   ParBilinearForm *k = new ParBilinearForm(fes);
+   k->AddDomainIntegrator(new ConvectionIntegrator(velocity, -1.0));
+   k->AddInteriorFaceIntegrator(
       new TransposeIntegrator(new DGTraceIntegrator(velocity, 1.0, -0.5)));
-   k.AddBdrFaceIntegrator(
+   k->AddBdrFaceIntegrator(
       new TransposeIntegrator(new DGTraceIntegrator(velocity, 1.0, -0.5)));
 
-   LinearForm b(&fes);
-   b.AddBdrFaceIntegrator(
+   ParLinearForm *b = new ParLinearForm(fes);
+   b->AddBdrFaceIntegrator(
       new BoundaryFlowIntegrator(inflow, velocity, -1.0, -0.5));
 
-   m.Assemble();
-   m.Finalize();
+   m->Assemble();
+   m->Finalize();
    int skip_zeros = 0;
-   k.Assemble(skip_zeros);
-   k.Finalize(skip_zeros);
-   b.Assemble();
+   k->Assemble(skip_zeros);
+   k->Finalize(skip_zeros);
+   b->Assemble();
 
-   // 7. Define the initial conditions, save the corresponding grid function to
+   HypreParMatrix *M = m->ParallelAssemble();
+   HypreParMatrix *K = k->ParallelAssemble();
+   HypreParVector *B = b->ParallelAssemble();
+
+   // 9. Define the initial conditions, save the corresponding grid function to
    //    a file and (optionally) save data in the VisIt format and initialize
    //    GLVis visualization.
-   GridFunction u(&fes);
-   u.ProjectCoefficient(u0);
+   ParGridFunction *u = new ParGridFunction(fes);
+   u->ProjectCoefficient(u0);
+   HypreParVector *U = u->GetTrueDofs();
 
    {
-      ofstream omesh("ex9.mesh");
+      ostringstream mesh_name, sol_name;
+      mesh_name << "ex9-mesh." << setfill('0') << setw(6) << myid;
+      sol_name << "ex9-init." << setfill('0') << setw(6) << myid;
+      ofstream omesh(mesh_name.str().c_str());
       omesh.precision(precision);
-      mesh->Print(omesh);
-      ofstream osol("ex9-init.gf");
+      pmesh->Print(omesh);
+      ofstream osol(sol_name.str().c_str());
       osol.precision(precision);
-      u.Save(osol);
+      u->Save(osol);
    }
 
    // Create data collection for solution output: either VisItDataCollection for
@@ -220,17 +284,17 @@ int main(int argc, char *argv[])
       if (binary)
       {
 #ifdef MFEM_USE_SIDRE
-         dc = new SidreDataCollection("Example9", mesh);
+         dc = new SidreDataCollection("Example9-Parallel", pmesh);
 #else
          MFEM_ABORT("Must build with MFEM_USE_SIDRE=YES for binary output.");
 #endif
       }
       else
       {
-         dc = new VisItDataCollection("Example9", mesh);
+         dc = new VisItDataCollection("Example9-Parallel", pmesh);
          dc->SetPrecision(precision);
       }
-      dc->RegisterField("solution", &u);
+      dc->RegisterField("solution", u);
       dc->SetCycle(0);
       dc->SetTime(0.0);
       dc->Save();
@@ -244,26 +308,32 @@ int main(int argc, char *argv[])
       sout.open(vishost, visport);
       if (!sout)
       {
-         cout << "Unable to connect to GLVis server at "
-              << vishost << ':' << visport << endl;
+         if (myid == 0)
+            cout << "Unable to connect to GLVis server at "
+                 << vishost << ':' << visport << endl;
          visualization = false;
-         cout << "GLVis visualization disabled.\n";
+         if (myid == 0)
+         {
+            cout << "GLVis visualization disabled.\n";
+         }
       }
       else
       {
+         sout << "parallel " << num_procs << " " << myid << "\n";
          sout.precision(precision);
-         sout << "solution\n" << *mesh << u;
+         sout << "solution\n" << *pmesh << *u;
          sout << "pause\n";
          sout << flush;
-         cout << "GLVis visualization paused."
-              << " Press space (in the GLVis window) to resume it.\n";
+         if (myid == 0)
+            cout << "GLVis visualization paused."
+                 << " Press space (in the GLVis window) to resume it.\n";
       }
    }
 
-   // 8. Define the time-dependent evolution operator describing the ODE
-   //    right-hand side, and perform time-integration (looping over the time
-   //    iterations, ti, with a time-step dt).
-   FE_Evolution adv(m.SpMat(), k.SpMat(), b);
+   // 10. Define the time-dependent evolution operator describing the ODE
+   //     right-hand side, and perform time-integration (looping over the time
+   //     iterations, ti, with a time-step dt).
+   FE_Evolution adv(*M, *K, *B);
 
    double t = 0.0;
    adv.SetTime(t);
@@ -273,18 +343,28 @@ int main(int argc, char *argv[])
    for (int ti = 0; !done; )
    {
       double dt_real = min(dt, t_final - t);
-      ode_solver->Step(u, t, dt_real);
+      ode_solver->Step(*U, t, dt_real);
       ti++;
 
       done = (t >= t_final - 1e-8*dt);
 
       if (done || ti % vis_steps == 0)
       {
-         cout << "time step: " << ti << ", time: " << t << endl;
+         if (myid == 0)
+         {
+            cout << "time step: " << ti << ", time: " << t << endl;
+            if (cvode) { cvode->PrintInfo(); }
+            if (arkode) { arkode->PrintInfo(); }
+         }
+
+         // 11. Extract the parallel grid function corresponding to the finite
+         //     element approximation U (the local solution on each processor).
+         *u = *U;
 
          if (visualization)
          {
-            sout << "solution\n" << *mesh << u << flush;
+            sout << "parallel " << num_procs << " " << myid << "\n";
+            sout << "solution\n" << *pmesh << *u << flush;
          }
 
          if (visit)
@@ -296,26 +376,43 @@ int main(int argc, char *argv[])
       }
    }
 
-   // 9. Save the final solution. This output can be viewed later using GLVis:
-   //    "glvis -m ex9.mesh -g ex9-final.gf".
+   // 12. Save the final solution in parallel. This output can be viewed later
+   //     using GLVis: "glvis -np <np> -m ex9-mesh -g ex9-final".
    {
-      ofstream osol("ex9-final.gf");
+      *u = *U;
+      ostringstream sol_name;
+      sol_name << "ex9-final." << setfill('0') << setw(6) << myid;
+      ofstream osol(sol_name.str().c_str());
       osol.precision(precision);
-      u.Save(osol);
+      u->Save(osol);
    }
 
-   // 10. Free the used memory.
+   // 13. Free the used memory.
+   delete U;
+   delete u;
+   delete B;
+   delete b;
+   delete K;
+   delete k;
+   delete M;
+   delete m;
+   delete fes;
+   delete pmesh;
    delete ode_solver;
    delete dc;
 
+   MPI_Finalize();
    return 0;
 }
 
 
 // Implementation of class FE_Evolution
-FE_Evolution::FE_Evolution(SparseMatrix &_M, SparseMatrix &_K, const Vector &_b)
-   : TimeDependentOperator(_M.Size()), M(_M), K(_K), b(_b), z(_M.Size())
+FE_Evolution::FE_Evolution(HypreParMatrix &_M, HypreParMatrix &_K,
+                           const Vector &_b)
+   : TimeDependentOperator(_M.Height()),
+     M(_M), K(_K), b(_b), M_solver(M.GetComm()), z(_M.Height())
 {
+   M_prec.SetType(HypreSmoother::Jacobi);
    M_solver.SetPreconditioner(M_prec);
    M_solver.SetOperator(M);
 

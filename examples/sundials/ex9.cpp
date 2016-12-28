@@ -14,6 +14,8 @@
 //    ex9 -m ../data/disc-nurbs.mesh -p 2 -r 3 -dt 0.005 -tf 9
 //    ex9 -m ../data/periodic-square.mesh -p 3 -r 4 -dt 0.0025 -tf 9 -vs 20
 //    ex9 -m ../data/periodic-cube.mesh -p 0 -r 2 -o 2 -dt 0.02 -tf 8
+//    ex9 -m ../data/periodic-hexagon.mesh -s 11 -dt 0.0018 -vs 25
+//    ex9 -m ../data/periodic-hexagon.mesh -s 13 -dt 0.01 -vs 15
 //
 // Description:  This example code solves the time-dependent advection equation
 //               du/dt + v.grad(u) = 0, where v is a given fluid velocity, and
@@ -31,6 +33,10 @@
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+
+#ifndef MFEM_USE_SUNDIALS
+#error This example requires that MFEM is built with MFEM_USE_SUNDIALS=YES
+#endif
 
 using namespace std;
 using namespace mfem;
@@ -105,7 +111,10 @@ int main(int argc, char *argv[])
                   "Order (degree) of the finite elements.");
    args.AddOption(&ode_solver_type, "-s", "--ode-solver",
                   "ODE solver: 1 - Forward Euler,\n\t"
-                  "            2 - RK2 SSP, 3 - RK3 SSP, 4 - RK4, 6 - RK6.");
+                  "            2 - RK2 SSP, 3 - RK3 SSP, 4 - RK4, 6 - RK6,\n\t"
+                  "            11 - CVODE (adaptive order) explicit,\n\t"
+                  "            12 - ARKODE default (4th order) explicit,\n\t"
+                  "            13 - ARKODE RK8.");
    args.AddOption(&t_final, "-tf", "--t-final",
                   "Final time; start time is 0.");
    args.AddOption(&dt, "-dt", "--time-step",
@@ -137,6 +146,9 @@ int main(int argc, char *argv[])
    // 3. Define the ODE solver used for time integration. Several explicit
    //    Runge-Kutta methods are available.
    ODESolver *ode_solver = NULL;
+   CVODESolver *cvode = NULL;
+   ARKODESolver *arkode = NULL;
+   const int rk_order = FEHLBERG_13_7_8;
    switch (ode_solver_type)
    {
       case 1: ode_solver = new ForwardEulerSolver; break;
@@ -144,6 +156,15 @@ int main(int argc, char *argv[])
       case 3: ode_solver = new RK3SSPSolver; break;
       case 4: ode_solver = new RK4Solver; break;
       case 6: ode_solver = new RK6Solver; break;
+      case 11:
+         cvode = new CVODESolver(CV_ADAMS, CV_FUNCTIONAL, dt, 1.0e-2, 1.0e-2);
+         ode_solver = cvode; break;
+      case 12:
+         arkode = new ARKODESolver(false, 1.0e-2, 1.0e-4);
+         ode_solver = arkode; break;
+      case 13:
+         arkode = new ARKODESolver(false, rk_order, dt, 1.0e-2, 1.0e-4);
+         ode_solver = arkode; break;
       default:
          cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
          return 3;
@@ -281,6 +302,8 @@ int main(int argc, char *argv[])
       if (done || ti % vis_steps == 0)
       {
          cout << "time step: " << ti << ", time: " << t << endl;
+         if (cvode) { cvode->PrintInfo(); }
+         if (arkode) { arkode->PrintInfo(); }
 
          if (visualization)
          {

@@ -320,6 +320,7 @@ clean: $(addsuffix /clean,examples miniapps)
 	rm -f $(addprefix $(BLD),*/*.o */*~ *~ libmfem.a deps.mk)
 
 distclean: clean config/clean doc/clean
+	$(MAKE) -C examples/sundials clean
 	rm -rf mfem/
 
 install: $(BLD)libmfem.a
@@ -414,7 +415,7 @@ status info:
 	@true
 
 ASTYLE = astyle --options=$(SRC)config/mfem.astylerc
-FORMAT_FILES = $(foreach dir,$(DIRS) examples $(MINIAPP_DIRS),"$(dir)/*.?pp")
+FORMAT_FILES = $(foreach dir,$(DIRS) $(EXDIRS) $(MINIAPP_DIRS),"$(dir)/*.?pp")
 
 style:
 	@if ! $(ASTYLE) $(FORMAT_FILES) | grep Formatted; then\
