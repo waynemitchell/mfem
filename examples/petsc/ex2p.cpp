@@ -1,16 +1,10 @@
 //                       MFEM Example 2 - Parallel Version
+//                              PETSc Modification
 //
 // Compile with: make ex2p
 //
-// Sample runs:  mpirun -np 4 ex2p -m ../data/beam-tri.mesh
-//               mpirun -np 4 ex2p -m ../data/beam-quad.mesh
-//               mpirun -np 4 ex2p -m ../data/beam-tet.mesh
-//               mpirun -np 4 ex2p -m ../data/beam-hex.mesh
-//               mpirun -np 4 ex2p -m ../data/beam-tri.mesh -o 2 -sys
-//               mpirun -np 4 ex2p -m ../data/beam-quad.mesh -o 3 -elast
-//               mpirun -np 4 ex2p -m ../data/beam-quad.mesh -o 3 -sc
-//               mpirun -np 4 ex2p -m ../data/beam-quad-nurbs.mesh
-//               mpirun -np 4 ex2p -m ../data/beam-hex-nurbs.mesh
+// Sample runs:
+//    mpirun -np 4 ex2p -m ../../data/beam-quad.mesh --usepetsc --petscopts rc_ex2p
 //
 // Description:  This example code solves a simple linear elasticity problem
 //               describing a multi-material cantilever beam.
@@ -34,7 +28,8 @@
 //               finite element spaces with the linear elasticity bilinear form,
 //               meshes with curved elements, and the definition of piece-wise
 //               constant and vector coefficient objects. Static condensation is
-//               also illustrated.
+//               also illustrated. The example also shows how to form a linear
+//               system using a PETSc matrix and solve with a PETSc solver.
 //
 //               We recommend viewing Example 1 before viewing this example.
 
@@ -59,6 +54,11 @@ int main(int argc, char *argv[])
    bool static_cond = false;
    bool visualization = 1;
    bool amg_elast = 0;
+   bool use_petsc = false;
+#ifdef MFEM_USE_PETSC
+   const char *petscrc_file = "";
+   bool use_nonoverlapping = false;
+#endif
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -74,6 +74,18 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
+#ifdef MFEM_USE_PETSC
+   args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "no-petsc",
+                  "--no-petsc",
+                  "Use or not PETSc to solve the linear system.");
+   args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
+                  "PetscOptions file to use.");
+   args.AddOption(&use_nonoverlapping, "-nonoverlapping", "--nonoverlapping",
+                  "no-nonoverlapping",
+                  "--no-nonoverlapping",
+                  "Use or not the block diagonal PETSc's matrix format "
+                  "for non-overlapping domain decomposition.");
+#endif
    args.Parse();
    if (!args.Good())
    {
@@ -88,6 +100,11 @@ int main(int argc, char *argv[])
    {
       args.PrintOptions(cout);
    }
+
+   // 2b. We initialize PETSc
+#ifdef MFEM_USE_PETSC
+   if (use_petsc) { PetscInitialize(NULL,NULL,petscrc_file,NULL); }
+#endif
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
@@ -230,32 +247,61 @@ int main(int argc, char *argv[])
    if (static_cond) { a->EnableStaticCondensation(); }
    a->Assemble();
 
-   HypreParMatrix A;
    Vector B, X;
-   a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
-   if (myid == 0)
+   if (!use_petsc)
    {
-      cout << "done." << endl;
-      cout << "Size of linear system: " << A.GetGlobalNumRows() << endl;
-   }
+      HypreParMatrix A;
+      a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
+      if (myid == 0)
+      {
+         cout << "done." << endl;
+         cout << "Size of linear system: " << A.GetGlobalNumRows() << endl;
+      }
 
-   // 13. Define and apply a parallel PCG solver for A X = B with the BoomerAMG
-   //     preconditioner from hypre.
-   HypreBoomerAMG *amg = new HypreBoomerAMG(A);
-   if (amg_elast && !a->StaticCondensationIsEnabled())
-   {
-      amg->SetElasticityOptions(fespace);
+      // 13. Define and apply a parallel PCG solver for A X = B with the BoomerAMG
+      //     preconditioner from hypre.
+      HypreBoomerAMG *amg = new HypreBoomerAMG(A);
+      if (amg_elast && !a->StaticCondensationIsEnabled())
+      {
+         amg->SetElasticityOptions(fespace);
+      }
+      else
+      {
+         amg->SetSystemsOptions(dim);
+      }
+      HyprePCG *pcg = new HyprePCG(A);
+      pcg->SetTol(1e-8);
+      pcg->SetMaxIter(500);
+      pcg->SetPrintLevel(2);
+      pcg->SetPreconditioner(*amg);
+      pcg->Mult(B, X);
+      delete pcg;
+      delete amg;
    }
    else
    {
-      amg->SetSystemsOptions(dim);
+#ifdef MFEM_USE_PETSC
+      // 13b. Use PETSc to solve the linear system.
+      //      Assemble a PETSc matrix, so that PETSc solvers can be used natively.
+      PetscParMatrix A;
+      if (use_nonoverlapping) { a->SetUseNonoverlappingFormat(); }
+      a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
+      if (myid == 0)
+      {
+         cout << "done." << endl;
+         cout << "Size of linear system: " << A.M() << endl;
+      }
+
+      PetscPCGSolver *pcg = new PetscPCGSolver(A);
+      pcg->SetMaxIter(500);
+      pcg->SetTol(1e-8);
+      pcg->SetPrintLevel(2);
+      pcg->Mult(B, X);
+      delete pcg;
+#else
+      MFEM_ABORT("You did not enable PETSc when configuring MFEM");
+#endif
    }
-   HyprePCG *pcg = new HyprePCG(A);
-   pcg->SetTol(1e-8);
-   pcg->SetMaxIter(500);
-   pcg->SetPrintLevel(2);
-   pcg->SetPreconditioner(*amg);
-   pcg->Mult(B, X);
 
    // 14. Recover the parallel grid function corresponding to X. This is the
    //     local finite element solution on each processor.
@@ -307,8 +353,6 @@ int main(int argc, char *argv[])
    }
 
    // 18. Free the used memory.
-   delete pcg;
-   delete amg;
    delete a;
    delete b;
    if (fec)
@@ -318,6 +362,10 @@ int main(int argc, char *argv[])
    }
    delete pmesh;
 
+   // We finalize PETSc
+#ifdef MFEM_USE_PETSC
+   if (use_petsc) { PetscFinalize(); }
+#endif
    MPI_Finalize();
 
    return 0;

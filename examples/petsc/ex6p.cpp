@@ -1,19 +1,11 @@
 //                       MFEM Example 6 - Parallel Version
+//                              PETSc Modification
 //
 // Compile with: make ex6p
 //
-// Sample runs:  mpirun -np 4 ex6p -m ../data/square-disc.mesh -o 1
-//               mpirun -np 4 ex6p -m ../data/square-disc.mesh -o 2
-//               mpirun -np 4 ex6p -m ../data/square-disc-nurbs.mesh -o 2
-//               mpirun -np 4 ex6p -m ../data/star.mesh -o 3
-//               mpirun -np 4 ex6p -m ../data/escher.mesh -o 2
-//               mpirun -np 4 ex6p -m ../data/fichera.mesh -o 2
-//               mpirun -np 4 ex6p -m ../data/disc-nurbs.mesh -o 2
-//               mpirun -np 4 ex6p -m ../data/ball-nurbs.mesh
-//               mpirun -np 4 ex6p -m ../data/pipe-nurbs.mesh
-//               mpirun -np 4 ex6p -m ../data/star-surf.mesh -o 2
-//               mpirun -np 4 ex6p -m ../data/square-disc-surf.mesh -o 2
-//               mpirun -np 4 ex6p -m ../data/amr-quad.mesh
+// Sample runs:
+//    mpirun -np 4 ex6p -m ../../data/amr-quad.mesh -usepetsc
+//    mpirun -np 4 ex6p -m ../../data/amr-quad.mesh -usepetsc -nonoverlapping
 //
 // Description:  This is a version of Example 1 with a simple adaptive mesh
 //               refinement loop. The problem being solved is again the Laplace
@@ -28,6 +20,9 @@
 //               linear, curved and surface meshes. Interpolation of functions
 //               from coarse to fine meshes, as well as persistent GLVis
 //               visualization are also illustrated.
+//
+//               PETSc assembly timings can be benchmarked if requested by
+//               command line.
 //
 //               We recommend viewing Example 1 before viewing this example.
 
@@ -50,6 +45,12 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
    bool visualization = true;
+   int max_dofs = 100000;
+#ifdef MFEM_USE_PETSC
+   bool use_petsc = false;
+   const char *petscrc_file = "";
+   bool use_nonoverlapping = false;
+#endif
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -59,6 +60,20 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
+   args.AddOption(&max_dofs, "-md", "--max_dofs",
+                  "Maximum number of dofs.");
+#ifdef MFEM_USE_PETSC
+   args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "no-petsc",
+                  "--no-petsc",
+                  "Use or not PETSc to solve the linear system.");
+   args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
+                  "PetscOptions file to use.");
+   args.AddOption(&use_nonoverlapping, "-nonoverlapping", "--nonoverlapping",
+                  "no-nonoverlapping",
+                  "--no-nonoverlapping",
+                  "Use or not the block diagonal PETSc's matrix format "
+                  "for non-overlapping domain decomposition.");
+#endif
    args.Parse();
    if (!args.Good())
    {
@@ -73,6 +88,10 @@ int main(int argc, char *argv[])
    {
       args.PrintOptions(cout);
    }
+   // 2b. We initialize PETSc
+#ifdef MFEM_USE_PETSC
+   if (use_petsc) { PetscInitialize(NULL,NULL,petscrc_file,NULL); }
+#endif
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
@@ -168,7 +187,6 @@ int main(int argc, char *argv[])
 
    // 12. The main AMR loop. In each iteration we solve the problem on the
    //     current mesh, visualize the solution, and refine the mesh.
-   const int max_dofs = 100000;
    for (int it = 0; ; it++)
    {
       HYPRE_Int global_dofs = fespace.GlobalTrueVSize();
@@ -194,7 +212,29 @@ int main(int argc, char *argv[])
       HypreParMatrix A;
       Vector B, X;
       const int copy_interior = 1;
+      MPI_Barrier(MPI_COMM_WORLD);
+      double time = -MPI_Wtime();
       a.FormLinearSystem(ess_tdof_list, x, b, A, X, B, copy_interior);
+      MPI_Barrier(MPI_COMM_WORLD);
+      time += MPI_Wtime();
+      if (myid == 0) { cout << "HYPRE assembly timing : " << time << endl; }
+
+#ifdef MFEM_USE_PETSC
+      if (use_petsc)
+      {
+         if (use_nonoverlapping) { a.SetUseNonoverlappingFormat(); }
+         a.Assemble();
+         b.Assemble();
+         PetscParMatrix pA;
+         Vector pX,pB;
+         MPI_Barrier(MPI_COMM_WORLD);
+         time = -MPI_Wtime();
+         a.FormLinearSystem(ess_tdof_list, x, b, pA, pX, pB, copy_interior);
+         MPI_Barrier(MPI_COMM_WORLD);
+         time += MPI_Wtime();
+         if (myid == 0) { cout << "PETSc assembly timing : " << time << endl; }
+      }
+#endif
 
       // 15. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
       //     preconditioner from hypre.
@@ -225,6 +265,11 @@ int main(int argc, char *argv[])
          {
             cout << "Reached the maximum number of dofs. Stop." << endl;
          }
+         // we need to call Update here to delete any internal PETSc object that have been
+         // created internally by the ParBilinearForm; otherwise, these objects will be
+         // detroyed at the end of the main scope, when PETSc has been already finalized.
+         a.Update();
+         b.Update();
          break;
       }
 
@@ -239,6 +284,8 @@ int main(int argc, char *argv[])
          {
             cout << "Stopping criterion satisfied. Stop." << endl;
          }
+         a.Update();
+         b.Update();
          break;
       }
 
@@ -268,6 +315,9 @@ int main(int argc, char *argv[])
       b.Update();
    }
 
+#ifdef MFEM_USE_PETSC
+   if (use_petsc) { PetscFinalize(); }
+#endif
    MPI_Finalize();
    return 0;
 }

@@ -1,23 +1,11 @@
 //                       MFEM Example 4 - Parallel Version
+//                              PETSc Modification
 //
 // Compile with: make ex4p
 //
-// Sample runs:  mpirun -np 4 ex4p -m ../data/square-disc.mesh
-//               mpirun -np 4 ex4p -m ../data/star.mesh
-//               mpirun -np 4 ex4p -m ../data/beam-tet.mesh
-//               mpirun -np 4 ex4p -m ../data/beam-hex.mesh
-//               mpirun -np 4 ex4p -m ../data/escher.mesh -o 2 -sc
-//               mpirun -np 4 ex4p -m ../data/fichera.mesh -o 2 -hb
-//               mpirun -np 4 ex4p -m ../data/fichera-q2.vtk
-//               mpirun -np 4 ex4p -m ../data/fichera-q3.mesh -o 2 -sc
-//               mpirun -np 4 ex4p -m ../data/square-disc-nurbs.mesh -o 3
-//               mpirun -np 4 ex4p -m ../data/beam-hex-nurbs.mesh -o 3
-//               mpirun -np 4 ex4p -m ../data/periodic-square.mesh -no-bc
-//               mpirun -np 4 ex4p -m ../data/periodic-cube.mesh -no-bc
-//               mpirun -np 4 ex4p -m ../data/amr-quad.mesh
-//               mpirun -np 4 ex4p -m ../data/amr-hex.mesh -o 2 -sc
-//               mpirun -np 4 ex4p -m ../data/amr-hex.mesh -o 2 -hb
-//               mpirun -np 4 ex4p -m ../data/star-surf.mesh -o 3 -hb
+// Sample runs:
+//    mpirun -np 4 ex4p -m ../../data/klein-bottle.mesh -o 2 --usepetsc --petscopts rc_ex4p
+//    mpirun -np 4 ex4p -m ../../data/klein-bottle.mesh -o 2 --usepetsc --petscopts rc_ex4p_bddc --nonoverlapping
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
 //               problem corresponding to the second order definite equation
@@ -61,6 +49,11 @@ int main(int argc, char *argv[])
    bool static_cond = false;
    bool hybridization = false;
    bool visualization = 1;
+   bool use_petsc = false;
+#ifdef MFEM_USE_PETSC
+   const char *petscrc_file = "";
+   bool use_nonoverlapping = false;
+#endif
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -78,6 +71,18 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
+#ifdef MFEM_USE_PETSC
+   args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "no-petsc",
+                  "--no-petsc",
+                  "Use or not PETSc to solve the linear system.");
+   args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
+                  "PetscOptions file to use.");
+   args.AddOption(&use_nonoverlapping, "-nonoverlapping", "--nonoverlapping",
+                  "no-nonoverlapping",
+                  "--no-nonoverlapping",
+                  "Use or not the block diagonal PETSc's matrix format "
+                  "for non-overlapping domain decomposition.");
+#endif
    args.Parse();
    if (!args.Good())
    {
@@ -92,6 +97,10 @@ int main(int argc, char *argv[])
    {
       args.PrintOptions(cout);
    }
+   // 2b. We initialize PETSc
+#ifdef MFEM_USE_PETSC
+   if (use_petsc) { PetscInitialize(NULL,NULL,petscrc_file,NULL); }
+#endif
    kappa = freq * M_PI;
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
@@ -199,35 +208,79 @@ int main(int argc, char *argv[])
    }
    a->Assemble();
 
-   HypreParMatrix A;
    Vector B, X;
-   a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
-
-   HYPRE_Int glob_size = A.GetGlobalNumRows();
-   if (myid == 0)
-   {
-      cout << "Size of linear system: " << glob_size << endl;
-   }
-
-   // 12. Define and apply a parallel PCG solver for A X = B with the 2D AMS or
-   //     the 3D ADS preconditioners from hypre. If using hybridization, the
-   //     system is preconditioned with hypre's BoomerAMG.
-   HypreSolver *prec = NULL;
-   CGSolver *pcg = new CGSolver(A.GetComm());
-   pcg->SetOperator(A);
+   CGSolver *pcg = new CGSolver(MPI_COMM_WORLD);
    pcg->SetRelTol(1e-12);
    pcg->SetMaxIter(500);
    pcg->SetPrintLevel(1);
-   if (hybridization) { prec = new HypreBoomerAMG(A); }
+
+   if (!use_petsc)
+   {
+      HypreParMatrix A;
+      a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
+
+      HYPRE_Int glob_size = A.GetGlobalNumRows();
+      if (myid == 0)
+      {
+         cout << "Size of linear system: " << glob_size << endl;
+      }
+
+      // 12. Define and apply a parallel PCG solver for A X = B with the 2D AMS or
+      //     the 3D ADS preconditioners from hypre. If using hybridization, the
+      //     system is preconditioned with hypre's BoomerAMG.
+      HypreSolver *prec = NULL;
+      pcg->SetOperator(A);
+      if (hybridization) { prec = new HypreBoomerAMG(A); }
+      else
+      {
+         ParFiniteElementSpace *prec_fespace =
+            (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);
+         if (dim == 2)   { prec = new HypreAMS(A, prec_fespace); }
+         else            { prec = new HypreADS(A, prec_fespace); }
+      }
+      pcg->SetPreconditioner(*prec);
+      pcg->Mult(B, X);
+      delete prec;
+   }
+#ifdef MFEM_USE_PETSC
    else
    {
-      ParFiniteElementSpace *prec_fespace =
-         (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);
-      if (dim == 2)   { prec = new HypreAMS(A, prec_fespace); }
-      else            { prec = new HypreADS(A, prec_fespace); }
+      PetscParMatrix A;
+      PetscPreconditioner *prec = NULL;
+      if (use_nonoverlapping) { a->SetUseNonoverlappingFormat(); }
+      a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
+
+      if (myid == 0)
+      {
+         cout << "Size of linear system: " << A.M() << endl;
+      }
+
+      pcg->SetOperator(A);
+      if (use_nonoverlapping)
+      {
+         ParFiniteElementSpace *prec_fespace =
+            (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);
+
+         // Auxiliary class for BDDC customization
+         PetscBDDCSolverParams opts;
+         // Inform the solver about the finite element space
+         opts.SetSpace(prec_fespace);
+         // Inform the solver about essential dofs
+         opts.SetEssBdrDofs(&ess_tdof_list);
+         // Create a BDDC solver with parameters
+         prec = new PetscBDDCSolver(A, opts);
+      }
+      else
+      {
+         // Create an empty preconditioner that can be customized at runtime.
+         prec = new PetscPreconditioner(A, "solver_");
+      }
+      pcg->SetPreconditioner(*prec);
+      pcg->Mult(B, X);
+      delete prec;
    }
-   pcg->SetPreconditioner(*prec);
-   pcg->Mult(B, X);
+#endif
+   delete pcg;
 
    // 13. Recover the parallel grid function corresponding to X. This is the
    //     local finite element solution on each processor.
@@ -270,8 +323,6 @@ int main(int argc, char *argv[])
    }
 
    // 17. Free the used memory.
-   delete pcg;
-   delete prec;
    delete hfes;
    delete hfec;
    delete a;
@@ -282,6 +333,9 @@ int main(int argc, char *argv[])
    delete fec;
    delete pmesh;
 
+#ifdef MFEM_USE_PETSC
+   if (use_petsc) { PetscFinalize(); }
+#endif
    MPI_Finalize();
 
    return 0;

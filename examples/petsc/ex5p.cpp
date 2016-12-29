@@ -1,13 +1,11 @@
 //                       MFEM Example 5 - Parallel Version
+//                              PETSc Modification
 //
 // Compile with: make ex5p
 //
-// Sample runs:  mpirun -np 4 ex5p -m ../data/square-disc.mesh
-//               mpirun -np 4 ex5p -m ../data/star.mesh
-//               mpirun -np 4 ex5p -m ../data/beam-tet.mesh
-//               mpirun -np 4 ex5p -m ../data/beam-hex.mesh
-//               mpirun -np 4 ex5p -m ../data/escher.mesh
-//               mpirun -np 4 ex5p -m ../data/fichera.mesh
+// Sample runs:
+//    mpirun -np 4 ex5p -m ../../data/beam-tet.mesh --usepetsc --petscopts rc_ex5p_fieldsplit
+//    mpirun -np 4 ex5p -m ../../data/star.mesh     --usepetsc --petscopts rc_ex5p_bddc --nonoverlapping
 //
 // Description:  This example code solves a simple 2D/3D mixed Darcy problem
 //               corresponding to the saddle point system
@@ -22,6 +20,11 @@
 //               The example demonstrates the use of the BlockMatrix class, as
 //               well as the collective saving of several grid functions in a
 //               VisIt (visit.llnl.gov) visualization format.
+//
+//               Two types of PETSc solvers can be used: BDDC or fieldsplit.
+//               When using BDDC, the nonoverlapping assembly feature should be
+//               used. This specific example needs PETSc compiled with support
+//               for SuiteSparse and/or MUMPS for using BDDC.
 //
 //               We recommend viewing examples 1-4 before viewing this example.
 
@@ -54,6 +57,11 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
    bool visualization = 1;
+   bool use_petsc = false;
+   bool use_nonoverlapping = false;
+#ifdef MFEM_USE_PETSC
+   const char *petscrc_file = "";
+#endif
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -63,6 +71,18 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
+#ifdef MFEM_USE_PETSC
+   args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "no-petsc",
+                  "--no-petsc",
+                  "Use or not PETSc to solve the linear system.");
+   args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
+                  "PetscOptions file to use.");
+   args.AddOption(&use_nonoverlapping, "-nonoverlapping", "--nonoverlapping",
+                  "-no-nonoverlapping",
+                  "--no-nonoverlapping",
+                  "Use or not the block diagonal PETSc's matrix format "
+                  "for non-overlapping domain decomposition.");
+#endif
    args.Parse();
    if (!args.Good())
    {
@@ -77,6 +97,10 @@ int main(int argc, char *argv[])
    {
       args.PrintOptions(cout);
    }
+   // 2b. We initialize PETSc
+#ifdef MFEM_USE_PETSC
+   if (use_petsc) { PetscInitialize(NULL,NULL,petscrc_file,NULL); }
+#endif
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
@@ -112,8 +136,8 @@ int main(int argc, char *argv[])
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use the Raviart-Thomas finite elements of the specified order.
-   FiniteElementCollection *hdiv_coll(new RT_FECollection(order, dim));
-   FiniteElementCollection *l2_coll(new L2_FECollection(order, dim));
+   FiniteElementCollection *hdiv_coll(new RT_FECollection(order-1, dim));
+   FiniteElementCollection *l2_coll(new L2_FECollection(order-1, dim));
 
    ParFiniteElementSpace *R_space = new ParFiniteElementSpace(pmesh, hdiv_coll);
    ParFiniteElementSpace *W_space = new ParFiniteElementSpace(pmesh, l2_coll);
@@ -186,25 +210,65 @@ int main(int argc, char *argv[])
    ParBilinearForm *mVarf(new ParBilinearForm(R_space));
    ParMixedBilinearForm *bVarf(new ParMixedBilinearForm(R_space, W_space));
 
-   HypreParMatrix *M, *B;
+#ifdef MFEM_USE_PETSC
+   PetscParMatrix *pM = NULL, *pB = NULL, *pBT = NULL;
+#endif
+   HypreParMatrix *M = NULL, *B = NULL, *BT = NULL;
 
    mVarf->AddDomainIntegrator(new VectorFEMassIntegrator(k));
    mVarf->Assemble();
    mVarf->Finalize();
-   M = mVarf->ParallelAssemble();
+   mVarf->SetUseNonoverlappingFormat(use_nonoverlapping);
+   if (!use_petsc) { M = mVarf->ParallelAssemble(); }
+#ifdef MFEM_USE_PETSC
+   else { pM = mVarf->PetscParallelAssemble(); }
+#endif
 
    bVarf->AddDomainIntegrator(new VectorFEDivergenceIntegrator);
    bVarf->Assemble();
    bVarf->Finalize();
-   B = bVarf->ParallelAssemble();
-   (*B) *= -1;
+   bVarf->SetUseNonoverlappingFormat(use_nonoverlapping);
+   if (!use_petsc)
+   {
+      B = bVarf->ParallelAssemble();
+      (*B) *= -1;
+   }
+#ifdef MFEM_USE_PETSC
+   else
+   {
+      pB = bVarf->PetscParallelAssemble();
+      (*pB) *= -1;
+   }
+#endif
 
-   HypreParMatrix *BT = B->Transpose();
+   if (!use_petsc) { BT = B->Transpose(); }
+#ifdef MFEM_USE_PETSC
+   else { pBT = pB->Transpose(); };
+#endif
 
-   BlockOperator *darcyOp = new BlockOperator(block_trueOffsets);
-   darcyOp->SetBlock(0,0, M);
-   darcyOp->SetBlock(0,1, BT);
-   darcyOp->SetBlock(1,0, B);
+   Operator *darcyOp = NULL;
+   if (!use_petsc)
+   {
+      BlockOperator *tdarcyOp = new BlockOperator(block_trueOffsets);
+      tdarcyOp->SetBlock(0,0,M);
+      tdarcyOp->SetBlock(0,1,BT);
+      tdarcyOp->SetBlock(1,0,B);
+      darcyOp = tdarcyOp;
+   }
+#ifdef MFEM_USE_PETSC
+   else
+   {
+      // We construct the BlockOperator and we then convert it to
+      // a PetscParMatrix to avoid any conversion in the
+      // construction of the preconditioners.
+      BlockOperator *tdarcyOp = new BlockOperator(block_trueOffsets);
+      tdarcyOp->SetBlock(0,0,pM);
+      tdarcyOp->SetBlock(0,1,pBT);
+      tdarcyOp->SetBlock(1,0,pB);
+      darcyOp = new PetscParMatrix(pM->GetComm(),tdarcyOp,false,!use_nonoverlapping);
+      delete tdarcyOp;
+   }
+#endif
 
    // 11. Construct the operators for preconditioner
    //
@@ -213,25 +277,75 @@ int main(int argc, char *argv[])
    //
    //     Here we use Symmetric Gauss-Seidel to approximate the inverse of the
    //     pressure Schur Complement.
-   HypreParMatrix *MinvBt = B->Transpose();
-   HypreParVector *Md = new HypreParVector(MPI_COMM_WORLD, M->GetGlobalNumRows(),
-                                           M->GetRowStarts());
-   M->GetDiag(*Md);
+#ifdef MFEM_USE_PETSC
+   PetscPreconditioner *pdarcyPr = NULL;
+#endif
+   BlockDiagonalPreconditioner *darcyPr = NULL;
+   HypreSolver *invM = NULL, *invS = NULL;
+   HypreParMatrix *S = NULL;
+   HypreParMatrix *MinvBt = NULL;
+   HypreParVector *Md = NULL;
+   if (!use_petsc)
+   {
+      MinvBt = B->Transpose();
+      Md = new HypreParVector(MPI_COMM_WORLD, M->GetGlobalNumRows(),
+                              M->GetRowStarts());
+      M->GetDiag(*Md);
 
-   MinvBt->InvScaleRows(*Md);
-   HypreParMatrix *S = ParMult(B, MinvBt);
+      MinvBt->InvScaleRows(*Md);
+      S = ParMult(B, MinvBt);
 
-   HypreSolver *invM, *invS;
-   invM = new HypreDiagScale(*M);
-   invS = new HypreBoomerAMG(*S);
+      invM = new HypreDiagScale(*M);
+      invS = new HypreBoomerAMG(*S);
 
-   invM->iterative_mode = false;
-   invS->iterative_mode = false;
+      invM->iterative_mode = false;
+      invS->iterative_mode = false;
 
-   BlockDiagonalPreconditioner *darcyPr = new BlockDiagonalPreconditioner(
-      block_trueOffsets);
-   darcyPr->SetDiagonalBlock(0, invM);
-   darcyPr->SetDiagonalBlock(1, invS);
+      darcyPr = new BlockDiagonalPreconditioner(block_trueOffsets);
+      darcyPr->SetDiagonalBlock(0, invM);
+      darcyPr->SetDiagonalBlock(1, invS);
+   }
+#ifdef MFEM_USE_PETSC
+   else
+   {
+      if (use_nonoverlapping)
+      {
+         // For saddle point problems, we need to provide BDDC the list of buondary dofs
+         // either essential or natural.
+         // Since R_space is the only space that may have boundary dofs and it is ordered
+         // first then W_space, we don't need any local offset when specifying the dofs.
+         Array<int> bdr_tdof_list;
+         bool local;
+         if (pmesh->bdr_attributes.Size())
+         {
+            Array<int> bdr(pmesh->bdr_attributes.Max());
+            bdr = 1;
+
+            R_space->GetEssentialTrueDofs(bdr, bdr_tdof_list);
+            local = false;
+            // Alternatively, you can also provide the list of dofs in local ordering
+            //R_space->GetEssentialVDofs(bdr, bdr_tdof_list);
+            //bdr_tdof_list.SetSize(R_space->GetVSize()+W_space->GetVSize(),0);
+            //local = true;
+         }
+         else
+         {
+            MFEM_ABORT("Need to know the boundary dofs");
+         }
+
+         PetscBDDCSolverParams opts;
+         opts.SetNatBdrDofs(&bdr_tdof_list,local);
+         // See also command line options .petsc_rc_ex5p_bddc
+         pdarcyPr = new PetscBDDCSolver(MPI_COMM_WORLD,*darcyOp,opts,"prec_");
+      }
+      else
+      {
+         // With PETSc, we can construct the (same) block-diagonal solver with
+         // command line options (see .petsc_rc_ex5p_fieldsplit)
+         pdarcyPr = new PetscFieldSplitSolver(MPI_COMM_WORLD,*darcyOp,"prec_");
+      }
+   }
+#endif
 
    // 12. Solve the linear system with MINRES.
    //     Check the norm of the unpreconditioned residual.
@@ -242,27 +356,67 @@ int main(int argc, char *argv[])
 
    chrono.Clear();
    chrono.Start();
-   MINRESSolver solver(MPI_COMM_WORLD);
-   solver.SetAbsTol(atol);
-   solver.SetRelTol(rtol);
-   solver.SetMaxIter(maxIter);
-   solver.SetOperator(*darcyOp);
-   solver.SetPreconditioner(*darcyPr);
-   solver.SetPrintLevel(verbose);
-   trueX = 0.0;
-   solver.Mult(trueRhs, trueX);
-   chrono.Stop();
 
-   if (verbose)
+   trueX = 0.0;
+   if (!use_petsc)
    {
-      if (solver.GetConverged())
-         std::cout << "MINRES converged in " << solver.GetNumIterations()
-                   << " iterations with a residual norm of " << solver.GetFinalNorm() << ".\n";
-      else
-         std::cout << "MINRES did not converge in " << solver.GetNumIterations()
-                   << " iterations. Residual norm is " << solver.GetFinalNorm() << ".\n";
-      std::cout << "MINRES solver took " << chrono.RealTime() << "s. \n";
+      MINRESSolver solver(MPI_COMM_WORLD);
+      solver.SetAbsTol(atol);
+      solver.SetRelTol(rtol);
+      solver.SetMaxIter(maxIter);
+      solver.SetOperator(*darcyOp);
+      solver.SetPreconditioner(*darcyPr);
+      solver.SetPrintLevel(1);
+      solver.Mult(trueRhs, trueX);
+      if (verbose)
+      {
+         if (solver.GetConverged())
+            std::cout << "MINRES converged in " << solver.GetNumIterations()
+                      << " iterations with a residual norm of " << solver.GetFinalNorm() << ".\n";
+         else
+            std::cout << "MINRES did not converge in " << solver.GetNumIterations()
+                      << " iterations. Residual norm is " << solver.GetFinalNorm() << ".\n";
+         std::cout << "MINRES solver took " << chrono.RealTime() << "s. \n";
+      }
+
    }
+#ifdef MFEM_USE_PETSC
+   else
+   {
+      std::string solvertype;
+      PetscLinearSolver *solver;
+      if (use_nonoverlapping)
+      {
+         // We can use conjugate gradients to solve the problem
+         solver = new PetscPCGSolver(MPI_COMM_WORLD);
+         solvertype = "PCG";
+      }
+      else
+      {
+         solver = new PetscLinearSolver(MPI_COMM_WORLD);
+         solvertype = "MINRES";
+      }
+      solver->SetOperator(*darcyOp);
+      solver->SetPreconditioner(*pdarcyPr);
+      solver->SetAbsTol(atol);
+      solver->SetRelTol(rtol);
+      solver->SetMaxIter(maxIter);
+      solver->SetPrintLevel(2);
+      solver->Mult(trueRhs, trueX);
+      if (verbose)
+      {
+         if (solver->GetConverged())
+            std::cout << solvertype << " converged in " << solver->GetNumIterations()
+                      << " iterations with a residual norm of " << solver->GetFinalNorm() << ".\n";
+         else
+            std::cout << solvertype << " did not converge in " << solver->GetNumIterations()
+                      << " iterations. Residual norm is " << solver->GetFinalNorm() << ".\n";
+         std::cout << solvertype << " solver took " << chrono.RealTime() << "s. \n";
+      }
+      delete solver;
+   }
+#endif
+   chrono.Stop();
 
    // 13. Extract the parallel grid function corresponding to the finite element
    //     approximation X. This is the local solution on each processor. Compute
@@ -346,14 +500,22 @@ int main(int argc, char *argv[])
    delete p;
    delete darcyOp;
    delete darcyPr;
+#ifdef MFEM_USE_PETSC
+   delete pdarcyPr;
+#endif
    delete invM;
    delete invS;
    delete S;
-   delete Md;
-   delete MinvBt;
    delete BT;
    delete B;
    delete M;
+#ifdef MFEM_USE_PETSC
+   delete pBT;
+   delete pB;
+   delete pM;
+#endif
+   delete MinvBt;
+   delete Md;
    delete mVarf;
    delete bVarf;
    delete W_space;
@@ -362,6 +524,9 @@ int main(int argc, char *argv[])
    delete hdiv_coll;
    delete pmesh;
 
+#ifdef MFEM_USE_PETSC
+   if (use_petsc) { PetscFinalize(); }
+#endif
    MPI_Finalize();
 
    return 0;

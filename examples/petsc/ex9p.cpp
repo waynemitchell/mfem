@@ -1,19 +1,11 @@
 //                       MFEM Example 9 - Parallel Version
+//                              PETSc Modification
 //
 // Compile with: make ex9p
 //
 // Sample runs:
-//    mpirun -np 4 ex9p -m ../data/periodic-segment.mesh -p 0 -dt 0.005
-//    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 0 -dt 0.01
-//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -p 0 -dt 0.01
-//    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 1 -dt 0.005 -tf 9
-//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -p 1 -dt 0.005 -tf 9
-//    mpirun -np 4 ex9p -m ../data/amr-quad.mesh -p 1 -rp 1 -dt 0.002 -tf 9
-//    mpirun -np 4 ex9p -m ../data/star-q3.mesh -p 1 -rp 1 -dt 0.004 -tf 9
-//    mpirun -np 4 ex9p -m ../data/disc-nurbs.mesh -p 1 -rp 1 -dt 0.005 -tf 9
-//    mpirun -np 4 ex9p -m ../data/disc-nurbs.mesh -p 2 -rp 1 -dt 0.005 -tf 9
-//    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 3 -rp 2 -dt 0.0025 -tf 9 -vs 20
-//    mpirun -np 4 ex9p -m ../data/periodic-cube.mesh -p 0 -o 2 -rp 1 -dt 0.01 -tf 8
+//    mpirun -np 4 ex9p -m ../../data/periodic-hexagon.mesh --usepetsc --petscopts rc_ex9p_expl
+//    mpirun -np 4 ex9p -m ../../data/periodic-hexagon.mesh --usepetsc --petscopts rc_ex9p_impl -implicit
 //
 // Description:  This example code solves the time-dependent advection equation
 //               du/dt + v.grad(u) = 0, where v is a given fluid velocity, and
@@ -26,6 +18,16 @@
 //               for persistent visualization of a time-evolving solution. The
 //               saving of time-dependent data files for external visualization
 //               with VisIt (visit.llnl.gov) is also illustrated.
+//               The example also demonstrates how to use PETSc ODE solvers and
+//               customize them by command line (see .petsc_rc_ex9p_expl and
+//               .petsc_rc_ex9p_impl). The split in left-hand side and right-hand
+//               side of the TimeDependentOperator is amenable for IMEX methods.
+//               When using fully implicit methods, just the left-hand side of the
+//               operator should be provided for efficiency reasons when assembling
+//               the jacobians. Here, we provide two Jacobian routines just to
+//               illustrate the capabilities of the PetscODESolver class.
+//               We also show how to monitor the time dependent solution
+//               inside a call to PetscODESolver:Mult.
 
 #include "mfem.hpp"
 #include <fstream>
@@ -51,11 +53,12 @@ double inflow_function(const Vector &x);
 Vector bb_min, bb_max;
 
 
-/** A time-dependent operator for the right-hand side of the ODE. The DG weak
-    form of du/dt = -v.grad(u) is M du/dt = K u + b, where M and K are the mass
+/** A time-dependent operator for the ODE as F(u,du/dt,t) = G(u,t)
+    The DG weak form of du/dt = -v.grad(u) is M du/dt = K u + b, where M and K are the mass
     and advection matrices, and b describes the flow on the boundary. This can
-    be written as a general ODE, du/dt = M^{-1} (K u + b), and this class is
-    used to evaluate the right-hand side. */
+    be also written as a general ODE with the right-hand side only as
+    du/dt = M^{-1} (K u + b).
+    This class is used to evaluate the right-hand side and the left-hand side. */
 class FE_Evolution : public TimeDependentOperator
 {
 private:
@@ -65,15 +68,66 @@ private:
    CGSolver M_solver;
 
    mutable Vector z;
+#ifdef MFEM_USE_PETSC
+   mutable PetscParMatrix* iJacobian;
+   mutable PetscParMatrix* rJacobian;
+#else
+   mutable HypreParMatrix* iJacobian;
+   mutable HypreParMatrix* rJacobian;
+#endif
 
 public:
-   FE_Evolution(HypreParMatrix &_M, HypreParMatrix &_K, const Vector &_b);
+   FE_Evolution(HypreParMatrix &_M, HypreParMatrix &_K, const Vector &_b,
+                bool M_in_lhs);
 
    virtual void Mult(const Vector &x, Vector &y) const;
-
-   virtual ~FE_Evolution() { }
+   virtual void Mult(const Vector &x, const Vector &xp, Vector &y) const;
+#ifdef MFEM_USE_PETSC
+   virtual Operator& GetGradient(const Vector &x) const;
+   virtual Operator& GetGradient(const Vector &x, const Vector &xp,
+                                 double shift) const;
+#endif
+   virtual ~FE_Evolution() { delete iJacobian; delete rJacobian; }
 };
 
+#ifdef MFEM_USE_PETSC
+// we monitor the solution at time step "step"
+// as it is done explicitly in the time loop
+class UserMonitor : public PetscSolverMonitorCtx
+{
+private:
+   socketstream&    sout;
+   ParMesh*         pmesh;
+   ParGridFunction* u;
+   bool             pause;
+
+public:
+   UserMonitor(socketstream& _s, ParMesh* _m, ParGridFunction* _u) :
+      PetscSolverMonitorCtx(true,false), sout(_s), pmesh(_m), u(_u), pause(true) {}
+
+   void MonitorSolution(PetscInt step, PetscReal norm, Vector &X)
+   {
+      int  num_procs, myid;
+
+      *u = X;
+      MPI_Comm_size(pmesh->GetComm(),&num_procs);
+      MPI_Comm_rank(pmesh->GetComm(),&myid);
+      sout << "parallel " << num_procs << " " << myid << "\n";
+      sout << "solution\n" << *pmesh << *u;
+      if (pause) { sout << "pause\n"; }
+      sout << flush;
+      if (pause)
+      {
+         pause = false;
+         if (myid == 0)
+         {
+            cout << "GLVis visualization paused."
+                 << " Press space (in the GLVis window) to resume it.\n";
+         }
+      }
+   }
+};
+#endif
 
 int main(int argc, char *argv[])
 {
@@ -94,8 +148,13 @@ int main(int argc, char *argv[])
    double dt = 0.01;
    bool visualization = true;
    bool visit = false;
-   bool binary = false;
    int vis_steps = 5;
+   bool use_petsc = false;
+   bool implicit = false;
+   bool use_step = true;
+#ifdef MFEM_USE_PETSC
+   const char *petscrc_file = "";
+#endif
 
    int precision = 8;
    cout.precision(precision);
@@ -112,8 +171,8 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Order (degree) of the finite elements.");
    args.AddOption(&ode_solver_type, "-s", "--ode-solver",
-                  "ODE solver: 1 - Forward Euler,\n\t"
-                  "            2 - RK2 SSP, 3 - RK3 SSP, 4 - RK4, 6 - RK6.");
+                  "ODE solver: 1 - Forward Euler, 2 - RK2 SSP, 3 - RK3 SSP,"
+                  " 4 - RK4, 6 - RK6.");
    args.AddOption(&t_final, "-tf", "--t-final",
                   "Final time; start time is 0.");
    args.AddOption(&dt, "-dt", "--time-step",
@@ -124,11 +183,21 @@ int main(int argc, char *argv[])
    args.AddOption(&visit, "-visit", "--visit-datafiles", "-no-visit",
                   "--no-visit-datafiles",
                   "Save data files for VisIt (visit.llnl.gov) visualization.");
-   args.AddOption(&binary, "-binary", "--binary-datafiles", "-ascii",
-                  "--ascii-datafiles",
-                  "Use binary (Sidre) or ascii format for VisIt data files.");
    args.AddOption(&vis_steps, "-vs", "--visualization-steps",
                   "Visualize every n-th timestep.");
+#ifdef MFEM_USE_PETSC
+   args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "-no-petsc",
+                  "--no-petsc",
+                  "Use or not PETSc to solve the ODE system.");
+   args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
+                  "PetscOptions file to use.");
+   args.AddOption(&use_step, "-usestep", "--usestep", "-no-step",
+                  "--no-step",
+                  "Use the step or mult method to solve the ODE system.");
+   args.AddOption(&implicit, "-implicit", "--implicit", "-no-implicit",
+                  "--no-implicit",
+                  "Use or not an implicit method in PETSc to solve the ODE system.");
+#endif
    args.Parse();
    if (!args.Good())
    {
@@ -152,21 +221,37 @@ int main(int argc, char *argv[])
    // 4. Define the ODE solver used for time integration. Several explicit
    //    Runge-Kutta methods are available.
    ODESolver *ode_solver = NULL;
-   switch (ode_solver_type)
+#ifdef MFEM_USE_PETSC
+   PetscODESolver *pode_solver = NULL;
+   UserMonitor *pmon = NULL;
+#endif
+   if (!use_petsc)
    {
-      case 1: ode_solver = new ForwardEulerSolver; break;
-      case 2: ode_solver = new RK2Solver(1.0); break;
-      case 3: ode_solver = new RK3SSPSolver; break;
-      case 4: ode_solver = new RK4Solver; break;
-      case 6: ode_solver = new RK6Solver; break;
-      default:
-         if (myid == 0)
-         {
-            cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
-         }
-         MPI_Finalize();
-         return 3;
+      switch (ode_solver_type)
+      {
+         case 1: ode_solver = new ForwardEulerSolver; break;
+         case 2: ode_solver = new RK2Solver(1.0); break;
+         case 3: ode_solver = new RK3SSPSolver; break;
+         case 4: ode_solver = new RK4Solver; break;
+         case 6: ode_solver = new RK6Solver; break;
+         default:
+            if (myid == 0)
+            {
+               cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
+            }
+            MPI_Finalize();
+            return 3;
+      }
    }
+#ifdef MFEM_USE_PETSC
+   else
+   {
+      // When using PETSc, we just create the ODE solver. We use command line
+      // customization to select a specific solver.
+      PetscInitialize(NULL, NULL, petscrc_file, NULL);
+      ode_solver = pode_solver = new PetscODESolver(MPI_COMM_WORLD);
+   }
+#endif
 
    // 5. Refine the mesh in serial to increase the resolution. In this example
    //    we do 'ser_ref_levels' of uniform refinement, where 'ser_ref_levels' is
@@ -240,7 +325,6 @@ int main(int argc, char *argv[])
    ParGridFunction *u = new ParGridFunction(fes);
    u->ProjectCoefficient(u0);
    HypreParVector *U = u->GetTrueDofs();
-
    {
       ostringstream mesh_name, sol_name;
       mesh_name << "ex9-mesh." << setfill('0') << setw(6) << myid;
@@ -253,28 +337,13 @@ int main(int argc, char *argv[])
       u->Save(osol);
    }
 
-   // Create data collection for solution output: either VisItDataCollection for
-   // ascii data files, or SidreDataCollection for binary data files.
-   DataCollection *dc = NULL;
+   VisItDataCollection visit_dc("Example9-Parallel", pmesh);
+   visit_dc.RegisterField("solution", u);
    if (visit)
    {
-      if (binary)
-      {
-#ifdef MFEM_USE_SIDRE
-         dc = new SidreDataCollection("Example9-Parallel", pmesh);
-#else
-         MFEM_ABORT("Must build with MFEM_USE_SIDRE=YES for binary output.");
-#endif
-      }
-      else
-      {
-         dc = new VisItDataCollection("Example9-Parallel", pmesh);
-         dc->SetPrecision(precision);
-      }
-      dc->RegisterField("solution", u);
-      dc->SetCycle(0);
-      dc->SetTime(0.0);
-      dc->Save();
+      visit_dc.SetCycle(0);
+      visit_dc.SetTime(0.0);
+      visit_dc.Save();
    }
 
    socketstream sout;
@@ -294,7 +363,7 @@ int main(int argc, char *argv[])
             cout << "GLVis visualization disabled.\n";
          }
       }
-      else
+      else if (use_step)
       {
          sout << "parallel " << num_procs << " " << myid << "\n";
          sout.precision(precision);
@@ -305,51 +374,63 @@ int main(int argc, char *argv[])
             cout << "GLVis visualization paused."
                  << " Press space (in the GLVis window) to resume it.\n";
       }
+#ifdef MFEM_USE_PETSC
+      else if (use_petsc)
+      {
+         // Set the monitoring routine for the PETScODESolver.
+         sout.precision(precision);
+         pmon = new UserMonitor(sout,pmesh,u);
+         pode_solver->SetMonitor(pmon);
+      }
+#endif
    }
 
    // 10. Define the time-dependent evolution operator describing the ODE
-   //     right-hand side, and perform time-integration (looping over the time
-   //     iterations, ti, with a time-step dt).
-   FE_Evolution adv(*M, *K, *B);
+   FE_Evolution *adv = new FE_Evolution(*M, *K, *B, implicit);
+   ode_solver->Init(*adv);
 
+   // Explicitly perform time-integration (looping over the time iterations,
+   // ti, with a time-step dt), or use the Mult method of the solver class.
    double t = 0.0;
-   adv.SetTime(t);
-   ode_solver->Init(adv);
-
-   bool done = false;
-   for (int ti = 0; !done; )
+   if (use_step)
    {
-      double dt_real = min(dt, t_final - t);
-      ode_solver->Step(*U, t, dt_real);
-      ti++;
-
-      done = (t >= t_final - 1e-8*dt);
-
-      if (done || ti % vis_steps == 0)
+      for (int ti = 0; true; )
       {
-         if (myid == 0)
+         if (t >= t_final - dt/2)
          {
-            cout << "time step: " << ti << ", time: " << t << endl;
+            break;
          }
 
-         // 11. Extract the parallel grid function corresponding to the finite
-         //     element approximation U (the local solution on each processor).
-         *u = *U;
+         ode_solver->Step(*U, t, dt);
+         ti++;
 
-         if (visualization)
+         if (ti % vis_steps == 0)
          {
-            sout << "parallel " << num_procs << " " << myid << "\n";
-            sout << "solution\n" << *pmesh << *u << flush;
-         }
+            if (myid == 0)
+            {
+               cout << "time step: " << ti << ", time: " << t << endl;
+            }
 
-         if (visit)
-         {
-            dc->SetCycle(ti);
-            dc->SetTime(t);
-            dc->Save();
+            // 11. Extract the parallel grid function corresponding to the finite
+            //     element approximation U (the local solution on each processor).
+            *u = *U;
+
+            if (visualization)
+            {
+               sout << "parallel " << num_procs << " " << myid << "\n";
+               sout << "solution\n" << *pmesh << *u << flush;
+            }
+
+            if (visit)
+            {
+               visit_dc.SetCycle(ti);
+               visit_dc.SetTime(t);
+               visit_dc.Save();
+            }
          }
       }
    }
+   else { ode_solver->Steps(*U, t, dt, t_final); }
 
    // 12. Save the final solution in parallel. This output can be viewed later
    //     using GLVis: "glvis -np <np> -m ex9-mesh -g ex9-final".
@@ -374,8 +455,11 @@ int main(int argc, char *argv[])
    delete fes;
    delete pmesh;
    delete ode_solver;
-   delete dc;
-
+   delete adv;
+#ifdef MFEM_USE_PETSC
+   delete pmon;
+   if (use_petsc) { PetscFinalize(); }
+#endif
    MPI_Finalize();
    return 0;
 }
@@ -383,29 +467,91 @@ int main(int argc, char *argv[])
 
 // Implementation of class FE_Evolution
 FE_Evolution::FE_Evolution(HypreParMatrix &_M, HypreParMatrix &_K,
-                           const Vector &_b)
-   : TimeDependentOperator(_M.Height()),
-     M(_M), K(_K), b(_b), M_solver(M.GetComm()), z(_M.Height())
+                           const Vector &_b,bool M_in_lhs)
+   : TimeDependentOperator(_M.Height(),M_in_lhs),
+     M(_M), K(_K), b(_b), M_solver(M.GetComm()), z(_M.Height()),
+     iJacobian(NULL), rJacobian(NULL)
 {
-   M_prec.SetType(HypreSmoother::Jacobi);
-   M_solver.SetPreconditioner(M_prec);
-   M_solver.SetOperator(M);
+   if (!M_in_lhs)
+   {
+      M_prec.SetType(HypreSmoother::Jacobi);
+      M_solver.SetPreconditioner(M_prec);
+      M_solver.SetOperator(M);
 
-   M_solver.iterative_mode = false;
-   M_solver.SetRelTol(1e-9);
-   M_solver.SetAbsTol(0.0);
-   M_solver.SetMaxIter(100);
-   M_solver.SetPrintLevel(0);
+      M_solver.iterative_mode = false;
+      M_solver.SetRelTol(1e-9);
+      M_solver.SetAbsTol(0.0);
+      M_solver.SetMaxIter(100);
+      M_solver.SetPrintLevel(0);
+   }
 }
 
+// RHS evaluation
 void FE_Evolution::Mult(const Vector &x, Vector &y) const
 {
-   // y = M^{-1} (K x + b)
-   K.Mult(x, z);
-   z += b;
-   M_solver.Mult(z, y);
+   if (!HasLHS())
+   {
+      // y = M^{-1} (K x + b)
+      K.Mult(x, z);
+      z += b;
+      M_solver.Mult(z, y);
+   }
+   else
+   {
+      // y = K x + b
+      K.Mult(x, y);
+      y += b;
+   }
 }
 
+// LHS evaluation
+void FE_Evolution::Mult(const Vector &x, const Vector &xp, Vector &y) const
+{
+   if (HasLHS())
+   {
+      M.Mult(xp, y);
+   }
+   else
+   {
+      y = xp;
+   }
+}
+
+// RHS Jacobian
+#ifdef MFEM_USE_PETSC
+Operator& FE_Evolution::GetGradient(const Vector &x) const
+{
+   delete rJacobian;
+   if (HasLHS())
+   {
+      rJacobian = new PetscParMatrix(&K, false);
+   }
+   else
+   {
+      mfem_error("FE_Evolution::GetGradient(x): Capability not coded!");
+   }
+   return *rJacobian;
+}
+#endif
+
+// LHS Jacobian, evaluated as shift*F_du/dt + F_u
+#ifdef MFEM_USE_PETSC
+Operator& FE_Evolution::GetGradient(const Vector &x, const Vector &xp,
+                                    double shift) const
+{
+   delete iJacobian;
+   if (HasLHS())
+   {
+      iJacobian = new PetscParMatrix(&M, false);
+      *iJacobian *= shift;
+   }
+   else
+   {
+      mfem_error("FE_Evolution::GetGradient(x,xp,shift): Capability not coded!");
+   }
+   return *iJacobian;
+}
+#endif
 
 // Velocity coefficient
 void velocity_function(const Vector &x, Vector &v)

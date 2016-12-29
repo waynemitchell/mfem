@@ -1,24 +1,11 @@
 //                       MFEM Example 1 - Parallel Version
+//                              PETSc Modification
 //
 // Compile with: make ex1p
 //
-// Sample runs:  mpirun -np 4 ex1p -m ../data/square-disc.mesh
-//               mpirun -np 4 ex1p -m ../data/star.mesh
-//               mpirun -np 4 ex1p -m ../data/escher.mesh
-//               mpirun -np 4 ex1p -m ../data/fichera.mesh
-//               mpirun -np 4 ex1p -m ../data/square-disc-p2.vtk -o 2
-//               mpirun -np 4 ex1p -m ../data/square-disc-p3.mesh -o 3
-//               mpirun -np 4 ex1p -m ../data/square-disc-nurbs.mesh -o -1
-//               mpirun -np 4 ex1p -m ../data/disc-nurbs.mesh -o -1
-//               mpirun -np 4 ex1p -m ../data/pipe-nurbs.mesh -o -1
-//               mpirun -np 4 ex1p -m ../data/ball-nurbs.mesh -o 2
-//               mpirun -np 4 ex1p -m ../data/star-surf.mesh
-//               mpirun -np 4 ex1p -m ../data/square-disc-surf.mesh
-//               mpirun -np 4 ex1p -m ../data/inline-segment.mesh
-//               mpirun -np 4 ex1p -m ../data/amr-quad.mesh
-//               mpirun -np 4 ex1p -m ../data/amr-hex.mesh
-//               mpirun -np 4 ex1p -m ../data/mobius-strip.mesh
-//               mpirun -np 4 ex1p -m ../data/mobius-strip.mesh -o -1 -sc
+// Sample runs:
+//    mpirun -np 4 ex1p -m ../../data/amr-quad.mesh --usepetsc
+//    mpirun -np 4 ex1p -m ../../data/amr-quad.mesh --usepetsc --petscopts rc_ex1p
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               simple finite element discretization of the Laplace problem
@@ -34,6 +21,11 @@
 //               discrete linear system. We also cover the explicit elimination
 //               of essential boundary conditions, static condensation, and the
 //               optional connection to the GLVis tool for visualization.
+//               The example also shows how PETSc Krylov solvers can be used
+//               by wrapping a HypreParMatrix (or not) and a Solver, together
+//               with customization using an options file (see .petsc_rc_ex1p)
+//               We also provide an example on how to visualize the iterative
+//               solution inside a PETSc solver.
 
 #include "mfem.hpp"
 #include <fstream>
@@ -41,6 +33,41 @@
 
 using namespace std;
 using namespace mfem;
+
+#ifdef MFEM_USE_PETSC
+class UserMonitor : public PetscSolverMonitorCtx
+{
+private:
+   ParBilinearForm *_a;
+   ParLinearForm *_b;
+
+public:
+   UserMonitor(ParBilinearForm *a, ParLinearForm *b) :
+      PetscSolverMonitorCtx(true,false), _a(a), _b(b) {}
+
+   void MonitorSolution(PetscInt it, PetscReal norm, Vector &X)
+   {
+      // we plot the first 5 iterates
+      if (!it || it > 5) { return; }
+      ParFiniteElementSpace *fespace = _a->ParFESpace();
+      ParMesh *mesh = fespace->GetParMesh();
+      ParGridFunction _x(fespace);
+      _a->RecoverFEMSolution(X, *_b, _x);
+
+      char vishost[] = "localhost";
+      int  visport   = 19916;
+      int  num_procs, myid;
+
+      MPI_Comm_size(mesh->GetComm(),&num_procs);
+      MPI_Comm_rank(mesh->GetComm(),&myid);
+      socketstream sol_sock(vishost, visport);
+      sol_sock << "parallel " << num_procs << " " << myid << "\n";
+      sol_sock.precision(8);
+      sol_sock << "solution\n" << *mesh << _x <<
+               "window_title 'Iteration no " << it << "'" << flush;
+   }
+};
+#endif
 
 int main(int argc, char *argv[])
 {
@@ -54,7 +81,10 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
    bool static_cond = false;
-   bool visualization = 1;
+   bool visualization = false;
+   bool use_petsc = false;
+   const char *petscrc_file = "";
+   bool petscmonitor = false;
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -67,6 +97,16 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
+   args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "no-petsc",
+                  "--no-petsc",
+                  "Use or not PETSc to solve the linear system.");
+   args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
+                  "PetscOptions file to use.");
+   args.AddOption(&petscmonitor, "-petscmonitor", "--petscmonitor",
+                  "-no-petscmonitor",
+                  "--no-petscmonitor",
+                  "Enable or disable GLVis visualization of residual.");
+
    args.Parse();
    if (!args.Good())
    {
@@ -81,6 +121,11 @@ int main(int argc, char *argv[])
    {
       args.PrintOptions(cout);
    }
+
+#ifdef MFEM_USE_PETSC
+   // 2b. We initialize PETSc
+   PetscInitialize(NULL,NULL,petscrc_file,NULL);
+#endif
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
@@ -192,12 +237,48 @@ int main(int argc, char *argv[])
    // 12. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
    //     preconditioner from hypre.
    HypreSolver *amg = new HypreBoomerAMG(A);
-   HyprePCG *pcg = new HyprePCG(A);
-   pcg->SetTol(1e-12);
-   pcg->SetMaxIter(200);
-   pcg->SetPrintLevel(2);
-   pcg->SetPreconditioner(*amg);
-   pcg->Mult(B, X);
+
+   if (!use_petsc)
+   {
+      HyprePCG *pcg = new HyprePCG(A);
+      pcg->SetPreconditioner(*amg);
+      pcg->SetTol(1e-12);
+      pcg->SetMaxIter(200);
+      pcg->SetPrintLevel(2);
+      pcg->Mult(B, X);
+      delete pcg;
+   }
+   else
+   {
+#ifdef MFEM_USE_PETSC
+      // If petscrc_file has been given, we convert the HypreParMatrix to a
+      // PetscParMatrix; the user can then experiment with PETSc command
+      // line options.
+      bool wrap = !strlen(petscrc_file);
+      PetscPCGSolver *pcg = new PetscPCGSolver(A, wrap);
+      if (wrap)
+      {
+         pcg->SetPreconditioner(*amg);
+      }
+      pcg->SetTol(1e-12);
+      pcg->SetAbsTol(1e-12);
+      pcg->SetMaxIter(200);
+      pcg->SetPrintLevel(2);
+
+      UserMonitor mymon(a,b);
+      if (visualization && petscmonitor)
+      {
+         pcg->SetMonitor(&mymon);
+         pcg->SetPrintLevel(4);
+         pcg->iterative_mode = true;
+         X.Randomize();
+      }
+      pcg->Mult(B, X);
+      delete pcg;
+#else
+      MFEM_ABORT("You did not enable PETSc when configuring MFEM");
+#endif
+   }
 
    // 13. Recover the parallel grid function corresponding to X. This is the
    //     local finite element solution on each processor.
@@ -231,7 +312,6 @@ int main(int argc, char *argv[])
    }
 
    // 16. Free the used memory.
-   delete pcg;
    delete amg;
    delete a;
    delete b;
@@ -239,6 +319,9 @@ int main(int argc, char *argv[])
    if (order > 0) { delete fec; }
    delete pmesh;
 
+#ifdef MFEM_USE_PETSC
+   PetscFinalize();
+#endif
    MPI_Finalize();
 
    return 0;
