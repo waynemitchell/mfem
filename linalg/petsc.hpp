@@ -303,9 +303,6 @@ protected:
    /// Monitor context
    PetscSolverMonitorCtx *monitor_ctx;
 
-   /// Calls SetFromOptions.
-   virtual void Customize() const = 0;
-
 public:
    /// Initialize protected objects to NULL.
    PetscSolver();
@@ -343,7 +340,7 @@ private:
    bool wrap;
 
 protected:
-   virtual void Customize() const;
+   void Customize() const;
 
 public:
    PetscLinearSolver(MPI_Comm comm, std::string prefix = std::string());
@@ -379,7 +376,7 @@ public:
 class PetscPreconditioner : public PetscSolver, public Solver
 {
 protected:
-   virtual void Customize() const;
+   void Customize() const;
 
 public:
    PetscPreconditioner(MPI_Comm comm, std::string prefix = std::string());
@@ -457,7 +454,7 @@ public:
 class PetscNonlinearSolver : public PetscSolver, public Solver
 {
 protected:
-   virtual void Customize() const;
+   void Customize() const;
 
 public:
    PetscNonlinearSolver(MPI_Comm comm, std::string prefix = std::string());
@@ -479,7 +476,7 @@ public:
 class PetscODESolver : public PetscSolver, public ODESolver
 {
 protected:
-   virtual void Customize() const;
+   void Customize() const;
 
 public:
    PetscODESolver(MPI_Comm comm, std::string prefix = std::string());
