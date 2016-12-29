@@ -1145,7 +1145,7 @@ Mat PetscParMatrix::ReleaseMat(bool dereference)
 
 // PetscSolver methods
 
-PetscSolver::PetscSolver()
+PetscSolver::PetscSolver() : clcustom(false)
 {
    obj = NULL;
    B = X = NULL;
@@ -1424,7 +1424,6 @@ PetscLinearSolver::PetscLinearSolver(MPI_Comm comm, std::string prefix)
    obj  = (PetscObject)ksp;
    ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
    ierr = KSPSetOptionsPrefix(ksp, prefix.c_str()); PCHKERRQ(ksp, ierr);
-   ierr = KSPSetFromOptions(ksp); PCHKERRQ(ksp,ierr);
 }
 
 PetscLinearSolver::PetscLinearSolver(PetscParMatrix &_A, std::string prefix)
@@ -1435,7 +1434,6 @@ PetscLinearSolver::PetscLinearSolver(PetscParMatrix &_A, std::string prefix)
    obj  = (PetscObject)ksp;
    ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
    ierr = KSPSetOptionsPrefix(ksp, prefix.c_str()); PCHKERRQ(ksp, ierr);
-   ierr = KSPSetFromOptions(ksp); PCHKERRQ(ksp,ierr);
    SetOperator(_A);
 }
 
@@ -1448,7 +1446,6 @@ PetscLinearSolver::PetscLinearSolver(HypreParMatrix &_A, bool wrapin,
    obj  = (PetscObject)ksp;
    ierr = PetscObjectGetClassId(obj, &cid); PCHKERRQ(obj, ierr);
    ierr = KSPSetOptionsPrefix(ksp, prefix.c_str()); PCHKERRQ(ksp, ierr);
-   ierr = KSPSetFromOptions(ksp); PCHKERRQ(ksp,ierr);
    SetOperator(_A);
 }
 
@@ -1559,6 +1556,8 @@ void PetscLinearSolver::Mult(const Vector &b, Vector &x) const
    B->SetData(b.GetData());
    X->SetData(x.GetData());
 
+   Customize();
+
    ierr = KSPSetInitialGuessNonzero(ksp, (PetscBool)iterative_mode);
    PCHKERRQ(ksp, ierr);
 
@@ -1574,6 +1573,16 @@ PetscLinearSolver::~PetscLinearSolver()
    KSP ksp = (KSP)obj;
    ierr = PetscObjectGetComm((PetscObject)ksp,&comm); PCHKERRQ(ksp,ierr);
    ierr = KSPDestroy(&ksp); CCHKERRQ(comm,ierr);
+}
+
+void PetscLinearSolver::Customize() const
+{
+   if (!clcustom)
+   {
+      KSP ksp = (KSP)obj;
+      ierr = KSPSetFromOptions(ksp); PCHKERRQ(ksp, ierr);
+      clcustom = true;
+   }
 }
 
 // PetscPCGSolver methods
@@ -1616,7 +1625,6 @@ PetscPreconditioner::PetscPreconditioner(MPI_Comm comm,
    obj  = (PetscObject)pc;
    ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
    ierr = PCSetOptionsPrefix(pc, prefix.c_str()); PCHKERRQ(pc, ierr);
-   ierr = PCSetFromOptions(pc); PCHKERRQ(pc,ierr);
 }
 
 PetscPreconditioner::PetscPreconditioner(PetscParMatrix &_A,
@@ -1628,7 +1636,6 @@ PetscPreconditioner::PetscPreconditioner(PetscParMatrix &_A,
    obj  = (PetscObject)pc;
    ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
    ierr = PCSetOptionsPrefix(pc, prefix.c_str()); PCHKERRQ(pc, ierr);
-   ierr = PCSetFromOptions(pc); PCHKERRQ(pc,ierr);
    SetOperator(_A);
 }
 
@@ -1641,7 +1648,6 @@ PetscPreconditioner::PetscPreconditioner(MPI_Comm comm, Operator &op,
    obj  = (PetscObject)pc;
    ierr = PetscObjectGetClassId(obj,&cid); PCHKERRQ(obj,ierr);
    ierr = PCSetOptionsPrefix(pc, prefix.c_str()); PCHKERRQ(pc, ierr);
-   ierr = PCSetFromOptions(pc); PCHKERRQ(pc,ierr);
    SetOperator(op);
 }
 
@@ -1686,6 +1692,8 @@ void PetscPreconditioner::Mult(const Vector &b, Vector &x) const
    B->SetData(b.GetData());
    X->SetData(x.GetData());
 
+   Customize();
+
    // Apply the preconditioner.
    ierr = PCApply(pc, B->x, X->x); PCHKERRQ(pc, ierr);
    B->ResetData();
@@ -1698,6 +1706,16 @@ PetscPreconditioner::~PetscPreconditioner()
    PC pc = (PC)obj;
    ierr = PetscObjectGetComm((PetscObject)pc,&comm); PCHKERRQ(pc,ierr);
    ierr = PCDestroy(&pc); CCHKERRQ(comm,ierr);
+}
+
+void PetscPreconditioner::Customize() const
+{
+   if (!clcustom)
+   {
+      PC pc = (PC)obj;
+      ierr = PCSetFromOptions(pc); PCHKERRQ(pc, ierr);
+      clcustom = true;
+   }
 }
 
 // PetscBDDCSolver methods
@@ -1987,6 +2005,7 @@ PetscBDDCSolver::PetscBDDCSolver(PetscParMatrix &A, PetscBDDCSolverParams opts,
    : PetscPreconditioner(A,prefix)
 {
    BDDCSolverConstructor(opts);
+   Customize();
 }
 
 PetscBDDCSolver::PetscBDDCSolver(MPI_Comm comm, Operator &op,
@@ -1995,6 +2014,7 @@ PetscBDDCSolver::PetscBDDCSolver(MPI_Comm comm, Operator &op,
    : PetscPreconditioner(comm,op,prefix)
 {
    BDDCSolverConstructor(opts);
+   Customize();
 }
 
 PetscFieldSplitSolver::PetscFieldSplitSolver(MPI_Comm comm, Operator &op,
@@ -2022,7 +2042,7 @@ PetscFieldSplitSolver::PetscFieldSplitSolver(MPI_Comm comm, Operator &op,
    ierr = MatNestGetISs(pA,isrow,NULL); PCHKERRQ(pc,ierr);
 
    // We need to customize here, before setting the index sets.
-   ierr = PCSetFromOptions(pc); PCHKERRQ(pc, ierr);
+   Customize();
 
    for (PetscInt i=0; i<nr; i++)
    {
@@ -2042,7 +2062,6 @@ PetscNonlinearSolver::PetscNonlinearSolver(MPI_Comm comm,
    obj  = (PetscObject)snes;
    ierr = PetscObjectGetClassId(obj, &cid); PCHKERRQ(obj, ierr);
    ierr = SNESSetOptionsPrefix(snes, prefix.c_str()); PCHKERRQ(snes, ierr);
-   ierr = SNESSetFromOptions(snes); PCHKERRQ(snes, ierr);
 }
 
 PetscNonlinearSolver::PetscNonlinearSolver(MPI_Comm comm, Operator &op,
@@ -2054,7 +2073,6 @@ PetscNonlinearSolver::PetscNonlinearSolver(MPI_Comm comm, Operator &op,
    obj  = (PetscObject)snes;
    ierr = PetscObjectGetClassId(obj, &cid); PCHKERRQ(obj, ierr);
    ierr = SNESSetOptionsPrefix(snes, prefix.c_str()); PCHKERRQ(snes, ierr);
-   ierr = SNESSetFromOptions(snes); PCHKERRQ(snes, ierr);
    SetOperator(op);
 }
 
@@ -2087,15 +2105,27 @@ void PetscNonlinearSolver::Mult(const Vector &b, Vector &x) const
    if (!X) { X = new PetscParVector(PetscObjectComm(obj), *this, false); }
    X->SetData(x.GetData());
    if (b_nonempty) { B->SetData(b.GetData()); } else { *B = 0.0; }
+
+   Customize();
+
    if (!iterative_mode)
    {
       ierr = VecSet(X->x, 0.); PCHKERRQ(X->x, ierr);
    }
-
    // Solve the system.
    ierr = SNESSolve(snes, B->x, X->x); PCHKERRQ(snes, ierr);
    X->ResetData();
    if (b_nonempty) { B->ResetData(); }
+}
+
+void PetscNonlinearSolver::Customize() const
+{
+   if (!clcustom)
+   {
+      SNES snes = (SNES)obj;
+      ierr = SNESSetFromOptions(snes); PCHKERRQ(snes, ierr);
+      clcustom = true;
+   }
 }
 
 // PetscODESolver methods
@@ -2117,9 +2147,6 @@ PetscODESolver::PetscODESolver(MPI_Comm comm, std::string prefix)
    PCHKERRQ(ts,ierr);
    ierr = TSAdaptSetType(tsad,TSADAPTNONE);
    PCHKERRQ(ts,ierr);
-
-   // User options.
-   ierr = TSSetFromOptions(ts); PCHKERRQ(ts, ierr);
 }
 
 PetscODESolver::~PetscODESolver()
@@ -2163,6 +2190,8 @@ void PetscODESolver::Step(Vector &x, double &t, double &dt)
    if (!X) { X = new PetscParVector(PetscObjectComm(obj), *f, false); }
    X->SetData(x.GetData());
 
+   Customize();
+
    // Take the step.
    ierr = TSSetSolution(ts, *X); PCHKERRQ(ts, ierr);
    ierr = TSStep(ts); PCHKERRQ(ts, ierr);
@@ -2189,6 +2218,8 @@ void PetscODESolver::Steps(Vector &x, double &t, double &dt, double t_final)
    if (!X) { X = new PetscParVector(PetscObjectComm(obj), *f, false); }
    X->SetData(x.GetData());
 
+   Customize();
+
    // Take the steps.
    ierr = VecCopy(X->x, X->x); PCHKERRQ(ts, ierr);
    ierr = TSSolve(ts, X->x); PCHKERRQ(ts, ierr);
@@ -2200,6 +2231,16 @@ void PetscODESolver::Steps(Vector &x, double &t, double &dt, double t_final)
    t = pt;
    ierr = TSGetTimeStep(ts,&pt); PCHKERRQ(ts,ierr);
    dt = pt;
+}
+
+void PetscODESolver::Customize() const
+{
+   if (!clcustom)
+   {
+      TS ts = (TS)obj;
+      ierr = TSSetFromOptions(ts); PCHKERRQ(ts, ierr);
+      clcustom = true;
+   }
 }
 
 }  // namespace mfem

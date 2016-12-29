@@ -288,6 +288,9 @@ class PetscSolverMonitorCtx;
 class PetscSolver
 {
 protected:
+   /// Boolean to handle SetFromOptions calls.
+   mutable bool clcustom;
+
    /// The actual PETSc object (KSP, PC, SNES or TS).
    PetscObject obj;
 
@@ -300,6 +303,9 @@ protected:
    /// Monitor context
    PetscSolverMonitorCtx *monitor_ctx;
 
+   /// Calls SetFromOptions.
+   virtual void Customize() const = 0;
+
 public:
    /// Initialize protected objects to NULL.
    PetscSolver();
@@ -309,7 +315,8 @@ public:
 
    /// @name Update of PETSc options.
    /** The following Set methods can be used to update the internal PETSc
-       options. They overwrite the options given by the input PETSC file. */
+       options.
+       @note They will be overwritten by the options in the input PETSC file. */
    ///@{
    void SetTol(double tol);
    void SetRelTol(double tol);
@@ -334,6 +341,9 @@ class PetscLinearSolver : public PetscSolver, public Solver
 private:
    /// Internal flag to handle HypreParMatrix conversion or not.
    bool wrap;
+
+protected:
+   virtual void Customize() const;
 
 public:
    PetscLinearSolver(MPI_Comm comm, std::string prefix = std::string());
@@ -368,6 +378,9 @@ public:
 /// Abstract class for PETSc's preconditioners.
 class PetscPreconditioner : public PetscSolver, public Solver
 {
+protected:
+   virtual void Customize() const;
+
 public:
    PetscPreconditioner(MPI_Comm comm, std::string prefix = std::string());
    PetscPreconditioner(PetscParMatrix &_A, std::string prefix = std::string());
@@ -443,6 +456,9 @@ public:
 /// Abstract class for PETSc's nonlinear solvers.
 class PetscNonlinearSolver : public PetscSolver, public Solver
 {
+protected:
+   virtual void Customize() const;
+
 public:
    PetscNonlinearSolver(MPI_Comm comm, std::string prefix = std::string());
    PetscNonlinearSolver(MPI_Comm comm, Operator &op,
@@ -462,6 +478,9 @@ public:
 /// Abstract class for PETSc's ODE solvers.
 class PetscODESolver : public PetscSolver, public ODESolver
 {
+protected:
+   virtual void Customize() const;
+
 public:
    PetscODESolver(MPI_Comm comm, std::string prefix = std::string());
    virtual ~PetscODESolver();
