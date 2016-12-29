@@ -143,10 +143,6 @@ public:
        For parameter desciption, see the CVodeCreate documentation (cvode.h). */
    CVODESolver(int lmm, int iter);
 
-   /** @brief Construct a CVODE solver with prescribed max timestep and scalar
-       relative/absolute tolerances. */
-   CVODESolver(int lmm, int iter, double dt, double reltol, double abstol);
-
 #ifdef MFEM_USE_MPI
    /// Construct a parallel CVODESolver, a wrapper for SUNDIALS' CVODE solver.
    /** @param[in] comm  The MPI communicator used to partition the ODE system.
@@ -158,11 +154,6 @@ public:
                         CV_NEWTON (usually with CV_BDF).
        For parameter desciption, see the CVodeCreate documentation (cvode.h). */
    CVODESolver(MPI_Comm comm, int lmm, int iter);
-
-   /** @brief Construct a parallel CVODE solver with prescribed max timestep and
-       scalar relative/absolute tolerances. */
-   CVODESolver(MPI_Comm comm, int lmm, int iter,
-               double dt, double reltol, double abstol);
 #endif
 
    /// Set the scalar relative and scalar absolute tolerances.
@@ -187,6 +178,10 @@ public:
        higher order integration formulas are unstable.
        @note @a max_order can't be higher than the current maximum order. */
    void SetMaxOrder(int max_order);
+
+   /// Set the maximum time step of the linear multistep method.
+   void SetMaxStep(double dt_max)
+   { flag = CVodeSetMaxStep(sundials_mem, dt_max); }
 
    /// Set the ODE right-hand-side operator.
    /** The start time of CVODE is initialized from the current time of @a f_.
@@ -229,33 +224,18 @@ protected:
    int irk_table, erk_table;
 
 public:
+   /// Types of ARKODE solvers.
+   enum Type { EXPLICIT, IMPLICIT };
+
    /// Construct a serial ARKODESolver, a wrapper for SUNDIALS' ARKODE solver.
-   /** @param[in] implicit  Specifies if the time integrator is implicit. */
-   ARKODESolver(bool implicit = false);
-
-   /** @brief Construct an ARKODE solver with prescribed scalar
-       relative/absolute tolerances. */
-   ARKODESolver(bool implicit, double reltol, double abstol);
-
-   /** @brief Construct an ARKODE solver with prescribed order, fixed time step
-       and scalar relative/absolute tolerances. */
-   ARKODESolver(bool implicit, int rk_order, double dt,
-                double reltol, double abstol);
+   /** @param[in] type  Specifies the #Type of ARKODE solver to construct. */
+   ARKODESolver(Type type = EXPLICIT);
 
 #ifdef MFEM_USE_MPI
    /// Construct a parallel ARKODESolver, a wrapper for SUNDIALS' ARKODE solver.
    /** @param[in] comm  The MPI communicator used to partition the ODE system.
-       @param[in] implicit  Specifies if the time integrator is implicit. */
-   ARKODESolver(MPI_Comm comm, bool implicit = false);
-
-   /** Construct a parallel ARKODE solver with prescribed scalar relative /
-       absolute tolerances. */
-   ARKODESolver(MPI_Comm comm, bool implicit, double reltol, double abstol);
-
-   /** Construct a parallel ARKODE solver with prescribed order, fixed time step
-       and scalar relative/absolute tolerances. */
-   ARKODESolver(MPI_Comm comm, bool implicit, int rk_order, double dt,
-                double reltol, double abstol);
+       @param[in] type  Specifies the #Type of ARKODE solver to construct. */
+   ARKODESolver(MPI_Comm comm, Type type = EXPLICIT);
 #endif
 
    /// Specify the scalar relative and scalar absolute tolerances.
@@ -291,6 +271,10 @@ public:
        the validity of the computed solutions. It is primarily provided for
        code-to-code verification testing purposes. */
    void SetFixedStep(double dt);
+
+   /// Set the maximum time step of the Runge-Kutta method.
+   void SetMaxStep(double dt_max)
+   { flag = ARKodeSetMaxStep(sundials_mem, dt_max); }
 
    /// Set the ODE right-hand-side operator.
    /** The start time of ARKODE is initialized from the current time of @a f_.

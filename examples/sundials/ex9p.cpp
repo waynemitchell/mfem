@@ -4,14 +4,14 @@
 // Compile with: make ex9p
 //
 // Sample runs:
-//    mpirun -np 4 ex9p -m ../../data/periodic-segment.mesh -p 1 -rp 1 -dt 0.005 -s 11
-//    mpirun -np 4 ex9p -m ../../data/periodic-square.mesh -p 1 -rp 1 -dt 0.005 -tf 9 -s 12
-//    mpirun -np 4 ex9p -m ../../data/periodic-hexagon.mesh -dt 0.0018 -vs 25 -s 11
-//    mpirun -np 4 ex9p -m ../../data/periodic-hexagon.mesh -dt 0.01 -vs 15 -s 13
-//    mpirun -np 4 ex9p -m ../../data/amr-quad.mesh -p 1 -rp 1 -dt 0.002 -tf 9 -s 13
-//    mpirun -np 4 ex9p -m ../../data/star-q3.mesh -p 1 -rp 1 -dt 0.002 -tf 9 -s 13
-//    mpirun -np 4 ex9p -m ../../data/disc-nurbs.mesh -p 1 -rp 1 -dt 0.005 -tf 9 -s 11
-//    mpirun -np 4 ex9p -m ../../data/periodic-cube.mesh -p 0 -rp 1 -o 2 -dt 0.02 -tf 8 -s 12
+//    mpirun -np 4 ex9p -m ../../data/periodic-segment.mesh -p 1 -rp 1 -s 11 -dt 0.0025
+//    mpirun -np 4 ex9p -m ../../data/periodic-square.mesh  -p 1 -rp 1 -s 12 -dt 0.0025 -tf 9
+//    mpirun -np 4 ex9p -m ../../data/periodic-hexagon.mesh -p 0 -rp 1 -s 11 -dt 0.0009 -vs 25
+//    mpirun -np 4 ex9p -m ../../data/periodic-hexagon.mesh -p 0 -rp 1 -s 13 -dt 0.005 -vs 15
+//    mpirun -np 4 ex9p -m ../../data/amr-quad.mesh         -p 1 -rp 1 -s 13 -dt 0.001 -tf 9
+//    mpirun -np 4 ex9p -m ../../data/star-q3.mesh          -p 1 -rp 1 -s 13 -dt 0.0025 -tf 9
+//    mpirun -np 4 ex9p -m ../../data/disc-nurbs.mesh       -p 1 -rp 2 -s 11 -dt 0.0025 -tf 9
+//    mpirun -np 4 ex9p -m ../../data/periodic-cube.mesh    -p 0 -rp 1 -s 12 -dt 0.01 -tf 8 -o 2
 //
 // Description:  This example code solves the time-dependent advection equation
 //               du/dt + v.grad(u) = 0, where v is a given fluid velocity, and
@@ -99,6 +99,9 @@ int main(int argc, char *argv[])
    bool binary = false;
    int vis_steps = 5;
 
+   // Relative and absolute tolerances for CVODE and ARKODE.
+   const double reltol = 1e-2, abstol = 1e-2;
+
    int precision = 8;
    cout.precision(precision);
 
@@ -159,7 +162,6 @@ int main(int argc, char *argv[])
    ODESolver *ode_solver = NULL;
    CVODESolver *cvode = NULL;
    ARKODESolver *arkode = NULL;
-   const int rk_order = FEHLBERG_13_7_8;
    switch (ode_solver_type)
    {
       case 1: ode_solver = new ForwardEulerSolver; break;
@@ -168,15 +170,16 @@ int main(int argc, char *argv[])
       case 4: ode_solver = new RK4Solver; break;
       case 6: ode_solver = new RK6Solver; break;
       case 11:
-         cvode = new CVODESolver(MPI_COMM_WORLD, CV_ADAMS, CV_FUNCTIONAL,
-                                 dt, 1.0e-2, 1.0e-2);
+         cvode = new CVODESolver(MPI_COMM_WORLD, CV_ADAMS, CV_FUNCTIONAL);
+         cvode->SetSStolerances(reltol, abstol);
+         cvode->SetMaxStep(dt);
          ode_solver = cvode; break;
       case 12:
-         arkode = new ARKODESolver(MPI_COMM_WORLD, false, 1.0e-2, 1.0e-4);
-         ode_solver = arkode; break;
       case 13:
-         arkode = new ARKODESolver(MPI_COMM_WORLD, false, rk_order,
-                                   dt, 1.0e-2, 1.0e-4);
+         arkode = new ARKODESolver(MPI_COMM_WORLD, ARKODESolver::EXPLICIT);
+         arkode->SetSStolerances(reltol, abstol);
+         arkode->SetMaxStep(dt);
+         if (ode_solver_type == 13) { arkode->SetERKTableNum(FEHLBERG_13_7_8); }
          ode_solver = arkode; break;
       default:
          if (myid == 0)

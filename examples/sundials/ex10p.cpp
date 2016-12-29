@@ -4,15 +4,15 @@
 // Compile with: make ex10p
 //
 // Sample runs:
-//    mpirun -np 4 ex10p -m ../../data/beam-quad.mesh -rp 1 -o 2 -dt 0.03 -vs 20 -s 15
-//    mpirun -np 4 ex10p -m ../../data/beam-tri.mesh  -rp 1 -o 2 -dt 0.03 -vs 20 -s 16
-//    mpirun -np 4 ex10p -m ../../data/beam-hex.mesh  -rp 0 -o 2 -dt 0.03 -vs 20 -s 15
-//    mpirun -np 4 ex10p -m ../../data/beam-quad.mesh -rp 1 -o 2 -dt 3 -s 5
-//    mpirun -np 4 ex10p -m ../../data/beam-tri.mesh  -rp 1 -o 2 -dt 3 -s 7
-//    mpirun -np 4 ex10p -m ../../data/beam-hex.mesh  -rp 0 -o 2 -dt 2 -s 5
-//    mpirun -np 4 ex10p -m ../../data/beam-tri.mesh  -rp 1 -o 2 -dt 3 -s 2 -nls kinsol
-//    mpirun -np 4 ex10p -m ../../data/beam-quad.mesh -rp 1 -o 2 -dt 3 -s 2 -nls kinsol
-//    mpirun -np 4 ex10p -m ../../data/beam-hex.mesh  -rs 1 -o 2 -dt 3 -s 2 -nls kinsol
+//    mpirun -np 4 ex10p -m ../../data/beam-quad.mesh -rp 1 -o 2 -s  5 -dt 3
+//    mpirun -np 4 ex10p -m ../../data/beam-tri.mesh  -rp 1 -o 2 -s  7 -dt 3
+//    mpirun -np 4 ex10p -m ../../data/beam-hex.mesh  -rp 0 -o 2 -s  5 -dt 3
+//    mpirun -np 4 ex10p -m ../../data/beam-tri.mesh  -rp 1 -o 2 -s  2 -dt 3 -nls kinsol
+//    mpirun -np 4 ex10p -m ../../data/beam-quad.mesh -rp 1 -o 2 -s  2 -dt 3 -nls kinsol
+//    mpirun -np 4 ex10p -m ../../data/beam-hex.mesh  -rs 1 -o 2 -s  2 -dt 3 -nls kinsol
+//    mpirun -np 4 ex10p -m ../../data/beam-quad.mesh -rp 1 -o 2 -s 15 -dt 0.015 -vs 20
+//    mpirun -np 4 ex10p -m ../../data/beam-tri.mesh  -rp 1 -o 2 -s 16 -dt 0.015 -vs 20
+//    mpirun -np 4 ex10p -m ../../data/beam-hex.mesh  -rp 0 -o 2 -s 15 -dt 0.015 -vs 20
 //
 // Description:  This examples solves a time dependent nonlinear elasticity
 //               problem of the form dv/dt = H(x) + S v, dx/dt = v, where H is a
@@ -248,6 +248,9 @@ int main(int argc, char *argv[])
    const char *nls = "newton";
    int vis_steps = 1;
 
+   // Relative and absolute tolerances for CVODE and ARKODE.
+   const double reltol = 1e-1, abstol = 1e-1;
+
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
@@ -320,43 +323,41 @@ int main(int argc, char *argv[])
       case 2: ode_solver = new SDIRK23Solver(2); break;
       case 3: ode_solver = new SDIRK33Solver; break;
       case 4:
-      {
-         cvode = new CVODESolver(MPI_COMM_WORLD, CV_BDF, CV_NEWTON,
-                                 dt, 1.0e-4, 1.0e-4);
-         ode_solver = cvode; break;
-      }
       case 5:
-      {
-         cvode = new CVODESolver(MPI_COMM_WORLD, CV_BDF, CV_NEWTON,
-                                 dt, 1.0e-4, 1.0e-4);
-         sjsolver = new SundialsJacSolver;
-         cvode->SetLinearSolver(*sjsolver);
+         cvode = new CVODESolver(MPI_COMM_WORLD, CV_BDF, CV_NEWTON);
+         cvode->SetSStolerances(reltol, abstol);
+         cvode->SetMaxStep(dt);
+         if (ode_solver_type == 5)
+         {
+            sjsolver = new SundialsJacSolver;
+            cvode->SetLinearSolver(*sjsolver); // Custom Jacobian inversion.
+         }
          ode_solver = cvode; break;
-      }
       case 6:
-      {
-         arkode = new ARKODESolver(MPI_COMM_WORLD, true, 1.0e-4, 1.0e-4);
-         ode_solver = arkode; break;
-      }
       case 7:
-      {
-         arkode = new ARKODESolver(MPI_COMM_WORLD, true, 1.0e-4, 1.0e-4);
-         // Custom Jacobian inversion.
-         sjsolver = new SundialsJacSolver;
-         arkode->SetLinearSolver(*sjsolver);
+         arkode = new ARKODESolver(MPI_COMM_WORLD, ARKODESolver::IMPLICIT);
+         arkode->SetSStolerances(reltol, abstol);
+         arkode->SetMaxStep(dt);
+         if (ode_solver_type == 7)
+         {
+            sjsolver = new SundialsJacSolver;
+            arkode->SetLinearSolver(*sjsolver); // Custom Jacobian inversion.
+         }
          ode_solver = arkode; break;
-      }
       // Explicit methods
       case 11: ode_solver = new ForwardEulerSolver; break;
       case 12: ode_solver = new RK2Solver(0.5); break; // midpoint method
       case 13: ode_solver = new RK3SSPSolver; break;
       case 14: ode_solver = new RK4Solver; break;
       case 15:
-         cvode = new CVODESolver(MPI_COMM_WORLD, CV_ADAMS, CV_FUNCTIONAL,
-                                 dt, 1.0e-4, 1.0e-4);
+         cvode = new CVODESolver(MPI_COMM_WORLD, CV_ADAMS, CV_FUNCTIONAL);
+         cvode->SetSStolerances(reltol, abstol);
+         cvode->SetMaxStep(dt);
          ode_solver = cvode; break;
       case 16:
-         arkode = new ARKODESolver(MPI_COMM_WORLD, false, 1.0e-4, 1.0e-4);
+         arkode = new ARKODESolver(MPI_COMM_WORLD, ARKODESolver::EXPLICIT);
+         arkode->SetSStolerances(reltol, abstol);
+         arkode->SetMaxStep(dt);
          ode_solver = arkode; break;
       // Implicit A-stable methods (not L-stable)
       case 22: ode_solver = new ImplicitMidpointSolver; break;

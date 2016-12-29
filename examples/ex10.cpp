@@ -37,8 +37,6 @@
 #include <memory>
 #include <iostream>
 #include <fstream>
-#include <string>
-#include <map>
 
 using namespace std;
 using namespace mfem;
@@ -73,7 +71,7 @@ protected:
    ReducedSystemOperator *reduced_oper;
 
    /// Newton solver for the reduced backward Euler equation
-   NewtonSolver *newton_solver;
+   NewtonSolver newton_solver;
 
    /// Solver and preconditioner for the Jacobian solve in the Newton method.
    Solver *J_solver, *J_prec;
@@ -81,15 +79,8 @@ protected:
    mutable Vector z; // auxiliary vector
 
 public:
-   /// Solver type to use in the ImplicitSolve() method, used by SDIRK methods.
-   enum NonlinearSolverType
-   {
-      NEWTON = 0  ///< Use MFEM's plain NewtonSolver
-   };
-
    HyperelasticOperator(FiniteElementSpace &f, Array<int> &ess_bdr,
-                        double visc, double mu, double K,
-                        NonlinearSolverType nls_type);
+                        double visc, double mu, double K);
 
    /// Compute the right-hand side of the ODE system.
    virtual void Mult(const Vector &vx, Vector &dvx_dt) const;
@@ -172,7 +163,6 @@ int main(int argc, char *argv[])
    double mu = 0.25;
    double K = 5.0;
    bool visualization = true;
-   const char *nls = "newton";
    int vis_steps = 1;
 
    OptionsParser args(argc, argv);
@@ -186,9 +176,6 @@ int main(int argc, char *argv[])
                   "ODE solver: 1 - Backward Euler, 2 - SDIRK2, 3 - SDIRK3,\n\t"
                   "            11 - Forward Euler, 12 - RK2,\n\t"
                   "            13 - RK3 SSP, 14 - RK4.");
-   args.AddOption(&nls, "-nls", "--nonlinear-solver",
-                  "Nonlinear systems solver: "
-                  "\"newton\" (plain Newton).");
    args.AddOption(&t_final, "-tf", "--t-final",
                   "Final time; start time is 0.");
    args.AddOption(&dt, "-dt", "--time-step",
@@ -241,14 +228,6 @@ int main(int argc, char *argv[])
          return 3;
    }
 
-   map<string,HyperelasticOperator::NonlinearSolverType> nls_map;
-   nls_map["newton"] = HyperelasticOperator::NEWTON;
-   if (nls_map.find(nls) == nls_map.end())
-   {
-      cout << "Unknown type of nonlinear solver: " << nls << endl;
-      return 4;
-   }
-
    // 4. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement, where 'ref_levels' is a
    //    command-line parameter.
@@ -298,7 +277,7 @@ int main(int argc, char *argv[])
 
    // 7. Initialize the hyperelastic operator, the GLVis visualization and print
    //    the initial energies.
-   HyperelasticOperator oper(fespace, ess_bdr, visc, mu, K, nls_map[nls]);
+   HyperelasticOperator oper(fespace, ess_bdr, visc, mu, K);
 
    socketstream vis_v, vis_w;
    if (visualization)
@@ -421,7 +400,7 @@ void visualize(ostream &out, Mesh *mesh, GridFunction *deformed_nodes,
 ReducedSystemOperator::ReducedSystemOperator(
    BilinearForm *M_, BilinearForm *S_, NonlinearForm *H_)
    : Operator(M_->Height()), M(M_), S(S_), H(H_), Jacobian(NULL),
-     v(NULL), x(NULL), w(height), z(height)
+     dt(0.0), v(NULL), x(NULL), w(height), z(height)
 { }
 
 void ReducedSystemOperator::SetParameters(double dt_, const Vector *v_,
@@ -459,8 +438,7 @@ ReducedSystemOperator::~ReducedSystemOperator()
 
 HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
                                            Array<int> &ess_bdr, double visc,
-                                           double mu, double K,
-                                           NonlinearSolverType nls_type)
+                                           double mu, double K)
    : TimeDependentOperator(2*f.GetVSize(), 0.0), fespace(f),
      M(&fespace), S(&fespace), H(&fespace),
      viscosity(visc), z(height/2)
@@ -509,16 +487,13 @@ HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
    J_prec = NULL;
 #endif
 
-   if (nls_type == NEWTON)
-   {
-      newton_solver = new NewtonSolver();
-      newton_solver->SetMaxIter(10);
-      newton_solver->SetRelTol(rel_tol);
-      newton_solver->SetPrintLevel(-1);
-   }
-   newton_solver->SetSolver(*J_solver);
-   newton_solver->iterative_mode = false;
-   newton_solver->SetOperator(*reduced_oper);
+   newton_solver.iterative_mode = false;
+   newton_solver.SetSolver(*J_solver);
+   newton_solver.SetOperator(*reduced_oper);
+   newton_solver.SetPrintLevel(1); // print Newton iterations
+   newton_solver.SetRelTol(rel_tol);
+   newton_solver.SetAbsTol(0.0);
+   newton_solver.SetMaxIter(10);
 }
 
 void HyperelasticOperator::Mult(const Vector &vx, Vector &dvx_dt) const
@@ -558,9 +533,8 @@ void HyperelasticOperator::ImplicitSolve(const double dt,
    // object (using J_solver and J_prec internally).
    reduced_oper->SetParameters(dt, &v, &x);
    Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
-   newton_solver->Mult(zero, dv_dt);
-   MFEM_VERIFY(newton_solver->GetConverged(),
-               "Nonlinear solver did not converge.");
+   newton_solver.Mult(zero, dv_dt);
+   MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
    add(v, dt, dv_dt, dx_dt);
 }
 
@@ -583,7 +557,6 @@ void HyperelasticOperator::GetElasticEnergyDensity(
 
 HyperelasticOperator::~HyperelasticOperator()
 {
-   delete newton_solver;
    delete J_solver;
    delete J_prec;
    delete reduced_oper;
