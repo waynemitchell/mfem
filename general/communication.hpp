@@ -60,10 +60,15 @@ private:
       - group 0 is the 'local' group
       - groupmaster_lproc[0] = 0
       - lproc_proc[0] = MyRank */
+
+   // Neighbor ids (lproc) in each group.
    Table      group_lproc;
+   // Master neighbor id for each group.
    Array<int> groupmaster_lproc;
+   // MPI rank of each neighbor.
    Array<int> lproc_proc;
-   Array<int> group_mgroup; // group --> group number in the master
+   // Group --> Group number in the master.
+   Array<int> group_mgroup;
 
    void ProcToLProc();
 
@@ -101,9 +106,9 @@ public:
    // neighbor 0 is the local processor
    const int *GetGroup(int g) const { return group_lproc.GetRow(g); }
 
-   /// Save the data using text format.
+   /// Save the data in a stream.
    void Save(std::ostream &out) const;
-   /// Load the data using text format.
+   /// Load the data from a stream.
    void Load(std::istream &in);
 
    virtual ~GroupTopology() {}
@@ -134,12 +139,11 @@ public:
    GroupTopology & GetGroupTopology() { return gtopo; }
 
    /** @brief Broadcast within each group where the master is the root.
-
        The data @a layout can be:
-       |   |                                                             |
-       |--:|:------------------------------------------------------------|
-       | 0 | data is an array on all ldofs                               |
-       | 1 | data is an array on the shared ldofs as given by group_ldof | */
+
+          0 - data is an array on all ldofs
+          1 - data is an array on the shared ldofs as given by group_ldof
+   */
    template <class T> void Bcast(T *data, int layout);
 
    /** @brief Broadcast within each group where the master is the root.

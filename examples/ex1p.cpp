@@ -44,8 +44,6 @@ using namespace mfem;
 
 int main(int argc, char *argv[])
 {
-   static const char *string_none = "(none)";
-
    // 1. Initialize MPI.
    int num_procs, myid;
    MPI_Init(&argc, &argv);
@@ -54,7 +52,6 @@ int main(int argc, char *argv[])
 
    // 2. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
-   const char *par_mesh_prefix = string_none;
    int order = 1;
    bool static_cond = false;
    bool visualization = 1;
@@ -62,8 +59,6 @@ int main(int argc, char *argv[])
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
-   args.AddOption(&par_mesh_prefix, "-p", "--parallel-mesh-prefix",
-                  "Specify a parallel mesh file prefix.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
@@ -87,52 +82,36 @@ int main(int argc, char *argv[])
       args.PrintOptions(cout);
    }
 
-   ParMesh *pmesh;
-   int dim;
-   int par_ref_levels = 2;
-   if (par_mesh_prefix == string_none)
-   {
-      // 3. Read the (serial) mesh from the given mesh file on all processors.
-      //    We can handle triangular, quadrilateral, tetrahedral, hexahedral,
-      //    surface and volume meshes with the same code.
-      Mesh *mesh = new Mesh(mesh_file, 1, 1);
-      dim = mesh->Dimension();
+   // 3. Read the (serial) mesh from the given mesh file on all processors.  We
+   //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
+   //    and volume meshes with the same code.
+   Mesh *mesh = new Mesh(mesh_file, 1, 1);
+   int dim = mesh->Dimension();
 
-      // 4. Refine the serial mesh on all processors to increase the resolution.
-      //    In this example we do 'ref_levels' of uniform refinement. We choose
-      //    'ref_levels' to be the largest number that gives a final mesh with
-      //    no more than 10,000 elements.
+   // 4. Refine the serial mesh on all processors to increase the resolution. In
+   //    this example we do 'ref_levels' of uniform refinement. We choose
+   //    'ref_levels' to be the largest number that gives a final mesh with no
+   //    more than 10,000 elements.
+   {
+      int ref_levels =
+         (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
+      for (int l = 0; l < ref_levels; l++)
       {
-         int ref_levels =
-            (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
-         for (int l = 0; l < ref_levels; l++)
-         {
-            mesh->UniformRefinement();
-         }
+         mesh->UniformRefinement();
       }
-
-      // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
-      //    this mesh further in parallel to increase the resolution. Once the
-      //    parallel mesh is defined, the serial mesh can be deleted.
-      pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
-      delete mesh;
-   }
-   else
-   {
-      ostringstream pmesh_name;
-      pmesh_name << par_mesh_prefix << '.' << setfill('0') << setw(6) << myid;
-
-      ifstream imesh(pmesh_name.str().c_str());
-      MFEM_VERIFY(imesh.good(), "error openning file: " << pmesh_name.str());
-      pmesh = new ParMesh(MPI_COMM_WORLD, imesh);
-      dim = pmesh->Dimension();
-      par_ref_levels = 1;
    }
 
-   // Refine in parallel.
-   for (int l = 0; l < par_ref_levels; l++)
+   // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
+   //    this mesh further in parallel to increase the resolution. Once the
+   //    parallel mesh is defined, the serial mesh can be deleted.
+   ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
+   delete mesh;
    {
-      pmesh->UniformRefinement();
+      int par_ref_levels = 2;
+      for (int l = 0; l < par_ref_levels; l++)
+      {
+         pmesh->UniformRefinement();
+      }
    }
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
@@ -239,28 +218,6 @@ int main(int argc, char *argv[])
       sol_ofs.precision(8);
       x.Save(sol_ofs);
    }
-   // Save the mesh in parallel format, if we read serial mesh.
-   if (par_mesh_prefix == string_none)
-   {
-      ostringstream pmesh_name;
-      pmesh_name << "pmesh." << setfill('0') << setw(6) << myid;
-      ofstream pmesh_ofs(pmesh_name.str().c_str());
-      pmesh_ofs.precision(8);
-      pmesh->ParPrint(pmesh_ofs);
-   }
-
-#if 0
-   if (par_mesh_prefix == string_none)
-   {
-      ostringstream pmesh_name;
-      ParMesh *pmesh_copy = pmesh->Copy();
-      pmesh_name << "pmesh_copy." << setfill('0') << setw(6) << myid;
-      ofstream pmesh_ofs(pmesh_name.str().c_str());
-      pmesh_ofs.precision(8);
-      pmesh_copy->ParPrint(pmesh_ofs);
-      delete pmesh_copy;
-   }
-#endif
 
    // 15. Send the solution by socket to a GLVis server.
    if (visualization)

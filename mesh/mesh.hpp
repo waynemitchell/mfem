@@ -23,7 +23,6 @@
 #include "../general/gzstream.hpp"
 #include <iostream>
 #include <fstream>
-#include <limits>
 
 namespace mfem
 {
@@ -177,22 +176,6 @@ protected:
 #ifdef MFEM_USE_NETCDF
    void ReadCubit(const char *filename, int &curved, int &read_gf);
 #endif
-
-   static void skip_comment_lines(std::istream &is, const char comment_char)
-   {
-      while (1)
-      {
-         is >> std::ws;
-         if (is.peek() != comment_char) { break; }
-         is.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-      }
-   }
-   // Check for, and remove, a trailing '\r'.
-   static void filter_dos(std::string &line)
-   {
-      if (!line.empty() && *line.rbegin() == '\r')
-      { line.resize(line.size()-1); }
-   }
 
    /// Determine the mesh generator bitmask #meshgen, see MeshGenerator().
    void SetMeshGen();
@@ -539,14 +522,17 @@ public:
        (default) edges are not generated, if 1 edges are generated. */
    /// \see mfem::igzstream() for on-the-fly decompression of compressed ascii inputs.
    void Load(std::istream &input, int generate_edges = 0, int refine = 1,
-             bool fix_orientation = true);
+             bool fix_orientation = true, std::string parse_tag="");
 
    /// Clear the contents of the Mesh.
    void Clear() { Destroy(); SetEmpty(); }
 
-   /** Return a bitmask:
-       bit 0 - simplices are present in the mesh (triangles, tets),
-       bit 1 - tensor product elements are present in the mesh (quads, hexes).*/
+   /** @brief Get the mesh generator/type.
+
+       @return A bitmask:
+       - bit 0 - simplices are present in the mesh (triangles, tets),
+       - bit 1 - tensor product elements are present in the mesh (quads, hexes).
+   */
    inline int MeshGenerator() { return meshgen; }
 
    /** @brief Returns number of vertices.  Vertices are only at the corners of
@@ -964,7 +950,8 @@ public:
 
    /// Print the mesh to the given stream using the default MFEM mesh format.
    /// \see mfem::ogzstream() for on-the-fly compression of ascii outputs
-   virtual void Print(std::ostream &out = std::cout) const;
+   virtual void Print(std::ostream &out = std::cout,
+                      std::string section_delimiter="mfem_mesh_end") const;
 
    /// Print the mesh in VTK format (linear and quadratic meshes only).
    /// \see mfem::ogzstream() for on-the-fly compression of ascii outputs

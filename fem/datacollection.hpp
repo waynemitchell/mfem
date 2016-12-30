@@ -63,8 +63,11 @@ protected:
    /// Time step i.e. delta_t (for time-dependent simulations)
    double time_step;
 
-   /// Serial or parallel run? If false, append rank (myid) to file names
+   /// Serial or parallel run?
    bool serial;
+   /// Append rank to any output file names.
+   bool appendRankToFileName;
+
    /// MPI rank (in parallel)
    int myid;
    /// Number of MPI ranks (in parallel)

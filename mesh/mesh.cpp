@@ -14,6 +14,7 @@
 #include "mesh_headers.hpp"
 #include "../fem/fem.hpp"
 #include "../general/sort_pairs.hpp"
+#include "../general/text.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -872,6 +873,8 @@ void Mesh::InitMesh(int _Dim, int _spaceDim, int NVert, int NElem, int NBdrElem)
 
    Dim = _Dim;
    spaceDim = _spaceDim;
+
+   BaseGeom = BaseBdrGeom = -1;
 
    NumOfVertices = 0;
    vertices.SetSize(NVert);  // just allocate space for vertices
@@ -2527,7 +2530,7 @@ void Mesh::SetMeshGen()
 }
 
 void Mesh::Load(std::istream &input, int generate_edges, int refine,
-                bool fix_orientation)
+                bool fix_orientation, std::string parse_tag)
 {
    int curved = 0, read_gf = 1;
 
@@ -2543,11 +2546,20 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    getline(input, mesh_type);
    filter_dos(mesh_type);
 
+   // MFEM's native mesh formats
    bool mfem_v10 = (mesh_type == "MFEM mesh v1.0");
    bool mfem_v11 = (mesh_type == "MFEM mesh v1.1");
-
-   if (mfem_v10 || mfem_v11) // MFEM's own mesh formats
+   bool mfem_v12 = (mesh_type == "MFEM mesh v1.2");
+   if (mfem_v10 || mfem_v11 || mfem_v12) // MFEM's own mesh formats
    {
+      // Formats mfem_v12 and newer have a tag indicating the end of the mesh
+      // section in the stream. A user provided parse tag can also be provided
+      // via the arguments. For example, if this is called from parallel mesh
+      // object, it can indicate to read until parallel mesh section begins.
+      if ( mfem_v12 && parse_tag.empty() )
+      {
+         parse_tag = "mfem_mesh_end";
+      }
       ReadMFEMMesh(input, mfem_v11, curved);
    }
    else if (mesh_type == "linemesh") // 1D mesh
@@ -2650,9 +2662,24 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
          {
             vertices[j](i) = vert_val(j);
          }
-
          // TODO: maybe introduce Mesh::NODE_REORDER operation and FESpace::
          // NodeReorderMatrix and do Nodes->Update() instead of DoNodeReorder?
+      }
+   }
+
+   if (ncmesh) { ncmesh->spaceDim = spaceDim; }
+
+   // If a parse tag was supplied, keep reading the stream until the tag is
+   // encountered.
+   if (!parse_tag.empty())
+   {
+      std::string line;
+      input >> line;
+      while ( !input.eof() && line != parse_tag )
+      {
+         input >> line;
+         MFEM_VERIFY(!input.eof(),
+                     "Reached end of mesh file without finding an end mesh tag.");
       }
    }
 
@@ -6853,7 +6880,7 @@ void Mesh::PrintXG(std::ostream &out) const
    out << flush;
 }
 
-void Mesh::Print(std::ostream &out) const
+void Mesh::Print(std::ostream &out, std::string section_delimiter) const
 {
    int i, j;
 
@@ -6871,7 +6898,7 @@ void Mesh::Print(std::ostream &out) const
       return;
    }
 
-   out << (ncmesh ? "MFEM mesh v1.1\n" : "MFEM mesh v1.0\n");
+   out << (ncmesh ? "MFEM mesh v1.1\n" : "MFEM mesh v1.2\n");
 
    // optional
    out <<
@@ -6926,6 +6953,8 @@ void Mesh::Print(std::ostream &out) const
       out << "\nnodes\n";
       Nodes->Save(out);
    }
+
+   out << section_delimiter << "\n";
 }
 
 void Mesh::PrintTopo(std::ostream &out,const Array<int> &e_to_k) const

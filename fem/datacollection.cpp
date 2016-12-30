@@ -105,7 +105,10 @@ DataCollection::DataCollection(const std::string& collection_name, Mesh *mesh_)
    myid = 0;
    num_procs = 1;
    serial = true;
+   appendRankToFileName = false;
+
 #ifdef MFEM_USE_MPI
+   appendRankToFileName = true;
    ParMesh *par_mesh = dynamic_cast<ParMesh*>(mesh);
    if (par_mesh)
    {
@@ -130,13 +133,17 @@ void DataCollection::SetMesh(Mesh *new_mesh)
    myid = 0;
    num_procs = 1;
    serial = true;
+   appendRankToFileName = false;
+
 #ifdef MFEM_USE_MPI
+   appendRankToFileName = true;
    ParMesh *par_mesh = dynamic_cast<ParMesh*>(mesh);
    if (par_mesh)
    {
       myid = par_mesh->GetMyRank();
       num_procs = par_mesh->GetNRanks();
       serial = false;
+      appendRankToFileName = true;
    }
 #endif
 }
@@ -266,18 +273,39 @@ void DataCollection::SaveMesh()
       return; // do not even try to write the mesh
    }
 
-   std::string mesh_name;
-   if (serial)
+   bool writeSerialFormat = false;
+   std::string mesh_name = dir_name;
+   // Use serial print capability if the mesh is serial, or a nurbs or amr mesh.
+   // These are not supported in the parallel mesh format.
+   if (serial || mesh->NURBSext || mesh->ncmesh)
    {
-      mesh_name = dir_name + "/mesh";
+      writeSerialFormat = true;
+      mesh_name += "/mesh";
    }
    else
    {
-      mesh_name = dir_name + "/mesh." + to_padded_string(myid, pad_digits);
+      mesh_name += "/pmesh";
+   }
+
+   if (appendRankToFileName)
+   {
+      mesh_name += "." + to_padded_string(myid, pad_digits);
    }
    std::ofstream mesh_file(mesh_name.c_str());
    mesh_file.precision(precision);
-   mesh->Print(mesh_file);
+
+   if (writeSerialFormat)
+   {
+      mesh->Print(mesh_file);
+   }
+   else
+   {
+#ifdef MFEM_USE_MPI
+      const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
+      MFEM_VERIFY(pmesh, "Unable to get parallel mesh.");
+      pmesh->ParPrint(mesh_file);
+#endif
+   }
    if (!mesh_file)
    {
       error = WRITE_ERROR;
@@ -364,7 +392,7 @@ VisItDataCollection::VisItDataCollection(const std::string& collection_name,
                                          Mesh *mesh)
    : DataCollection(collection_name, mesh)
 {
-   serial = false; // always include rank in file names
+   appendRankToFileName = true; // always include rank in file names
    cycle  = 0;     // always include cycle in directory names
 
    if (mesh)
@@ -383,8 +411,6 @@ VisItDataCollection::VisItDataCollection(const std::string& collection_name,
 void VisItDataCollection::SetMesh(Mesh *new_mesh)
 {
    DataCollection::SetMesh(new_mesh);
-   serial = false; // always include rank in file names
-
    spatial_dim = mesh->SpaceDimension();
    topo_dim = mesh->Dimension();
 }

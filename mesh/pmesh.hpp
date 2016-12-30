@@ -138,10 +138,9 @@ public:
 
    int GetNGroups() const { return gtopo.NGroups(); }
 
-   // next 6 methods do not work for the 'local' group 0
-   int GroupNVertices(int group) { return group_svert.RowSize(group-1); }
-   int GroupNEdges(int group)    { return group_sedge.RowSize(group-1); }
-   int GroupNFaces(int group)    { return group_sface.RowSize(group-1); }
+   int GroupNVertices(int group) { return ( (group == 0) ? 0 : group_svert.RowSize(group-1) ); }
+   int GroupNEdges(int group)    { return ( (group == 0) ? 0 : group_sedge.RowSize(group-1) ); }
+   int GroupNFaces(int group)    { return ( (group == 0) ? 0 : group_sface.RowSize(group-1) ); }
 
    int GroupVertex(int group, int i)
    { return svert_lvert[group_svert.GetJ()[group_svert.GetI()[group-1]+i]]; }

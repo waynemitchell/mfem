@@ -289,10 +289,10 @@ public:
    /** @brief Reorder the scalar DOFs based on the element ordering.
 
        The new ordering is constructed as follows: 1) loop over all elements as
-       ordered in the Mesh; 2) for each element, assign new indeces to all of
-       its current DOFs that are still unassigned; the new indices we assign
-       are simply the sequence `0,1,2,...`; if there are any signed DOFs their
-       sign is preserved. */
+       ordered in the Mesh; 2) for each element, assign new indices to all of
+       its current DOFs that are still unassigned; the new indices we assign are
+       simply the sequence `0,1,2,...`; if there are any signed DOFs their sign
+       is preserved. */
    void ReorderElementToDofTable();
 
    void BuildDofToArrays();
