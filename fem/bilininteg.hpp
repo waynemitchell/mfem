@@ -1365,9 +1365,9 @@ public:
    {
       return (trial_fe.GetRangeType() == mfem::FiniteElement::VECTOR &&
               trial_fe.GetDerivType() == mfem::FiniteElement::DIV    &&
-	      test_fe.GetRangeType()  == mfem::FiniteElement::SCALAR &&
+              test_fe.GetRangeType()  == mfem::FiniteElement::SCALAR &&
               test_fe.GetDerivType()  == mfem::FiniteElement::GRAD
-              );
+             );
    }
 
    inline virtual const char * FiniteElementTypeFailureMessage() const
