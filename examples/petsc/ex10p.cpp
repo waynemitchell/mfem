@@ -26,7 +26,7 @@
 //               method HyperelasticOperator::ImplicitSolve is the only
 //               requirement for high-order implicit (SDIRK) time integration.
 //               If using PETSc to solve the nonlinear problem, use the option
-//               file provided (.petsc_rc_ex10p) that customizes the
+//               file provided (rc_ex10p) that customizes the
 //               Newton-Krylov method.
 //
 //               We recommend viewing examples 2 and 9 before viewing this
@@ -583,7 +583,7 @@ HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
    else
    {
       // if using PETSc, we create the same solver (NEWTON+MINRES+Jacobi)
-      // by command line options (see .petsc_rc_ex10p)
+      // by command line options (see rc_ex10p)
       J_solver = NULL;
       J_prec = NULL;
       pnewton_solver = new PetscNonlinearSolver(f.GetComm(),

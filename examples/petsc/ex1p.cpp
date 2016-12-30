@@ -23,7 +23,7 @@
 //               optional connection to the GLVis tool for visualization.
 //               The example also shows how PETSc Krylov solvers can be used
 //               by wrapping a HypreParMatrix (or not) and a Solver, together
-//               with customization using an options file (see .petsc_rc_ex1p)
+//               with customization using an options file (see rc_ex1p)
 //               We also provide an example on how to visualize the iterative
 //               solution inside a PETSc solver.
 

@@ -335,13 +335,13 @@ int main(int argc, char *argv[])
 
          PetscBDDCSolverParams opts;
          opts.SetNatBdrDofs(&bdr_tdof_list,local);
-         // See also command line options .petsc_rc_ex5p_bddc
+         // See also command line options rc_ex5p_bddc
          pdarcyPr = new PetscBDDCSolver(MPI_COMM_WORLD,*darcyOp,opts,"prec_");
       }
       else
       {
          // With PETSc, we can construct the (same) block-diagonal solver with
-         // command line options (see .petsc_rc_ex5p_fieldsplit)
+         // command line options (see rc_ex5p_fieldsplit)
          pdarcyPr = new PetscFieldSplitSolver(MPI_COMM_WORLD,*darcyOp,"prec_");
       }
    }
