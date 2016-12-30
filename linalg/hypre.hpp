@@ -33,6 +33,9 @@
 
 #include "sparsemat.hpp"
 #include "hypre_parcsr.hpp"
+#ifdef MFEM_USE_SUNDIALS
+#include <nvector/nvector_parhyp.h>
+#endif
 
 namespace mfem
 {
@@ -134,6 +137,16 @@ public:
 
    /// Calls hypre's destroy function
    ~HypreParVector();
+
+#ifdef MFEM_USE_SUNDIALS
+   /// Return a new wrapper SUNDIALS N_Vector of type SUNDIALS_NVEC_PARHYP.
+   /** The returned N_Vector must be destroyed by the caller. */
+   virtual N_Vector ToNVector() { return N_VMake_ParHyp(x); }
+
+   /** @brief Update an existing wrapper SUNDIALS N_Vector of type
+       SUNDIALS_NVEC_PARHYP to point to this Vector. */
+   virtual void ToNVector(N_Vector &nv);
+#endif
 };
 
 /// Returns the inner product of x and y
@@ -211,7 +224,7 @@ public:
        which must be in CSR format (finalized). The new HypreParMatrix does not
        take ownership of any of the input arrays.
        @warning The ordering of the columns in each row in @a *diag may be
-       changed by this contructor to ensure that the first entry in each row is
+       changed by this constructor to ensure that the first entry in each row is
        the diagonal one. This is expected by most hypre functions. */
    HypreParMatrix(MPI_Comm comm, HYPRE_Int glob_size, HYPRE_Int *row_starts,
                   SparseMatrix *diag);
@@ -498,6 +511,8 @@ protected:
 
    /// l1 norms of the rows of A
    double *l1_norms;
+   /// If set, take absolute values of the computed l1_norms
+   bool pos_l1_norms;
    /// Maximal eigenvalue estimate for polynomial smoothing
    double max_eig_est;
    /// Minimal eigenvalue estimate for polynomial smoothing
@@ -545,6 +560,11 @@ public:
    void SetWindowParameters(double a, double b, double c);
    /// Compute window and Chebyshev coefficients for given polynomial order.
    void SetFIRCoefficients(double max_eig);
+
+   /// After computing l1-norms, replace them with their absolute values.
+   /** By default, the l1-norms take their sign from the corresponding diagonal
+       entries in the associated matrix. */
+   void SetPositiveDiagonal(bool pos = true) { pos_l1_norms = pos; }
 
    /** Set/update the associated operator. Must be called after setting the
        HypreSmoother type and options. */

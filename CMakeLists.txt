@@ -51,7 +51,7 @@ if (CMAKE_VERSION VERSION_LESS 3.2 OR MFEM_USE_SIDRE)
    # This seems to be needed by:
    #  * find_package(BLAS REQUIRED) and
    #  * find_package(HDF5 REQUIRED) needed, in turn, by:
-   #    - find_package(SIDRE REQUIRED)
+   #    - find_package(ATK REQUIRED)
    enable_language(C)
 endif()
 
@@ -113,6 +113,17 @@ if (MFEM_USE_OPENMP)
   endif()
 endif()
 
+# SUNDIALS
+if (MFEM_USE_SUNDIALS)
+  if (NOT MFEM_USE_MPI)
+    find_package(SUNDIALS REQUIRED NVector_Serial CVODE ARKODE KINSOL)
+  else()
+    find_package(SUNDIALS REQUIRED
+      NVector_Serial NVector_Parallel NVector_ParHyp CVODE ARKODE KINSOL)
+  endif()
+  include_directories(${SUNDIALS_INCLUDE_DIRS})
+endif()
+
 # Mesquite
 if (MFEM_USE_MESQUITE)
   find_package(Mesquite REQUIRED)
@@ -121,7 +132,8 @@ endif()
 
 # SuiteSparse
 if (MFEM_USE_SUITESPARSE)
-  find_package(SuiteSparse REQUIRED)
+  find_package(SuiteSparse REQUIRED
+    UMFPACK KLU AMD BTF CHOLMOD COLAMD CAMD CCOLAMD config)
   include_directories(${SuiteSparse_INCLUDE_DIRS})
 endif()
 
@@ -159,10 +171,14 @@ if (MFEM_USE_MPFR)
   include_directories(${MPFR_INCLUDE_DIRS})
 endif()
 
-# Sidre
+# ATK/Sidre
 if (MFEM_USE_SIDRE)
-  find_package(Sidre REQUIRED)
-  include_directories(${SIDRE_INCLUDE_DIRS})
+  if (NOT MFEM_USE_MPI)
+    find_package(ATK REQUIRED Sidre SLIC common)
+  else()
+    find_package(ATK REQUIRED Sidre SPIO SLIC common)
+  endif()
+  include_directories(${ATK_INCLUDE_DIRS})
 endif()
 
 # MFEM_TIMER_TYPE
@@ -182,9 +198,9 @@ if (NOT DEFINED MFEM_TIMER_TYPE)
 endif()
 
 # List all possible libraries in order of dependencies.
-set(MFEM_TPLS HYPRE OPENMP MESQUITE SuiteSparse SuperLUDist ParMETIS METIS
-    LAPACK BLAS GECKO GNUTLS NETCDF PETSC MPFR SIDRE POSIXCLOCKS MFEMBacktrace
-    ZLIB)
+set(MFEM_TPLS HYPRE OPENMP SUNDIALS MESQUITE SuiteSparse SuperLUDist
+    ParMETIS METIS LAPACK BLAS GECKO GNUTLS NETCDF PETSC MPFR ATK POSIXCLOCKS
+    MFEMBacktrace ZLIB)
 # Add all *_FOUND libraries in the variable TPL_LIBRARIES.
 set(TPL_LIBRARIES "")
 foreach(TPL IN LISTS MFEM_TPLS)
@@ -231,7 +247,7 @@ else()
   target_link_libraries(mfem ${TPL_LIBRARIES})
 endif()
 
-# If building out of source, define MFEM_BUILD_DIR to point to the build
+# If building out-of-source, define MFEM_BUILD_DIR to point to the build
 # directory.
 if (NOT ("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}"))
   target_compile_definitions(mfem PRIVATE

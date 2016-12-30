@@ -107,7 +107,7 @@ public:
    using LinearFormIntegrator::AssembleRHSElementVect;
 };
 
-/// Class for boundary integration \f$ L(v) = (g \dot tau, v) \f$ in 2D
+/// Class for boundary integration \f$ L(v) = (g \cdot \tau, v) \f$ in 2D
 class BoundaryTangentialLFIntegrator : public LinearFormIntegrator
 {
    Vector shape;
