@@ -1,5 +1,5 @@
 This directory contains modifications of the example codes that illustrate the
-use of MFEM features based on the PETSc suite.
+use of MFEM features based on the PETSc package.
 
 To build these examples, make sure that MFEM is configured with the option
 "MFEM_USE_PETSC = YES", see the top-level INSTALL file for details (version
