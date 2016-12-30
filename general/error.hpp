@@ -19,6 +19,8 @@
 namespace mfem
 {
 
+void mfem_backtrace(int mode = 0, int depth = -1);
+
 void mfem_error(const char *msg = NULL);
 
 void mfem_warning(const char *msg = NULL);

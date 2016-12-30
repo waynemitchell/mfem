@@ -33,12 +33,19 @@ endfunction()
 
 # Add mfem examples
 function(add_mfem_examples EXE_SRCS)
+  set(EXE_PREFIX "")
+  if (${ARGC} GREATER 1)
+    set(EXE_PREFIX "${ARGV1}")
+  endif()
   foreach(SRC_FILE IN LISTS ${EXE_SRCS})
     get_filename_component(SRC_FILENAME ${SRC_FILE} NAME)
 
-    string(REPLACE ".cpp" "" EXE_NAME ${SRC_FILENAME})
+    string(REPLACE ".cpp" "" EXE_NAME "${EXE_PREFIX}${SRC_FILENAME}")
     add_executable(${EXE_NAME} ${SRC_FILE})
-    add_dependencies(${MFEM_ALL_EXAMPLES_TARGET_NAME} ${EXE_NAME})
+    # If given a prefix, don't add the example to the list of examples to build.
+    if (NOT EXE_PREFIX)
+      add_dependencies(${MFEM_ALL_EXAMPLES_TARGET_NAME} ${EXE_NAME})
+    endif()
     add_dependencies(${EXE_NAME} ${MFEM_EXEC_PREREQUISITES_TARGET_NAME})
 
     target_link_libraries(${EXE_NAME} mfem)
@@ -135,12 +142,45 @@ function(add_mfem_miniapp MFEM_EXE_NAME)
 endfunction()
 
 
-#
+# Auxiliary function, used in mfem_find_package().
+function(mfem_find_component Prefix DirVar IncSuffixes Header LibSuffixes Lib
+         IncDoc LibDoc)
+
+  if (Lib)
+    if (${DirVar} OR EnvDirVar)
+      find_library(${Prefix}_LIBRARIES ${Lib}
+        HINTS ${${DirVar}} ENV ${DirVar}
+        PATH_SUFFIXES ${LibSuffixes}
+        NO_DEFAULT_PATH
+        DOC "${LibDoc}")
+    endif()
+    find_library(${Prefix}_LIBRARIES ${Lib}
+      PATH_SUFFIXES ${LibSuffixes}
+      DOC "${LibDoc}")
+  endif()
+
+  if (Header)
+    if (${DirVar} OR EnvDirVar)
+      find_path(${Prefix}_INCLUDE_DIRS ${Header}
+        HINTS ${${DirVar}} ENV ${DirVar}
+        PATH_SUFFIXES ${IncSuffixes}
+        NO_DEFAULT_PATH
+        DOC "${IncDoc}")
+    endif()
+    find_path(${Prefix}_INCLUDE_DIRS ${Header}
+      PATH_SUFFIXES ${IncSuffixes}
+      DOC "${IncDoc}")
+  endif()
+
+endfunction(mfem_find_component)
+
+
 #   MFEM version of find_package that searches for header/library and if
 #   successful, optionally checks building (compile + link) one or more given
 #   code snippets. Additionally, a list of required/optional/alternative
-#   packages are searched for and added to the ${Prefix}_INCLUDE_DIRS and
-#   ${Prefix}_LIBRARIES lists. Defines the following CACHE variables:
+#   packages (given by ${Name}_REQUIRED_PACKAGES) are searched for and added to
+#   the ${Prefix}_INCLUDE_DIRS and ${Prefix}_LIBRARIES lists. The function
+#   defines the following CACHE variables:
 #
 #      ${Prefix}_FOUND
 #      ${Prefix}_INCLUDE_DIRS
@@ -176,31 +216,8 @@ function(mfem_find_package Name Prefix DirVar IncSuffixes Header LibSuffixes
     endif()
   endif()
 
-  if (Lib)
-    if (${DirVar} OR EnvDirVar)
-      find_library(${Prefix}_LIBRARIES ${Lib}
-        HINTS ${${DirVar}} ENV ${DirVar}
-        PATH_SUFFIXES ${LibSuffixes}
-        NO_DEFAULT_PATH
-        DOC "${LibDoc}")
-    endif()
-    find_library(${Prefix}_LIBRARIES ${Lib}
-      PATH_SUFFIXES ${LibSuffixes}
-      DOC "${LibDoc}")
-  endif()
-
-  if (Header)
-    if (${DirVar} OR EnvDirVar)
-      find_path(${Prefix}_INCLUDE_DIRS ${Header}
-        HINTS ${${DirVar}} ENV ${DirVar}
-        PATH_SUFFIXES ${IncSuffixes}
-        NO_DEFAULT_PATH
-        DOC "${IncDoc}")
-    endif()
-    find_path(${Prefix}_INCLUDE_DIRS ${Header}
-      PATH_SUFFIXES ${IncSuffixes}
-      DOC "${IncDoc}")
-  endif()
+  mfem_find_component("${Prefix}" "${DirVar}" "${IncSuffixes}" "${Header}"
+    "${LibSuffixes}" "${Lib}" "${IncDoc}" "${LibDoc}")
 
   if (((NOT Lib) OR ${Prefix}_LIBRARIES) AND
       ((NOT Header) OR ${Prefix}_INCLUDE_DIRS))
@@ -208,6 +225,76 @@ function(mfem_find_package Name Prefix DirVar IncSuffixes Header LibSuffixes
   else()
     set(Found FALSE)
   endif()
+
+  set(ReqVars "")
+
+  # Check for optional "ADD_COMPONENT" arguments.
+  set(I 9) # 9 is the number of required arguments
+  while(I LESS ARGC)
+    if ("${ARGV${I}}" STREQUAL "CHECK_BUILD")
+      # "CHECK_BUILD" has 3 arguments, handled below
+      math(EXPR I "${I}+3")
+    elseif ("${ARGV${I}}" STREQUAL "ADD_COMPONENT")
+      # "ADD_COMPONENT" has 5 arguments:
+      # CompPrefix CompIncSuffixes CompHeader CompLibSuffixes CompLib
+      math(EXPR I "${I}+1")
+      set(CompPrefix "${ARGV${I}}")
+      math(EXPR I "${I}+1")
+      set(CompIncSuffixes "${ARGV${I}}")
+      math(EXPR I "${I}+1")
+      set(CompHeader "${ARGV${I}}")
+      math(EXPR I "${I}+1")
+      set(CompLibSuffixes "${ARGV${I}}")
+      math(EXPR I "${I}+1")
+      set(CompLib "${ARGV${I}}")
+      # Determine if the component is requested.
+      list(FIND ${Name}_FIND_COMPONENTS ${CompPrefix} CompIdx)
+      if (CompIdx GREATER -1)
+        set(CompRequested TRUE)
+      else()
+        set(CompRequested FALSE)
+      endif()
+      # Determine if the component is optional or required.
+      set(CompRequired ${${Name}_FIND_REQUIRED_${CompPrefix}})
+      if (CompRequested)
+        set(FullPrefix "${Prefix}_${CompPrefix}")
+        mfem_find_component("${FullPrefix}" "${DirVar}"
+          "${CompIncSuffixes}" "${CompHeader}"
+          "${CompLibSuffixes}" "${CompLib}" "" "")
+        if (CompRequired)
+          if (CompLib)
+            list(APPEND ReqVars ${FullPrefix}_LIBRARIES)
+          endif()
+          if (CompHeader)
+            list(APPEND ReqVars ${FullPrefix}_INCLUDE_DIRS)
+          endif()
+        endif(CompRequired)
+        if (((NOT CompLib) OR ${FullPrefix}_LIBRARIES) AND
+            ((NOT CompHeader) OR ${FullPrefix}_INCLUDE_DIRS))
+          # Component found
+          set(${FullPrefix}_FOUND TRUE CACHE BOOL
+              "${Name}/${CompPrefix} was found." FORCE)
+          list(APPEND ${Prefix}_LIBRARIES ${${FullPrefix}_LIBRARIES})
+          list(APPEND ${Prefix}_INCLUDE_DIRS ${${FullPrefix}_INCLUDE_DIRS})
+          if (NOT ${Name}_FIND_QUIETLY)
+            # message(STATUS "${Name}: ${CompPrefix}: found")
+            message(STATUS
+              "${Name}: ${CompPrefix}: ${${FullPrefix}_LIBRARIES}")
+            # message(STATUS
+            #   "${Name}: ${CompPrefix}: ${${FullPrefix}_INCLUDE_DIRS}")
+          endif()
+        else()
+          # Let FindPackageHandleStandardArgs() handle errors
+          if (NOT ${Name}_FIND_QUIETLY)
+            message(STATUS "${Name}: ${CompPrefix}: *** NOT FOUND ***")
+          endif()
+        endif()
+      endif(CompRequested)
+    else()
+      message(FATAL_ERROR "Unknown argument: ${ARGV${I}}")
+    endif()
+    math(EXPR I "${I}+1")
+  endwhile()
 
   # Add required / optional / alternative packages.
   set(Required "REQUIRED")
@@ -217,10 +304,17 @@ function(mfem_find_package Name Prefix DirVar IncSuffixes Header LibSuffixes
   endif()
   set(Alternative FALSE)
   foreach(ReqPack IN LISTS ${Name}_REQUIRED_PACKAGES)
+    # Parse the pattern: <PackName>[/<CompName>]...
+    string(REPLACE "/" ";" PackComps "${ReqPack}")
+    list(GET PackComps 0 PackName)
+    list(REMOVE_AT PackComps 0)
+    set(ReqPack "${PackName}")
+    set(ReqPackM "${ReqPack}")
+    if (NOT ("${PackComps}" STREQUAL ""))
+       set(ReqPackM "${ReqPackM}, COMPONENTS: ${PackComps}")
+    endif()
     if (Quiet)
-      set(ReqPackM "${ReqPack} (quiet)")
-    else()
-      set(ReqPackM "${ReqPack}")
+      set(ReqPackM "${ReqPackM} (quiet)")
     endif()
     if ("${ReqPack}" STREQUAL "REQUIRED:")
       set(Required "REQUIRED")
@@ -240,7 +334,7 @@ function(mfem_find_package Name Prefix DirVar IncSuffixes Header LibSuffixes
       if (NOT ${Name}_FIND_QUIETLY)
         message(STATUS "${Name}: trying alternative package: ${ReqPackM}")
       endif()
-      find_package(${ReqPack} ${Quiet})
+      find_package(${ReqPack} ${Quiet} COMPONENTS ${PackComps})
       string(TOUPPER ${ReqPack} ReqPACK)
       if (${ReqPack}_FOUND)
         set(Found TRUE)
@@ -263,7 +357,7 @@ function(mfem_find_package Name Prefix DirVar IncSuffixes Header LibSuffixes
       endif()
       string(TOUPPER ${ReqPack} ReqPACK)
       if (NOT (${ReqPack}_FOUND OR ${ReqPACK}_FOUND))
-        find_package(${ReqPack} ${Required} ${Quiet})
+        find_package(${ReqPack} ${Required} ${Quiet} COMPONENTS ${PackComps})
       endif()
       if ("${ReqPack}" STREQUAL "MPI")
         list(APPEND ${Prefix}_LIBRARIES ${MPI_CXX_LIBRARIES})
@@ -280,14 +374,13 @@ function(mfem_find_package Name Prefix DirVar IncSuffixes Header LibSuffixes
     endif()
   endforeach()
 
-  set(ReqVars "")
-  if (NOT ("${${Prefix}_LIBRARIES}" STREQUAL ""))
-    list(APPEND ReqVars ${Prefix}_LIBRARIES)
-    set(ReqLibs 1)
-  endif()
   if (NOT ("${${Prefix}_INCLUDE_DIRS}" STREQUAL ""))
-    list(APPEND ReqVars ${Prefix}_INCLUDE_DIRS)
+    list(INSERT ReqVars 0 ${Prefix}_INCLUDE_DIRS)
     set(ReqHeaders 1)
+  endif()
+  if (NOT ("${${Prefix}_LIBRARIES}" STREQUAL ""))
+    list(INSERT ReqVars 0 ${Prefix}_LIBRARIES)
+    set(ReqLibs 1)
   endif()
 
   if (Found)
@@ -304,7 +397,7 @@ function(mfem_find_package Name Prefix DirVar IncSuffixes Header LibSuffixes
         "${IncDoc}" FORCE)
     set(${Prefix}_FOUND TRUE CACHE BOOL "${Name} was found." FORCE)
 
-    # Check for optional arguments.
+    # Check for optional "CHECK_BUILD" arguments.
     set(I 9) # 9 is the number of required arguments
     while(I LESS ARGC)
       if ("${ARGV${I}}" STREQUAL "CHECK_BUILD")
@@ -322,6 +415,9 @@ function(mfem_find_package Name Prefix DirVar IncSuffixes Header LibSuffixes
         if (TestReq)
           list(APPEND ReqVars ${TestVar})
         endif()
+      elseif("${ARGV${I}}" STREQUAL "ADD_COMPONENT")
+        # "ADD_COMPONENT" has 5 arguments, handled above
+        math(EXPR I "${I}+5")
       else()
         message(FATAL_ERROR "Unknown argument: ${ARGV${I}}")
       endif()
