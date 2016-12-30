@@ -4,15 +4,15 @@
 // Compile with: make ex10
 //
 // Sample runs:
-//    ex10 -m ../../data/beam-quad.mesh -r 2 -o 2 -s  5 -dt 0.25
-//    ex10 -m ../../data/beam-tri.mesh  -r 2 -o 2 -s  7 -dt 0.4
-//    ex10 -m ../../data/beam-hex.mesh  -r 1 -o 2 -s  5 -dt 0.25
+//    ex10 -m ../../data/beam-quad.mesh -r 2 -o 2 -s  5 -dt 0.15 -vs 10
+//    ex10 -m ../../data/beam-tri.mesh  -r 2 -o 2 -s  7 -dt 0.3  -vs 5
+//    ex10 -m ../../data/beam-hex.mesh  -r 1 -o 2 -s  5 -dt 0.2  -vs 5
 //    ex10 -m ../../data/beam-tri.mesh  -r 2 -o 2 -s  2 -dt 3 -nls kinsol
 //    ex10 -m ../../data/beam-quad.mesh -r 2 -o 2 -s  2 -dt 3 -nls kinsol
 //    ex10 -m ../../data/beam-hex.mesh  -r 1 -o 2 -s  2 -dt 3 -nls kinsol
-//    ex10 -m ../../data/beam-quad.mesh -r 2 -o 2 -s 15 -dt 5e-3 -vs 20
-//    ex10 -m ../../data/beam-tri.mesh  -r 2 -o 2 -s 16 -dt 0.01 -vs 20
-//    ex10 -m ../../data/beam-hex.mesh  -r 1 -o 2 -s 15 -dt 0.01 -vs 20
+//    ex10 -m ../../data/beam-quad.mesh -r 2 -o 2 -s 15 -dt 5e-3 -vs 60
+//    ex10 -m ../../data/beam-tri.mesh  -r 2 -o 2 -s 16 -dt 0.01 -vs 30
+//    ex10 -m ../../data/beam-hex.mesh  -r 1 -o 2 -s 15 -dt 0.01 -vs 30
 //
 // Description:  This examples solves a time dependent nonlinear elasticity
 //               problem of the form dv/dt = H(x) + S v, dx/dt = v, where H is a

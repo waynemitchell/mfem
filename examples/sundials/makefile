@@ -54,21 +54,26 @@ MFEM_TESTS = EXAMPLES
 include $(TEST_MK)
 
 # Testing: Parallel vs. serial runs
-%-test-par: %
-	@$(call mfem-test,$<, mpirun -np 4, Parallel example)
-%-test-seq: %
-	@$(call mfem-test,$<,, Serial example)
+SERIAL_NAME := Serial SUNDIALS example
+PARALLEL_NAME := Parallel SUNDIALS example
 
-# Testing: Specific execution options: test CVODE time stepper
-EX9_ARGS := -m ../../data/periodic-hexagon.mesh -s 11 -dt 0.0018 -vs 25
+# Testing: Specific execution options:
+# Example 9: test explicit CVODE time stepping
+EX9_COMMON_ARGS := -m ../../data/periodic-hexagon.mesh -p 0 -s 11
+EX9_ARGS  := $(EX9_COMMON_ARGS) -r  2 -dt 0.0018 -vs 25
+EX9P_ARGS := $(EX9_COMMON_ARGS) -rp 1 -dt 0.0009 -vs 50
 ex9-test-seq: ex9
-	@$(call mfem-test,$<,, Serial example,$(EX9_ARGS))
+	@$(call mfem-test,$<,, $(SERIAL_NAME),$(EX9_ARGS))
 ex9p-test-par: ex9p
-	@$(call mfem-test,$<, mpirun -np 4, Parallel example,$(EX9_ARGS))
+	@$(call mfem-test,$<, mpirun -np 4, $(PARALLEL_NAME),$(EX9P_ARGS))
+# Example 10: test implicit CVODE time stepping
+EX10_COMMON_ARGS := -m ../../data/beam-quad.mesh -o 2 -s 5 -dt 0.15 -vs 10
+EX10_ARGS  := $(EX10_COMMON_ARGS) -r  2
+EX10P_ARGS := $(EX10_COMMON_ARGS) -rp 1
 ex10-test-seq: ex10
-	@$(call mfem-test,$<,, Serial example,-s 5)
+	@$(call mfem-test,$<,, $(SERIAL_NAME),$(EX10_ARGS))
 ex10p-test-par: ex10p
-	@$(call mfem-test,$<, mpirun -np 4, Parallel example,-s 5)
+	@$(call mfem-test,$<, mpirun -np 4, $(PARALLEL_NAME),$(EX10P_ARGS))
 
 # Testing: "test" target and mfem-test* variables are defined in config/test.mk
 

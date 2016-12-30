@@ -33,12 +33,19 @@ endfunction()
 
 # Add mfem examples
 function(add_mfem_examples EXE_SRCS)
+  set(EXE_PREFIX "")
+  if (${ARGC} GREATER 1)
+    set(EXE_PREFIX "${ARGV1}")
+  endif()
   foreach(SRC_FILE IN LISTS ${EXE_SRCS})
     get_filename_component(SRC_FILENAME ${SRC_FILE} NAME)
 
-    string(REPLACE ".cpp" "" EXE_NAME ${SRC_FILENAME})
+    string(REPLACE ".cpp" "" EXE_NAME "${EXE_PREFIX}${SRC_FILENAME}")
     add_executable(${EXE_NAME} ${SRC_FILE})
-    add_dependencies(${MFEM_ALL_EXAMPLES_TARGET_NAME} ${EXE_NAME})
+    # If given a prefix, don't add the example to the list of examples to build.
+    if (NOT EXE_PREFIX)
+      add_dependencies(${MFEM_ALL_EXAMPLES_TARGET_NAME} ${EXE_NAME})
+    endif()
     add_dependencies(${EXE_NAME} ${MFEM_EXEC_PREREQUISITES_TARGET_NAME})
 
     target_link_libraries(${EXE_NAME} mfem)

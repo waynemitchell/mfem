@@ -79,3 +79,6 @@ foreach(SRC_FILE ${ALL_EXE_SRCS})
       ${MPIEXEC_POSTFLAGS})
   endif()
 endforeach()
+
+# Include the examples/sundials directory.
+add_subdirectory(sundials)

@@ -62,8 +62,8 @@ void mfem_backtrace(int mode, int depth)
          name_p = name_demangle;
       }
 
-      std::cerr << addrs.Size() << ") [0x" << std::hex << ip - 1 << "]: "
-                << name_p << std::endl;
+      std::cerr << addrs.Size() << ") [0x" << std::hex << ip - 1 << std::dec
+                << "]: " << name_p << std::endl;
       addrs.Append(ip - 1);
 
       if (demangle_status == 0)

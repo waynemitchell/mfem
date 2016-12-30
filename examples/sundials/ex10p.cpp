@@ -4,15 +4,15 @@
 // Compile with: make ex10p
 //
 // Sample runs:
-//    mpirun -np 4 ex10p -m ../../data/beam-quad.mesh -rp 1 -o 2 -s  5 -dt 3
-//    mpirun -np 4 ex10p -m ../../data/beam-tri.mesh  -rp 1 -o 2 -s  7 -dt 3
-//    mpirun -np 4 ex10p -m ../../data/beam-hex.mesh  -rp 0 -o 2 -s  5 -dt 3
+//    mpirun -np 4 ex10p -m ../../data/beam-quad.mesh -rp 1 -o 2 -s  5 -dt 0.15 -vs 10
+//    mpirun -np 4 ex10p -m ../../data/beam-tri.mesh  -rp 1 -o 2 -s  7 -dt 0.25  -vs 10
+//    mpirun -np 4 ex10p -m ../../data/beam-hex.mesh  -rp 0 -o 2 -s  5 -dt 0.15  -vs 10
 //    mpirun -np 4 ex10p -m ../../data/beam-tri.mesh  -rp 1 -o 2 -s  2 -dt 3 -nls kinsol
 //    mpirun -np 4 ex10p -m ../../data/beam-quad.mesh -rp 1 -o 2 -s  2 -dt 3 -nls kinsol
 //    mpirun -np 4 ex10p -m ../../data/beam-hex.mesh  -rs 1 -o 2 -s  2 -dt 3 -nls kinsol
-//    mpirun -np 4 ex10p -m ../../data/beam-quad.mesh -rp 1 -o 2 -s 15 -dt 0.015 -vs 20
-//    mpirun -np 4 ex10p -m ../../data/beam-tri.mesh  -rp 1 -o 2 -s 16 -dt 0.015 -vs 20
-//    mpirun -np 4 ex10p -m ../../data/beam-hex.mesh  -rp 0 -o 2 -s 15 -dt 0.015 -vs 20
+//    mpirun -np 4 ex10p -m ../../data/beam-quad.mesh -rp 1 -o 2 -s 15 -dt 3e-3 -vs 120
+//    mpirun -np 4 ex10p -m ../../data/beam-tri.mesh  -rp 1 -o 2 -s 16 -dt 5e-3 -vs 60
+//    mpirun -np 4 ex10p -m ../../data/beam-hex.mesh  -rp 0 -o 2 -s 15 -dt 5e-3 -vs 60
 //
 // Description:  This examples solves a time dependent nonlinear elasticity
 //               problem of the form dv/dt = H(x) + S v, dx/dt = v, where H is a
@@ -821,6 +821,13 @@ void HyperelasticOperator::ImplicitSolve(const double dt,
    newton_solver->Mult(zero, dv_dt);
    MFEM_VERIFY(newton_solver->GetConverged(),
                "Nonlinear solver did not converge.");
+#ifdef MFEM_DEBUG
+   if (fespace.GetMyRank() == 0)
+   {
+      cout << "  num nonlin sol iters = " << newton_solver->GetNumIterations()
+           << ", final norm = " << newton_solver->GetFinalNorm() << '\n';
+   }
+#endif
    add(v, dt, dv_dt, dx_dt);
 }
 
