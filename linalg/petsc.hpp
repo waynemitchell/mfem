@@ -407,7 +407,7 @@ protected:
 
 public:
    PetscBDDCSolverParams() : fespace(NULL), ess_dof(NULL), ess_dof_local(false),
-                             nat_dof(NULL), nat_dof_local(false)
+      nat_dof(NULL), nat_dof_local(false)
    {}
    void SetSpace(ParFiniteElementSpace *fe) { fespace = fe; }
 

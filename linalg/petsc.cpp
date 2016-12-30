@@ -2104,7 +2104,8 @@ void PetscNonlinearSolver::Mult(const Vector &b, Vector &x) const
    if (!B) { B = new PetscParVector(PetscObjectComm(obj), *this, true); }
    if (!X) { X = new PetscParVector(PetscObjectComm(obj), *this, false); }
    X->SetData(x.GetData());
-   if (b_nonempty) { B->SetData(b.GetData()); } else { *B = 0.0; }
+   if (b_nonempty) { B->SetData(b.GetData()); }
+   else { *B = 0.0; }
 
    Customize();
 
