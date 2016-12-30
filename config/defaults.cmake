@@ -26,6 +26,7 @@ option(MFEM_USE_LAPACK "Enable LAPACK usage" OFF)
 option(MFEM_THREAD_SAFE "Enable thread safety" OFF)
 option(MFEM_USE_OPENMP "Enable OpenMP usage" OFF)
 option(MFEM_USE_MEMALLOC "Enable the internal MEMALLOC option." ON)
+option(MFEM_USE_SUNDIALS "Enable SUNDIALS usage" OFF)
 option(MFEM_USE_MESQUITE "Enable MESQUITE usage" OFF)
 option(MFEM_USE_SUITESPARSE "Enable SuiteSparse usage" OFF)
 option(MFEM_USE_SUPERLU "Enable SuperLU_DIST usage" OFF)
@@ -33,6 +34,7 @@ option(MFEM_USE_GECKO "Enable GECKO usage" OFF)
 option(MFEM_USE_GNUTLS "Enable GNUTLS usage" OFF)
 option(MFEM_USE_NETCDF "Enable NETCDF usage" OFF)
 option(MFEM_USE_MPFR "Enable MPFR usage." OFF)
+option(MFEM_USE_SIDRE "Enable ATK/Sidre usage" OFF)
 
 # Allow a user to disable testing, examples, and/or miniapps at CONFIGURE TIME
 # if they don't want/need them (e.g. if MFEM is "just a dependency" and all they
@@ -53,7 +55,8 @@ set(MFEM_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 # headers and library. If these fail, then standard cmake search is performed.
 # Note: if the variables are already in the cache, they are not overwritten.
 
-set(HYPRE_DIR "${MFEM_DIR}/../hypre-2.10.0b/src/hypre" CACHE PATH "Path to the hypre library.")
+set(HYPRE_DIR "${MFEM_DIR}/../hypre-2.10.0b/src/hypre" CACHE PATH
+    "Path to the hypre library.")
 # If hypre was compiled to depend on BLAS and LAPACK:
 # set(HYPRE_REQUIRED_PACKAGES "BLAS" "LAPACK" CACHE STRING
 #     "Packages that HYPRE depends on.")
@@ -62,20 +65,24 @@ set(METIS_DIR "${MFEM_DIR}/../metis-4.0" CACHE PATH "Path to the METIS library."
 
 set(LIBUNWIND_DIR "" CACHE PATH "Path to Libunwind.")
 
-set(MESQUITE_DIR "${MFEM_DIR}/../mesquite-2.99" CACHE PATH "Path to the Mesquite library.")
+set(SUNDIALS_DIR "${MFEM_DIR}/../sundials-2.7.0" CACHE PATH
+    "Path to the SUNDIALS library.")
 
-set(SuiteSparse_DIR "${MFEM_DIR}/../SuiteSparse" CACHE PATH "Path to the SuiteSparse library.")
-set(SuiteSparse_REQUIRED_PACKAGES "QUIET:" "SuiteSparseUMFPACK" "SuiteSparseKLU"
-    "SuiteSparseAMD" "SuiteSparseBTF" "SuiteSparseCHOLMOD" "SuiteSparseCOLAMD"
-    "SuiteSparseCAMD" "SuiteSparseCCOLAMD" "SuiteSparseCONFIG"
-    "VERBOSE:" "BLAS" "METIS"
+set(MESQUITE_DIR "${MFEM_DIR}/../mesquite-2.99" CACHE PATH
+    "Path to the Mesquite library.")
+
+set(SuiteSparse_DIR "${MFEM_DIR}/../SuiteSparse" CACHE PATH
+    "Path to the SuiteSparse library.")
+set(SuiteSparse_REQUIRED_PACKAGES "BLAS" "METIS"
     CACHE STRING "Additional packages required by SuiteSparse.")
 
-set(ParMETIS_DIR "${MFEM_DIR}/../parmetis-4.0.3" CACHE PATH "Path to the ParMETIS library.")
+set(ParMETIS_DIR "${MFEM_DIR}/../parmetis-4.0.3" CACHE PATH
+    "Path to the ParMETIS library.")
 set(ParMETIS_REQUIRED_PACKAGES "METIS" CACHE STRING
     "Additional packages required by ParMETIS.")
 
-set(SuperLUDist_DIR "${MFEM_DIR}/../SuperLU_DIST_5.1.0" CACHE PATH "Path to the SuperLU_DIST library.")
+set(SuperLUDist_DIR "${MFEM_DIR}/../SuperLU_DIST_5.1.0" CACHE PATH
+    "Path to the SuperLU_DIST library.")
 # SuperLU_DIST may also depend on "OpenMP", depending on how it was compiled.
 set(SuperLUDist_REQUIRED_PACKAGES "MPI" "BLAS" "ParMETIS" CACHE STRING
     "Additional packages required by SuperLU_DIST.")
@@ -85,10 +92,21 @@ set(GECKO_DIR "${MFEM_DIR}/../gecko" CACHE PATH "Path to the Gecko library.")
 set(GNUTLS_DIR "" CACHE PATH "Path to the GnuTLS library.")
 
 set(NETCDF_DIR "" CACHE PATH "Path to the NetCDF library.")
+# May need to add "HDF5" as requirement.
 set(NetCDF_REQUIRED_PACKAGES "" CACHE STRING
     "Additional packages required by NetCDF.")
 
 set(MPFR_DIR "" CACHE PATH "Path to the MPFR library.")
+
+set(CONDUIT_DIR "${MFEM_DIR}/../conduit" CACHE PATH
+    "Path to the Conduit library.")
+set(Conduit_REQUIRED_PACKAGES "HDF5" CACHE STRING
+    "Additional packages required by Conduit.")
+
+set(ATK_DIR "${MFEM_DIR}/../asctoolkit" CACHE PATH "Path to the ATK library.")
+# May need to add "Boost" as requirement.
+set(ATK_REQUIRED_PACKAGES "Conduit/relay" CACHE STRING
+    "Additional packages required by ATK.")
 
 set(BLAS_INCLUDE_DIRS "" CACHE STRING "Path to BLAS headers.")
 set(BLAS_LIBRARIES "" CACHE STRING "The BLAS library.")

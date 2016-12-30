@@ -19,6 +19,8 @@
 namespace mfem
 {
 
+void mfem_backtrace(int mode = 0, int depth = -1);
+
 void mfem_error(const char *msg = NULL);
 
 void mfem_warning(const char *msg = NULL);
@@ -87,10 +89,16 @@ void mfem_warning(const char *msg = NULL);
                     << #x << ") is false: " << msg, 0); \
    }
 
+// A macro that exposes its argument in debug mode only.
+#define MFEM_DEBUG_DO(x) x
+
 #else
 
 // Get rid of all this code, since we're not checking.
 #define MFEM_ASSERT(x, msg)
+
+// A macro that exposes its argument in debug mode only.
+#define MFEM_DEBUG_DO(x)
 
 #endif
 

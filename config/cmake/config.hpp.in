@@ -59,6 +59,9 @@
 // Enable MFEM functionality based on the NetCDF library
 #cmakedefine MFEM_USE_NETCDF
 
+// Enable MFEM functionality based on the Sidre library
+#cmakedefine MFEM_USE_SIDRE
+
 // Which library functions to use in class StopWatch for measuring time.
 // The available options are:
 //   0 - use std::clock from <ctime>
@@ -67,6 +70,9 @@
 //   3 - use QueryPerformanceCounter from <windows.h>
 // If not defined, an option is selected automatically.
 #define MFEM_TIMER_TYPE @MFEM_TIMER_TYPE@
+
+// Enable MFEM functionality based on the SUNDIALS libraries.
+#cmakedefine MFEM_USE_SUNDIALS
 
 // Windows specific options
 // Macro needed to get defines like M_PI from <cmath>. (Visual Studio C++ only?)

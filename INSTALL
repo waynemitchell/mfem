@@ -91,8 +91,23 @@ its path/name can be changed with
 
    make config USER_CONFIG=<user_config_file>
 
+The build system can be configured to use a separate build directory, for an
+out-of-source build. There are two ways to do that: the first one is
+
+   mkdir <mfem-build-dir> ; cd <mfem-build-dir>
+   make -f <mfem-source-dir>/makefile config [OPTIONS] ...
+
+and the second one is
+
+   cd <mfem-source-dir>
+   make BUILD_DIR=<mfem-build-dir> config [OPTIONS] ...
+
+Note that in both cases the default location for the (optional) user
+configuration file is <mfem-build-dir>/config/user.mk.
+
 Once configured, the library can be built simply with
 
+   cd <mfem-build-dir>   (if building out-of-source)
    make
 
 Note that re-configuration is only needed to change the currently configured
@@ -215,6 +230,11 @@ MFEM_TIMER_TYPE = 0/1/2/3/NO
       3  - use QueryPerformanceCounter from <windows.h>
       NO - use option 3 if the compiler macro _WIN32 is defined, 0 otherwise
 
+MFEM_USE_SUNDIALS = YES/NO
+   Enable MFEM time integrators and non-linear solvers based on the SUNDIALS
+   library. When enabled, this option uses the SUNDIALS_* library options,
+   see below.
+
 MFEM_USE_MESQUITE = YES/NO
    Enable MFEM functionality based on the Mesquite library. When enabled, this
    option uses the MESQUITE_* library options, see below.
@@ -255,6 +275,13 @@ MFEM_USE_MPFR = YES/NO
    option enables the use of MPFR in MFEM, e.g. for precise computation of 1D
    quadrature rules. When enabled, this option uses the MPFR_* library options,
    see below.
+
+MFEM_USE_SIDRE = YES/NO
+   Sidre is a componenf of LLNL's ASC toolkit, http://goo.gl/cZyJdn, that
+   provides an HDF5-based file format for visualization or restart capability
+   following the Conduit (https://github.com/LLNL/conduit) mesh blueprint
+   specification. When enabled, this option requires installation of HDF5 (see
+   also MFEM_USE_NETCDF), Conduit and LLNL's ASC toolkit.
 
 MFEM_USE_GZSTREAM = YES/NO
    Enables use of on-the-fly gzip compressed streams. With this feature enabled
@@ -309,6 +336,11 @@ The specific libraries and their options are:
   necessary to link with a system library (e.g. librt.so).
   Option: POSIX_CLOCKS_LIB (default = -lrt).
 
+- SUNDIALS (optional), used when MFEM_USE_SUNDIALS = YES.
+  URL: http://computation.llnl.gov/projects/sundials/sundials-software
+  In parallel we expect that SUNDIALS is built with support for MPI and hypre.
+  Options: SUNDIALS_OPT, SUNDIALS_LIB.
+
 - Mesquite (optional), used when MFEM_USE_MESQUITE = YES.
   URL: http://trilinos.org/oldsite/packages/mesquite
   Options: MESQUITE_OPT, MESQUITE_LIB.
@@ -336,6 +368,12 @@ The specific libraries and their options are:
   don't need the C++ or parallel versions.
   URL: www.unidata.ucar.edu/software/netcdf
   Options: NETCDF_OPT, NETCDF_LIB.
+
+- ATK/Sidre (optional), used when MFEM_USE_SIDRE = YES.
+  URL: http://goo.gl/cZyJdn (ASC toolkit, to be released)
+       https://github.com/LLNL/conduit (Conduit)
+       https://support.hdfgroup.org/HDF5 (HDF5)
+  Options: SIDRE_OPT, SIDRE_LIB.
 
 - MPFR (optional), used when MFEM_USE_MPFR = YES.
   URL: http://mpfr.org, it depends on the GMP library: https://gmplib.org

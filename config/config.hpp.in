@@ -50,6 +50,9 @@
 // If not defined, an option is selected automatically.
 // #define MFEM_TIMER_TYPE @MFEM_TIMER_TYPE@
 
+// Enable MFEM functionality based on the SUNDIALS libraries.
+// #define MFEM_USE_SUNDIALS
+
 // Enable MFEM functionality based on the Mesquite library.
 // #define MFEM_USE_MESQUITE
 
@@ -64,6 +67,9 @@
 
 // Enable secure socket streams based on the GNUTLS library
 // #define MFEM_USE_GNUTLS
+
+// Enable Sidre support
+// #define MFEM_USE_SIDRE
 
 // Enable functionality based on the NetCDF library (reading CUBIT files)
 // #define MFEM_USE_NETCDF

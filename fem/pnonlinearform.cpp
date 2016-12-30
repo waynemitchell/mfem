@@ -27,6 +27,7 @@ void ParNonlinearForm::SetEssentialBC(const Array<int> &bdr_attr_is_ess,
 
    // ess_vdofs is a list of local vdofs
    if (rhs)
+   {
       for (int i = 0; i < ess_vdofs.Size(); i++)
       {
          int tdof = pfes->GetLocalTDofNumber(ess_vdofs[i]);
@@ -35,6 +36,7 @@ void ParNonlinearForm::SetEssentialBC(const Array<int> &bdr_attr_is_ess,
             (*rhs)(tdof) = 0.0;
          }
       }
+   }
 }
 
 double ParNonlinearForm::GetEnergy(const ParGridFunction &x) const
