@@ -52,6 +52,11 @@ if (MFEM_USE_MPI)
     hypre_parcsr.hpp)
 endif()
 
+if (MFEM_USE_SUNDIALS)
+  list(APPEND SRCS sundials.cpp)
+  list(APPEND HDRS sundials.hpp)
+endif()
+
 if (MFEM_USE_SUPERLU)
   list(APPEND SRCS superlu.cpp)
   # If this list (HDRS -> HEADERS) is used for install, we probably want the

@@ -112,8 +112,8 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Order (degree) of the finite elements.");
    args.AddOption(&ode_solver_type, "-s", "--ode-solver",
-                  "ODE solver: 1 - Forward Euler, 2 - RK2 SSP, 3 - RK3 SSP,"
-                  " 4 - RK4, 6 - RK6.");
+                  "ODE solver: 1 - Forward Euler,\n\t"
+                  "            2 - RK2 SSP, 3 - RK3 SSP, 4 - RK4, 6 - RK6.");
    args.AddOption(&t_final, "-tf", "--t-final",
                   "Final time; start time is 0.");
    args.AddOption(&dt, "-dt", "--time-step",
@@ -311,20 +311,21 @@ int main(int argc, char *argv[])
    //     right-hand side, and perform time-integration (looping over the time
    //     iterations, ti, with a time-step dt).
    FE_Evolution adv(*M, *K, *B);
-   ode_solver->Init(adv);
 
    double t = 0.0;
-   for (int ti = 0; true; )
-   {
-      if (t >= t_final - dt/2)
-      {
-         break;
-      }
+   adv.SetTime(t);
+   ode_solver->Init(adv);
 
-      ode_solver->Step(*U, t, dt);
+   bool done = false;
+   for (int ti = 0; !done; )
+   {
+      double dt_real = min(dt, t_final - t);
+      ode_solver->Step(*U, t, dt_real);
       ti++;
 
-      if (ti % vis_steps == 0)
+      done = (t >= t_final - 1e-8*dt);
+
+      if (done || ti % vis_steps == 0)
       {
          if (myid == 0)
          {

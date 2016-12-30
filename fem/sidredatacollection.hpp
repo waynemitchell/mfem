@@ -302,7 +302,7 @@ public:
    }
 
    /// Load external data after registering externally owned fields.
-   void LoadExternalData(const std::string& path, const std::string& protocol);
+   void LoadExternalData(const std::string& path);
 
    /** @brief Updates the DataCollection's cycle, time, and time-step variables
        with the values from the data store. */

@@ -84,6 +84,10 @@ New and updated examples and miniapps
   default in these examples, to switch to optimized matrix assembly instead use
   the -asm/--assembly option.
 
+- Added a new directory, examples/sundials with modifications of examples 9 and
+  10 (both serial and parallel) that illustrate the use of the SUNDIALS time
+  integrators and nonlinear solvers.
+
 - Added a simple miniapp, display-basis, for displaying the various types
   of finite element basis functions within single elements. This is part of
   the new miniapps/tools directory.
@@ -98,11 +102,11 @@ New and updated examples and miniapps
 
 Improved building options
 -------------------------
-- Added a new CMake build system, that can be used alternatively to the GNU
-  make-based build system. For more details, see the INSTALL file and the
-  config/cmake directory.
+- Added a new CMake build system, that can be used as an alternative to the GNU
+  make-based build system (e.g. for out-of-source building). For more details,
+  see the INSTALL file and the config/cmake directory.
 
-- Added support for "out of source" builds with GNU make, see the INSTALL file.
+- Added support for out-of-source builds with GNU make, see the INSTALL file.
 
 Improved file output
 --------------------
@@ -118,6 +122,10 @@ Improved file output
 
 Miscellaneous
 -------------
+- Added optional support for the time integration and non-linear solvers methods
+  from the CVODE, ARKODE and KINSOL libraries of the SUNDIALS suite (version 2.7
+  or higher of SUNDIALS is required).
+
 - Added optional support for software-based higher-precision arithmetic with
   the MPFR library. When MFEM_USE_MPFR is enabled, the 1D quadrature rules will
   be computed precisely, at least for rules with up to 65-points.
@@ -127,11 +135,11 @@ Miscellaneous
 - Provide an informative backtrace in mfem_error based on the cross-platform
   libunwind library (requires MFEM_USE_LIBUNWIND=YES).
 
-- Added method MemoryUsage to the classes Stack and MemAlloc.
-
-- In class SparseMatrix, added methods CheckFinite and PrintInfo.
+- In class SparseMatrix, added methods PrintInfo and CheckFinite.
 
 - GMRESSolver and MINRESSolver now support the same print levels as CGSolver.
+
+- Added method MemoryUsage to the classes Stack and MemAlloc.
 
 - Various other simplifications, extensions, and bugfixes in the code.
 
