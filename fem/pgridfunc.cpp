@@ -75,6 +75,13 @@ void ParGridFunction::SetSpace(ParFiniteElementSpace *f)
    pfes = f;
 }
 
+void ParGridFunction::MakeRef(ParFiniteElementSpace *f, double *v)
+{
+   face_nbr_data.Destroy();
+   GridFunction::MakeRef(f, v);
+   pfes = f;
+}
+
 void ParGridFunction::MakeRef(ParFiniteElementSpace *f, Vector &v, int v_offset)
 {
    face_nbr_data.Destroy();

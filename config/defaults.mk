@@ -71,6 +71,7 @@ MFEM_USE_GNUTLS      = NO
 MFEM_USE_NETCDF      = NO
 MFEM_USE_PETSC       = NO
 MFEM_USE_MPFR        = NO
+MFEM_USE_SIDRE       = NO
 
 LIBUNWIND_OPT = -g
 ifneq ($(SYSNAME),Darwin)
@@ -165,6 +166,23 @@ PETSC_ARCH ?= arch-linux2-c-debug
 # MPFR library configuration
 MPFR_OPT =
 MPFR_LIB = -lmpfr
+
+# Sidre and required libraries configuration
+# Be sure to check the HDF5_DIR (set above) is correct
+SIDRE_DIR = @MFEM_DIR@/../asctoolkit
+CONDUIT_DIR = @MFEM_DIR@/../conduit
+SIDRE_OPT = -I$(SIDRE_DIR)/include -I$(CONDUIT_DIR)/include/conduit\
+ -I$(HDF5_DIR)/include
+SIDRE_LIB = -L$(SIDRE_DIR)/lib \
+            -L$(CONDUIT_DIR)/lib \
+            -Wl,-rpath -Wl,$(CONDUIT_DIR)/lib \
+            -L$(HDF5_DIR)/lib\
+            -Wl,-rpath -Wl,$(HDF5_DIR)/lib \
+            -lsidre -lslic -lcommon -lconduit -lconduit_relay -lhdf5 -lz -ldl
+
+ifeq ($(MFEM_USE_MPI),YES)
+   SIDRE_LIB += -lspio -lcommon
+endif
 
 # If YES, enable some informational messages
 VERBOSE = NO

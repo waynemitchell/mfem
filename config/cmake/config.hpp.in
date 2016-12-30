@@ -62,6 +62,9 @@
 // Enable MFEM functionality based on the PETSc library
 #cmakedefine MFEM_USE_PETSC
 
+// Enable MFEM functionality based on the Sidre library
+#cmakedefine MFEM_USE_SIDRE
+
 // Which library functions to use in class StopWatch for measuring time.
 // The available options are:
 //   0 - use std::clock from <ctime>

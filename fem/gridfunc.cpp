@@ -36,8 +36,10 @@ GridFunction::GridFunction(Mesh *m, std::istream &input)
    input >> std::ws;
    input.getline(buff, bufflen);  // 'FiniteElementSpace'
    if (strcmp(buff, "FiniteElementSpace"))
+   {
       mfem_error("GridFunction::GridFunction():"
                  " input stream is not a GridFunction!");
+   }
    input.getline(buff, bufflen, ' '); // 'FiniteElementCollection:'
    input >> std::ws;
    input.getline(buff, bufflen);
@@ -174,6 +176,14 @@ void GridFunction::SetSpace(FiniteElementSpace *f)
    sequence = fes->GetSequence();
 }
 
+void GridFunction::MakeRef(FiniteElementSpace *f, double *v)
+{
+   Destroy();
+   fes = f;
+   NewDataAndSize(v, fes->GetVSize());
+   sequence = fes->GetSequence();
+}
+
 void GridFunction::MakeRef(FiniteElementSpace *f, Vector &v, int v_offset)
 {
    MFEM_ASSERT(v.Size() >= v_offset + f->GetVSize(), "");
@@ -248,18 +258,23 @@ void GridFunction::ComputeFlux(BilinearFormIntegrator &blfi,
 
 int GridFunction::VectorDim() const
 {
+   const FiniteElement *fe;
    if (!fes->GetNE())
    {
-      return 0;
+      const FiniteElementCollection *fec = fes->FEColl();
+      static const int geoms[3] =
+      { Geometry::SEGMENT, Geometry::TRIANGLE, Geometry::TETRAHEDRON };
+      fe = fec->FiniteElementForGeometry(geoms[fes->GetMesh()->Dimension()-1]);
    }
-
-   const FiniteElement *fe = fes->GetFE(0);
-
+   else
+   {
+      fe = fes->GetFE(0);
+   }
    if (fe->GetRangeType() == FiniteElement::SCALAR)
    {
       return fes->GetVDim();
    }
-   return fes->GetMesh()->SpaceDimension();
+   return fes->GetVDim()*fes->GetMesh()->SpaceDimension();
 }
 
 void GridFunction::GetTrueDofs(Vector &tv) const
@@ -2379,6 +2394,35 @@ std::ostream &operator<<(std::ostream &out, const GridFunction &sol)
    return out;
 }
 
+
+QuadratureFunction::QuadratureFunction(Mesh *mesh, std::istream &in)
+{
+   const char *msg = "invalid input stream";
+   string ident;
+
+   qspace = new QuadratureSpace(mesh, in);
+   own_qspace = true;
+
+   in >> ident; MFEM_VERIFY(ident == "VDim:", msg);
+   in >> vdim;
+
+   Load(in, vdim*qspace->GetSize());
+}
+
+void QuadratureFunction::Save(std::ostream &out) const
+{
+   qspace->Save(out);
+   out << "VDim: " << vdim << '\n'
+       << '\n';
+   Vector::Print(out, vdim);
+   out.flush();
+}
+
+std::ostream &operator<<(std::ostream &out, const QuadratureFunction &qf)
+{
+   qf.Save(out);
+   return out;
+}
 
 
 double ZZErrorEstimator(BilinearFormIntegrator &blfi,

@@ -42,7 +42,7 @@ public:
    /// Default constructor for Vector. Sets size = 0 and data = NULL.
    Vector () { allocsize = size = 0; data = 0; }
 
-   /// Copy constructor
+   /// Copy constructor. Allocates a new data array and copies the data.
    Vector(const Vector &);
 
    /// @brief Creates vector of size s.
@@ -50,6 +50,8 @@ public:
    explicit Vector (int s);
 
    /// Creates a vector referencing an array of doubles, owned by someone else.
+   /** The pointer @a _data can be NULL. The data array can be replaced later
+       with SetData(). */
    Vector (double *_data, int _size)
    { data = _data; size = _size; allocsize = -size; }
 
@@ -59,18 +61,33 @@ public:
    /// Load a vector from an input stream.
    void Load(std::istream &in, int Size);
 
-   /// Load a vector from an input stream.
+   /// Load a vector from an input stream, reading the size from the stream.
    void Load(std::istream &in) { int s; in >> s; Load (in, s); }
 
-   /// @brief Resize the vector if the new size is different.
-   /// @warning New entries are not initialized!
+   /// @brief Resize the vector to size @a s.
+   /** If the new size is less than or equal to Capacity() then the internal
+       data array remains the same. Otherwise, the old array is deleted, if
+       owned, and a new array of size @a s is allocated without copying the
+       previous content of the Vector.
+       @warning New entries are not initialized! */
    void SetSize(int s);
 
+   /// Set the Vector data.
+   /// @warning This method should be called only when OwnsData() is false.
    void SetData(double *d) { data = d; }
 
+   /// Set the Vector data and size.
+   /** The Vector does not assume ownership of the new data. The new size is
+       also used as the new Capacity().
+       @warning This method should be called only when OwnsData() is false.
+       @sa NewDataAndSize(). */
    void SetDataAndSize(double *d, int s)
    { data = d; size = s; allocsize = -s; }
 
+   /// Set the Vector data and size, deleting the old data, if owned.
+   /** The Vector does not assume ownership of the new data. The new size is
+       also used as the new Capacity().
+       @sa SetDataAndSize(). */
    void NewDataAndSize(double *d, int s)
    {
       if (allocsize > 0) { delete [] data; }
@@ -85,12 +102,22 @@ public:
    /// Returns the size of the vector.
    inline int Size() const { return size; }
 
+   /// Return the size of the currently allocated data array.
+   /** It is always true that Capacity() >= Size(). */
+   inline int Capacity() const { return abs(allocsize); }
+
    // double *GetData() { return data; }
 
    inline double *GetData() const { return data; }
 
+   /// Convertion to `double *`.
+   /** @note This conversion function makes it possible to use [] for indexing
+       in addition to the overloaded operator()(int). */
    inline operator double *() { return data; }
 
+   /// Convertion to `const double *`.
+   /** @note This conversion function makes it possible to use [] for indexing
+       in addition to the overloaded operator()(int). */
    inline operator const double *() const { return data; }
 
    inline bool OwnsData() const { return (allocsize > 0); }
@@ -102,18 +129,21 @@ public:
    /// Changes the ownership of the data; after the call the Vector is empty
    inline double *StealData() { double *p; StealData(&p); return p; }
 
-   /// Sets value in vector. Index i = 0 .. size-1
+   /// Access Vector entries. Index i = 0 .. size-1.
    double & Elem (int i);
 
-   /// Sets value in vector. Index i = 0 .. size-1
+   /// Read only access to Vector entries. Index i = 0 .. size-1.
    const double & Elem (int i) const;
 
-   /// Sets value in vector. Index i = 0 .. size-1
+   /// Access Vector entries using () for 0-based indexing.
+   /** @note If MFEM_DEBUG is enabled, bounds checking is performed. */
    inline double & operator() (int i);
 
-   /// Sets value in vector. Index i = 0 .. size-1
+   /// Read only access to Vector entries using () for 0-based indexing.
+   /** @note If MFEM_DEBUG is enabled, bounds checking is performed. */
    inline const double & operator() (int i) const;
 
+   /// Dot product with a `double *` array.
    double operator*(const double *) const;
 
    /// Return the inner-product.
