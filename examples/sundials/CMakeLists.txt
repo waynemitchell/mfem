@@ -53,7 +53,7 @@ foreach(SRC_FILE ${SUNDIALS_EXAMPLES_SRCS})
 
   set(THIS_TEST_OPTIONS "-no-vis")
   list(APPEND THIS_TEST_OPTIONS ${${UP_TEST_NAME}_TEST_OPTS})
-  message(STATUS "Test ${TEST_NAME} options: ${THIS_TEST_OPTIONS}")
+  # message(STATUS "Test ${TEST_NAME} options: ${THIS_TEST_OPTIONS}")
 
   if (NOT (${TEST_NAME} MATCHES ".*p$"))
     add_test(NAME ${TEST_NAME}_ser
