@@ -75,10 +75,17 @@ $(if $(MFEM_REAL_DIR),,$(error Source directory "$(MFEM_DIR)" is not valid))
 SRC := $(if $(MFEM_REAL_DIR:$(CURDIR)=),$(MFEM_DIR)/,)
 $(if $(word 2,$(SRC)),$(error Spaces in SRC = "$(SRC)" are not supported))
 
+EXAMPLE_SUBDIRS = sundials
+EXAMPLE_DIRS := examples $(addprefix examples/,$(EXAMPLE_SUBDIRS))
+EXAMPLE_TEST_DIRS := examples
+
 MINIAPP_SUBDIRS = common electromagnetics meshing performance tools
 MINIAPP_DIRS := $(addprefix miniapps/,$(MINIAPP_SUBDIRS))
 MINIAPP_TEST_DIRS := $(filter-out %/common,$(MINIAPP_DIRS))
 MINIAPP_USE_COMMON := $(addprefix miniapps/,electromagnetics tools)
+
+EM_DIRS = $(EXAMPLE_DIRS) $(MINIAPP_DIRS)
+EM_TEST_DIRS = $(EXAMPLE_TEST_DIRS) $(MINIAPP_TEST_DIRS)
 
 # Use BUILD_DIR on the command line; set MFEM_BUILD_DIR before including this
 # makefile or config/config.mk from a separate $(BUILD_DIR).
@@ -86,7 +93,7 @@ MFEM_BUILD_DIR ?= .
 BUILD_DIR := $(MFEM_BUILD_DIR)
 BUILD_REAL_DIR := $(abspath $(BUILD_DIR))
 ifneq ($(BUILD_REAL_DIR),$(MFEM_REAL_DIR))
-   BUILD_SUBDIRS = $(DIRS) config examples $(MINIAPP_DIRS) doc
+   BUILD_SUBDIRS = $(DIRS) config $(EM_DIRS) doc
    BUILD_DIR_DEF = -DMFEM_BUILD_DIR="$(BUILD_REAL_DIR)"
    BLD := $(if $(BUILD_REAL_DIR:$(CURDIR)=),$(BUILD_DIR)/,)
    $(if $(word 2,$(BLD)),$(error Spaces in BLD = "$(BLD)" are not supported))
@@ -143,11 +150,6 @@ ifeq ($(MFEM_DEBUG),YES)
 endif
 CXXFLAGS ?= $(OPTIM_FLAGS)
 
-ifeq ($(MFEM_USE_LIBUNWIND),YES)
-   INCFLAGS += $(LIBUNWIND_OPT)
-   ALL_LIBS += $(LIBUNWIND_LIB)
-endif
-
 # MPI configuration
 ifneq ($(MFEM_USE_MPI),YES)
    MFEM_CXX ?= $(CXX)
@@ -159,72 +161,32 @@ endif
 
 DEP_CXX ?= $(MFEM_CXX)
 
-# Sidre library and dependencies
-ifeq ($(MFEM_USE_SIDRE),YES)
-   INCFLAGS += $(SIDRE_OPT)
-   ALL_LIBS += $(SIDRE_LIB)
-endif
-
-# LAPACK library configuration
-ifeq ($(MFEM_USE_LAPACK),YES)
-   INCFLAGS += $(LAPACK_OPT)
-   ALL_LIBS += $(LAPACK_LIB)
-endif
-
-# OpenMP configuration
+# Check OpenMP configuration
 ifeq ($(MFEM_USE_OPENMP),YES)
    MFEM_THREAD_SAFE ?= YES
    ifneq ($(MFEM_THREAD_SAFE),YES)
       $(error Incompatible config: MFEM_USE_OPENMP requires MFEM_THREAD_SAFE)
    endif
-   INCFLAGS += $(OPENMP_OPT)
-   ALL_LIBS += $(OPENMP_LIB)
 endif
 
+# List of MFEM dependencies, processed below
+MFEM_DEPENDENCIES = LIBUNWIND SIDRE LAPACK OPENMP SUNDIALS MESQUITE SUITESPARSE\
+ SUPERLU GECKO GNUTLS NETCDF MPFR
+
+# Macro for adding dependencies
+define mfem_add_dependency
+ifeq ($(MFEM_USE_$(1)),YES)
+   INCFLAGS += $($(1)_OPT)
+   ALL_LIBS += $($(1)_LIB)
+endif
+endef
+
+# Process dependencies
+$(foreach dep,$(MFEM_DEPENDENCIES),$(eval $(call mfem_add_dependency,$(dep))))
+
+# Timer option
 ifeq ($(MFEM_TIMER_TYPE),2)
    ALL_LIBS += $(POSIX_CLOCKS_LIB)
-endif
-
-# MESQUITE library configuration
-ifeq ($(MFEM_USE_MESQUITE),YES)
-   INCFLAGS += $(MESQUITE_OPT)
-   ALL_LIBS += $(MESQUITE_LIB)
-endif
-
-# SuiteSparse library configuration
-ifeq ($(MFEM_USE_SUITESPARSE),YES)
-   INCFLAGS += $(SUITESPARSE_OPT)
-   ALL_LIBS += $(SUITESPARSE_LIB)
-endif
-
-# SuperLU library configuration
-ifeq ($(MFEM_USE_SUPERLU),YES)
-   INCFLAGS += $(SUPERLU_OPT)
-   ALL_LIBS += $(SUPERLU_LIB)
-endif
-
-# Gecko library configuration
-ifeq ($(MFEM_USE_GECKO),YES)
-   INCFLAGS += $(GECKO_OPT)
-   ALL_LIBS += $(GECKO_LIB)
-endif
-
-# GnuTLS library configuration
-ifeq ($(MFEM_USE_GNUTLS),YES)
-   INCFLAGS += $(GNUTLS_OPT)
-   ALL_LIBS += $(GNUTLS_LIB)
-endif
-
-# NetCDF library configuration
-ifeq ($(MFEM_USE_NETCDF),YES)
-   INCFLAGS += $(NETCDF_OPT)
-   ALL_LIBS += $(NETCDF_LIB)
-endif
-
-# MPFR library configuration
-ifeq ($(MFEM_USE_MPFR),YES)
-   INCFLAGS += $(MPFR_OPT)
-   ALL_LIBS += $(MPFR_LIB)
 endif
 
 # gzstream configuration
@@ -235,9 +197,9 @@ endif
 # List of all defines that may be enabled in config.hpp and config.mk:
 MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_USE_GZSTREAM\
  MFEM_USE_LIBUNWIND MFEM_USE_LAPACK MFEM_THREAD_SAFE MFEM_USE_OPENMP\
- MFEM_USE_MEMALLOC MFEM_TIMER_TYPE MFEM_USE_MESQUITE MFEM_USE_SUITESPARSE\
- MFEM_USE_GECKO MFEM_USE_SUPERLU MFEM_USE_GNUTLS MFEM_USE_NETCDF MFEM_USE_MPFR\
- MFEM_USE_SIDRE
+ MFEM_USE_MEMALLOC MFEM_TIMER_TYPE MFEM_USE_SUNDIALS  MFEM_USE_MESQUITE\
+ MFEM_USE_SUITESPARSE MFEM_USE_GECKO MFEM_USE_SUPERLU MFEM_USE_GNUTLS\
+ MFEM_USE_NETCDF MFEM_USE_MPFR MFEM_USE_SIDRE
 
 # List of makefile variables that will be written to config.mk:
 MFEM_CONFIG_VARS = MFEM_CXX MFEM_CPPFLAGS MFEM_CXXFLAGS MFEM_INC_DIR\
@@ -310,10 +272,10 @@ $(OBJECT_FILES): $(BLD)%.o: $(SRC)%.cpp $(CONFIG_MK)
 
 all: examples miniapps
 
-.PHONY: examples miniapps $(MINIAPP_DIRS)
+.PHONY: miniapps $(EM_DIRS)
 miniapps: $(MINIAPP_DIRS)
 $(MINIAPP_USE_COMMON): miniapps/common
-examples $(MINIAPP_DIRS): lib
+$(EM_DIRS): lib
 	$(MAKE) -C $(BLD)$(@)
 
 .PHONY: doc
@@ -350,18 +312,18 @@ test:
 	@echo "Testing the MFEM library. This may take a while..."
 	@echo "Building all examples and miniapps..."
 	@$(MAKE) all
-	@for dir in examples $(MINIAPP_TEST_DIRS); do \
+	@for dir in $(EM_TEST_DIRS); do \
 	   echo "Running tests in $${dir} ..."; \
 	   $(MAKE) -j1 -C $(BLD)$${dir} test; done
 	@echo "Done."
 
-ALL_CLEAN_SUBDIRS = $(addsuffix /clean,config examples $(MINIAPP_DIRS) doc)
+ALL_CLEAN_SUBDIRS = $(addsuffix /clean,config $(EM_DIRS) doc)
 .PHONY: $(ALL_CLEAN_SUBDIRS) miniapps/clean
 miniapps/clean: $(addsuffix /clean,$(MINIAPP_DIRS))
 $(ALL_CLEAN_SUBDIRS):
 	$(MAKE) -C $(BLD)$(@D) $(@F)
 
-clean: $(addsuffix /clean,examples miniapps)
+clean: $(addsuffix /clean,$(EM_DIRS))
 	rm -f $(addprefix $(BLD),*/*.o */*~ *~ libmfem.a deps.mk)
 
 distclean: clean config/clean doc/clean
@@ -406,7 +368,7 @@ local-config:
 .PHONY: build-config
 build-config:
 	for d in $(BUILD_SUBDIRS); do mkdir -p $(BLD)$${d}; done
-	for dir in "" $(addsuffix /,config examples $(MINIAPP_DIRS) doc); do \
+	for dir in "" $(addsuffix /,config $(EM_DIRS) doc); do \
 	   printf "# Auto-generated file.\n%s\n%s\n" \
 	      "MFEM_DIR = $(MFEM_REAL_DIR)" \
 	      "include \$$(MFEM_DIR)/$${dir}makefile" \
@@ -434,6 +396,7 @@ status info:
 	$(info MFEM_USE_OPENMP      = $(MFEM_USE_OPENMP))
 	$(info MFEM_USE_MEMALLOC    = $(MFEM_USE_MEMALLOC))
 	$(info MFEM_TIMER_TYPE      = $(MFEM_TIMER_TYPE))
+	$(info MFEM_USE_SUNDIALS    = $(MFEM_USE_SUNDIALS))
 	$(info MFEM_USE_MESQUITE    = $(MFEM_USE_MESQUITE))
 	$(info MFEM_USE_SUITESPARSE = $(MFEM_USE_SUITESPARSE))
 	$(info MFEM_USE_SUPERLU     = $(MFEM_USE_SUPERLU))
@@ -458,7 +421,7 @@ status info:
 	@true
 
 ASTYLE = astyle --options=$(SRC)config/mfem.astylerc
-FORMAT_FILES = $(foreach dir,$(DIRS) examples $(MINIAPP_DIRS),"$(dir)/*.?pp")
+FORMAT_FILES = $(foreach dir,$(DIRS) $(EM_DIRS),"$(dir)/*.?pp")
 
 style:
 	@if ! $(ASTYLE) $(FORMAT_FILES) | grep Formatted; then\

@@ -251,11 +251,10 @@ void MINRES(const Operator &A, Solver &B, const Vector &b, Vector &x,
             double rtol = 1e-12, double atol = 1e-24);
 
 
-/** Newton's method for solving F(x)=b for a given operator F.
-    The method GetGradient must be implemented for the operator.
+/// Newton's method for solving F(x)=b for a given operator F.
+/** The method GetGradient() must be implemented for the operator F.
     The preconditioner is used (in non-iterative mode) to evaluate
-    the action of the inverse gradient of the operator.
-    If (b.Size() != oper->Height()), then the b is assumed to be zero. */
+    the action of the inverse gradient of the operator. */
 class NewtonSolver : public IterativeSolver
 {
 protected:
@@ -269,8 +268,12 @@ public:
 #endif
    virtual void SetOperator(const Operator &op);
 
-   void SetSolver(Solver &solver) { prec = &solver; }
+   /// Set the linear solver for inverting the Jacobian.
+   /** This method is equivalent to calling SetPreconditioner(). */
+   virtual void SetSolver(Solver &solver) { prec = &solver; }
 
+   /// Solve the nonlinear system with right-hand side @a b.
+   /** If `b.Size() != Height()`, then @a b is assumed to be zero. */
    virtual void Mult(const Vector &b, Vector &x) const;
 };
 
