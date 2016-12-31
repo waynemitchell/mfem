@@ -37,8 +37,6 @@
 #include <memory>
 #include <iostream>
 #include <fstream>
-#include <string>
-#include <map>
 
 using namespace std;
 using namespace mfem;
@@ -82,15 +80,8 @@ protected:
    mutable Vector z; // auxiliary vector
 
 public:
-   /// Solver type to use in the ImplicitSolve() method, used by SDIRK methods.
-   enum NonlinearSolverType
-   {
-      NEWTON = 0  ///< Use MFEM's plain NewtonSolver
-   };
-
    HyperelasticOperator(ParFiniteElementSpace &f, Array<int> &ess_bdr,
-                        double visc, double mu, double K,
-                        NonlinearSolverType nls_type);
+                        double visc, double mu, double K);
 
    /// Compute the right-hand side of the ODE system.
    virtual void Mult(const Vector &vx, Vector &dvx_dt) const;
@@ -181,7 +172,6 @@ int main(int argc, char *argv[])
    double mu = 0.25;
    double K = 5.0;
    bool visualization = true;
-   const char *nls = "newton";
    int vis_steps = 1;
 
    OptionsParser args(argc, argv);
@@ -261,18 +251,6 @@ int main(int argc, char *argv[])
          return 3;
    }
 
-   map<string,HyperelasticOperator::NonlinearSolverType> nls_map;
-   nls_map["newton"] = HyperelasticOperator::NEWTON;
-   if (nls_map.find(nls) == nls_map.end())
-   {
-      if (myid == 0)
-      {
-         cout << "Unknown type of nonlinear solver: " << nls << endl;
-      }
-      MPI_Finalize();
-      return 4;
-   }
-
    // 5. Refine the mesh in serial to increase the resolution. In this example
    //    we do 'ser_ref_levels' of uniform refinement, where 'ser_ref_levels' is
    //    a command-line parameter.
@@ -337,7 +315,7 @@ int main(int argc, char *argv[])
 
    // 9. Initialize the hyperelastic operator, the GLVis visualization and print
    //    the initial energies.
-   HyperelasticOperator oper(fespace, ess_bdr, visc, mu, K, nls_map[nls]);
+   HyperelasticOperator oper(fespace, ess_bdr, visc, mu, K);
 
    socketstream vis_v, vis_w;
    if (visualization)
@@ -520,8 +498,7 @@ ReducedSystemOperator::~ReducedSystemOperator()
 
 HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
                                            Array<int> &ess_bdr, double visc,
-                                           double mu, double K,
-                                           NonlinearSolverType nls_type)
+                                           double mu, double K)
    : TimeDependentOperator(2*f.TrueVSize(), 0.0), fespace(f),
      M(&fespace), S(&fespace), H(&fespace),
      viscosity(visc), M_solver(f.GetComm()), newton_solver(f.GetComm()),
