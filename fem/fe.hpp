@@ -295,22 +295,10 @@ public:
 
 class ScalarFiniteElement : public FiniteElement
 {
-protected:
-
-#ifndef MFEM_THREAD_SAFE
-   mutable DenseMatrix d_shape;
-#endif
-
 public:
-#ifdef MFEM_THREAD_SAFE
    ScalarFiniteElement(int D, int G, int Do, int O, int F = FunctionSpace::Pk)
       : FiniteElement(D, G, Do, O, F)
    { DerivType = GRAD; DerivRangeType = VECTOR; DerivMapType = H_CURL; }
-#else
-   ScalarFiniteElement(int D, int G, int Do, int O, int F = FunctionSpace::Pk)
-      : FiniteElement(D, G, Do, O, F), d_shape(Do, D)
-   { DerivType = GRAD; DerivRangeType = VECTOR; DerivMapType = H_CURL; }
-#endif
 
    void SetMapType(int M)
    {

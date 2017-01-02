@@ -22,7 +22,7 @@ namespace mfem
 using namespace std;
 
 FiniteElement::FiniteElement(int D, int G, int Do, int O, int F)
-   : Nodes(Do), vshape(Do, D)
+   : Nodes(Do)
 {
    Dim = D ; GeomType = G ; Dof = Do ; Order = O ; FuncSpace = F;
    RangeType = SCALAR;
@@ -30,6 +30,9 @@ FiniteElement::FiniteElement(int D, int G, int Do, int O, int F)
    DerivType = NONE;
    DerivRangeType = SCALAR;
    DerivMapType = VALUE;
+#ifndef MFEM_THREAD_SAFE
+   vshape.SetSize(Dof, Dim);
+#endif
 }
 
 void FiniteElement::CalcVShape (
@@ -530,24 +533,17 @@ void VectorFiniteElement::Project_RT(
    VectorCoefficient &vc, ElementTransformation &Trans, Vector &dofs) const
 {
    double vk[3];
-   Vector xk(vk, vc.GetVDim());
-#ifdef MFEM_THREAD_SAFE
-   DenseMatrix Jinv(Dim, vc.GetVDim());
-#else
-   Jinv.SetSize(Dim, vc.GetVDim());
-#endif
-   const bool square_J = (Jinv.Height() == Jinv.Width());
+   const int sdim = Trans.GetSpaceDim();
+   MFEM_ASSERT(vc.GetVDim() == sdim, "");
+   Vector xk(vk, sdim);
+   const bool square_J = (Dim == sdim);
 
    for (int k = 0; k < Dof; k++)
    {
       Trans.SetIntPoint(&Nodes.IntPoint(k));
-      // set Jinv = |J| J^{-1} = adj(J), when J is square
-      // set Jinv = adj(J^t.J).J^t,      otherwise
-      CalcAdjugate(Trans.Jacobian(), Jinv);
-
       vc.Eval(xk, Trans, Nodes.IntPoint(k));
       // dof_k = nk^t adj(J) xk
-      dofs(k) = Jinv.InnerProduct(vk, nk + d2n[k]*Dim);
+      dofs(k) = Trans.AdjugateJacobian().InnerProduct(vk, nk + d2n[k]*Dim);
       if (!square_J) { dofs(k) /= Trans.Weight(); }
    }
 }
@@ -561,9 +557,6 @@ void VectorFiniteElement::Project_RT(
       double vk[3];
       Vector shape(fe.GetDof());
       int sdim = Trans.GetSpaceDim();
-#ifdef MFEM_THREAD_SAFE
-      DenseMatrix Jinv(Dim, sdim);
-#endif
 
       I.SetSize(Dof, sdim*fe.GetDof());
       for (int k = 0; k < Dof; k++)
@@ -572,8 +565,7 @@ void VectorFiniteElement::Project_RT(
 
          fe.CalcShape(ip, shape);
          Trans.SetIntPoint(&ip);
-         CalcAdjugate(Trans.Jacobian(), Jinv);
-         Jinv.MultTranspose(nk + d2n[k]*Dim, vk);
+         Trans.AdjugateJacobian().MultTranspose(nk + d2n[k]*Dim, vk);
          if (fe.GetMapType() == INTEGRAL)
          {
             double w = 1.0/Trans.Weight();
@@ -781,20 +773,18 @@ void VectorFiniteElement::LocalInterpolation_RT(
    IntegrationPoint ip;
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix vshape(Dof, Dim);
-   DenseMatrix Jinv(Dim);
 #endif
 
    // assuming Trans is linear; this should be ok for all refinement types
    Trans.SetIntPoint(&Geometries.GetCenter(GeomType));
-   // set Jinv = |J| J^{-t} = adj(J)^t
-   CalcAdjugateTranspose(Trans.Jacobian(), Jinv);
+   const DenseMatrix &adjJ = Trans.AdjugateJacobian();
    for (int k = 0; k < Dof; k++)
    {
       Trans.Transform(Nodes.IntPoint(k), xk);
       ip.Set3(vk);
       CalcVShape(ip, vshape);
       // xk = |J| J^{-t} n_k
-      Jinv.Mult(nk + d2n[k]*Dim, vk);
+      adjJ.MultTranspose(nk + d2n[k]*Dim, vk);
       // I_k = vshape_k.adj(J)^t.n_k, k=1,...,Dof
       for (int j = 0; j < Dof; j++)
       {
@@ -9001,8 +8991,8 @@ const double RT_QuadrilateralElement::nk[8] =
 RT_QuadrilateralElement::RT_QuadrilateralElement(const int p,
                                                  const int cp_type,
                                                  const int op_type)
-   : VectorFiniteElement(2, Geometry::SQUARE, 2*(p + 1)*(p + 2), p + 1, H_DIV,
-                         FunctionSpace::Qk),
+   : VectorFiniteElement(2, Geometry::SQUARE, 2*(p + 1)*(p + 2), p + 1,
+                         H_DIV, FunctionSpace::Qk),
      cbasis1d(poly1d.ClosedBasis(p + 1, VerifyClosed(cp_type))),
      obasis1d(poly1d.OpenBasis(p, VerifyOpen(op_type))),
      dof_map(Dof), dof2nk(Dof)
@@ -9523,8 +9513,9 @@ const double RT_TriangleElement::nk[6] =
 const double RT_TriangleElement::c = 1./3.;
 
 RT_TriangleElement::RT_TriangleElement(const int p)
-   : VectorFiniteElement(2, Geometry::TRIANGLE, (p + 1)*(p + 3), p + 1, H_DIV,
-                         FunctionSpace::Pk), dof2nk(Dof)
+   : VectorFiniteElement(2, Geometry::TRIANGLE, (p + 1)*(p + 3), p + 1,
+                         H_DIV, FunctionSpace::Pk),
+     dof2nk(Dof)
 {
    const double *iop = (p > 0) ? poly1d.OpenPoints(p - 1) : NULL;
    const double *bop = poly1d.OpenPoints(p);
@@ -10232,8 +10223,8 @@ const double ND_QuadrilateralElement::tk[8] =
 ND_QuadrilateralElement::ND_QuadrilateralElement(const int p,
                                                  const int cp_type,
                                                  const int op_type)
-   : VectorFiniteElement(2, Geometry::SQUARE, 2*p*(p + 1), p, H_CURL,
-                         FunctionSpace::Qk),
+   : VectorFiniteElement(2, Geometry::SQUARE, 2*p*(p + 1), p,
+                         H_CURL, FunctionSpace::Qk),
      cbasis1d(poly1d.ClosedBasis(p, VerifyClosed(cp_type))),
      obasis1d(poly1d.OpenBasis(p - 1, VerifyOpen(op_type))),
      dof_map(Dof), dof2tk(Dof)
@@ -10684,8 +10675,9 @@ const double ND_TriangleElement::tk[8] =
 const double ND_TriangleElement::c = 1./3.;
 
 ND_TriangleElement::ND_TriangleElement(const int p)
-   : VectorFiniteElement(2, Geometry::TRIANGLE, p*(p + 2), p, H_CURL,
-                         FunctionSpace::Pk), dof2tk(Dof)
+   : VectorFiniteElement(2, Geometry::TRIANGLE, p*(p + 2), p,
+                         H_CURL, FunctionSpace::Pk),
+     dof2tk(Dof)
 {
    const double *eop = poly1d.OpenPoints(p - 1);
    const double *iop = (p > 1) ? poly1d.OpenPoints(p - 2) : NULL;
@@ -10843,8 +10835,8 @@ void ND_TriangleElement::CalcCurlShape(const IntegrationPoint &ip,
 const double ND_SegmentElement::tk[1] = { 1. };
 
 ND_SegmentElement::ND_SegmentElement(const int p, const int op_type)
-   : VectorFiniteElement(1, Geometry::SEGMENT, p, p - 1, H_CURL,
-                         FunctionSpace::Pk),
+   : VectorFiniteElement(1, Geometry::SEGMENT, p, p - 1,
+                         H_CURL, FunctionSpace::Pk),
      obasis1d(poly1d.OpenBasis(p - 1, VerifyOpen(op_type))),
      dof2tk(Dof)
 {
@@ -10865,6 +10857,7 @@ void ND_SegmentElement::CalcVShape(const IntegrationPoint &ip,
 
    obasis1d.Eval(ip.x, vshape);
 }
+
 
 void NURBS1DFiniteElement::CalcShape(const IntegrationPoint &ip,
                                      Vector &shape) const
