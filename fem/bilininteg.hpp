@@ -178,10 +178,20 @@ public:
                                        ElementTransformation &Trans,
                                        DenseMatrix &elmat);
 
-protected:
+   /// Support for use in BilinearForm. Can be used only when appropriate.
+   virtual void AssembleElementMatrix(const FiniteElement &fe,
+                                      ElementTransformation &Trans,
+                                      DenseMatrix &elmat)
+   { AssembleElementMatrix2(fe, fe, Trans, elmat); }
 
-   MixedScalarIntegrator() : Q(NULL) {}
-   MixedScalarIntegrator(Coefficient &q) : Q(&q) {}
+protected:
+   /// This parameter can be set by derived methods to enable single shape
+   /// evaluation in case CalcTestShape() and CalcTrialShape() return the same
+   /// result if given the same FiniteElement. The default is false.
+   bool same_calc_shape;
+
+   MixedScalarIntegrator() : same_calc_shape(false), Q(NULL) {}
+   MixedScalarIntegrator(Coefficient &q) : same_calc_shape(false), Q(&q) {}
 
    inline virtual bool VerifyFiniteElementTypes(
       const FiniteElement & trial_fe,
@@ -206,12 +216,12 @@ protected:
    inline virtual void CalcTestShape(const FiniteElement & test_fe,
                                      ElementTransformation &Trans,
                                      Vector & shape)
-   { test_fe.CalcShape(Trans, shape); }
+   { test_fe.CalcPhysShape(Trans, shape); }
 
    inline virtual void CalcTrialShape(const FiniteElement & trial_fe,
                                       ElementTransformation &Trans,
                                       Vector & shape)
-   { trial_fe.CalcShape(Trans, shape); }
+   { trial_fe.CalcPhysShape(Trans, shape); }
 
 private:
 
@@ -235,15 +245,27 @@ public:
                                        ElementTransformation &Trans,
                                        DenseMatrix &elmat);
 
-protected:
+   /// Support for use in BilinearForm. Can be used only when appropriate.
+   virtual void AssembleElementMatrix(const FiniteElement &fe,
+                                      ElementTransformation &Trans,
+                                      DenseMatrix &elmat)
+   { AssembleElementMatrix2(fe, fe, Trans, elmat); }
 
-   MixedVectorIntegrator() : Q(NULL), VQ(NULL), DQ(NULL), MQ(NULL) {}
+protected:
+   /// This parameter can be set by derived methods to enable single shape
+   /// evaluation in case CalcTestShape() and CalcTrialShape() return the same
+   /// result if given the same FiniteElement. The default is false.
+   bool same_calc_shape;
+
+   MixedVectorIntegrator()
+      : same_calc_shape(false), Q(NULL), VQ(NULL), DQ(NULL), MQ(NULL) {}
    MixedVectorIntegrator(Coefficient &q)
-      : Q(&q), VQ(NULL), DQ(NULL), MQ(NULL) {}
+      : same_calc_shape(false), Q(&q), VQ(NULL), DQ(NULL), MQ(NULL) {}
    MixedVectorIntegrator(VectorCoefficient &dq, bool diag = true)
-      : Q(NULL), VQ(diag?NULL:&dq), DQ(diag?&dq:NULL), MQ(NULL) {}
+      : same_calc_shape(false), Q(NULL), VQ(diag?NULL:&dq), DQ(diag?&dq:NULL),
+        MQ(NULL) {}
    MixedVectorIntegrator(MatrixCoefficient &mq)
-      : Q(NULL), VQ(NULL), DQ(NULL), MQ(&mq) {}
+      : same_calc_shape(false), Q(NULL), VQ(NULL), DQ(NULL), MQ(&mq) {}
 
    inline virtual bool VerifyFiniteElementTypes(
       const FiniteElement & trial_fe,
@@ -354,7 +376,7 @@ protected:
    inline virtual void CalcShape(const FiniteElement & scalar_fe,
                                  ElementTransformation &Trans,
                                  Vector & shape)
-   { scalar_fe.CalcShape(Trans, shape); }
+   { scalar_fe.CalcPhysShape(Trans, shape); }
 
 private:
 
@@ -378,9 +400,9 @@ private:
 class MixedScalarMassIntegrator : public MixedScalarIntegrator
 {
 public:
-   MixedScalarMassIntegrator() {}
+   MixedScalarMassIntegrator() { same_calc_shape = true; }
    MixedScalarMassIntegrator(Coefficient &q)
-      : MixedScalarIntegrator(q) {}
+      : MixedScalarIntegrator(q) { same_calc_shape = true; }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (Q u, v) in
@@ -427,7 +449,7 @@ protected:
                                       Vector & shape)
    {
       DenseMatrix dshape(shape.GetData(), shape.Size(), 1);
-      trial_fe.CalcDShape(Trans, dshape);
+      trial_fe.CalcPhysDShape(Trans, dshape);
    }
 };
 
@@ -465,7 +487,7 @@ protected:
                                      Vector & shape)
    {
       DenseMatrix dshape(shape.GetData(), shape.Size(), 1);
-      test_fe.CalcDShape(Trans, dshape);
+      test_fe.CalcPhysDShape(Trans, dshape);
       shape *= -1.0;
    }
 };
@@ -505,7 +527,7 @@ protected:
    inline virtual void CalcTrialShape(const FiniteElement & trial_fe,
                                       ElementTransformation &Trans,
                                       Vector & shape)
-   { trial_fe.CalcDivShape(Trans, shape); }
+   { trial_fe.CalcPhysDivShape(Trans, shape); }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (V div u, v) in
@@ -542,7 +564,7 @@ protected:
    inline virtual void CalcShape(const FiniteElement & scalar_fe,
                                  ElementTransformation &Trans,
                                  Vector & shape)
-   { scalar_fe.CalcDivShape(Trans, shape); }
+   { scalar_fe.CalcPhysDivShape(Trans, shape); }
 };
 
 /** Class for integrating the bilinear form a(u,v) := -(Q u, div v) in
@@ -576,7 +598,7 @@ protected:
                               ElementTransformation &Trans,
                               Vector & shape)
    {
-      test_fe.CalcDivShape(Trans, shape);
+      test_fe.CalcPhysDivShape(Trans, shape);
       shape *= -1.0;
    }
 };
@@ -619,7 +641,7 @@ protected:
                                       Vector & shape)
    {
       DenseMatrix dshape(shape.GetData(), shape.Size(), 1);
-      trial_fe.CalcCurlShape(Trans, dshape);
+      trial_fe.CalcPhysCurlShape(Trans, dshape);
    }
 };
 
@@ -656,7 +678,7 @@ protected:
                                      Vector & shape)
    {
       DenseMatrix dshape(shape.GetData(), shape.Size(), 1);
-      test_fe.CalcCurlShape(Trans, dshape);
+      test_fe.CalcPhysCurlShape(Trans, dshape);
    }
 };
 
@@ -667,13 +689,13 @@ protected:
 class MixedVectorMassIntegrator : public MixedVectorIntegrator
 {
 public:
-   MixedVectorMassIntegrator() {}
+   MixedVectorMassIntegrator() { same_calc_shape = true; }
    MixedVectorMassIntegrator(Coefficient &q)
-      : MixedVectorIntegrator(q) {}
+      : MixedVectorIntegrator(q) { same_calc_shape = true; }
    MixedVectorMassIntegrator(VectorCoefficient &dq)
-      : MixedVectorIntegrator(dq, true) {}
+      : MixedVectorIntegrator(dq, true) { same_calc_shape = true; }
    MixedVectorMassIntegrator(MatrixCoefficient &mq)
-      : MixedVectorIntegrator(mq) {}
+      : MixedVectorIntegrator(mq) { same_calc_shape = true; }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (V x u, v) in 3D
@@ -683,7 +705,7 @@ class MixedCrossProductIntegrator : public MixedVectorIntegrator
 {
 public:
    MixedCrossProductIntegrator(VectorCoefficient &vq)
-      : MixedVectorIntegrator(vq, false) {}
+      : MixedVectorIntegrator(vq, false) { same_calc_shape = true; }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (V . u, v) in 2D or 3D
@@ -741,7 +763,7 @@ public:
    inline virtual void CalcShape(const FiniteElement & scalar_fe,
                                  ElementTransformation &Trans,
                                  Vector & shape)
-   { scalar_fe.CalcDivShape(Trans, shape); shape *= -1.0; }
+   { scalar_fe.CalcPhysDivShape(Trans, shape); shape *= -1.0; }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (V x u, Grad v) in 3D
@@ -774,7 +796,7 @@ public:
    inline virtual void CalcTestShape(const FiniteElement & test_fe,
                                      ElementTransformation &Trans,
                                      DenseMatrix & shape)
-   { test_fe.CalcDShape(Trans, shape); shape *= -1.0; }
+   { test_fe.CalcPhysDShape(Trans, shape); shape *= -1.0; }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (Q Grad u, Grad v) in 3D
@@ -784,13 +806,13 @@ public:
 class MixedGradGradIntegrator : public MixedVectorIntegrator
 {
 public:
-   MixedGradGradIntegrator() {}
+   MixedGradGradIntegrator() { same_calc_shape = true; }
    MixedGradGradIntegrator(Coefficient &q)
-      : MixedVectorIntegrator(q) {}
+      : MixedVectorIntegrator(q) { same_calc_shape = true; }
    MixedGradGradIntegrator(VectorCoefficient &dq)
-      : MixedVectorIntegrator(dq, true) {}
+      : MixedVectorIntegrator(dq, true) { same_calc_shape = true; }
    MixedGradGradIntegrator(MatrixCoefficient &mq)
-      : MixedVectorIntegrator(mq) {}
+      : MixedVectorIntegrator(mq) { same_calc_shape = true; }
 
    inline virtual bool VerifyFiniteElementTypes(
       const FiniteElement & trial_fe,
@@ -809,15 +831,25 @@ public:
              "with a gradient operator.";
    }
 
+   inline virtual int GetIntegrationOrder(const FiniteElement & trial_fe,
+                                          const FiniteElement & test_fe,
+                                          ElementTransformation &Trans)
+   {
+      // Same as DiffusionIntegrator
+      return test_fe.Space() == FunctionSpace::Pk ?
+             trial_fe.GetOrder() + test_fe.GetOrder() - 2 :
+             trial_fe.GetOrder() + test_fe.GetOrder() + test_fe.GetDim() - 1;
+   }
+
    inline virtual void CalcTrialShape(const FiniteElement & trial_fe,
                                       ElementTransformation &Trans,
                                       DenseMatrix & shape)
-   { trial_fe.CalcDShape(Trans, shape); }
+   { trial_fe.CalcPhysDShape(Trans, shape); }
 
    inline virtual void CalcTestShape(const FiniteElement & test_fe,
                                      ElementTransformation &Trans,
                                      DenseMatrix & shape)
-   { test_fe.CalcDShape(Trans, shape); }
+   { test_fe.CalcPhysDShape(Trans, shape); }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (V x Grad u, Grad v) in 3D
@@ -827,7 +859,7 @@ class MixedCrossGradGradIntegrator : public MixedVectorIntegrator
 {
 public:
    MixedCrossGradGradIntegrator(VectorCoefficient &vq)
-      : MixedVectorIntegrator(vq, false) {}
+      : MixedVectorIntegrator(vq, false) { same_calc_shape = true; }
 
    inline virtual bool VerifyFiniteElementTypes(
       const FiniteElement & trial_fe,
@@ -849,12 +881,12 @@ public:
    inline virtual void CalcTrialShape(const FiniteElement & trial_fe,
                                       ElementTransformation &Trans,
                                       DenseMatrix & shape)
-   { trial_fe.CalcDShape(Trans, shape); }
+   { trial_fe.CalcPhysDShape(Trans, shape); }
 
    inline virtual void CalcTestShape(const FiniteElement & test_fe,
                                      ElementTransformation &Trans,
                                      DenseMatrix & shape)
-   { test_fe.CalcDShape(Trans, shape); }
+   { test_fe.CalcPhysDShape(Trans, shape); }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (Q Curl u, Curl v) in 3D
@@ -863,13 +895,13 @@ public:
 class MixedCurlCurlIntegrator : public MixedVectorIntegrator
 {
 public:
-   MixedCurlCurlIntegrator() {}
+   MixedCurlCurlIntegrator() { same_calc_shape = true; }
    MixedCurlCurlIntegrator(Coefficient &q)
-      : MixedVectorIntegrator(q) {}
+      : MixedVectorIntegrator(q) { same_calc_shape = true; }
    MixedCurlCurlIntegrator(VectorCoefficient &dq)
-      : MixedVectorIntegrator(dq, true) {}
+      : MixedVectorIntegrator(dq, true) { same_calc_shape = true; }
    MixedCurlCurlIntegrator(MatrixCoefficient &mq)
-      : MixedVectorIntegrator(mq) {}
+      : MixedVectorIntegrator(mq) { same_calc_shape = true; }
 
    inline virtual bool VerifyFiniteElementTypes(
       const FiniteElement & trial_fe,
@@ -892,12 +924,12 @@ public:
    inline virtual void CalcTrialShape(const FiniteElement & trial_fe,
                                       ElementTransformation &Trans,
                                       DenseMatrix & shape)
-   { trial_fe.CalcCurlShape(Trans, shape); }
+   { trial_fe.CalcPhysCurlShape(Trans, shape); }
 
    inline virtual void CalcTestShape(const FiniteElement & test_fe,
                                      ElementTransformation &Trans,
                                      DenseMatrix & shape)
-   { test_fe.CalcCurlShape(Trans, shape); }
+   { test_fe.CalcPhysCurlShape(Trans, shape); }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (V x Curl u, Curl v) in 3D
@@ -907,7 +939,7 @@ class MixedCrossCurlCurlIntegrator : public MixedVectorIntegrator
 {
 public:
    MixedCrossCurlCurlIntegrator(VectorCoefficient &vq)
-      : MixedVectorIntegrator(vq, false) {}
+      : MixedVectorIntegrator(vq, false) { same_calc_shape = true; }
 
    inline virtual bool VerifyFiniteElementTypes(
       const FiniteElement & trial_fe,
@@ -930,12 +962,12 @@ public:
    inline virtual void CalcTrialShape(const FiniteElement & trial_fe,
                                       ElementTransformation &Trans,
                                       DenseMatrix & shape)
-   { trial_fe.CalcCurlShape(Trans, shape); }
+   { trial_fe.CalcPhysCurlShape(Trans, shape); }
 
    inline virtual void CalcTestShape(const FiniteElement & test_fe,
                                      ElementTransformation &Trans,
                                      DenseMatrix & shape)
-   { test_fe.CalcCurlShape(Trans, shape); }
+   { test_fe.CalcPhysCurlShape(Trans, shape); }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (V x Curl u, Grad v) in 3D
@@ -968,12 +1000,12 @@ public:
    inline virtual void CalcTrialShape(const FiniteElement & trial_fe,
                                       ElementTransformation &Trans,
                                       DenseMatrix & shape)
-   { trial_fe.CalcCurlShape(Trans, shape); }
+   { trial_fe.CalcPhysCurlShape(Trans, shape); }
 
    inline virtual void CalcTestShape(const FiniteElement & test_fe,
                                      ElementTransformation &Trans,
                                      DenseMatrix & shape)
-   { test_fe.CalcDShape(Trans, shape); }
+   { test_fe.CalcPhysDShape(Trans, shape); }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (V x Grad u, Curl v) in 3D
@@ -1006,12 +1038,12 @@ public:
    inline virtual void CalcTrialShape(const FiniteElement & trial_fe,
                                       ElementTransformation &Trans,
                                       DenseMatrix & shape)
-   { trial_fe.CalcDShape(Trans, shape); }
+   { trial_fe.CalcPhysDShape(Trans, shape); }
 
    inline virtual void CalcTestShape(const FiniteElement & test_fe,
                                      ElementTransformation &Trans,
                                      DenseMatrix & shape)
-   { test_fe.CalcCurlShape(Trans, shape); }
+   { test_fe.CalcPhysCurlShape(Trans, shape); }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (V x u, Curl v) in 3D
@@ -1044,7 +1076,7 @@ public:
    inline virtual void CalcTestShape(const FiniteElement & test_fe,
                                      ElementTransformation &Trans,
                                      DenseMatrix & shape)
-   { test_fe.CalcCurlShape(Trans, shape); }
+   { test_fe.CalcPhysCurlShape(Trans, shape); }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (V x u, Curl v) in 2D
@@ -1079,7 +1111,7 @@ public:
                                  Vector & shape)
    {
       DenseMatrix dshape(shape.GetData(), shape.Size(), 1);
-      scalar_fe.CalcCurlShape(Trans, dshape);
+      scalar_fe.CalcPhysCurlShape(Trans, dshape);
    }
 };
 
@@ -1113,7 +1145,7 @@ public:
    inline virtual void CalcTrialShape(const FiniteElement & trial_fe,
                                       ElementTransformation &Trans,
                                       DenseMatrix & shape)
-   { trial_fe.CalcDShape(Trans, shape); }
+   { trial_fe.CalcPhysDShape(Trans, shape); }
 
    inline virtual void CalcTestShape(const FiniteElement & test_fe,
                                      ElementTransformation &Trans,
@@ -1151,7 +1183,7 @@ public:
    inline virtual void CalcTrialShape(const FiniteElement & trial_fe,
                                       ElementTransformation &Trans,
                                       DenseMatrix & shape)
-   { trial_fe.CalcCurlShape(Trans, shape); }
+   { trial_fe.CalcPhysCurlShape(Trans, shape); }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (V x Curl u, v) in 2D
@@ -1186,7 +1218,7 @@ public:
                                  Vector & shape)
    {
       DenseMatrix dshape(shape.GetData(), shape.Size(), 1);
-      scalar_fe.CalcCurlShape(Trans, dshape); shape *= -1.0;
+      scalar_fe.CalcPhysCurlShape(Trans, dshape); shape *= -1.0;
    }
 };
 
@@ -1219,7 +1251,7 @@ public:
    inline virtual void CalcVShape(const FiniteElement & vector_fe,
                                   ElementTransformation &Trans,
                                   DenseMatrix & shape)
-   { vector_fe.CalcDShape(Trans, shape); }
+   { vector_fe.CalcPhysDShape(Trans, shape); }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (V x u, v) in 2D
@@ -1276,7 +1308,7 @@ public:
    inline virtual void CalcShape(const FiniteElement & scalar_fe,
                                  ElementTransformation &Trans,
                                  Vector & shape)
-   { scalar_fe.CalcShape(Trans, shape); shape *= -1.0; }
+   { scalar_fe.CalcPhysShape(Trans, shape); shape *= -1.0; }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (V . Grad u, v) in 2D
@@ -1308,7 +1340,7 @@ public:
    inline virtual void CalcVShape(const FiniteElement & vector_fe,
                                   ElementTransformation &Trans,
                                   DenseMatrix & shape)
-   { vector_fe.CalcDShape(Trans, shape); }
+   { vector_fe.CalcPhysDShape(Trans, shape); }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (-V . Grad u, Div v) in 2D
@@ -1341,12 +1373,12 @@ public:
    inline virtual void CalcVShape(const FiniteElement & vector_fe,
                                   ElementTransformation &Trans,
                                   DenseMatrix & shape)
-   { vector_fe.CalcDShape(Trans, shape); shape *= -1.0; }
+   { vector_fe.CalcPhysDShape(Trans, shape); shape *= -1.0; }
 
    inline virtual void CalcShape(const FiniteElement & scalar_fe,
                                  ElementTransformation &Trans,
                                  Vector & shape)
-   { scalar_fe.CalcDivShape(Trans, shape); }
+   { scalar_fe.CalcPhysDivShape(Trans, shape); }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (-V Div u, Grad v) in 2D
@@ -1380,12 +1412,12 @@ public:
    inline virtual void CalcVShape(const FiniteElement & vector_fe,
                                   ElementTransformation &Trans,
                                   DenseMatrix & shape)
-   { vector_fe.CalcDShape(Trans, shape); shape *= -1.0; }
+   { vector_fe.CalcPhysDShape(Trans, shape); shape *= -1.0; }
 
    inline virtual void CalcShape(const FiniteElement & scalar_fe,
                                  ElementTransformation &Trans,
                                  Vector & shape)
-   { scalar_fe.CalcDivShape(Trans, shape); }
+   { scalar_fe.CalcPhysDivShape(Trans, shape); }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (-V u, Grad v) in 2D
@@ -1417,7 +1449,7 @@ public:
    inline virtual void CalcVShape(const FiniteElement & vector_fe,
                                   ElementTransformation &Trans,
                                   DenseMatrix & shape)
-   { vector_fe.CalcDShape(Trans, shape); shape *= -1.0; }
+   { vector_fe.CalcPhysDShape(Trans, shape); shape *= -1.0; }
 };
 
 /** Class for integrating the bilinear form a(u,v) := (Q grad u, v) in
@@ -1456,7 +1488,7 @@ protected:
                                       ElementTransformation &Trans,
                                       DenseMatrix & shape)
    {
-      trial_fe.CalcDShape(Trans, shape);
+      trial_fe.CalcPhysDShape(Trans, shape);
    }
 
 private:
@@ -1499,7 +1531,7 @@ protected:
                                       ElementTransformation &Trans,
                                       DenseMatrix & shape)
    {
-      trial_fe.CalcCurlShape(Trans, shape);
+      trial_fe.CalcPhysCurlShape(Trans, shape);
    }
 };
 
@@ -1539,7 +1571,7 @@ protected:
                                      ElementTransformation &Trans,
                                      DenseMatrix & shape)
    {
-      test_fe.CalcCurlShape(Trans, shape);
+      test_fe.CalcPhysCurlShape(Trans, shape);
    }
 };
 
@@ -1578,7 +1610,7 @@ protected:
                                      ElementTransformation &Trans,
                                      DenseMatrix & shape)
    {
-      test_fe.CalcDShape(Trans, shape);
+      test_fe.CalcPhysDShape(Trans, shape);
       shape *= -1.0;
    }
 };

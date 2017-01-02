@@ -3648,12 +3648,12 @@ void AddMult_a_VWt(const double a, const Vector &v, const Vector &w,
    }
 #endif
 
-   for (int i = 0; i < m; i++)
+   for (int j = 0; j < n; j++)
    {
-      double avi = a * v(i);
-      for (int j = 0; j < n; j++)
+      const double awj = a * w(j);
+      for (int i = 0; i < m; i++)
       {
-         VWt(i, j) += avi * w(j);
+         VWt(i, j) += v(i) * awj;
       }
    }
 }

@@ -22,7 +22,7 @@ namespace mfem
 using namespace std;
 
 FiniteElement::FiniteElement(int D, int G, int Do, int O, int F)
-   : Nodes(Do)
+   : Nodes(Do), vshape(Do, D)
 {
    Dim = D ; GeomType = G ; Dof = Do ; Order = O ; FuncSpace = F;
    RangeType = SCALAR;
@@ -53,11 +53,11 @@ void FiniteElement::CalcDivShape (
                "   is not implemented for this class!");
 }
 
-void FiniteElement::CalcDivShape (
-   ElementTransformation &Trans, Vector &divshape) const
+void FiniteElement::CalcPhysDivShape(
+   ElementTransformation &Trans, Vector &div_shape) const
 {
-   mfem_error ("FiniteElement::CalcDivShape (trans, ...)\n"
-               "   is not implemented for this class!");
+   CalcDivShape(Trans.GetIntPoint(), div_shape);
+   div_shape *= (1.0 / Trans.Weight());
 }
 
 void FiniteElement::CalcCurlShape(const IntegrationPoint &ip,
@@ -67,11 +67,29 @@ void FiniteElement::CalcCurlShape(const IntegrationPoint &ip,
                "   is not implemented for this class!");
 }
 
-void FiniteElement::CalcCurlShape(ElementTransformation &Trans,
-                                  DenseMatrix &curl_shape) const
+void FiniteElement::CalcPhysCurlShape(ElementTransformation &Trans,
+                                      DenseMatrix &curl_shape) const
 {
-   mfem_error ("FiniteElement::CalcCurlShape (trans, ...)\n"
-               "   is not implemented for this class!");
+   switch (Dim)
+   {
+      case 3:
+      {
+#ifdef MFEM_THREAD_SAFE
+         DenseMatrix vshape(Dof, Dim);
+#endif
+         CalcCurlShape(Trans.GetIntPoint(), vshape);
+         MultABt(vshape, Trans.Jacobian(), curl_shape);
+         curl_shape *= (1.0 / Trans.Weight());
+         break;
+      }
+      case 2:
+         // This is valid for both 2x2 and 3x2 Jacobians
+         CalcCurlShape(Trans.GetIntPoint(), curl_shape);
+         curl_shape *= (1.0 / Trans.Weight());
+         break;
+      default:
+         MFEM_ABORT("Invalid dimension, Dim = " << Dim);
+   }
 }
 
 void FiniteElement::GetFaceDofs(int face, int **dofs, int *ndofs) const
@@ -140,29 +158,25 @@ void FiniteElement::ProjectDiv(
               "this element!");
 }
 
-void ScalarFiniteElement::CalcShape(ElementTransformation &Trans,
-                                    Vector &shape) const
+void FiniteElement::CalcPhysShape(ElementTransformation &Trans,
+                                  Vector &shape) const
 {
    CalcShape(Trans.GetIntPoint(), shape);
+   if (MapType == INTEGRAL)
+   {
+      shape /= Trans.Weight();
+   }
 }
 
-void ScalarFiniteElement::CalcDShape(ElementTransformation &Trans,
-                                     DenseMatrix &dshape) const
+void FiniteElement::CalcPhysDShape(ElementTransformation &Trans,
+                                   DenseMatrix &dshape) const
 {
-   const DenseMatrix &J = Trans.Jacobian();
-
+   MFEM_ASSERT(MapType == VALUE, "");
 #ifdef MFEM_THREAD_SAFE
-   DenseMatrix d_shape(Dof, Dim);
-   DenseMatrix Jinv(J.Width(), J.Height());
-#else
-   Jinv.SetSize(J.Width(), J.Height());
+   DenseMatrix vshape(Dof, Dim);
 #endif
-
-   CalcInverse(J, Jinv);
-
-   CalcDShape(Trans.GetIntPoint(), d_shape);
-
-   Mult(d_shape, Jinv, dshape);
+   CalcDShape(Trans.GetIntPoint(), vshape);
+   Mult(vshape, Trans.InverseJacobian(), dshape);
 }
 
 void NodalFiniteElement::NodalLocalInterpolation (
@@ -444,13 +458,6 @@ void VectorFiniteElement::CalcShape (
                "   VectorFiniteElements!");
 }
 
-void VectorFiniteElement::CalcShape (
-   ElementTransformation &Trans, Vector &shape ) const
-{
-   mfem_error ("Error: Cannot use scalar CalcShape(...) function with\n"
-               "   VectorFiniteElements!");
-}
-
 void VectorFiniteElement::CalcDShape (
    const IntegrationPoint &ip, DenseMatrix &dshape ) const
 {
@@ -458,80 +465,64 @@ void VectorFiniteElement::CalcDShape (
                "   VectorFiniteElements!");
 }
 
-void VectorFiniteElement::CalcDShape (
-   ElementTransformation &Trans, DenseMatrix &dshape ) const
+void VectorFiniteElement::SetDerivMembers()
 {
-   mfem_error ("Error: Cannot use scalar CalcDShape(...) function with\n"
-               "   VectorFiniteElements!");
+   switch (MapType)
+   {
+      case H_DIV:
+         DerivType = DIV;
+         DerivRangeType = SCALAR;
+         DerivMapType = INTEGRAL;
+         break;
+      case H_CURL:
+         switch (Dim)
+         {
+            case 3: // curl: 3D H_CURL -> 3D H_DIV
+               DerivType = CURL;
+               DerivRangeType = VECTOR;
+               DerivMapType = H_DIV;
+               break;
+            case 2:
+               // curl: 2D H_CURL -> INTEGRAL
+               DerivType = CURL;
+               DerivRangeType = SCALAR;
+               DerivMapType = INTEGRAL;
+               break;
+            case 1:
+               DerivType = NONE;
+               DerivRangeType = SCALAR;
+               DerivMapType = INTEGRAL;
+               break;
+            default:
+               MFEM_ABORT("Invalid dimension, Dim = " << Dim);
+         }
+         break;
+      default:
+         MFEM_ABORT("Invalid MapType = " << MapType);
+   }
 }
 
 void VectorFiniteElement::CalcVShape_RT (
    ElementTransformation &Trans, DenseMatrix &shape) const
 {
+   MFEM_ASSERT(MapType == H_DIV, "");
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix vshape(Dof, Dim);
 #endif
    CalcVShape(Trans.GetIntPoint(), vshape);
-
    MultABt(vshape, Trans.Jacobian(), shape);
-
    shape *= (1.0 / Trans.Weight());
 }
 
 void VectorFiniteElement::CalcVShape_ND (
    ElementTransformation &Trans, DenseMatrix &shape) const
 {
-   const DenseMatrix &J = Trans.Jacobian();
-
+   MFEM_ASSERT(MapType == H_CURL, "");
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix vshape(Dof, Dim);
-   DenseMatrix Jinv(J.Width(), J.Height());
-#else
-   Jinv.SetSize(J.Width(), J.Height());
 #endif
-
-   CalcInverse(J, Jinv);
-
    CalcVShape(Trans.GetIntPoint(), vshape);
-
-   Mult(vshape, Jinv, shape);
-}
-
-void VectorFiniteElement::CalcDivShape_RT (
-   ElementTransformation &Trans, Vector &div_shape) const
-{
-   CalcDivShape(Trans.GetIntPoint(), div_shape);
-
-   if ( DerivMapType == INTEGRAL )
-   {
-      div_shape *= (1.0 / Trans.Weight());
-   }
-}
-
-void VectorFiniteElement::CalcCurlShape_ND (
-   ElementTransformation &Trans, DenseMatrix &curl_shape) const
-{
-   if ( DerivMapType == H_DIV )
-   {
-#ifdef MFEM_THREAD_SAFE
-      DenseMatrix vshape(Dof, Dim);
-#endif
-      CalcCurlShape(Trans.GetIntPoint(), vshape);
-
-      MultABt(vshape, Trans.Jacobian(), curl_shape);
-
-      curl_shape *= (1.0 / Trans.Weight());
-   }
-   else if ( DerivMapType == INTEGRAL )
-   {
-      CalcCurlShape(Trans.GetIntPoint(), curl_shape);
-
-      curl_shape *= (1.0 / Trans.Weight());
-   }
-   else
-   {
-      CalcCurlShape(Trans.GetIntPoint(), curl_shape);
-   }
+   Mult(vshape, Trans.InverseJacobian(), shape);
 }
 
 void VectorFiniteElement::Project_RT(
@@ -853,7 +844,7 @@ void VectorFiniteElement::LocalInterpolation_ND(
 
 
 PointFiniteElement::PointFiniteElement()
-   : NodalFiniteElement(0, Geometry::POINT, 1, 0, NONE, SCALAR, VALUE)
+   : NodalFiniteElement(0, Geometry::POINT, 1, 0)
 {
    Nodes.IntPoint(0).x = 0.0;
 }
@@ -867,17 +858,11 @@ void PointFiniteElement::CalcShape(const IntegrationPoint &ip,
 void PointFiniteElement::CalcDShape(const IntegrationPoint &ip,
                                     DenseMatrix &dshape) const
 {
-   // doesn't make sense
-}
-
-void PointFiniteElement::CalcDShape(ElementTransformation &Trans,
-                                    DenseMatrix &dshape) const
-{
-   // doesn't make sense
+   // dshape is (1 x 0) - nothing to compute
 }
 
 Linear1DFiniteElement::Linear1DFiniteElement()
-   : NodalFiniteElement(1, Geometry::SEGMENT, 2, 1, GRAD, SCALAR, VALUE)
+   : NodalFiniteElement(1, Geometry::SEGMENT, 2, 1)
 {
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(1).x = 1.0;
@@ -898,7 +883,7 @@ void Linear1DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 }
 
 Linear2DFiniteElement::Linear2DFiniteElement()
-   : NodalFiniteElement(2, Geometry::TRIANGLE, 3, 1, GRAD, VECTOR, H_CURL)
+   : NodalFiniteElement(2, Geometry::TRIANGLE, 3, 1)
 {
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(0).y = 0.0;
@@ -925,8 +910,7 @@ void Linear2DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 }
 
 BiLinear2DFiniteElement::BiLinear2DFiniteElement()
-   : NodalFiniteElement(2, Geometry::SQUARE , 4, 1, GRAD, VECTOR, H_CURL,
-                        FunctionSpace::Qk)
+   : NodalFiniteElement(2, Geometry::SQUARE , 4, 1, FunctionSpace::Qk)
 {
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(0).y = 0.0;
@@ -955,26 +939,7 @@ void BiLinear2DFiniteElement::CalcDShape(const IntegrationPoint &ip,
    dshape(2,0) =  ip.y ;     dshape(2,1) = ip.x ;
    dshape(3,0) = -ip.y ;     dshape(3,1) = 1. - ip.x ;
 }
-/*
-void BiLinear2DFiniteElement::CalcDShape(ElementTransformation &Trans,
-           DenseMatrix &dshape) const
-{
- const DenseMatrix &J = Trans.Jacobian();
 
-#ifdef MFEM_THREAD_SAFE
- DenseMatrix d_shape(Dof, Dim);
- DenseMatrix Jinv(J.Width(), J.Height());
-#else
- Jinv.SetSize(J.Width(), J.Height());
-#endif
-
- CalcInverse(J, Jinv);
-
- CalcDShape(Trans.GetIntPoint(), d_shape);
-
- Mult(d_shape, Jinv, dshape);
-}
-*/
 void BiLinear2DFiniteElement::CalcHessian(
    const IntegrationPoint &ip, DenseMatrix &h) const
 {
@@ -986,8 +951,7 @@ void BiLinear2DFiniteElement::CalcHessian(
 
 
 GaussLinear2DFiniteElement::GaussLinear2DFiniteElement()
-   : NodalFiniteElement(2, Geometry::TRIANGLE, 3, 1, GRAD, VECTOR, H_CURL,
-                        FunctionSpace::Pk)
+   : NodalFiniteElement(2, Geometry::TRIANGLE, 3, 1, FunctionSpace::Pk)
 {
    Nodes.IntPoint(0).x = 1./6.;
    Nodes.IntPoint(0).y = 1./6.;
@@ -1028,8 +992,7 @@ const double GaussBiLinear2DFiniteElement::p[] =
 { 0.2113248654051871177454256, 0.7886751345948128822545744 };
 
 GaussBiLinear2DFiniteElement::GaussBiLinear2DFiniteElement()
-   : NodalFiniteElement(2, Geometry::SQUARE, 4, 1, GRAD, VECTOR, H_CURL,
-                        FunctionSpace::Qk)
+   : NodalFiniteElement(2, Geometry::SQUARE, 4, 1, FunctionSpace::Qk)
 {
    Nodes.IntPoint(0).x = p[0];
    Nodes.IntPoint(0).y = p[0];
@@ -1077,8 +1040,7 @@ void GaussBiLinear2DFiniteElement::ProjectDelta(int vertex, Vector &dofs) const
 
 
 P1OnQuadFiniteElement::P1OnQuadFiniteElement()
-   : NodalFiniteElement(2, Geometry::SQUARE , 3, 1, GRAD, VECTOR, H_CURL,
-                        FunctionSpace::Qk)
+   : NodalFiniteElement(2, Geometry::SQUARE , 3, 1, FunctionSpace::Qk)
 {
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(0).y = 0.0;
@@ -1106,7 +1068,7 @@ void P1OnQuadFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
 
 Quad1DFiniteElement::Quad1DFiniteElement()
-   : NodalFiniteElement(1, Geometry::SEGMENT, 3, 2, GRAD, SCALAR, VALUE)
+   : NodalFiniteElement(1, Geometry::SEGMENT, 3, 2)
 {
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(1).x = 1.0;
@@ -1133,6 +1095,7 @@ void Quad1DFiniteElement::CalcDShape(const IntegrationPoint &ip,
    dshape(1,0) = 4. * x - 1.;
    dshape(2,0) = 4. - 8. * x;
 }
+
 
 QuadPos1DFiniteElement::QuadPos1DFiniteElement()
    : PositiveFiniteElement(1, Geometry::SEGMENT, 3, 2)
@@ -1163,7 +1126,7 @@ void QuadPos1DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 }
 
 Quad2DFiniteElement::Quad2DFiniteElement()
-   : NodalFiniteElement(2, Geometry::TRIANGLE, 6, 2, GRAD, VECTOR, H_CURL)
+   : NodalFiniteElement(2, Geometry::TRIANGLE, 6, 2)
 {
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(0).y = 0.0;
@@ -1266,8 +1229,7 @@ const double GaussQuad2DFiniteElement::p[] =
 { 0.0915762135097707434595714634022015, 0.445948490915964886318329253883051 };
 
 GaussQuad2DFiniteElement::GaussQuad2DFiniteElement()
-   : NodalFiniteElement(2, Geometry::TRIANGLE, 6, 2, GRAD, VECTOR, H_CURL),
-     A(6), D(6,2), pol(6)
+   : NodalFiniteElement(2, Geometry::TRIANGLE, 6, 2), A(6), D(6,2), pol(6)
 {
    Nodes.IntPoint(0).x = p[0];
    Nodes.IntPoint(0).y = p[0];
@@ -1326,8 +1288,7 @@ void GaussQuad2DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
 
 BiQuad2DFiniteElement::BiQuad2DFiniteElement()
-   : NodalFiniteElement(2, Geometry::SQUARE, 9, 2, GRAD, VECTOR, H_CURL,
-                        FunctionSpace::Qk)
+   : NodalFiniteElement(2, Geometry::SQUARE, 9, 2, FunctionSpace::Qk)
 {
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(0).y = 0.0;
@@ -1616,8 +1577,7 @@ void BiQuadPos2DFiniteElement::Project (
 
 
 GaussBiQuad2DFiniteElement::GaussBiQuad2DFiniteElement()
-   : NodalFiniteElement(2, Geometry::SQUARE, 9, 2, GRAD, VECTOR, H_CURL,
-                        FunctionSpace::Qk)
+   : NodalFiniteElement(2, Geometry::SQUARE, 9, 2, FunctionSpace::Qk)
 {
    const double p1 = 0.5*(1.-sqrt(3./5.));
 
@@ -1721,8 +1681,7 @@ void GaussBiQuad2DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 }
 
 BiCubic2DFiniteElement::BiCubic2DFiniteElement()
-   : NodalFiniteElement (2, Geometry::SQUARE, 16, 3, GRAD, VECTOR, H_CURL,
-                         FunctionSpace::Qk)
+   : NodalFiniteElement (2, Geometry::SQUARE, 16, 3, FunctionSpace::Qk)
 {
    Nodes.IntPoint(0).x = 0.;
    Nodes.IntPoint(0).y = 0.;
@@ -1910,7 +1869,7 @@ void BiCubic2DFiniteElement::CalcHessian(
 
 
 Cubic1DFiniteElement::Cubic1DFiniteElement()
-   : NodalFiniteElement(1, Geometry::SEGMENT, 4, 3, GRAD, SCALAR, VALUE)
+   : NodalFiniteElement(1, Geometry::SEGMENT, 4, 3)
 {
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(1).x = 1.0;
@@ -1946,7 +1905,7 @@ void Cubic1DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
 
 Cubic2DFiniteElement::Cubic2DFiniteElement()
-   : NodalFiniteElement(2, Geometry::TRIANGLE, 10, 3, GRAD, VECTOR, H_CURL)
+   : NodalFiniteElement(2, Geometry::TRIANGLE, 10, 3)
 {
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(0).y = 0.0;
@@ -2066,7 +2025,7 @@ void Cubic2DFiniteElement::CalcHessian (const IntegrationPoint &ip,
 
 
 Cubic3DFiniteElement::Cubic3DFiniteElement()
-   : NodalFiniteElement(3, Geometry::TETRAHEDRON, 20, 3, GRAD, VECTOR, H_CURL)
+   : NodalFiniteElement(3, Geometry::TETRAHEDRON, 20, 3)
 {
    Nodes.IntPoint(0).x = 0;
    Nodes.IntPoint(0).y = 0;
@@ -2233,7 +2192,7 @@ void Cubic3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
 
 P0TriangleFiniteElement::P0TriangleFiniteElement()
-   : NodalFiniteElement(2, Geometry::TRIANGLE , 1, 0, GRAD, VECTOR, H_CURL)
+   : NodalFiniteElement(2, Geometry::TRIANGLE , 1, 0)
 {
    Nodes.IntPoint(0).x = 0.333333333333333333;
    Nodes.IntPoint(0).y = 0.333333333333333333;
@@ -2254,8 +2213,7 @@ void P0TriangleFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
 
 P0QuadFiniteElement::P0QuadFiniteElement()
-   : NodalFiniteElement(2, Geometry::SQUARE , 1, 0, GRAD, VECTOR, H_CURL,
-                        FunctionSpace::Qk)
+   : NodalFiniteElement(2, Geometry::SQUARE , 1, 0, FunctionSpace::Qk)
 {
    Nodes.IntPoint(0).x = 0.5;
    Nodes.IntPoint(0).y = 0.5;
@@ -2276,7 +2234,7 @@ void P0QuadFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
 
 Linear3DFiniteElement::Linear3DFiniteElement()
-   : NodalFiniteElement(3, Geometry::TETRAHEDRON, 4, 1, GRAD, VECTOR, H_CURL)
+   : NodalFiniteElement(3, Geometry::TETRAHEDRON, 4, 1)
 {
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(0).y = 0.0;
@@ -2332,7 +2290,7 @@ const
 
 
 Quadratic3DFiniteElement::Quadratic3DFiniteElement()
-   : NodalFiniteElement(3, Geometry::TETRAHEDRON, 10, 2, GRAD, VECTOR, H_CURL)
+   : NodalFiniteElement(3, Geometry::TETRAHEDRON, 10, 2)
 {
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(0).y = 0.0;
@@ -2411,8 +2369,7 @@ void Quadratic3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 }
 
 TriLinear3DFiniteElement::TriLinear3DFiniteElement()
-   : NodalFiniteElement(3, Geometry::CUBE, 8, 1, GRAD, VECTOR, H_CURL,
-                        FunctionSpace::Qk)
+   : NodalFiniteElement(3, Geometry::CUBE, 8, 1, FunctionSpace::Qk)
 {
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(0).y = 0.0;
@@ -2503,8 +2460,7 @@ void TriLinear3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 }
 
 P0SegmentFiniteElement::P0SegmentFiniteElement(int Ord)
-   : NodalFiniteElement(1, Geometry::SEGMENT , 1,
-                        Ord, GRAD, SCALAR, VALUE)  // defaul Ord = 0
+   : NodalFiniteElement(1, Geometry::SEGMENT , 1, Ord)  // defaul Ord = 0
 {
    Nodes.IntPoint(0).x = 0.5;
 }
@@ -2522,7 +2478,7 @@ void P0SegmentFiniteElement::CalcDShape(const IntegrationPoint &ip,
 }
 
 CrouzeixRaviartFiniteElement::CrouzeixRaviartFiniteElement()
-   : NodalFiniteElement(2, Geometry::TRIANGLE , 3, 1, GRAD, VECTOR, H_CURL)
+   : NodalFiniteElement(2, Geometry::TRIANGLE , 3, 1)
 {
    Nodes.IntPoint(0).x = 0.5;
    Nodes.IntPoint(0).y = 0.0;
@@ -2551,8 +2507,7 @@ void CrouzeixRaviartFiniteElement::CalcDShape(const IntegrationPoint &ip,
 CrouzeixRaviartQuadFiniteElement::CrouzeixRaviartQuadFiniteElement()
 // the FunctionSpace should be rotated (45 degrees) Q_1
 // i.e. the span of { 1, x, y, x^2 - y^2 }
-   : NodalFiniteElement(2, Geometry::SQUARE , 4, 2, GRAD, VECTOR, H_CURL,
-                        FunctionSpace::Qk)
+   : NodalFiniteElement(2, Geometry::SQUARE , 4, 2, FunctionSpace::Qk)
 {
    Nodes.IntPoint(0).x = 0.5;
    Nodes.IntPoint(0).y = 0.0;
@@ -2588,7 +2543,7 @@ void CrouzeixRaviartQuadFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
 
 RT0TriangleFiniteElement::RT0TriangleFiniteElement()
-   : VectorFiniteElement(2, Geometry::TRIANGLE, 3, 1, H_DIV, DIV, SCALAR, VALUE)
+   : VectorFiniteElement(2, Geometry::TRIANGLE, 3, 1, H_DIV)
 {
    Nodes.IntPoint(0).x = 0.5;
    Nodes.IntPoint(0).y = 0.0;
@@ -2698,8 +2653,7 @@ void RT0TriangleFiniteElement::Project (
 }
 
 RT0QuadFiniteElement::RT0QuadFiniteElement()
-   : VectorFiniteElement(2, Geometry::SQUARE, 4, 1, H_DIV, DIV, SCALAR, VALUE,
-                         FunctionSpace::Qk)
+   : VectorFiniteElement(2, Geometry::SQUARE, 4, 1, H_DIV, FunctionSpace::Qk)
 {
    Nodes.IntPoint(0).x = 0.5;
    Nodes.IntPoint(0).y = 0.0;
@@ -2814,7 +2768,7 @@ void RT0QuadFiniteElement::Project (
 }
 
 RT1TriangleFiniteElement::RT1TriangleFiniteElement()
-   : VectorFiniteElement(2, Geometry::TRIANGLE, 8, 2, H_DIV, DIV, SCALAR, VALUE)
+   : VectorFiniteElement(2, Geometry::TRIANGLE, 8, 2, H_DIV)
 {
    Nodes.IntPoint(0).x = 0.33333333333333333333;
    Nodes.IntPoint(0).y = 0.0;
@@ -2956,8 +2910,7 @@ void RT1TriangleFiniteElement::Project (
 }
 
 RT1QuadFiniteElement::RT1QuadFiniteElement()
-   : VectorFiniteElement(2, Geometry::SQUARE, 12, 2, H_DIV, DIV, SCALAR, VALUE,
-                         FunctionSpace::Qk)
+   : VectorFiniteElement(2, Geometry::SQUARE, 12, 2, H_DIV, FunctionSpace::Qk)
 {
    // y = 0
    Nodes.IntPoint(0).x  = 1./3.;
@@ -3195,8 +3148,7 @@ const double RT2TriangleFiniteElement::M[15][15] =
 };
 
 RT2TriangleFiniteElement::RT2TriangleFiniteElement()
-   : VectorFiniteElement(2, Geometry::TRIANGLE, 15, 3, H_DIV,
-                         DIV, SCALAR, VALUE)
+   : VectorFiniteElement(2, Geometry::TRIANGLE, 15, 3, H_DIV)
 {
    const double p = 0.11270166537925831148;
 
@@ -3282,8 +3234,7 @@ const double RT2QuadFiniteElement::pt[4] = {0.,1./3.,2./3.,1.};
 const double RT2QuadFiniteElement::dpt[3] = {0.25,0.5,0.75};
 
 RT2QuadFiniteElement::RT2QuadFiniteElement()
-   : VectorFiniteElement(2, Geometry::SQUARE, 24, 3, H_DIV, DIV, SCALAR, VALUE,
-                         FunctionSpace::Qk)
+   : VectorFiniteElement(2, Geometry::SQUARE, 24, 3, H_DIV, FunctionSpace::Qk)
 {
    // y = 0 (pt[0])
    Nodes.IntPoint(0).x  = dpt[0];  Nodes.IntPoint(0).y  =  pt[0];
@@ -3592,7 +3543,7 @@ void RT2QuadFiniteElement::Project (
 }
 
 P1SegmentFiniteElement::P1SegmentFiniteElement()
-   : NodalFiniteElement(1, Geometry::SEGMENT, 2, 1, GRAD, SCALAR, VALUE)
+   : NodalFiniteElement(1, Geometry::SEGMENT, 2, 1)
 {
    Nodes.IntPoint(0).x = 0.33333333333333333333;
    Nodes.IntPoint(1).x = 0.66666666666666666667;
@@ -3616,7 +3567,7 @@ void P1SegmentFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
 
 P2SegmentFiniteElement::P2SegmentFiniteElement()
-   : NodalFiniteElement(1, Geometry::SEGMENT, 3, 2, GRAD, SCALAR, VALUE)
+   : NodalFiniteElement(1, Geometry::SEGMENT, 3, 2)
 {
    const double p = 0.11270166537925831148;
 
@@ -3651,8 +3602,7 @@ void P2SegmentFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
 
 Lagrange1DFiniteElement::Lagrange1DFiniteElement(int degree)
-   : NodalFiniteElement(1, Geometry::SEGMENT, degree+1, degree,
-                        GRAD, SCALAR, VALUE)
+   : NodalFiniteElement(1, Geometry::SEGMENT, degree+1, degree)
 {
    int i, m = degree;
 
@@ -3787,14 +3737,9 @@ void Lagrange1DFiniteElement::CalcDShape(const IntegrationPoint &ip,
       }
 }
 
-void Lagrange1DFiniteElement::CalcDShape(ElementTransformation &Trans,
-                                         DenseMatrix &dshape) const
-{
-   CalcDShape(Trans.GetIntPoint(), dshape);
-}
 
 P1TetNonConfFiniteElement::P1TetNonConfFiniteElement()
-   : NodalFiniteElement(3, Geometry::TETRAHEDRON, 4, 1, GRAD, SCALAR, H_CURL)
+   : NodalFiniteElement(3, Geometry::TETRAHEDRON, 4, 1)
 {
    Nodes.IntPoint(0).x = 0.33333333333333333333;
    Nodes.IntPoint(0).y = 0.33333333333333333333;
@@ -3837,7 +3782,7 @@ void P1TetNonConfFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
 
 P0TetFiniteElement::P0TetFiniteElement()
-   : NodalFiniteElement(3, Geometry::TETRAHEDRON , 1, 0, GRAD, VECTOR, H_CURL)
+   : NodalFiniteElement(3, Geometry::TETRAHEDRON , 1, 0)
 {
    Nodes.IntPoint(0).x = 0.25;
    Nodes.IntPoint(0).y = 0.25;
@@ -3858,8 +3803,7 @@ void P0TetFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
 
 P0HexFiniteElement::P0HexFiniteElement()
-   : NodalFiniteElement(3, Geometry::CUBE, 1, 0, GRAD, VECTOR, H_CURL,
-                        FunctionSpace::Qk)
+   : NodalFiniteElement(3, Geometry::CUBE, 1, 0, FunctionSpace::Qk)
 {
    Nodes.IntPoint(0).x = 0.5;
    Nodes.IntPoint(0).y = 0.5;
@@ -3881,7 +3825,7 @@ void P0HexFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
 LagrangeHexFiniteElement::LagrangeHexFiniteElement (int degree)
    : NodalFiniteElement(3, Geometry::CUBE, (degree+1)*(degree+1)*(degree+1),
-                        degree, GRAD, VECTOR, H_CURL, FunctionSpace::Qk)
+                        degree, FunctionSpace::Qk)
 {
    if (degree == 2)
    {
@@ -4080,7 +4024,7 @@ LagrangeHexFiniteElement::~LagrangeHexFiniteElement ()
 
 
 RefinedLinear1DFiniteElement::RefinedLinear1DFiniteElement()
-   : NodalFiniteElement(1, Geometry::SEGMENT, 3, 4, GRAD, SCALAR, VALUE)
+   : NodalFiniteElement(1, Geometry::SEGMENT, 3, 4)
 {
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(1).x = 1.0;
@@ -4126,7 +4070,7 @@ void RefinedLinear1DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 }
 
 RefinedLinear2DFiniteElement::RefinedLinear2DFiniteElement()
-   : NodalFiniteElement(2, Geometry::TRIANGLE, 6, 5, GRAD, VECTOR, H_CURL)
+   : NodalFiniteElement(2, Geometry::TRIANGLE, 6, 5)
 {
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(0).y = 0.0;
@@ -4250,7 +4194,7 @@ void RefinedLinear2DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 }
 
 RefinedLinear3DFiniteElement::RefinedLinear3DFiniteElement()
-   : NodalFiniteElement(3, Geometry::TETRAHEDRON, 10, 4, GRAD, VECTOR, H_CURL)
+   : NodalFiniteElement(3, Geometry::TETRAHEDRON, 10, 4)
 {
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(0).y = 0.0;
@@ -4482,8 +4426,7 @@ void RefinedLinear3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
 
 RefinedBiLinear2DFiniteElement::RefinedBiLinear2DFiniteElement()
-   : NodalFiniteElement(2, Geometry::SQUARE , 9, 1, GRAD, VECTOR, H_CURL,
-                        FunctionSpace::rQk)
+   : NodalFiniteElement(2, Geometry::SQUARE , 9, 1, FunctionSpace::rQk)
 {
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(0).y = 0.0;
@@ -4630,8 +4573,7 @@ void RefinedBiLinear2DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 }
 
 RefinedTriLinear3DFiniteElement::RefinedTriLinear3DFiniteElement()
-   : NodalFiniteElement(3, Geometry::CUBE, 27, 2, GRAD, VECTOR, H_CURL,
-                        FunctionSpace::rQk)
+   : NodalFiniteElement(3, Geometry::CUBE, 27, 2, FunctionSpace::rQk)
 {
    double I[27];
    double J[27];
@@ -4988,8 +4930,7 @@ void RefinedTriLinear3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
 
 Nedelec1HexFiniteElement::Nedelec1HexFiniteElement()
-   : VectorFiniteElement(3, Geometry::CUBE, 12, 1, H_CURL, CURL, VECTOR, H_DIV,
-                         FunctionSpace::Qk)
+   : VectorFiniteElement(3, Geometry::CUBE, 12, 1, H_CURL, FunctionSpace::Qk)
 {
    // not real nodes ...
    Nodes.IntPoint(0).x = 0.5;
@@ -5234,8 +5175,7 @@ void Nedelec1HexFiniteElement::Project (
 
 
 Nedelec1TetFiniteElement::Nedelec1TetFiniteElement()
-   : VectorFiniteElement(3, Geometry::TETRAHEDRON, 6, 1, H_CURL,
-                         CURL, VECTOR, H_DIV)
+   : VectorFiniteElement(3, Geometry::TETRAHEDRON, 6, 1, H_CURL)
 {
    // not real nodes ...
    Nodes.IntPoint(0).x = 0.5;
@@ -5400,8 +5340,7 @@ void Nedelec1TetFiniteElement::Project (
 }
 
 RT0HexFiniteElement::RT0HexFiniteElement()
-   : VectorFiniteElement(3, Geometry::CUBE, 6, 1, H_DIV, DIV, SCALAR, VALUE,
-                         FunctionSpace::Qk)
+   : VectorFiniteElement(3, Geometry::CUBE, 6, 1, H_DIV, FunctionSpace::Qk)
 {
    // not real nodes ...
    // z = 0, y = 0, x = 1, y = 1, x = 0, z = 1
@@ -5555,8 +5494,7 @@ void RT0HexFiniteElement::Project (
 }
 
 RT1HexFiniteElement::RT1HexFiniteElement()
-   : VectorFiniteElement(3, Geometry::CUBE, 36, 2, H_DIV, DIV, SCALAR, VALUE,
-                         FunctionSpace::Qk)
+   : VectorFiniteElement(3, Geometry::CUBE, 36, 2, H_DIV, FunctionSpace::Qk)
 {
    // z = 0
    Nodes.IntPoint(2).x  = 1./3.;
@@ -5945,8 +5883,7 @@ void RT1HexFiniteElement::Project (
 }
 
 RT0TetFiniteElement::RT0TetFiniteElement()
-   : VectorFiniteElement(3, Geometry::TETRAHEDRON, 4, 1, H_DIV,
-                         DIV, SCALAR, VALUE)
+   : VectorFiniteElement(3, Geometry::TETRAHEDRON, 4, 1, H_DIV)
 {
    // not real nodes ...
    Nodes.IntPoint(0).x = 0.33333333333333333333;
@@ -6081,8 +6018,7 @@ void RT0TetFiniteElement::Project (
 }
 
 RotTriLinearHexFiniteElement::RotTriLinearHexFiniteElement()
-   : NodalFiniteElement(3, Geometry::CUBE, 6, 2, GRAD, VECTOR, H_CURL,
-                        FunctionSpace::Qk)
+   : NodalFiniteElement(3, Geometry::CUBE, 6, 2, FunctionSpace::Qk)
 {
    Nodes.IntPoint(0).x = 0.5;
    Nodes.IntPoint(0).y = 0.5;
@@ -6611,8 +6547,7 @@ Array2D<int> Poly_1D::binom;
 
 
 H1_SegmentElement::H1_SegmentElement(const int p, const int type)
-   : NodalFiniteElement(1, Geometry::SEGMENT, p + 1, p, GRAD, SCALAR, VALUE,
-                        FunctionSpace::Pk),
+   : NodalFiniteElement(1, Geometry::SEGMENT, p + 1, p, FunctionSpace::Pk),
      pt_type(VerifyClosed(type)),
      basis1d(poly1d.ClosedBasis(p, pt_type)),
      dof_map(Dof)
@@ -6703,7 +6638,7 @@ void H1_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const
 
 H1_QuadrilateralElement::H1_QuadrilateralElement(const int p, const int type)
    : NodalFiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p,
-                        GRAD, VECTOR, H_CURL, FunctionSpace::Qk),
+                        FunctionSpace::Qk),
      pt_type(VerifyClosed(type)),
      basis1d(poly1d.ClosedBasis(p, pt_type)),
      dof_map((p + 1)*(p + 1))
@@ -6853,7 +6788,7 @@ void H1_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
 
 H1_HexahedronElement::H1_HexahedronElement(const int p, const int type)
    : NodalFiniteElement(3, Geometry::CUBE, (p + 1)*(p + 1)*(p + 1), p,
-                        GRAD, VECTOR, H_CURL, FunctionSpace::Qk),
+                        FunctionSpace::Qk),
      pt_type(VerifyClosed(type)),
      basis1d(poly1d.ClosedBasis(p, pt_type)),
      dof_map((p + 1)*(p + 1)*(p + 1))
@@ -7463,7 +7398,7 @@ void H1Pos_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
 
 H1_TriangleElement::H1_TriangleElement(const int p, const int type)
    : NodalFiniteElement(2, Geometry::TRIANGLE, ((p + 1)*(p + 2))/2, p,
-                        GRAD, VECTOR, H_CURL, FunctionSpace::Pk)
+                        FunctionSpace::Pk)
 {
    const double *cp = poly1d.ClosedPoints(p, VerifyClosed(type));
 
@@ -7582,7 +7517,7 @@ void H1_TriangleElement::CalcDShape(const IntegrationPoint &ip,
 
 H1_TetrahedronElement::H1_TetrahedronElement(const int p, const int type)
    : NodalFiniteElement(3, Geometry::TETRAHEDRON, ((p + 1)*(p + 2)*(p + 3))/6,
-                        p, GRAD, VECTOR, H_CURL, FunctionSpace::Pk)
+                        p, FunctionSpace::Pk)
 {
    const double *cp = poly1d.ClosedPoints(p, VerifyClosed(type));
 
@@ -8148,8 +8083,7 @@ void H1Pos_TetrahedronElement::CalcDShape(const IntegrationPoint &ip,
 
 
 L2_SegmentElement::L2_SegmentElement(const int p, const int type)
-   : NodalFiniteElement(1, Geometry::SEGMENT, p + 1, p, GRAD, SCALAR, VALUE,
-                        FunctionSpace::Pk),
+   : NodalFiniteElement(1, Geometry::SEGMENT, p + 1, p, FunctionSpace::Pk),
      type(VerifyOpen(type)),
      basis1d(poly1d.OpenBasis(p, type))
 {
@@ -8254,7 +8188,7 @@ void L2Pos_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const
 
 L2_QuadrilateralElement::L2_QuadrilateralElement(const int p, const int _type)
    : NodalFiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p,
-                        GRAD, VECTOR, H_CURL, FunctionSpace::Qk),
+                        FunctionSpace::Qk),
      type(VerifyOpen(_type)),
      basis1d(poly1d.OpenBasis(p, type))
 {
@@ -8443,7 +8377,7 @@ void L2Pos_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
 
 L2_HexahedronElement::L2_HexahedronElement(const int p, const int _type)
    : NodalFiniteElement(3, Geometry::CUBE, (p + 1)*(p + 1)*(p + 1), p,
-                        GRAD, VECTOR, H_CURL, FunctionSpace::Qk),
+                        FunctionSpace::Qk),
      type(VerifyOpen(_type)),
      basis1d(poly1d.OpenBasis(p, type))
 {
@@ -8690,7 +8624,7 @@ void L2Pos_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
 
 L2_TriangleElement::L2_TriangleElement(const int p, const int type)
    : NodalFiniteElement(2, Geometry::TRIANGLE, ((p + 1)*(p + 2))/2, p,
-                        GRAD, VECTOR, H_CURL, FunctionSpace::Pk)
+                        FunctionSpace::Pk)
 {
    const double *op = poly1d.OpenPoints(p, VerifyOpen(type));
 
@@ -8866,7 +8800,7 @@ void L2Pos_TriangleElement::ProjectDelta(int vertex, Vector &dofs) const
 
 L2_TetrahedronElement::L2_TetrahedronElement(const int p, const int type)
    : NodalFiniteElement(3, Geometry::TETRAHEDRON, ((p + 1)*(p + 2)*(p + 3))/6,
-                        p, GRAD, VECTOR, H_CURL, FunctionSpace::Pk)
+                        p, FunctionSpace::Pk)
 {
    const double *op = poly1d.OpenPoints(p, VerifyOpen(type));
 
@@ -9067,8 +9001,8 @@ const double RT_QuadrilateralElement::nk[8] =
 RT_QuadrilateralElement::RT_QuadrilateralElement(const int p,
                                                  const int cp_type,
                                                  const int op_type)
-   : VectorFiniteElement(2, Geometry::SQUARE, 2*(p + 1)*(p + 2), p + 1,
-                         H_DIV, DIV, SCALAR, INTEGRAL, FunctionSpace::Qk),
+   : VectorFiniteElement(2, Geometry::SQUARE, 2*(p + 1)*(p + 2), p + 1, H_DIV,
+                         FunctionSpace::Qk),
      cbasis1d(poly1d.ClosedBasis(p + 1, VerifyClosed(cp_type))),
      obasis1d(poly1d.OpenBasis(p, VerifyOpen(op_type))),
      dof_map(Dof), dof2nk(Dof)
@@ -9279,7 +9213,7 @@ RT_HexahedronElement::RT_HexahedronElement(const int p,
                                            const int cp_type,
                                            const int op_type)
    : VectorFiniteElement(3, Geometry::CUBE, 3*(p + 1)*(p + 1)*(p + 2), p + 1,
-                         H_DIV, DIV, SCALAR, INTEGRAL, FunctionSpace::Qk),
+                         H_DIV, FunctionSpace::Qk),
      cbasis1d(poly1d.ClosedBasis(p + 1, VerifyClosed(cp_type))),
      obasis1d(poly1d.OpenBasis(p, VerifyOpen(op_type))),
      dof_map(Dof), dof2nk(Dof)
@@ -9589,8 +9523,7 @@ const double RT_TriangleElement::nk[6] =
 const double RT_TriangleElement::c = 1./3.;
 
 RT_TriangleElement::RT_TriangleElement(const int p)
-   : VectorFiniteElement(2, Geometry::TRIANGLE, (p + 1)*(p + 3), p + 1,
-                         H_DIV, DIV, SCALAR, INTEGRAL,
+   : VectorFiniteElement(2, Geometry::TRIANGLE, (p + 1)*(p + 3), p + 1, H_DIV,
                          FunctionSpace::Pk), dof2nk(Dof)
 {
    const double *iop = (p > 0) ? poly1d.OpenPoints(p - 1) : NULL;
@@ -9743,8 +9676,7 @@ const double RT_TetrahedronElement::c = 1./4.;
 
 RT_TetrahedronElement::RT_TetrahedronElement(const int p)
    : VectorFiniteElement(3, Geometry::TETRAHEDRON, (p + 1)*(p + 2)*(p + 4)/2,
-                         p + 1, H_DIV, DIV, SCALAR, INTEGRAL,
-                         FunctionSpace::Pk),
+                         p + 1, H_DIV, FunctionSpace::Pk),
      dof2nk(Dof)
 {
    const double *iop = (p > 0) ? poly1d.OpenPoints(p - 1) : NULL;
@@ -9929,7 +9861,7 @@ const double ND_HexahedronElement::tk[18] =
 ND_HexahedronElement::ND_HexahedronElement(const int p,
                                            const int cp_type, const int op_type)
    : VectorFiniteElement(3, Geometry::CUBE, 3*p*(p + 1)*(p + 1), p,
-                         H_CURL, CURL, VECTOR, H_DIV, FunctionSpace::Qk),
+                         H_CURL, FunctionSpace::Qk),
      cbasis1d(poly1d.ClosedBasis(p, VerifyClosed(cp_type))),
      obasis1d(poly1d.OpenBasis(p - 1, VerifyOpen(op_type))),
      dof_map(Dof), dof2tk(Dof)
@@ -10300,8 +10232,8 @@ const double ND_QuadrilateralElement::tk[8] =
 ND_QuadrilateralElement::ND_QuadrilateralElement(const int p,
                                                  const int cp_type,
                                                  const int op_type)
-   : VectorFiniteElement(2, Geometry::SQUARE, 2*p*(p + 1), p,
-                         H_CURL, CURL, SCALAR, INTEGRAL, FunctionSpace::Qk),
+   : VectorFiniteElement(2, Geometry::SQUARE, 2*p*(p + 1), p, H_CURL,
+                         FunctionSpace::Qk),
      cbasis1d(poly1d.ClosedBasis(p, VerifyClosed(cp_type))),
      obasis1d(poly1d.OpenBasis(p - 1, VerifyOpen(op_type))),
      dof_map(Dof), dof2tk(Dof)
@@ -10491,8 +10423,7 @@ const double ND_TetrahedronElement::c = 1./4.;
 
 ND_TetrahedronElement::ND_TetrahedronElement(const int p)
    : VectorFiniteElement(3, Geometry::TETRAHEDRON, p*(p + 2)*(p + 3)/2, p,
-                         H_CURL, CURL, VECTOR, H_DIV,
-                         FunctionSpace::Pk), dof2tk(Dof)
+                         H_CURL, FunctionSpace::Pk), dof2tk(Dof)
 {
    const double *eop = poly1d.OpenPoints(p - 1);
    const double *fop = (p > 1) ? poly1d.OpenPoints(p - 2) : NULL;
@@ -10753,8 +10684,7 @@ const double ND_TriangleElement::tk[8] =
 const double ND_TriangleElement::c = 1./3.;
 
 ND_TriangleElement::ND_TriangleElement(const int p)
-   : VectorFiniteElement(2, Geometry::TRIANGLE, p*(p + 2), p,
-                         H_CURL, CURL, SCALAR, INTEGRAL,
+   : VectorFiniteElement(2, Geometry::TRIANGLE, p*(p + 2), p, H_CURL,
                          FunctionSpace::Pk), dof2tk(Dof)
 {
    const double *eop = poly1d.OpenPoints(p - 1);
@@ -10913,8 +10843,8 @@ void ND_TriangleElement::CalcCurlShape(const IntegrationPoint &ip,
 const double ND_SegmentElement::tk[1] = { 1. };
 
 ND_SegmentElement::ND_SegmentElement(const int p, const int op_type)
-   : VectorFiniteElement(1, Geometry::SEGMENT, p, p - 1,
-                         H_CURL, NONE, SCALAR, INTEGRAL, FunctionSpace::Pk),
+   : VectorFiniteElement(1, Geometry::SEGMENT, p, p - 1, H_CURL,
+                         FunctionSpace::Pk),
      obasis1d(poly1d.OpenBasis(p - 1, VerifyOpen(op_type))),
      dof2tk(Dof)
 {
@@ -10934,31 +10864,6 @@ void ND_SegmentElement::CalcVShape(const IntegrationPoint &ip,
    Vector vshape(shape.Data(), Dof);
 
    obasis1d.Eval(ip.x, vshape);
-}
-
-void NURBSFiniteElement::CalcShape(ElementTransformation &Trans,
-                                   Vector &shape) const
-{
-   CalcShape(Trans.GetIntPoint(), shape);
-}
-
-void NURBSFiniteElement::CalcDShape(ElementTransformation &Trans,
-                                    DenseMatrix &dshape) const
-{
-   const DenseMatrix &J = Trans.Jacobian();
-
-#ifdef MFEM_THREAD_SAFE
-   DenseMatrix d_shape(Dof, Dim);
-   DenseMatrix Jinv(J.Width(), J.Height());
-#else
-   Jinv.SetSize(J.Width(), J.Height());
-#endif
-
-   CalcInverse(J, Jinv);
-
-   CalcDShape(Trans.GetIntPoint(), d_shape);
-
-   Mult(d_shape, Jinv, dshape);
 }
 
 void NURBS1DFiniteElement::CalcShape(const IntegrationPoint &ip,

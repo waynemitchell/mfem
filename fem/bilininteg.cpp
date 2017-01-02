@@ -134,14 +134,22 @@ void MixedScalarIntegrator::AssembleElementMatrix2(
                this->FiniteElementTypeFailureMessage());
 
    int trial_nd = trial_fe.GetDof(), test_nd = test_fe.GetDof(), i;
+   bool same_shapes = same_calc_shape && (&trial_fe == &test_fe);
 
 #ifdef MFEM_THREAD_SAFE
    Vector test_shape(test_nd);
-   Vector trial_shape(trial_nd);
+   Vector trial_shape;
 #else
    test_shape.SetSize(test_nd);
-   trial_shape.SetSize(trial_nd);
 #endif
+   if (same_shapes)
+   {
+      trial_shape.NewDataAndSize(test_shape.GetData(), trial_nd);
+   }
+   else
+   {
+      trial_shape.SetSize(trial_nd);
+   }
 
    elmat.SetSize(test_nd, trial_nd);
 
@@ -169,6 +177,12 @@ void MixedScalarIntegrator::AssembleElementMatrix2(
       }
       AddMult_a_VWt(w, test_shape, trial_shape, elmat);
    }
+#ifndef MFEM_THREAD_SAFE
+   if (same_shapes)
+   {
+      trial_shape.SetDataAndSize(NULL, 0);
+   }
+#endif
 }
 
 void MixedVectorIntegrator::AssembleElementMatrix2(
@@ -180,22 +194,30 @@ void MixedVectorIntegrator::AssembleElementMatrix2(
 
    int trial_nd = trial_fe.GetDof(), test_nd = test_fe.GetDof(), i;
    int spaceDim = Trans.GetSpaceDim();
+   bool same_shapes = same_calc_shape && (&trial_fe == &test_fe);
 
 #ifdef MFEM_THREAD_SAFE
    Vector V(VQ ? VQ->GetVDim() : 0);
    Vector D(DQ ? DQ->GetVDim() : 0);
    DenseMatrix M(MQ ? MQ->GetVDim() : 0, MQ ? MQ->GetVDim() : 0);
    DenseMatrix test_shape(test_nd, spaceDim);
-   DenseMatrix trial_shape(trial_nd, spaceDim);
+   DenseMatrix trial_shape;
    DenseMatrix test_shape_tmp(test_nd, spaceDim);
 #else
    V.SetSize(VQ ? VQ->GetVDim() : 0);
    D.SetSize(DQ ? DQ->GetVDim() : 0);
    M.SetSize(MQ ? MQ->GetVDim() : 0, MQ ? MQ->GetVDim() : 0);
    test_shape.SetSize(test_nd, spaceDim);
-   trial_shape.SetSize(trial_nd, spaceDim);
    test_shape_tmp.SetSize(test_nd, spaceDim);
 #endif
+   if (same_shapes)
+   {
+      trial_shape.Reset(test_shape.Data(), trial_nd, spaceDim);
+   }
+   else
+   {
+      trial_shape.SetSize(trial_nd, spaceDim);
+   }
 
    elmat.SetSize(test_nd, trial_nd);
 
@@ -213,7 +235,10 @@ void MixedVectorIntegrator::AssembleElementMatrix2(
       Trans.SetIntPoint(&ip);
 
       this->CalcTestShape(test_fe, Trans, test_shape);
-      this->CalcTrialShape(trial_fe, Trans, trial_shape);
+      if (!same_shapes)
+      {
+         this->CalcTrialShape(trial_fe, Trans, trial_shape);
+      }
 
       double w = Trans.Weight() * ip.weight;
 
@@ -251,9 +276,22 @@ void MixedVectorIntegrator::AssembleElementMatrix2(
          {
             w *= Q -> Eval (Trans, ip);
          }
-         AddMult_a_ABt (w, test_shape, trial_shape, elmat);
+         if (same_shapes)
+         {
+            AddMult_a_AAt (w, test_shape, elmat);
+         }
+         else
+         {
+            AddMult_a_ABt (w, test_shape, trial_shape, elmat);
+         }
       }
    }
+#ifndef MFEM_THREAD_SAFE
+   if (same_shapes)
+   {
+      trial_shape.ClearExternalData();
+   }
+#endif
 }
 
 void MixedScalarVectorIntegrator::AssembleElementMatrix2(
@@ -373,12 +411,11 @@ void DiffusionIntegrator::AssembleElementMatrix
       el.CalcDShape(ip, dshape);
 
       Trans.SetIntPoint(&ip);
-      // Compute invdfdx = / adj(J),         if J is square
-      //                   \ adj(J^t.J).J^t, otherwise
-      CalcAdjugate(Trans.Jacobian(), invdfdx);
       w = Trans.Weight();
       w = ip.weight / (square ? w : w*w*w);
-      Mult(dshape, invdfdx, dshapedxt);
+      // AdjugateJacobian = / adj(J),         if J is square
+      //                    \ adj(J^t.J).J^t, otherwise
+      Mult(dshape, Trans.AdjugateJacobian(), dshapedxt);
       if (!MQ)
       {
          if (Q)
