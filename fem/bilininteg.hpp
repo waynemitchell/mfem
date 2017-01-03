@@ -2140,10 +2140,10 @@ public:
 };
 
 /** Integrator for the DG elasticity form, for the formulations see:
-    - PhD Thesis of Jonas De Basabe, High-Order Finite %Element Methods for
+    - PhD Thesis of Jonas De Basabe, High-Order Finite Element Methods for
       Seismic Wave Propagation, UT Austin, 2009, p. 23, and references therein
     - Peter Hansbo and Mats G. Larson, Discontinuous Galerkin and the
-      Crouzeix-Raviart %Element: Application to Elasticity, PREPRINT 2000-09,
+      Crouzeix-Raviart Element: Application to Elasticity, PREPRINT 2000-09,
       p.3
 
     \f[
