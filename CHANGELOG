@@ -63,7 +63,7 @@ New general BilinearFormIntegrators for common families of operators
 - Added MixedScalarIntegrator and 7 derived classes for integrating products of
   two scalar basis functions and optional scalar coefficients.
 
-- Added MixedVectorIntegrator and 17 derived classes for integrating the inner
+- Added MixedVectorIntegrator and 16 derived classes for integrating the inner
   product of two vector basis functions with optional scalar, vector, or matrix
   coefficients.
 
