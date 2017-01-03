@@ -1305,7 +1305,9 @@ void Mesh::MarkForRefinement()
       }
       else if (Dim == 3)
       {
-         MarkTetMeshForRefinement();
+         DSTable v_to_v(NumOfVertices);
+         GetVertexToVertexTable(v_to_v);
+         MarkTetMeshForRefinement(v_to_v);
       }
    }
 }
@@ -1350,14 +1352,11 @@ void Mesh::GetEdgeOrdering(DSTable &v_to_v, Array<int> &order)
    }
 }
 
-void Mesh::MarkTetMeshForRefinement()
+void Mesh::MarkTetMeshForRefinement(DSTable &v_to_v)
 {
    // Mark the longest tetrahedral edge by rotating the indices so that
    // vertex 0 - vertex 1 is the longest edge in the element.
-   DSTable v_to_v(NumOfVertices);
-   GetVertexToVertexTable(v_to_v);
    Array<int> order;
-
    GetEdgeOrdering(v_to_v, order);
 
    for (int i = 0; i < NumOfElements; i++)
@@ -1650,7 +1649,9 @@ void Mesh::FinalizeTetMesh(int generate_edges, int refine, bool fix_orientation)
 
    if (refine)
    {
-      MarkTetMeshForRefinement();
+      DSTable v_to_v(NumOfVertices);
+      GetVertexToVertexTable(v_to_v);
+      MarkTetMeshForRefinement(v_to_v);
    }
 
    GetElementToFaceTable();
@@ -1833,8 +1834,6 @@ void Mesh::Finalize(bool refine, bool fix_orientation)
          DoNodeReorder(old_v_to_v, old_elem_vert); // updates the mesh topology
          delete old_elem_vert;
          delete old_v_to_v;
-
-         Nodes->FESpace()->RebuildElementToDofTable();
       }
       else
       {
@@ -2525,8 +2524,8 @@ void Mesh::SetMeshGen()
    }
 }
 
-void Mesh::Load(std::istream &input, int generate_edges, int refine,
-                bool fix_orientation, std::string parse_tag)
+void Mesh::LoadImpl(std::istream &input, int generate_edges,
+                    std::string parse_tag)
 {
    int curved = 0, read_gf = 1;
 
@@ -2649,6 +2648,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
       Nodes = new GridFunction(this, input);
       own_nodes = 1;
       spaceDim = Nodes->VectorDim();
+      if (ncmesh) { ncmesh->spaceDim = spaceDim; }
       // Set the 'vertices' from the 'Nodes'
       for (int i = 0; i < spaceDim; i++)
       {
@@ -2658,33 +2658,25 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
          {
             vertices[j](i) = vert_val(j);
          }
-         // TODO: maybe introduce Mesh::NODE_REORDER operation and FESpace::
-         // NodeReorderMatrix and do Nodes->Update() instead of DoNodeReorder?
       }
    }
-
-   if (ncmesh) { ncmesh->spaceDim = spaceDim; }
 
    // If a parse tag was supplied, keep reading the stream until the tag is
    // encountered.
    if (!parse_tag.empty())
    {
-      std::string line;
-      input >> line;
-      while ( !input.eof() && line != parse_tag )
+      string line;
+      do
       {
-         input >> line;
-         MFEM_VERIFY(!input.eof(),
-                     "Reached end of mesh file without finding an end mesh tag.");
+         skip_comment_lines(input, '#');
+         MFEM_VERIFY(input.good(), "Required mesh-end tag not found");
+         getline(input, line);
+         filter_dos(line);
       }
+      while (line != parse_tag);
    }
 
-   // Finalize() will:
-   // - check and optionally fix the orientation of regular elements
-   // - check and fix the orientation of boundary elements
-   // - assume that vertices are defined, if Nodes == NULL
-   // - assume that Nodes are defined, if Nodes != NULL
-   Finalize(refine, fix_orientation);
+   // Finalize(...) should be called after this, if needed.
 }
 
 Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
@@ -3568,7 +3560,8 @@ void Mesh::GetEdgeVertices(int i, Array<int> &vert) const
 {
    // the two vertices are sorted: vert[0] < vert[1]
    // this is consistent with the global edge orientation
-   GetEdgeVertexTable(); // generate edge_vertex Table (if not generated)
+   // generate edge_vertex Table (if not generated)
+   if (!edge_vertex) { GetEdgeVertexTable(); }
    edge_vertex->GetRow(i, vert);
 }
 
@@ -6876,7 +6869,7 @@ void Mesh::PrintXG(std::ostream &out) const
    out << flush;
 }
 
-void Mesh::Print(std::ostream &out, std::string section_delimiter) const
+void Mesh::PrintImpl(std::ostream &out, std::string section_delimiter) const
 {
    int i, j;
 
@@ -6894,7 +6887,9 @@ void Mesh::Print(std::ostream &out, std::string section_delimiter) const
       return;
    }
 
-   out << (ncmesh ? "MFEM mesh v1.1\n" : "MFEM mesh v1.2\n");
+   out << (ncmesh ? "MFEM mesh v1.1\n" :
+           section_delimiter.empty() ? "MFEM mesh v1.0\n" :
+           "MFEM mesh v1.2\n");
 
    // optional
    out <<
@@ -6950,7 +6945,10 @@ void Mesh::Print(std::ostream &out, std::string section_delimiter) const
       Nodes->Save(out);
    }
 
-   out << section_delimiter << "\n";
+   if (!ncmesh && !section_delimiter.empty())
+   {
+      out << section_delimiter << endl; // only with format v1.2
+   }
 }
 
 void Mesh::PrintTopo(std::ostream &out,const Array<int> &e_to_k) const

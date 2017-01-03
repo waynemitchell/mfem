@@ -12,6 +12,8 @@
 #ifndef MFEM_TEXT
 #define MFEM_TEXT
 
+#include <istream>
+#include <string>
 #include <limits>
 
 namespace mfem
