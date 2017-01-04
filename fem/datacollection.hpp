@@ -205,7 +205,7 @@ public:
    /// Save one q-field, assuming the collection directory already exists.
    virtual void SaveQField(const std::string &q_field_name);
 
-   /** Perform everything in Save except the actually save.
+   /** Perform everything in Save except the actual save.
        State updates, checks, etc */
    virtual void PrepareToSave() {};
 
