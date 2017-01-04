@@ -100,10 +100,10 @@ public:
    inline HYPRE_Int GlobalSize() { return x->global_size; }
 
    /// Typecasting to hypre's hypre_ParVector*
-   operator hypre_ParVector*() const;
+   operator hypre_ParVector*() const { return x; }
 #ifndef HYPRE_PAR_VECTOR_STRUCT
    /// Typecasting to hypre's HYPRE_ParVector, a.k.a. void *
-   operator HYPRE_ParVector() const;
+   operator HYPRE_ParVector() const { return (HYPRE_ParVector) x; }
 #endif
    /// Changes the ownership of the the vector
    hypre_ParVector *StealParVector() { own_ParVector = 0; return x; }

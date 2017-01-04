@@ -184,10 +184,10 @@ public:
    /// Swap the contents of two Vectors
    inline void Swap(Vector &other);
 
-   /// Do v = v1 + v2.
+   /// Set v = v1 + v2.
    friend void add(const Vector &v1, const Vector &v2, Vector &v);
 
-   /// Do v = v1 + alpha * v2.
+   /// Set v = v1 + alpha * v2.
    friend void add(const Vector &v1, double alpha, const Vector &v2, Vector &v);
 
    /// z = a * (x + y)
@@ -197,7 +197,7 @@ public:
    friend void add (const double a, const Vector &x,
                     const double b, const Vector &y, Vector &z);
 
-   /// Do v = v1 - v2.
+   /// Set v = v1 - v2.
    friend void subtract(const Vector &v1, const Vector &v2, Vector &v);
 
    /// z = a * (x - y)

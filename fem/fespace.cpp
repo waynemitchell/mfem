@@ -201,6 +201,26 @@ void FiniteElementSpace::RebuildElementToDofTable()
    BuildElementToDofTable();
 }
 
+void FiniteElementSpace::ReorderElementToDofTable()
+{
+   Array<int> dof_marker(ndofs);
+
+   dof_marker = -1;
+
+   int *J = elem_dof->GetJ(), nnz = elem_dof->Size_of_connections();
+   for (int k = 0, dof_counter = 0; k < nnz; k++)
+   {
+      const int sdof = J[k]; // signed dof
+      const int dof = (sdof < 0) ? -1-sdof : sdof;
+      int new_dof = dof_marker[dof];
+      if (new_dof < 0)
+      {
+         dof_marker[dof] = new_dof = dof_counter++;
+      }
+      J[k] = (sdof < 0) ? -1-new_dof : new_dof; // preserve the sign of sdof
+   }
+}
+
 void FiniteElementSpace::BuildDofToArrays()
 {
    if (dof_elem_array.Size()) { return; }

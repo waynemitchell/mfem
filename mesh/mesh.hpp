@@ -23,7 +23,6 @@
 #include "../general/gzstream.hpp"
 #include <iostream>
 #include <fstream>
-#include <limits>
 
 namespace mfem
 {
@@ -178,23 +177,8 @@ protected:
    void ReadCubit(const char *filename, int &curved, int &read_gf);
 #endif
 
-   static void skip_comment_lines(std::istream &is, const char comment_char)
-   {
-      while (1)
-      {
-         is >> std::ws;
-         if (is.peek() != comment_char) { break; }
-         is.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-      }
-   }
-   // Check for, and remove, a trailing '\r'.
-   static void filter_dos(std::string &line)
-   {
-      if (!line.empty() && *line.rbegin() == '\r')
-      { line.resize(line.size()-1); }
-   }
-
-   void SetMeshGen(); // set 'meshgen'
+   /// Determine the mesh generator bitmask #meshgen, see MeshGenerator().
+   void SetMeshGen();
 
    /// Return the length of the segment from node i to node j.
    double GetLength(int i, int j) const;
@@ -206,7 +190,7 @@ protected:
    void MarkForRefinement();
    void MarkTriMeshForRefinement();
    void GetEdgeOrdering(DSTable &v_to_v, Array<int> &order);
-   void MarkTetMeshForRefinement();
+   virtual void MarkTetMeshForRefinement(DSTable &v_to_v);
 
    void PrepareNodeReorder(DSTable **old_v_to_v, Table **old_elem_vert);
    void DoNodeReorder(DSTable *old_v_to_v, Table *old_elem_vert);
@@ -342,7 +326,7 @@ protected:
    // shift cyclically 3 integers so that the smallest is first
    inline static void Rotate3(int &, int &, int &);
 
-   void FreeElement (Element *E);
+   void FreeElement(Element *E);
 
    void GenerateFaces();
    void GenerateNCFaceInfo();
@@ -351,6 +335,15 @@ protected:
    void InitMesh(int _Dim, int _spaceDim, int NVert, int NElem, int NBdrElem);
 
    void InitBaseGeom();
+
+   void Loader(std::istream &input, int generate_edges = 0,
+               std::string parse_tag = "");
+
+   // If NURBS mesh, write NURBS format. If NCMesh, write mfem v1.1 format.
+   // If section_delimiter is empty, write mfem v1.0 format. Otherwise, write
+   // mfem v1.2 format with the given section_delimiter at the end.
+   void Printer(std::ostream &out = std::cout,
+                std::string section_delimiter = "") const;
 
    /** Creates mesh for the parallelepiped [0,sx]x[0,sy]x[0,sz], divided into
        nx*ny*nz hexahedrals if type=HEXAHEDRON or into 6*nx*ny*nz tetrahedrons
@@ -472,7 +465,12 @@ public:
    void FinalizeTopology();
 
    /// Finalize the construction of a general Mesh.
-   /** @param[in] refine  If true, prepare the Mesh for conforming refinement of
+   /** This method will:
+       - check and optionally fix the orientation of regular elements
+       - check and fix the orientation of boundary elements
+       - assume that #vertices are defined, if #Nodes == NULL
+       - assume that #Nodes are defined, if #Nodes != NULL.
+       @param[in] refine  If true, prepare the Mesh for conforming refinement of
                           triangular or tetrahedral meshes.
        @param[in] fix_orientation
                           If true, fix the orientation of inverted mesh elements
@@ -542,19 +540,27 @@ public:
        the current mesh is destroyed and another one created based on the data
        stream again given in MFEM, netgen, or VTK format. If generate_edges = 0
        (default) edges are not generated, if 1 edges are generated. */
-   /// \see mfem::igzstream() for on-the-fly decompression of compressed ascii inputs.
-   void Load(std::istream &input, int generate_edges = 0, int refine = 1,
-             bool fix_orientation = true);
+   /// \see mfem::igzstream() for on-the-fly decompression of compressed ascii
+   /// inputs.
+   virtual void Load(std::istream &input, int generate_edges = 0,
+                     int refine = 1, bool fix_orientation = true)
+   {
+      Loader(input, generate_edges);
+      Finalize(refine, fix_orientation);
+   }
 
    /// Clear the contents of the Mesh.
    void Clear() { Destroy(); SetEmpty(); }
 
-   /** Return a bitmask:
-       bit 0 - simplices are present in the mesh (triangles, tets),
-       bit 1 - tensor product elements are present in the mesh (quads, hexes).*/
+   /** @brief Get the mesh generator/type.
+
+       @return A bitmask:
+       - bit 0 - simplices are present in the mesh (triangles, tets),
+       - bit 1 - tensor product elements are present in the mesh (quads, hexes).
+   */
    inline int MeshGenerator() { return meshgen; }
 
-   /** Returns number of vertices.  Vertices are only at the corners of
+   /** @brief Returns number of vertices.  Vertices are only at the corners of
        elements, where you would expect them in the lowest-order mesh. */
    inline int GetNV() const { return NumOfVertices; }
 
@@ -962,7 +968,7 @@ public:
 
    /// Print the mesh to the given stream using the default MFEM mesh format.
    /// \see mfem::ogzstream() for on-the-fly compression of ascii outputs
-   virtual void Print(std::ostream &out = std::cout) const;
+   virtual void Print(std::ostream &out = std::cout) const { Printer(out); }
 
    /// Print the mesh in VTK format (linear and quadratic meshes only).
    /// \see mfem::ogzstream() for on-the-fly compression of ascii outputs
