@@ -661,6 +661,12 @@ void SidreDataCollection::UpdateStateToDS()
    }
 }
 
+void SidreDataCollection::PrepareToSave() {
+   verifyMeshBlueprint();
+
+   UpdateStateToDS();
+}
+
 void SidreDataCollection::Save()
 {
    std::string filename = name;
@@ -672,13 +678,11 @@ void SidreDataCollection::Save()
 void SidreDataCollection::Save(const std::string& filename,
                                const std::string& protocol)
 {
-   verifyMeshBlueprint();
+   PrepareToSave();
 
    create_directory(prefix_path, mesh, myid);
 
    std::string file_path = get_file_path(filename);
-
-   UpdateStateToDS();
 
    sidre::DataGroup * blueprint_indicies_grp = bp_index_grp->getParent();
 #ifdef MFEM_USE_MPI

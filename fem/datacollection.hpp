@@ -205,6 +205,10 @@ public:
    /// Save one q-field, assuming the collection directory already exists.
    virtual void SaveQField(const std::string &q_field_name);
 
+   /** Perform everything in Save except the actually save.
+       State updates, checks, etc */
+   virtual void PrepareToSave() {};
+
    /// Load the collection. Not implemented in the base class DataCollection.
    virtual void Load(int cycle_ = 0);
 
