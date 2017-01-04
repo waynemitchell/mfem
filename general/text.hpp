@@ -45,7 +45,7 @@ inline void filter_dos(std::string &line)
 }
 
 // Convert an integer to a string
-std::string to_string(int i)
+inline std::string to_string(int i)
 {
    std::stringstream ss;
    ss << i;
@@ -57,7 +57,7 @@ std::string to_string(int i)
 }
 
 // Convert an integer to a 0-padded string with the given number of 'digits'
-std::string to_padded_string(int i, int digits)
+inline std::string to_padded_string(int i, int digits)
 {
    std::ostringstream oss;
    oss << std::setw(digits) << std::setfill('0') << i;
@@ -65,7 +65,7 @@ std::string to_padded_string(int i, int digits)
 }
 
 // Convert a string to an int
-int to_int(const std::string& str)
+inline int to_int(const std::string& str)
 {
    int i;
    std::stringstream(str) >> i;

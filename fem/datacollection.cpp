@@ -376,6 +376,7 @@ VisItDataCollection::VisItDataCollection(const std::string& collection_name,
 void VisItDataCollection::SetMesh(Mesh *new_mesh)
 {
    DataCollection::SetMesh(new_mesh);
+   appendRankToFileName = true;
    spatial_dim = mesh->SpaceDimension();
    topo_dim = mesh->Dimension();
 }
