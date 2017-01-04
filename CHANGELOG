@@ -58,6 +58,20 @@ FEM <-> linear system interface for action-only linear operators
   for non-conforming AMR and eliminating boundary conditions. (Hybridization and
   static condensation are not supported.) See examples in miniapps/performance.
 
+New general BilinearFormIntegrators for common families of operators
+--------------------------------------------------------------------
+- Added MixedScalarIntegrator and 7 derived classes for integrating products of
+  two scalar basis functions and optional scalar coefficients.
+
+- Added MixedVectorIntegrator and 16 derived classes for integrating the inner
+  product of two vector basis functions with optional scalar, vector, or matrix
+  coefficients.
+
+- Added MixedScalarVectorIntegrator and 13 derived classes for integrating the
+  product of a scalar basis function with the inner product of a vector basis
+  function with a vector coefficient. In 2D the inner product can optionally be
+  replaced with a cross product.
+
 New and updated examples and miniapps
 -------------------------------------
 - Added a new example code, Example 16/16p, demonstrating the solution of a
