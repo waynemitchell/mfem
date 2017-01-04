@@ -63,8 +63,11 @@ protected:
    /// Time step i.e. delta_t (for time-dependent simulations)
    double time_step;
 
-   /// Serial or parallel run? If false, append rank (myid) to file names
+   /// Serial or parallel run?
    bool serial;
+   /// Append rank to any output file names.
+   bool appendRankToFileName;
+
    /// MPI rank (in parallel)
    int myid;
    /// Number of MPI ranks (in parallel)
@@ -91,8 +94,13 @@ protected:
    /// Delete data owned by the DataCollection including field information
    void DeleteAll();
 
+   std::string GetFieldFileName(const std::string &field_name);
+
    /// Save one field to disk, assuming the collection directory exists
    void SaveOneField(const FieldMapIterator &it);
+
+   /// Save one q-field to disk, assuming the collection directory exists
+   void SaveOneQField(const QFieldMapIterator &it);
 
    // Helper method
    static int create_directory(const std::string &dir_name,
@@ -181,10 +189,10 @@ public:
    /// Set the number of digits used for the cycle and MPI rank in filenames
    void SetPadDigits(int digits) { pad_digits = digits; }
    /// Set the path where the DataCollection will be saved.
-   void SetPrefixPath(const std::string& prefix);
+   void SetPrefixPath(const std::string &prefix);
 
    /// Get the path where the DataCollection will be saved.
-   const std::string& GetPrefixPath() const { return prefix_path; }
+   const std::string &GetPrefixPath() const { return prefix_path; }
 
    /** Save the collection to disk. By default, everything is saved in a
        directory with name "collection_name" or "collection_name_cycle" for
@@ -193,7 +201,9 @@ public:
    /// Save the mesh, creating the collection directory.
    virtual void SaveMesh();
    /// Save one field, assuming the collection directory already exists.
-   virtual void SaveField(const std::string& field_name);
+   virtual void SaveField(const std::string &field_name);
+   /// Save one q-field, assuming the collection directory already exists.
+   virtual void SaveQField(const std::string &q_field_name);
 
    /// Load the collection. Not implemented in the base class DataCollection.
    virtual void Load(int cycle_ = 0);

@@ -14,6 +14,7 @@
 #include "mesh_headers.hpp"
 #include "../fem/fem.hpp"
 #include "../general/sort_pairs.hpp"
+#include "../general/text.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -733,13 +734,19 @@ int Mesh::GetFaceElementType(int Face) const
 
 void Mesh::Init()
 {
-   NumOfVertices = NumOfElements = NumOfBdrElements = NumOfEdges = -1;
+   // in order of declaration:
+   Dim = spaceDim = 0;
+   NumOfVertices = -1;
+   NumOfElements = NumOfBdrElements = 0;
+   NumOfEdges = NumOfFaces = 0;
+   BaseGeom = BaseBdrGeom = -2; // invailid
+   meshgen = 0;
+   sequence = 0;
    Nodes = NULL;
    own_nodes = 1;
    NURBSext = NULL;
    ncmesh = NULL;
    last_operation = Mesh::NONE;
-   sequence = 0;
 }
 
 void Mesh::InitTables()
@@ -1296,7 +1303,9 @@ void Mesh::MarkForRefinement()
       }
       else if (Dim == 3)
       {
-         MarkTetMeshForRefinement();
+         DSTable v_to_v(NumOfVertices);
+         GetVertexToVertexTable(v_to_v);
+         MarkTetMeshForRefinement(v_to_v);
       }
    }
 }
@@ -1341,14 +1350,11 @@ void Mesh::GetEdgeOrdering(DSTable &v_to_v, Array<int> &order)
    }
 }
 
-void Mesh::MarkTetMeshForRefinement()
+void Mesh::MarkTetMeshForRefinement(DSTable &v_to_v)
 {
    // Mark the longest tetrahedral edge by rotating the indices so that
    // vertex 0 - vertex 1 is the longest edge in the element.
-   DSTable v_to_v(NumOfVertices);
-   GetVertexToVertexTable(v_to_v);
    Array<int> order;
-
    GetEdgeOrdering(v_to_v, order);
 
    for (int i = 0; i < NumOfElements; i++)
@@ -1625,6 +1631,7 @@ void Mesh::DoNodeReorder(DSTable *old_v_to_v, Table *old_elem_vert)
          CheckBdrElementOrientation();
       }
    }
+   Nodes->FESpace()->RebuildElementToDofTable();
 }
 
 void Mesh::FinalizeTetMesh(int generate_edges, int refine, bool fix_orientation)
@@ -1640,7 +1647,9 @@ void Mesh::FinalizeTetMesh(int generate_edges, int refine, bool fix_orientation)
 
    if (refine)
    {
-      MarkTetMeshForRefinement();
+      DSTable v_to_v(NumOfVertices);
+      GetVertexToVertexTable(v_to_v);
+      MarkTetMeshForRefinement(v_to_v);
    }
 
    GetElementToFaceTable();
@@ -1823,8 +1832,6 @@ void Mesh::Finalize(bool refine, bool fix_orientation)
          DoNodeReorder(old_v_to_v, old_elem_vert); // updates the mesh topology
          delete old_elem_vert;
          delete old_v_to_v;
-
-         Nodes->FESpace()->RebuildElementToDofTable();
       }
       else
       {
@@ -2515,8 +2522,8 @@ void Mesh::SetMeshGen()
    }
 }
 
-void Mesh::Load(std::istream &input, int generate_edges, int refine,
-                bool fix_orientation)
+void Mesh::Loader(std::istream &input, int generate_edges,
+                  std::string parse_tag)
 {
    int curved = 0, read_gf = 1;
 
@@ -2532,11 +2539,20 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    getline(input, mesh_type);
    filter_dos(mesh_type);
 
+   // MFEM's native mesh formats
    bool mfem_v10 = (mesh_type == "MFEM mesh v1.0");
    bool mfem_v11 = (mesh_type == "MFEM mesh v1.1");
-
-   if (mfem_v10 || mfem_v11) // MFEM's own mesh formats
+   bool mfem_v12 = (mesh_type == "MFEM mesh v1.2");
+   if (mfem_v10 || mfem_v11 || mfem_v12) // MFEM's own mesh formats
    {
+      // Formats mfem_v12 and newer have a tag indicating the end of the mesh
+      // section in the stream. A user provided parse tag can also be provided
+      // via the arguments. For example, if this is called from parallel mesh
+      // object, it can indicate to read until parallel mesh section begins.
+      if ( mfem_v12 && parse_tag.empty() )
+      {
+         parse_tag = "mfem_mesh_end";
+      }
       ReadMFEMMesh(input, mfem_v11, curved);
    }
    else if (mesh_type == "linemesh") // 1D mesh
@@ -2630,6 +2646,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
       Nodes = new GridFunction(this, input);
       own_nodes = 1;
       spaceDim = Nodes->VectorDim();
+      if (ncmesh) { ncmesh->spaceDim = spaceDim; }
       // Set the 'vertices' from the 'Nodes'
       for (int i = 0; i < spaceDim; i++)
       {
@@ -2642,12 +2659,27 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
       }
    }
 
-   // Finalize() will:
-   // - check and optionally fix the orientation of regular elements
-   // - check and fix the orientation of boundary elements
-   // - assume that vertices are defined, if Nodes == NULL
-   // - assume that Nodes are defined, if Nodes != NULL
-   Finalize(refine, fix_orientation);
+   // If a parse tag was supplied, keep reading the stream until the tag is
+   // encountered.
+   if (mfem_v12)
+   {
+      string line;
+      do
+      {
+         skip_comment_lines(input, '#');
+         MFEM_VERIFY(input.good(), "Required mesh-end tag not found");
+         getline(input, line);
+         filter_dos(line);
+         // mfem v1.2 may not have parse_tag in it, e.g. if trying to read a
+         // serial mfem v1.2 mesh as parallel with "mfem_serial_mesh_end" as
+         // parse_tag. That's why, regardless of parse_tag, we stop reading if
+         // we find "mfem_mesh_end" which is required by mfem v1.2 format.
+         if (line == "mfem_mesh_end") { break; }
+      }
+      while (line != parse_tag);
+   }
+
+   // Finalize(...) should be called after this, if needed.
 }
 
 Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
@@ -3531,7 +3563,8 @@ void Mesh::GetEdgeVertices(int i, Array<int> &vert) const
 {
    // the two vertices are sorted: vert[0] < vert[1]
    // this is consistent with the global edge orientation
-   GetEdgeVertexTable(); // generate edge_vertex Table (if not generated)
+   // generate edge_vertex Table (if not generated)
+   if (!edge_vertex) { GetEdgeVertexTable(); }
    edge_vertex->GetRow(i, vert);
 }
 
@@ -4342,8 +4375,6 @@ void Mesh::ReorientTetMesh()
       DoNodeReorder(old_v_to_v, old_elem_vert);
       delete old_elem_vert;
       delete old_v_to_v;
-
-      Nodes->FESpace()->RebuildElementToDofTable();
    }
 }
 
@@ -6841,7 +6872,7 @@ void Mesh::PrintXG(std::ostream &out) const
    out << flush;
 }
 
-void Mesh::Print(std::ostream &out) const
+void Mesh::Printer(std::ostream &out, std::string section_delimiter) const
 {
    int i, j;
 
@@ -6859,7 +6890,9 @@ void Mesh::Print(std::ostream &out) const
       return;
    }
 
-   out << (ncmesh ? "MFEM mesh v1.1\n" : "MFEM mesh v1.0\n");
+   out << (ncmesh ? "MFEM mesh v1.1\n" :
+           section_delimiter.empty() ? "MFEM mesh v1.0\n" :
+           "MFEM mesh v1.2\n");
 
    // optional
    out <<
@@ -6913,6 +6946,11 @@ void Mesh::Print(std::ostream &out) const
    {
       out << "\nnodes\n";
       Nodes->Save(out);
+   }
+
+   if (!ncmesh && !section_delimiter.empty())
+   {
+      out << section_delimiter << endl; // only with format v1.2
    }
 }
 

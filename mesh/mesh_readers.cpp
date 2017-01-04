@@ -11,6 +11,7 @@
 
 #include "mesh_headers.hpp"
 #include "../fem/fem.hpp"
+#include "../general/text.hpp"
 
 #include <iostream>
 

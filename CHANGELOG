@@ -58,6 +58,12 @@ FEM <-> linear system interface for action-only linear operators
   for non-conforming AMR and eliminating boundary conditions. (Hybridization and
   static condensation are not supported.) See examples in miniapps/performance.
 
+Scalable parallel mesh support
+------------------------------
+- The new MFEM mesh format (v1.2) now supports parallel meshes so an MFEM
+  computation can start directly in parallel without serial refinement and
+  splitting. Non-conforming meshes are currently supported only in serial.
+
 New general BilinearFormIntegrators for common families of operators
 --------------------------------------------------------------------
 - Added MixedScalarIntegrator and 7 derived classes for integrating products of
@@ -105,18 +111,16 @@ New and updated examples and miniapps
 - Added an option to Example 9/9p to save a binary visualization file using the
   Conduit mesh blueprint/hdf5 format.
 
-Miscellaneous
--------------
+Improved building options
+-------------------------
 - Added a new CMake build system, that can be used as an alternative to the GNU
   make-based build system (e.g. for out-of-source building). For more details,
   see the INSTALL file and the config/cmake directory.
 
 - Added support for out-of-source builds with GNU make, see the INSTALL file.
 
-- Added optional support for the time integration and non-linear solvers methods
-  from the CVODE, ARKODE and KINSOL libraries of the SUNDIALS suite (version 2.7
-  or higher of SUNDIALS is required).
-
+Improved file output
+--------------------
 - Added on-the-fly compression of file streams input and output via gzstream,
   see the MFEM_USE_GZSTREAM option.
 
@@ -126,6 +130,12 @@ Miscellaneous
   at user of LLNL's ASC Toolkit (Sidre component) that run problems at extreme
   scales. Users desiring a small scale binary format may want to look at the
   gzstream functionality instead.
+
+Miscellaneous
+-------------
+- Added optional support for the time integration and non-linear solvers methods
+  from the CVODE, ARKODE and KINSOL libraries of the SUNDIALS suite (version 2.7
+  or higher of SUNDIALS is required).
 
 - Added optional support for software-based higher-precision arithmetic with
   the MPFR library. When MFEM_USE_MPFR is enabled, the 1D quadrature rules will

@@ -2077,11 +2077,61 @@ void VectorDiffusionIntegrator::AssembleElementMatrix(
    }
 }
 
+void VectorDiffusionIntegrator::AssembleElementVector(
+   const FiniteElement &el, ElementTransformation &Tr,
+   const Vector &elfun, Vector &elvect)
+{
+   int dim = el.GetDim(); // assuming vector_dim == reference_dim
+   int dof = el.GetDof();
+   double w;
+
+   Jinv.SetSize(dim);
+   dshape.SetSize(dof, dim);
+   pelmat.SetSize(dim);
+   gshape.SetSize(dim);
+
+   elvect.SetSize(dim*dof);
+   DenseMatrix mat_in(elfun.GetData(), dof, dim);
+   DenseMatrix mat_out(elvect.GetData(), dof, dim);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      // integrant is rational function if det(J) is not constant
+      int order = 2 * Tr.OrderGrad(&el); // order of the numerator
+      ir = (el.Space() == FunctionSpace::rQk) ?
+           &RefinedIntRules.Get(el.GetGeomType(), order) :
+           &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   elvect = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      Tr.SetIntPoint(&ip);
+      CalcAdjugate(Tr.Jacobian(), Jinv);
+      w = ip.weight / Tr.Weight();
+      if (Q)
+      {
+         w *= Q->Eval(Tr, ip);
+      }
+      MultAAt(Jinv, gshape);
+      gshape *= w;
+
+      el.CalcDShape(ip, dshape);
+
+      MultAtB(mat_in, dshape, pelmat);
+      MultABt(pelmat, gshape, Jinv);
+      AddMultABt(dshape, Jinv, mat_out);
+   }
+}
+
 
 void ElasticityIntegrator::AssembleElementMatrix(
    const FiniteElement &el, ElementTransformation &Trans, DenseMatrix &elmat)
 {
-   int dof  = el.GetDof();
+   int dof = el.GetDof();
    int dim = el.GetDim();
    double w, L, M;
 

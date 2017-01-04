@@ -2038,6 +2038,9 @@ public:
    virtual void AssembleElementMatrix(const FiniteElement &el,
                                       ElementTransformation &Trans,
                                       DenseMatrix &elmat);
+   virtual void AssembleElementVector(const FiniteElement &el,
+                                      ElementTransformation &Tr,
+                                      const Vector &elfun, Vector &elvect);
 };
 
 /** Integrator for the linear elasticity form:
