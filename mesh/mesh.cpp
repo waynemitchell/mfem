@@ -874,8 +874,6 @@ void Mesh::InitMesh(int _Dim, int _spaceDim, int NVert, int NElem, int NBdrElem)
    Dim = _Dim;
    spaceDim = _spaceDim;
 
-   BaseGeom = BaseBdrGeom = -1;
-
    NumOfVertices = 0;
    vertices.SetSize(NVert);  // just allocate space for vertices
 
@@ -2663,7 +2661,7 @@ void Mesh::LoadImpl(std::istream &input, int generate_edges,
 
    // If a parse tag was supplied, keep reading the stream until the tag is
    // encountered.
-   if (!parse_tag.empty())
+   if (mfem_v12)
    {
       string line;
       do
@@ -2672,6 +2670,11 @@ void Mesh::LoadImpl(std::istream &input, int generate_edges,
          MFEM_VERIFY(input.good(), "Required mesh-end tag not found");
          getline(input, line);
          filter_dos(line);
+         // mfem v1.2 may not have parse_tag in it, e.g. if trying to read a
+         // serial mfem v1.2 mesh as parallel with "mfem_serial_mesh_end" as
+         // parse_tag. That's why, regardless of parse_tag, we stop reading if
+         // we find "mfem_mesh_end" which is required by mfem v1.2 format.
+         if (line == "mfem_mesh_end") { break; }
       }
       while (line != parse_tag);
    }

@@ -143,6 +143,8 @@ namespace mfem
     @note blueprint_index is used both in serial and in parallel. In parallel,
     only rank 0 will add entries to the blueprint index.
 
+    @note QuadratureFunction%s (q-fields) are not supported.
+
     @note SidreDataCollection does not manage the FiniteElementSpace%s and
     FiniteElementCollection%s associated with registered GridFunction%s.
     Therefore, field registration is left to the user of SidreDataCollection and

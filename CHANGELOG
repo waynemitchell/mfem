@@ -64,8 +64,8 @@ Scalable parallel mesh support
   computation can start directly in parallel without serial refinement and
   splitting. Non-conforming meshes are currently supported only in serial.
 
-- Added a parallel mesh constructor that does not require a serial parallel mesh
-  to be known on all processors.
+- Added a parallel mesh constructor that requires a local serial mesh plus
+  GroupTopology and shared vertex/edge/face connectivity data.
 
 New and updated examples and miniapps
 -------------------------------------
