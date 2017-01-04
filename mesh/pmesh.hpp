@@ -50,7 +50,7 @@ protected:
    /// Create from a nonconforming mesh.
    ParMesh(const ParNCMesh &pncmesh);
 
-   // Mark all tets to ensure consistency accross MPI tasks; also mark the
+   // Mark all tets to ensure consistency across MPI tasks; also mark the
    // shared and boundary triangle faces using the consistently marked tets.
    virtual void MarkTetMeshForRefinement(DSTable &v_to_v);
 

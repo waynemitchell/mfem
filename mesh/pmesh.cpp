@@ -695,10 +695,10 @@ ParMesh::ParMesh(MPI_Comm comm, istream &input)
    // read the serial part of the mesh
    int gen_edges = 1;
 
-   // Tell LoadImpl() to read up to 'mfem_serial_mesh_end' instead of
+   // Tell Loader() to read up to 'mfem_serial_mesh_end' instead of
    // 'mfem_mesh_end', as we have additional parallel mesh data to load in from
    // the stream.
-   LoadImpl(input, gen_edges, "mfem_serial_mesh_end");
+   Loader(input, gen_edges, "mfem_serial_mesh_end");
 
    skip_comment_lines(input, '#');
 
@@ -3262,7 +3262,7 @@ void ParMesh::Print(std::ostream &out) const
 
    if (NURBSext)
    {
-      PrintImpl(out); // does not print shared boundary
+      Printer(out); // does not print shared boundary
       return;
    }
 
@@ -4303,7 +4303,7 @@ void ParMesh::ParPrint(ostream &out) const
    // Write out serial mesh.  Tell serial mesh to deliniate the end of it's
    // output with 'mfem_serial_mesh_end' instead of 'mfem_mesh_end', as we will
    // be adding additional parallel mesh information.
-   PrintImpl(out, "mfem_serial_mesh_end");
+   Printer(out, "mfem_serial_mesh_end");
 
    // write out group topology info.
    gtopo.Save(out);

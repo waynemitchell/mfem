@@ -2526,8 +2526,8 @@ void Mesh::SetMeshGen()
    }
 }
 
-void Mesh::LoadImpl(std::istream &input, int generate_edges,
-                    std::string parse_tag)
+void Mesh::Loader(std::istream &input, int generate_edges,
+                  std::string parse_tag)
 {
    int curved = 0, read_gf = 1;
 
@@ -6876,7 +6876,7 @@ void Mesh::PrintXG(std::ostream &out) const
    out << flush;
 }
 
-void Mesh::PrintImpl(std::ostream &out, std::string section_delimiter) const
+void Mesh::Printer(std::ostream &out, std::string section_delimiter) const
 {
    int i, j;
 

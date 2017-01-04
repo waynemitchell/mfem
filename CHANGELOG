@@ -64,9 +64,6 @@ Scalable parallel mesh support
   computation can start directly in parallel without serial refinement and
   splitting. Non-conforming meshes are currently supported only in serial.
 
-- Added a parallel mesh constructor that requires a local serial mesh plus
-  GroupTopology and shared vertex/edge/face connectivity data.
-
 New general BilinearFormIntegrators for common families of operators
 --------------------------------------------------------------------
 - Added MixedScalarIntegrator and 7 derived classes for integrating products of
