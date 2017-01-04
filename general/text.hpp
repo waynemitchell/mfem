@@ -12,6 +12,9 @@
 #ifndef MFEM_TEXT
 #define MFEM_TEXT
 
+#include <istream>
+#include <sstream>
+#include <string>
 #include <limits>
 
 namespace mfem
@@ -39,6 +42,34 @@ inline void filter_dos(std::string &line)
    {
       line.resize(line.size()-1);
    }
+}
+
+// Convert an integer to a string
+inline std::string to_string(int i)
+{
+   std::stringstream ss;
+   ss << i;
+
+   // trim leading spaces
+   std::string out_str = ss.str();
+   out_str = out_str.substr(out_str.find_first_not_of(" \t"));
+   return out_str;
+}
+
+// Convert an integer to a 0-padded string with the given number of 'digits'
+inline std::string to_padded_string(int i, int digits)
+{
+   std::ostringstream oss;
+   oss << std::setw(digits) << std::setfill('0') << i;
+   return oss.str();
+}
+
+// Convert a string to an int
+inline int to_int(const std::string& str)
+{
+   int i;
+   std::stringstream(str) >> i;
+   return i;
 }
 
 }

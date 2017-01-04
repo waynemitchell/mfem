@@ -104,6 +104,7 @@ void SidreDataCollection::SetComm(MPI_Comm comm)
 {
    m_comm = comm;
    serial = false;
+   appendRankToFileName = true;
    MPI_Comm_rank(m_comm, &myid);
    MPI_Comm_size(m_comm, &num_procs);
 }

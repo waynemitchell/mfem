@@ -461,19 +461,23 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    group_sface.MakeI(groups.Size()-1);
 
    for (i = 0; i < face_group.Size(); i++)
+   {
       if (face_group[i] >= 0)
       {
          group_sface.AddAColumnInRow(face_group[i]);
       }
+   }
 
    group_sface.MakeJ();
 
    sface_counter = 0;
    for (i = 0; i < face_group.Size(); i++)
+   {
       if (face_group[i] >= 0)
       {
          group_sface.AddConnection(face_group[i], sface_counter++);
       }
+   }
 
    group_sface.ShiftUpI();
 
@@ -481,18 +485,23 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    group_sedge.MakeI(groups.Size()-1);
 
    for (i = 0; i < edge_element->Size(); i++)
+   {
       if (edge_element->GetRow(i)[0] >= 0)
       {
          group_sedge.AddAColumnInRow(edge_element->GetRow(i)[0]);
       }
+   }
 
    group_sedge.MakeJ();
 
    sedge_counter = 0;
    for (i = 0; i < edge_element->Size(); i++)
+   {
       if (edge_element->GetRow(i)[0] >= 0)
-         group_sedge.AddConnection(edge_element->GetRow(i)[0],
-                                   sedge_counter++);
+      {
+         group_sedge.AddConnection(edge_element->GetRow(i)[0], sedge_counter++);
+      }
+   }
 
    group_sedge.ShiftUpI();
 
@@ -500,18 +509,23 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    group_svert.MakeI(groups.Size()-1);
 
    for (i = 0; i < vert_element->Size(); i++)
+   {
       if (vert_element->GetI()[i] >= 0)
       {
          group_svert.AddAColumnInRow(vert_element->GetI()[i]);
       }
+   }
 
    group_svert.MakeJ();
 
    svert_counter = 0;
    for (i = 0; i < vert_element->Size(); i++)
+   {
       if (vert_element->GetI()[i] >= 0)
-         group_svert.AddConnection(vert_element->GetI()[i],
-                                   svert_counter++);
+      {
+         group_svert.AddConnection(vert_element->GetI()[i], svert_counter++);
+      }
+   }
 
    group_svert.ShiftUpI();
 
@@ -523,6 +537,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    {
       sface_counter = 0;
       for (i = 0; i < face_group.Size(); i++)
+      {
          if (face_group[i] >= 0)
          {
             shared_faces[sface_counter] = mesh.GetFace(i)->Duplicate(this);
@@ -563,6 +578,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
             }
             sface_counter++;
          }
+      }
 
       delete faces_tbl;
    }
@@ -577,6 +593,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
 
       sedge_counter = 0;
       for (i = 0; i < edge_element->Size(); i++)
+      {
          if (edge_element->GetRow(i)[0] >= 0)
          {
             mesh.GetEdgeVertices(i, vert);
@@ -596,6 +613,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
 
             sedge_counter++;
          }
+      }
    }
 
    delete edge_element;
@@ -605,10 +623,12 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
 
    svert_counter = 0;
    for (i = 0; i < vert_element->Size(); i++)
+   {
       if (vert_element->GetI()[i] >= 0)
       {
          svert_lvert[svert_counter++] = vert_global_local[i];
       }
+   }
 
    delete vert_element;
 
@@ -648,6 +668,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    have_face_nbr_data = false;
 }
 
+// protected method
 ParMesh::ParMesh(const ParNCMesh &pncmesh)
    : MyComm(pncmesh.MyComm)
    , NRanks(pncmesh.NRanks)
@@ -657,92 +678,6 @@ ParMesh::ParMesh(const ParNCMesh &pncmesh)
 {
    Mesh::InitFromNCMesh(pncmesh);
    have_face_nbr_data = false;
-}
-
-ParMesh::ParMesh(Mesh &mesh,
-                 GroupTopology &_gtopo,
-                 Table &_group_svert,
-                 Table &_group_sedge,
-                 Table &_group_sface,
-                 Array<int> &_svert_lvert,
-                 Array<int> &_sedge_ledge,
-                 Array<int> &_sface_lface)
-   : Mesh(mesh, false),
-     group_svert(_group_svert),
-     group_sedge(_group_sedge),
-     group_sface(_group_sface),
-     gtopo(_gtopo)
-{
-   MyComm = gtopo.GetComm();
-   MPI_Comm_size(MyComm, &NRanks);
-   MPI_Comm_rank(MyComm, &MyRank);
-
-   // TODO
-   have_face_nbr_data = false;
-   pncmesh = NULL;
-
-   _svert_lvert.Copy(svert_lvert);
-   _sedge_ledge.Copy(sedge_ledge);
-   _sface_lface.Copy(sface_lface);
-
-   // Create element objects for the shared entities
-   int num_sedges = sedge_ledge.Size();
-   int num_sfaces = sface_lface.Size();
-   shared_edges.SetSize(num_sedges);
-   for (int i = 0; i < shared_edges.Size(); i++)
-   {
-      Array<int> vert;
-      GetEdgeVertices(sedge_ledge[i], vert);
-      shared_edges[i] = new Segment(vert[0],vert[1]);
-   }
-   shared_faces.SetSize(num_sfaces);
-   for (int i = 0; i < shared_faces.Size(); i++)
-   {
-      shared_faces[i] = mesh.GetFace(sface_lface[i])->Duplicate(this);
-   }
-
-   // Prepare tet meshes for refinement
-   int refine = 1;
-   bool shared_tri_faces = false;
-   for (int i = 0; i < shared_faces.Size(); i++)
-   {
-      if (shared_faces[i]->GetType() == Element::TRIANGLE)
-      {
-         shared_tri_faces = true;
-         break;
-      }
-   }
-   if (shared_tri_faces && refine)
-   {
-      DSTable *v_to_v = NULL;
-      Table *old_elem_vert = NULL;
-      if (Nodes)
-      {
-         PrepareNodeReorder(&v_to_v, &old_elem_vert);
-      }
-
-      // Re-mark all tets to ensure consistency accross MPI tasks; also mark
-      // the shared triangle faces using the consistently marked tets.
-      ParMarkTetMeshForRefinement(*v_to_v);
-
-      if (Nodes)
-      {
-         DoNodeReorder(v_to_v, old_elem_vert);
-      }
-      else
-      {
-         GetElementToFaceTable();
-         GenerateFaces();
-         if (el_to_edge)
-         {
-            NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
-         }
-      }
-      delete old_elem_vert;
-      delete v_to_v;
-   }
-
-   // TODO: AMR meshes, NURBS meshes?
 }
 
 ParMesh::ParMesh(MPI_Comm comm, istream &input)
@@ -755,36 +690,36 @@ ParMesh::ParMesh(MPI_Comm comm, istream &input)
    have_face_nbr_data = false;
    pncmesh = NULL;
 
-   string header, ident;
+   string ident;
 
    // read the serial part of the mesh
-   input >> ws;
    int gen_edges = 1;
-   int refine    = 1;
-   bool fix_orientation = false;
 
-   // Tell serial mesh Load() to read up to 'mfem_ser_mesh_end' instead
-   // of 'mfem_mesh_end', as we have additional parallel mesh data to
-   // load in from the stream.
-   Load(input, gen_edges, refine, fix_orientation, "mfem_ser_mesh_end");
+   // Tell LoadImpl() to read up to 'mfem_serial_mesh_end' instead of
+   // 'mfem_mesh_end', as we have additional parallel mesh data to load in from
+   // the stream.
+   LoadImpl(input, gen_edges, "mfem_serial_mesh_end");
 
    skip_comment_lines(input, '#');
 
    // read the group topology
-   input >> ident; // communication_groups
-   // TODO - add verify that line is 'communication_groups'
+   input >> ident;
+   MFEM_VERIFY(ident == "communication_groups",
+               "input stream is not a parallel MFEM mesh");
    gtopo.Load(input);
 
    skip_comment_lines(input, '#');
 
    DSTable *v_to_v = NULL;
    STable3D *faces_tbl = NULL;
+   // read and set the sizes of svert_lvert, group_svert
    {
       int num_sverts;
       input >> ident >> num_sverts; // total_shared_vertices
       svert_lvert.SetSize(num_sverts);
       group_svert.SetDims(GetNGroups()-1, num_sverts);
    }
+   // read and set the sizes of sedge_ledge, group_sedge
    if (Dim >= 2)
    {
       skip_comment_lines(input, '#');
@@ -800,6 +735,7 @@ ParMesh::ParMesh(MPI_Comm comm, istream &input)
    {
       group_sedge.SetSize(GetNGroups()-1, 0);   // create empty group_sedge
    }
+   // read and set the sizes of sface_lface, group_sface
    if (Dim >= 3)
    {
       skip_comment_lines(input, '#');
@@ -815,7 +751,10 @@ ParMesh::ParMesh(MPI_Comm comm, istream &input)
       group_sface.SetSize(GetNGroups()-1, 0);   // create empty group_sface
    }
 
-   bool shared_tri_faces = false;
+   // read, group by group, the contents of group_svert, svert_lvert,
+   // group_sedge, shared_edges, group_sface, shared_faces
+   //
+   // derive the contents of sedge_ledge, sface_lface
    int svert_counter = 0, sedge_counter = 0, sface_counter = 0;
    for (int gr = 1; gr < GetNGroups(); gr++)
    {
@@ -832,6 +771,8 @@ ParMesh::ParMesh(MPI_Comm comm, istream &input)
          int nv;
          input >> ident >> nv; // shared_vertices (in this group)
          nv += svert_counter;
+         MFEM_VERIFY(nv <= group_svert.Size_of_connections(),
+                     "incorrect number of total_shared_vertices");
          group_svert.GetI()[gr] = nv;
          for ( ; svert_counter < nv; svert_counter++)
          {
@@ -844,6 +785,8 @@ ParMesh::ParMesh(MPI_Comm comm, istream &input)
          int ne, v[2];
          input >> ident >> ne; // shared_edges (in this group)
          ne += sedge_counter;
+         MFEM_VERIFY(ne <= group_sedge.Size_of_connections(),
+                     "incorrect number of total_shared_edges");
          group_sedge.GetI()[gr] = ne;
          for ( ; sedge_counter < ne; sedge_counter++)
          {
@@ -858,6 +801,8 @@ ParMesh::ParMesh(MPI_Comm comm, istream &input)
          int nf;
          input >> ident >> nf; // shared_faces (in this group)
          nf += sface_counter;
+         MFEM_VERIFY(nf <= group_sface.Size_of_connections(),
+                     "incorrect number of total_shared_faces");
          group_sface.GetI()[gr] = nf;
          for ( ; sface_counter < nf; sface_counter++)
          {
@@ -869,7 +814,6 @@ ParMesh::ParMesh(MPI_Comm comm, istream &input)
             {
                case Element::TRIANGLE:
                   sface_lface[sface_counter] = (*faces_tbl)(v[0], v[1], v[2]);
-                  shared_tri_faces = true;
                   break;
                case Element::QUADRILATERAL:
                   sface_lface[sface_counter] =
@@ -880,35 +824,11 @@ ParMesh::ParMesh(MPI_Comm comm, istream &input)
       }
    }
    delete faces_tbl;
-
-   if (shared_tri_faces && refine)
-   {
-      Table *old_elem_vert = NULL;
-      if (Nodes)
-      {
-         PrepareNodeReorder(&v_to_v, &old_elem_vert);
-      }
-
-      // Re-mark all tets to ensure consistency accross MPI tasks; also mark
-      // the shared triangle faces using the consistently marked tets.
-      ParMarkTetMeshForRefinement(*v_to_v);
-
-      if (Nodes)
-      {
-         DoNodeReorder(v_to_v, old_elem_vert);
-      }
-      else
-      {
-         GetElementToFaceTable();
-         GenerateFaces();
-         if (el_to_edge)
-         {
-            NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
-         }
-      }
-      delete old_elem_vert;
-   }
    delete v_to_v;
+
+   const bool refine = true;
+   const bool fix_orientation = false;
+   Finalize(refine, fix_orientation);
 
    // If the mesh has Nodes, convert them from GridFunction to ParGridFunction?
 
@@ -938,7 +858,7 @@ void ParMesh::GroupFace(int group, int i, int &face, int &o)
                              shared_faces[sface]->GetVertices());
 }
 
-void ParMesh::ParMarkTetMeshForRefinement(DSTable &v_to_v)
+void ParMesh::MarkTetMeshForRefinement(DSTable &v_to_v)
 {
    Array<int> order;
    GetEdgeOrdering(v_to_v, order); // local edge ordering
@@ -995,8 +915,7 @@ void ParMesh::ParMarkTetMeshForRefinement(DSTable &v_to_v)
       k += n;
    }
 
-   // #ifdef MFEM_DEBUG
-#if 1
+#ifdef MFEM_DEBUG
    {
       Array<Pair<int, double> > ilen_len(order.Size());
 
@@ -1018,30 +937,47 @@ void ParMesh::ParMarkTetMeshForRefinement(DSTable &v_to_v)
          d_max = std::max(d_max, ilen_len[i-1].two-ilen_len[i].two);
       }
 
+#if 0
+      // Debug message from every MPI rank.
       cout << "proc. " << MyRank << '/' << NRanks << ": d_max = " << d_max
            << endl;
+#else
+      // Debug message just from rank 0.
+      double glob_d_max;
+      MPI_Reduce(&d_max, &glob_d_max, 1, MPI_DOUBLE, MPI_MAX, 0, MyComm);
+      if (MyRank == 0)
+      {
+         cout << "glob_d_max = " << glob_d_max << endl;
+      }
+#endif
    }
 #endif
 
    // use 'order' to mark the tets, the boundary triangles, and the shared
    // triangle faces
    for (int i = 0; i < NumOfElements; i++)
+   {
       if (elements[i]->GetType() == Element::TETRAHEDRON)
       {
          elements[i]->MarkEdge(v_to_v, order);
       }
+   }
 
    for (int i = 0; i < NumOfBdrElements; i++)
+   {
       if (boundary[i]->GetType() == Element::TRIANGLE)
       {
          boundary[i]->MarkEdge(v_to_v, order);
       }
+   }
 
    for (int i = 0; i < shared_faces.Size(); i++)
+   {
       if (shared_faces[i]->GetType() == Element::TRIANGLE)
       {
          shared_faces[i]->MarkEdge(v_to_v, order);
       }
+   }
 }
 
 // For a line segment with vertices v[0] and v[1], return a number with
@@ -3269,6 +3205,12 @@ void ParMesh::Print(std::ostream &out) const
    int i, j, shared_bdr_attr;
    Array<int> nc_shared_faces;
 
+   if (NURBSext)
+   {
+      PrintImpl(out); // does not print shared boundary
+      return;
+   }
+
    const Array<int>* s2l_face;
    if (!pncmesh)
    {
@@ -3301,12 +3243,6 @@ void ParMesh::Print(std::ostream &out) const
             if (index < nfaces) { nc_shared_faces.Append(index); }
          }
       }
-   }
-
-   if (NURBSext)
-   {
-      Mesh::Print(out); // does not print shared boundary
-      return;
    }
 
    out << "MFEM mesh v1.0\n";
@@ -4302,10 +4238,17 @@ long ParMesh::ReduceInt(int value) const
 
 void ParMesh::ParPrint(ostream &out) const
 {
-   // write out serial mesh.  Tell serial mesh to deliniate the end of it's
-   // output with 'mfem_ser_mesh_end' instead of 'mfem_mesh_end', as we will
+   if (NURBSext || pncmesh)
+   {
+      // TODO: AMR meshes, NURBS meshes.
+      Print(out);
+      return;
+   }
+
+   // Write out serial mesh.  Tell serial mesh to deliniate the end of it's
+   // output with 'mfem_serial_mesh_end' instead of 'mfem_mesh_end', as we will
    // be adding additional parallel mesh information.
-   Mesh::Print(out, "mfem_ser_mesh_end" );
+   PrintImpl(out, "mfem_serial_mesh_end");
 
    // write out group topology info.
    gtopo.Save(out);
@@ -4354,9 +4297,7 @@ void ParMesh::ParPrint(ostream &out) const
    }
 
    // Write out section end tag for mesh.
-   out << "\nmfem_mesh_end\n";
-
-   // TODO: AMR meshes, NURBS meshes?
+   out << "\nmfem_mesh_end" << endl;
 }
 
 ParMesh::~ParMesh()

@@ -10,12 +10,12 @@
 // Software Foundation) version 2.1 dated February 1999.
 
 #include "fem.hpp"
+#include "../general/text.hpp"
 #include "picojson.h"
 
 #include <fstream>
 #include <cerrno>      // errno
 #include <sstream>
-#include <fstream>
 
 #ifndef _WIN32
 #include <sys/stat.h>  // mkdir
@@ -35,6 +35,9 @@ int DataCollection::create_directory(const std::string &dir_name,
    const char path_delim = '/';
    std::string::size_type pos = 0;
    int err;
+#ifdef MFEM_USE_MPI
+   const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
+#endif
 
    do
    {
@@ -45,54 +48,23 @@ int DataCollection::create_directory(const std::string &dir_name,
       err = mkdir(subdir.c_str(), 0777);
       err = (err && (errno != EEXIST)) ? 1 : 0;
 #else
-      const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
       if (myid == 0 || pmesh == NULL)
       {
          err = mkdir(subdir.c_str(), 0777);
          err = (err && (errno != EEXIST)) ? 1 : 0;
-         if (pmesh)
-         {
-            MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
-         }
-      }
-      else
-      {
-         // Wait for rank 0 to create the directory
-         MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
       }
 #endif
-
    }
    while ( pos != std::string::npos );
 
+#ifdef MFEM_USE_MPI
+   if (pmesh)
+   {
+      MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
+   }
+#endif
+
    return err;
-}
-
-// Helper string functions. Will go away in C++11
-
-std::string to_string(int i)
-{
-   std::stringstream ss;
-   ss << i;
-
-   // trim leading spaces
-   std::string out_str = ss.str();
-   out_str = out_str.substr(out_str.find_first_not_of(" \t"));
-   return out_str;
-}
-
-std::string to_padded_string(int i, int digits)
-{
-   std::ostringstream oss;
-   oss << std::setw(digits) << std::setfill('0') << i;
-   return oss.str();
-}
-
-int to_int(const std::string& str)
-{
-   int i;
-   std::stringstream(str) >> i;
-   return i;
 }
 
 // class DataCollection implementation
@@ -108,13 +80,13 @@ DataCollection::DataCollection(const std::string& collection_name, Mesh *mesh_)
    appendRankToFileName = false;
 
 #ifdef MFEM_USE_MPI
-   appendRankToFileName = true;
    ParMesh *par_mesh = dynamic_cast<ParMesh*>(mesh);
    if (par_mesh)
    {
       myid = par_mesh->GetMyRank();
       num_procs = par_mesh->GetNRanks();
       serial = false;
+      appendRankToFileName = true;
    }
 #endif
    own_data = false;
@@ -136,7 +108,6 @@ void DataCollection::SetMesh(Mesh *new_mesh)
    appendRankToFileName = false;
 
 #ifdef MFEM_USE_MPI
-   appendRankToFileName = true;
    ParMesh *par_mesh = dynamic_cast<ParMesh*>(mesh);
    if (par_mesh)
    {
@@ -239,31 +210,24 @@ void DataCollection::Save()
    for (FieldMapIterator it = field_map.begin(); it != field_map.end(); ++it)
    {
       SaveOneField(it);
+      // Even if there is an error, try saving the other fields
+   }
+
+   for (QFieldMapIterator it = q_field_map.begin(); it != q_field_map.end();
+        ++it)
+   {
+      SaveOneQField(it);
    }
 }
 
 void DataCollection::SaveMesh()
 {
    int err;
-   if (!prefix_path.empty())
-   {
-      err = create_directory(prefix_path, mesh, myid);
-      if (err)
-      {
-         error = WRITE_ERROR;
-         MFEM_WARNING("Error creating directory: " << prefix_path);
-         return; // do not even try to write the mesh
-      }
-   }
 
-   std::string dir_name = prefix_path;
-   if (cycle == -1)
+   std::string dir_name = prefix_path + name;
+   if (cycle != -1)
    {
-      dir_name += name;
-   }
-   else
-   {
-      dir_name += name + "_" + to_padded_string(cycle, pad_digits);
+      dir_name += "_" + to_padded_string(cycle, pad_digits);
    }
    err = create_directory(dir_name, mesh, myid);
    if (err)
@@ -273,38 +237,23 @@ void DataCollection::SaveMesh()
       return; // do not even try to write the mesh
    }
 
-   bool writeSerialFormat = false;
-   std::string mesh_name = dir_name;
-   // Use serial print capability if the mesh is serial, or a nurbs or amr mesh.
-   // These are not supported in the parallel mesh format.
-   if (serial || mesh->NURBSext || mesh->ncmesh)
-   {
-      writeSerialFormat = true;
-      mesh_name += "/mesh";
-   }
-   else
-   {
-      mesh_name += "/pmesh";
-   }
-
+   std::string mesh_name = dir_name + (serial ? "/mesh" : "/pmesh");
    if (appendRankToFileName)
    {
       mesh_name += "." + to_padded_string(myid, pad_digits);
    }
    std::ofstream mesh_file(mesh_name.c_str());
    mesh_file.precision(precision);
-
-   if (writeSerialFormat)
+#ifdef MFEM_USE_MPI
+   const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
+   if (pmesh)
    {
-      mesh->Print(mesh_file);
+      pmesh->ParPrint(mesh_file);
    }
    else
-   {
-#ifdef MFEM_USE_MPI
-      const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
-      MFEM_VERIFY(pmesh, "Unable to get parallel mesh.");
-      pmesh->ParPrint(mesh_file);
 #endif
+   {
+      mesh->Print(mesh_file);
    }
    if (!mesh_file)
    {
@@ -313,29 +262,24 @@ void DataCollection::SaveMesh()
    }
 }
 
+std::string DataCollection::GetFieldFileName(const std::string &field_name)
+{
+   std::string dir_name = prefix_path + name;
+   if (cycle != -1)
+   {
+      dir_name += "_" + to_padded_string(cycle, pad_digits);
+   }
+   std::string file_name = dir_name + "/" + field_name;
+   if (appendRankToFileName)
+   {
+      file_name += "." + to_padded_string(myid, pad_digits);
+   }
+   return file_name;
+}
+
 void DataCollection::SaveOneField(const FieldMapIterator &it)
 {
-   std::string dir_name = prefix_path;
-   if (cycle == -1)
-   {
-      dir_name += name;
-   }
-   else
-   {
-      dir_name += name + "_" + to_padded_string(cycle, pad_digits);
-   }
-
-   std::string file_name;
-   if (serial)
-   {
-      file_name = dir_name + "/" + it->first;
-   }
-   else
-   {
-      file_name = dir_name + "/" + it->first + "." +
-                  to_padded_string(myid, pad_digits);
-   }
-   std::ofstream field_file(file_name.c_str());
+   std::ofstream field_file(GetFieldFileName(it->first).c_str());
    field_file.precision(precision);
    (it->second)->Save(field_file);
    if (!field_file)
@@ -345,12 +289,33 @@ void DataCollection::SaveOneField(const FieldMapIterator &it)
    }
 }
 
-void DataCollection::SaveField(const std::string& field_name)
+void DataCollection::SaveOneQField(const QFieldMapIterator &it)
+{
+   std::ofstream q_field_file(GetFieldFileName(it->first).c_str());
+   q_field_file.precision(precision);
+   (it->second)->Save(q_field_file);
+   if (!q_field_file)
+   {
+      error = WRITE_ERROR;
+      MFEM_WARNING("Error writing q-field to file: " << it->first);
+   }
+}
+
+void DataCollection::SaveField(const std::string &field_name)
 {
    FieldMapIterator it = field_map.find(field_name);
    if (it != field_map.end())
    {
       SaveOneField(it);
+   }
+}
+
+void DataCollection::SaveQField(const std::string &q_field_name)
+{
+   QFieldMapIterator it = q_field_map.find(q_field_name);
+   if (it != q_field_map.end())
+   {
+      SaveOneQField(it);
    }
 }
 
@@ -393,7 +358,7 @@ VisItDataCollection::VisItDataCollection(const std::string& collection_name,
    : DataCollection(collection_name, mesh)
 {
    appendRankToFileName = true; // always include rank in file names
-   cycle  = 0;     // always include cycle in directory names
+   cycle = 0;                   // always include cycle in directory names
 
    if (mesh)
    {
@@ -411,6 +376,7 @@ VisItDataCollection::VisItDataCollection(const std::string& collection_name,
 void VisItDataCollection::SetMesh(Mesh *new_mesh)
 {
    DataCollection::SetMesh(new_mesh);
+   appendRankToFileName = true;
    spatial_dim = mesh->SpaceDimension();
    topo_dim = mesh->Dimension();
 }
@@ -441,17 +407,16 @@ void VisItDataCollection::Save()
 
 void VisItDataCollection::SaveRootFile()
 {
-   if (myid == 0)
+   if (myid != 0) { return; }
+
+   std::string root_name = prefix_path + name + "_" +
+                           to_padded_string(cycle, pad_digits) + ".mfem_root";
+   std::ofstream root_file(root_name.c_str());
+   root_file << GetVisItRootString();
+   if (!root_file)
    {
-      std::string root_name = prefix_path + name + "_" +
-                              to_padded_string(cycle, pad_digits) + ".mfem_root";
-      std::ofstream root_file(root_name.c_str());
-      root_file << GetVisItRootString();
-      if (!root_file)
-      {
-         error = WRITE_ERROR;
-         MFEM_WARNING("Error writting VisIt Root file: " << root_name);
-      }
+      error = WRITE_ERROR;
+      MFEM_WARNING("Error writting VisIt Root file: " << root_name);
    }
 }
 

@@ -46,18 +46,26 @@ class KnotVector;
 class FiniteElement
 {
 protected:
-   int Dim, GeomType, Dof, Order, FuncSpace, RangeType, MapType;
+   int Dim,      ///< Dimension of reference space
+       GeomType, ///< Geometry::Type of the reference element
+       Dof,      ///< Number of degrees of freedom
+       Order,    ///< Order/degree of the shape functions
+       FuncSpace, RangeType, MapType,
+       DerivType, DerivRangeType, DerivMapType;
    IntegrationRule Nodes;
+#ifndef MFEM_THREAD_SAFE
+   mutable DenseMatrix vshape; // Dof x Dim
+#endif
 
 public:
-   /// Enumeration for RangeType
+   /// Enumeration for RangeType and DerivRangeType
    enum { SCALAR, VECTOR };
 
    /** @brief Enumeration for MapType: defines how reference functions are
        mapped to physical space.
 
        A reference function, `uh(xh)`, can be mapped to a function, `u(x)`, on a
-       general element in following ways:
+       general physical element in following ways:
 
            VALUE       u(x) = uh(xh)
            INTEGRAL    u(x) = (1/w) * uh(xh)
@@ -81,21 +89,35 @@ public:
                           tangential component */
         };
 
+   /** @brief Enumeration for DerivType: defines which derivative method
+       is implemented.
+
+       Each FiniteElement class implements only one type of derivative.  The
+       value returned by GetDerivType() indicates which derivative method is
+       implemented.
+   */
+   enum { NONE, ///< No derivatives implemented
+          GRAD, ///< Implements CalcDShape methods
+          DIV,  ///< Implements CalcDivShape methods
+          CURL  ///< Implements CalcCurlShape methods
+        };
+
    /** Construct FiniteElement with given
        @param D    Reference space dimension
        @param G    Geometry type (of type Geometry::Type)
        @param Do   Number of degrees of freedom in the FiniteElement
        @param O    Order/degree of the FiniteElement
-       @param F    FunctionSpace type of the FiniteElement  */
+       @param F    FunctionSpace type of the FiniteElement
+    */
    FiniteElement(int D, int G, int Do, int O, int F = FunctionSpace::Pk);
 
-   /// Returns the space dimension for the finite element
+   /// Returns the reference space dimension for the finite element
    int GetDim() const { return Dim; }
 
-   /// Returns the geometry type:
+   /// Returns the Geometry::Type of the reference element
    int GetGeomType() const { return GeomType; }
 
-   /// Returns the degrees of freedom in the FE space
+   /// Returns the number of degrees of freedom in the finite element
    int GetDof() const { return Dof; }
 
    /// Returns the order of the finite element
@@ -106,47 +128,96 @@ public:
 
    int GetRangeType() const { return RangeType; }
 
+   int GetDerivRangeType() const { return DerivRangeType; }
+
    int GetMapType() const { return MapType; }
 
-   /** pure virtual function which evaluates the values of all
-       shape functions at a given point ip and stores
-       them in the vector shape of dimension Dof */
+   int GetDerivType() const { return DerivType; }
+
+   int GetDerivMapType() const { return DerivMapType; }
+
+   /** @brief Evaluate the values of all shape functions of a scalar finite
+       element in reference space at the given point @a ip. */
+   /** The size (#Dof) of the result Vector @a shape must be set in advance. */
    virtual void CalcShape(const IntegrationPoint &ip,
                           Vector &shape) const = 0;
 
-   /** pure virtual function which evaluates the values of all
-       partial derivatives of all shape functions at a given
-       point ip and stores them in the matrix dshape (Dof x Dim)
-       so that each row contains the derivatives of one shape function */
+   /** @brief Evaluate the values of all shape functions of a scalar finite
+       element in physical space at the point described by @a Trans. */
+   /** The size (#Dof) of the result Vector @a shape must be set in advance. */
+   void CalcPhysShape(ElementTransformation &Trans, Vector &shape) const;
+
+   /** @brief Evaluate the gradients of all shape functions of a scalar finite
+       element in reference space at the given point @a ip. */
+   /** Each row of the result DenseMatrix @a dshape contains the derivatives of
+       one shape function. The size (#Dof x #Dim) of @a dshape must be set in
+       advance.  */
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const = 0;
+
+   /** @brief Evaluate the gradients of all shape functions of a scalar finite
+       element in physical space at the point described by @a Trans. */
+   /** Each row of the result DenseMatrix @a dshape contains the derivatives of
+       one shape function. The size (#Dof x SDim) of @a dshape must be set in
+       advance, where SDim >= #Dim is the physical space dimension as described
+       by @a Trans. */
+   void CalcPhysDShape(ElementTransformation &Trans, DenseMatrix &dshape) const;
 
    const IntegrationRule & GetNodes() const { return Nodes; }
 
    // virtual functions for finite elements on vector spaces
 
-   /** This virtual function evaluates the values of all components of
-       all shape functions at the given IntegrationPoint.
-       The result is stored in the DenseMatrix shape (Dof x Dim)
-       so that each row contains the components of one shape function.  */
+   /** @brief Evaluate the values of all shape functions of a *vector* finite
+       element in reference space at the given point @a ip. */
+   /** Each row of the result DenseMatrix @a shape contains the components of
+       one vector shape function. The size (#Dof x #Dim) of @a shape must be set
+       in advance. */
    virtual void CalcVShape(const IntegrationPoint &ip,
                            DenseMatrix &shape) const;
 
+   /** @brief Evaluate the values of all shape functions of a *vector* finite
+       element in physical space at the point described by @a Trans. */
+   /** Each row of the result DenseMatrix @a shape contains the components of
+       one vector shape function. The size (#Dof x SDim) of @a shape must be set
+       in advance, where SDim >= #Dim is the physical space dimension as
+       described by @a Trans. */
    virtual void CalcVShape(ElementTransformation &Trans,
                            DenseMatrix &shape) const;
 
-   /** This virtual function evaluates the divergence of all shape
-       functions at the given IntegrationPoint.
-       The result is stored in the Vector divshape (of size Dof).  */
+   /// Equivalent to the CalcVShape() method with the same arguments.
+   void CalcPhysVShape(ElementTransformation &Trans, DenseMatrix &shape) const
+   { CalcVShape(Trans, shape); }
+
+   /** @brief Evaluate the divergence of all shape functions of a *vector*
+       finite element in reference space at the given point @a ip. */
+   /** The size (#Dof) of the result Vector @a divshape must be set in advance.
+    */
    virtual void CalcDivShape(const IntegrationPoint &ip,
                              Vector &divshape) const;
 
-   /** pure virtual function which evaluates the values of the curl
-       all shape functions at a given point ip and stores them in
-       the matrix curl_shape (Dof x Dim) so that each row contains
-       the curl of one shape function */
+   /** @brief Evaluate the divergence of all shape functions of a *vector*
+       finite element in physical space at the point described by @a Trans. */
+   /** The size (#Dof) of the result Vector @a divshape must be set in advance.
+    */
+   void CalcPhysDivShape(ElementTransformation &Trans, Vector &divshape) const;
+
+   /** @brief Evaluate the curl of all shape functions of a *vector* finite
+       element in reference space at the given point @a ip. */
+   /** Each row of the result DenseMatrix @a curl_shape contains the components
+       of the curl of one vector shape function. The size (#Dof x CDim) of
+       @a curl_shape must be set in advance, where CDim = 3 for #Dim = 3 and
+       CDim = 1 for #Dim = 2. */
    virtual void CalcCurlShape(const IntegrationPoint &ip,
                               DenseMatrix &curl_shape) const;
+
+   /** @brief Evaluate the curl of all shape functions of a *vector* finite
+       element in physical space at the point described by @a Trans. */
+   /** Each row of the result DenseMatrix @a curl_shape contains the components
+       of the curl of one vector shape function. The size (#Dof x CDim) of
+       @a curl_shape must be set in advance, where CDim = 3 for #Dim = 3 and
+       CDim = 1 for #Dim = 2. */
+   void CalcPhysCurlShape(ElementTransformation &Trans,
+                          DenseMatrix &curl_shape) const;
 
    virtual void GetFaceDofs(int face, int **dofs, int *ndofs) const;
 
@@ -226,12 +297,14 @@ class ScalarFiniteElement : public FiniteElement
 {
 public:
    ScalarFiniteElement(int D, int G, int Do, int O, int F = FunctionSpace::Pk)
-      : FiniteElement(D, G, Do, O, F) { }
+      : FiniteElement(D, G, Do, O, F)
+   { DerivType = GRAD; DerivRangeType = VECTOR; DerivMapType = H_CURL; }
 
    void SetMapType(int M)
    {
       MFEM_VERIFY(M == VALUE || M == INTEGRAL, "unknown MapType");
       MapType = M;
+      DerivType = (M == VALUE) ? GRAD : NONE;
    }
 };
 
@@ -252,11 +325,11 @@ protected:
 
 public:
 #ifdef MFEM_THREAD_SAFE
-   NodalFiniteElement(int D, int G, int Do, int O, int F = FunctionSpace::Pk) :
-      ScalarFiniteElement(D, G, Do, O, F) { }
+   NodalFiniteElement(int D, int G, int Do, int O, int F = FunctionSpace::Pk)
+      : ScalarFiniteElement(D, G, Do, O, F) { }
 #else
-   NodalFiniteElement(int D, int G, int Do, int O, int F = FunctionSpace::Pk) :
-      ScalarFiniteElement(D, G, Do, O, F), c_shape(Do) { }
+   NodalFiniteElement(int D, int G, int Do, int O, int F = FunctionSpace::Pk)
+      : ScalarFiniteElement(D, G, Do, O, F), c_shape(Do) { }
 #endif
 
    virtual void GetLocalInterpolation (ElementTransformation &Trans,
@@ -325,8 +398,9 @@ private:
 protected:
 #ifndef MFEM_THREAD_SAFE
    mutable DenseMatrix J, Jinv;
-   mutable DenseMatrix vshape, curlshape, curlshape_J;
+   mutable DenseMatrix curlshape, curlshape_J;
 #endif
+   void SetDerivMembers();
 
    void CalcVShape_RT(ElementTransformation &Trans,
                       DenseMatrix &shape) const;
@@ -347,6 +421,8 @@ protected:
                        const FiniteElement &fe, ElementTransformation &Trans,
                        DenseMatrix &grad) const;
 
+   // Compute the curl as a discrete operator from ND FE (fe) to ND FE (this).
+   // The natural FE for the range is RT, so this is an approximation.
    void ProjectCurl_ND(const double *tk, const Array<int> &d2t,
                        const FiniteElement &fe, ElementTransformation &Trans,
                        DenseMatrix &curl) const;
@@ -380,10 +456,10 @@ public:
                         int F = FunctionSpace::Pk) :
 #ifdef MFEM_THREAD_SAFE
       FiniteElement(D, G, Do, O, F)
-   { RangeType = VECTOR; MapType = M; }
+   { RangeType = VECTOR; MapType = M; SetDerivMembers(); }
 #else
-      FiniteElement(D, G, Do, O, F), Jinv(D), vshape(Do, D)
-   { RangeType = VECTOR; MapType = M; }
+      FiniteElement(D, G, Do, O, F), Jinv(D)
+   { RangeType = VECTOR; MapType = M; SetDerivMembers(); }
 #endif
 };
 
@@ -520,7 +596,7 @@ public:
                            DenseMatrix &dshape) const;
 };
 
-class QuadPos1DFiniteElement : public FiniteElement
+class QuadPos1DFiniteElement : public PositiveFiniteElement
 {
 public:
    QuadPos1DFiniteElement();
@@ -590,7 +666,7 @@ public:
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
 };
 
-class BiQuadPos2DFiniteElement : public FiniteElement
+class BiQuadPos2DFiniteElement : public PositiveFiniteElement
 {
 public:
    BiQuadPos2DFiniteElement();
@@ -2151,7 +2227,7 @@ public:
 };
 
 
-class NURBSFiniteElement : public FiniteElement
+class NURBSFiniteElement : public ScalarFiniteElement
 {
 protected:
    mutable Array <KnotVector*> kv;
@@ -2160,7 +2236,7 @@ protected:
 
 public:
    NURBSFiniteElement(int D, int G, int Do, int O, int F)
-      : FiniteElement(D, G, Do, O, F)
+      : ScalarFiniteElement(D, G, Do, O, F)
    {
       ijk = NULL;
       patch = elem = -1;
@@ -2227,6 +2303,6 @@ public:
                            DenseMatrix &dshape) const;
 };
 
-}
+} // namespace mfem
 
 #endif
