@@ -336,14 +336,14 @@ protected:
 
    void InitBaseGeom();
 
-   void LoadImpl(std::istream &input, int generate_edges = 0,
-                 std::string parse_tag = "");
+   void Loader(std::istream &input, int generate_edges = 0,
+               std::string parse_tag = "");
 
    // If NURBS mesh, write NURBS format. If NCMesh, write mfem v1.1 format.
    // If section_delimiter is empty, write mfem v1.0 format. Otherwise, write
    // mfem v1.2 format with the given section_delimiter at the end.
-   void PrintImpl(std::ostream &out = std::cout,
-                  std::string section_delimiter = "") const;
+   void Printer(std::ostream &out = std::cout,
+                std::string section_delimiter = "") const;
 
    /** Creates mesh for the parallelepiped [0,sx]x[0,sy]x[0,sz], divided into
        nx*ny*nz hexahedrals if type=HEXAHEDRON or into 6*nx*ny*nz tetrahedrons
@@ -545,7 +545,7 @@ public:
    virtual void Load(std::istream &input, int generate_edges = 0,
                      int refine = 1, bool fix_orientation = true)
    {
-      LoadImpl(input, generate_edges);
+      Loader(input, generate_edges);
       Finalize(refine, fix_orientation);
    }
 
@@ -968,7 +968,7 @@ public:
 
    /// Print the mesh to the given stream using the default MFEM mesh format.
    /// \see mfem::ogzstream() for on-the-fly compression of ascii outputs
-   virtual void Print(std::ostream &out = std::cout) const { PrintImpl(out); }
+   virtual void Print(std::ostream &out = std::cout) const { Printer(out); }
 
    /// Print the mesh in VTK format (linear and quadratic meshes only).
    /// \see mfem::ogzstream() for on-the-fly compression of ascii outputs
