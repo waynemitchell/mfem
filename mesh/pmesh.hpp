@@ -100,6 +100,17 @@ public:
    /// Read a parallel mesh, each MPI rank from its own file/stream.
    ParMesh(MPI_Comm comm, std::istream &input);
 
+   /** Create a parallel mesh from a local serial mesh plus information
+       about its shared geometric entities. */
+   ParMesh(const Mesh &mesh,
+           const GroupTopology &_gtopo,
+           const Table &_group_svert,
+           const Table &_group_sedge,
+           const Table &_group_sface,
+           const Array<int> &_svert_lvert,
+           const Array<int> &_sedge_ledge,
+           const Array<int> &_sface_lface);
+
    MPI_Comm GetComm() const { return MyComm; }
    int GetNRanks() const { return NRanks; }
    int GetMyRank() const { return MyRank; }
