@@ -113,12 +113,12 @@ public:
 
    inline double *GetData() const { return data; }
 
-   /// Convertion to `double *`.
+   /// Conversion to `double *`.
    /** @note This conversion function makes it possible to use [] for indexing
        in addition to the overloaded operator()(int). */
    inline operator double *() { return data; }
 
-   /// Convertion to `const double *`.
+   /// Conversion to `const double *`.
    /** @note This conversion function makes it possible to use [] for indexing
        in addition to the overloaded operator()(int). */
    inline operator const double *() const { return data; }

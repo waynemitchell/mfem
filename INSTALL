@@ -19,7 +19,12 @@ requires an MPI C++ compiler, as well as the following external libraries:
   http://glaros.dtc.umn.edu/gkhome/metis/metis/overview
 
 The library supports two build systems: one based on GNU make, and a second one
-based on CMake. Both build systems are described below.
+based on CMake. Both build systems are described below. For hints how to build
+without GNU make or CMake, see the end of this file.
+
+In addition, MFEM packages are available in the Homebrew/Science and Spack
+package managers, see respectively https://github.com/Homebrew/homebrew-science
+and https://github.com/LLNL/spack.
 
 
 Quick start with GNU make

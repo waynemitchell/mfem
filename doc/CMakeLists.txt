@@ -34,7 +34,7 @@ if (DOXYGEN_FOUND)
       COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_BINARY_DIR}/CodeDocumentation
       COMMENT "Removing API documentation"
       VERBATIM)
-      
+
   else (UNIX)
     add_custom_target(doc
       COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/CodeDocumentation.conf

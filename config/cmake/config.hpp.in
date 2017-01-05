@@ -44,7 +44,7 @@
 // Enable MFEM functionality based on the SuiteSparse library.
 #cmakedefine MFEM_USE_SUITESPARSE
 
-// Enable MFEM funcitonality based on the SuperLU_DIST library.
+// Enable MFEM functionality based on the SuperLU_DIST library.
 #cmakedefine MFEM_USE_SUPERLU
 
 // Internal MFEM option: enable group/batch allocation for some small objects.
