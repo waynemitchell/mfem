@@ -8,8 +8,8 @@
                                http://mfem.org
 
 
-Version 3.3, not yet released
-=============================
+Version 3.3, released on Jan XX, 2017
+=====================================
 
 New integrators and extensions to BilinearForm and LinearForm
 -------------------------------------------------------------
@@ -155,8 +155,8 @@ Miscellaneous
 - Various other simplifications, extensions, and bugfixes in the code.
 
 
-Version 3.2, released on June 30, 2016
-======================================
+Version 3.2, released on Jun 30, 2016
+=====================================
 
 Dynamic AMR with parallel load balancing, derefinement of non-conforming meshes
 -------------------------------------------------------------------------------
