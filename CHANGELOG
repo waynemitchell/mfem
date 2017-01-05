@@ -8,27 +8,39 @@
                                http://mfem.org
 
 
-Version 3.3, not yet released
-=============================
+Version 3.3, released on Jan XX, 2017
+=====================================
 
-New integrators and extensions to BilinearForm and LinearForm
--------------------------------------------------------------
-- Added a new class DGElasticityIntegrator that supports a few types of DG
-  formulations for linear elasticity.
+Support for SUNDIALS
+--------------------
+- Added support for the time integrators and non-linear solvers from the CVODE,
+  ARKODE and KINSOL libraries of the SUNDIALS suite (version 2.7 or higher of
+  SUNDIALS is required). Their use is illustrated in the new examples/sundials
+  directory.
 
-- Added a new linear form integrator class DGElasticityDirichletLFIntegrator
-  that implements non-homogeneous Dirichlet b.c. for DG elasticity formulations.
+FEM <-> linear system interface for action-only linear operators
+----------------------------------------------------------------
+- Added a new class, ConstrainedOperator, which can impose essential boundary
+  conditions using only the action, Mult(), of a given square linear Operator.
 
-- Added support for DG spaces in class VectorBoundaryLFIntegrator.
+- Added a FormLinearSystem + RecoverFEMSolution functionality for square linear
+  Operators that are available only through their action. This includes all
+  necessary transformations, such as: parallel assembly, conforming constraints
+  for non-conforming AMR and eliminating boundary conditions. (Hybridization and
+  static condensation are not supported.) See examples in miniapps/performance.
 
-- In class BilinearForm, added support for boundary face integrators applied to
-  a subset of the boundary, see the method AddBdrFaceIntegrator.
+Scalable parallel mesh support
+------------------------------
+- Introduced a new mesh format (v1.2) that can describe/recover MFEM parallel
+  meshes. This way, computations can start directly in parallel without serial
+  refinement and splitting. Non-conforming meshes are currently supported only
+  in serial.
 
-- In class LinearForm, added support for boundary face integrators applied to
-  a subset of the boundary, see method AddBdrFaceIntegrator.
+- Added a parallel mesh constructor that requires a local serial mesh plus
+  GroupTopology and shared vertex/edge/face connectivity data.
 
-Coordinated general quadrature and nodal finite element basis types
--------------------------------------------------------------------
+General quadrature and nodal finite element basis types
+-------------------------------------------------------
 - Added support for different numerical quadrature schemes and finite element
   basis points. Different basis points can be selected via optional integer
   argument(s) to the finite element collection constructor of type BasisType:
@@ -47,28 +59,8 @@ Coordinated general quadrature and nodal finite element basis types
      const IntegrationRule *ir = gl(Geometry::SEGMENT, 5); // 4pt 1D rule
   The global IntRules object continues to use GaussLegendre.
 
-FEM <-> linear system interface for action-only linear operators
-----------------------------------------------------------------
-- Added a new class, ConstrainedOperator, which can impose essential boundary
-  conditions using only the action, Mult(), of a given square linear Operator.
-
-- Added a FormLinearSystem + RecoverFEMSolution functionality for square linear
-  Operators that are available only through their action. This includes all
-  necessary transformations, such as: parallel assembly, conforming constraints
-  for non-conforming AMR and eliminating boundary conditions. (Hybridization and
-  static condensation are not supported.) See examples in miniapps/performance.
-
-Scalable parallel mesh support
-------------------------------
-- The new MFEM mesh format (v1.2) now supports parallel meshes so an MFEM
-  computation can start directly in parallel without serial refinement and
-  splitting. Non-conforming meshes are currently supported only in serial.
-
-- Added a parallel mesh constructor that requires a local serial mesh plus
-  GroupTopology and shared vertex/edge/face connectivity data.
-
-New general BilinearFormIntegrators for common families of operators
---------------------------------------------------------------------
+New integrators for common families of operators
+------------------------------------------------
 - Added MixedScalarIntegrator and 7 derived classes for integrating products of
   two scalar basis functions and optional scalar coefficients.
 
@@ -81,38 +73,14 @@ New general BilinearFormIntegrators for common families of operators
   function with a vector coefficient. In 2D the inner product can optionally be
   replaced with a cross product.
 
-New and updated examples and miniapps
--------------------------------------
-- Added a new example code, Example 16/16p, demonstrating the solution of a
-  time-dependent nonlinear heat equation in serial and in parallel.
+- Added a new class DGElasticityIntegrator that supports a few types of DG
+  formulations for linear elasticity and a new linear form integrator,
+  DGElasticityDirichletLFIntegrator, that implements non-homogeneous BCs.
 
-- Added a new example code, Example 17/17p, illustrating discontinuous Galerkin
-  (DG) formulations of static linear elasticity.
+- Added support for DG spaces in class VectorBoundaryLFIntegrator.
 
-- Added a new electromagnetic miniapp, Joule, illustrating the simulation of
-  transient magnetics and joule heating. This is a comprehensive miniapp that
-  uses finite element spaces and solvers for the whole de Rham sequence.
-
-- The HPC examples in miniapps/performance now have a -mf/--matrix-free option
-  illustrating optimized "partial assembly" operator evaluation. This is now the
-  default in these examples, to switch to optimized matrix assembly instead use
-  the -asm/--assembly option.
-
-- Added a new directory, examples/sundials with modifications of examples 9 and
-  10 (both serial and parallel) that illustrate the use of the SUNDIALS time
-  integrators and nonlinear solvers.
-
-- Added a simple miniapp, display-basis, for displaying the various types
-  of finite element basis functions within single elements. This is part of
-  the new miniapps/tools directory.
-
-- Rewrote the Volta and Tesla solver classes to avoid using linear algebra
-  objects when possible. This greatly simplifies the code, reduces memory
-  requirements, and eliminates unnecessary computation. It also fixed a bug
-  with divergence cleaning in the Tesla miniapp.
-
-- Added an option to Example 9/9p to save a binary visualization file using the
-  Conduit mesh blueprint/hdf5 format.
+- In classes BilinearForm and LinearForm, added support for boundary face
+  integrators applied to a subset of the boundary, see AddBdrFaceIntegrator.
 
 Improved building options
 -------------------------
@@ -134,12 +102,37 @@ Improved file output
   scales. Users desiring a small scale binary format may want to look at the
   gzstream functionality instead.
 
+New and updated examples and miniapps
+-------------------------------------
+- Eight new serial and parallel example codes that demonstrate:
+  * solution of a time-dependent nonlinear heat equation (Example 16/16p)
+  * DG formulations of static linear elasticity (Example 17/17p)
+  * the use of SUNDIALS time integrators and nonlinear solvers (Examples 9/9p
+    and 10/10p in examples/sundials)
+
+- The HPC examples in miniapps/performance now have a -mf/--matrix-free option
+  illustrating optimized "partial assembly" operator evaluation. This is now the
+  default in these examples, to switch to optimized matrix assembly instead use
+  the -asm/--assembly option.
+
+- Added a new electromagnetic miniapp, Joule, illustrating the simulation of
+  transient magnetics and joule heating. This is a comprehensive miniapp that
+  uses finite element spaces and solvers for the whole de Rham sequence.
+
+- Added a simple miniapp, display-basis, for displaying the various types
+  of finite element basis functions within single elements. This is part of
+  the new miniapps/tools directory.
+
+- Rewrote the Volta and Tesla solver classes to avoid using linear algebra
+  objects when possible. This greatly simplifies the code, reduces memory
+  requirements, and eliminates unnecessary computation. It also fixed a bug
+  with divergence cleaning in the Tesla miniapp.
+
+- Added an option to Example 9/9p to save a binary visualization file using the
+  Conduit mesh blueprint/hdf5 format.
+
 Miscellaneous
 -------------
-- Added optional support for the time integration and non-linear solvers methods
-  from the CVODE, ARKODE and KINSOL libraries of the SUNDIALS suite (version 2.7
-  or higher of SUNDIALS is required).
-
 - Added optional support for software-based higher-precision arithmetic with
   the MPFR library. When MFEM_USE_MPFR is enabled, the 1D quadrature rules will
   be computed precisely, at least for rules with up to 65-points.
@@ -158,8 +151,8 @@ Miscellaneous
 - Various other simplifications, extensions, and bugfixes in the code.
 
 
-Version 3.2, released on June 30, 2016
-======================================
+Version 3.2, released on Jun 30, 2016
+=====================================
 
 Dynamic AMR with parallel load balancing, derefinement of non-conforming meshes
 -------------------------------------------------------------------------------

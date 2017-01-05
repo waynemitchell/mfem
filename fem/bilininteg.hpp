@@ -393,10 +393,9 @@ private:
 
 };
 
-/** Class for integrating the bilinear form a(u,v) := (Q u, v) in
-    either  1D, 2D, or 3D and where Q is an optional scalar coefficient,
-    u and v are each in H1 or L2.
- */
+/** Class for integrating the bilinear form a(u,v) := (Q u, v) in either 1D, 2D,
+    or 3D and where Q is an optional scalar coefficient, u and v are each in H1
+    or L2. */
 class MixedScalarMassIntegrator : public MixedScalarIntegrator
 {
 public:
@@ -405,10 +404,9 @@ public:
       : MixedScalarIntegrator(q) { same_calc_shape = true; }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (Q u, v) in
-    either 2D, or 3D and where Q is a vector coefficient,
-    u is in H1 or L2 and v is in H(Curl) or H(Div).
- */
+/** Class for integrating the bilinear form a(u,v) := (Q u, v) in either 2D, or
+    3D and where Q is a vector coefficient, u is in H1 or L2 and v is in H(Curl)
+    or H(Div). */
 class MixedVectorProductIntegrator : public MixedScalarVectorIntegrator
 {
 public:
@@ -416,10 +414,8 @@ public:
       : MixedScalarVectorIntegrator(vq) {}
 };
 
-/** Class for integrating the bilinear form a(u,v) := (Q D u, v) in 1D
-    where Q is an optional scalar coefficient,
-    u is in H1, and v is in L2.
- */
+/** Class for integrating the bilinear form a(u,v) := (Q D u, v) in 1D where Q
+    is an optional scalar coefficient, u is in H1, and v is in L2. */
 class MixedScalarDerivativeIntegrator : public MixedScalarIntegrator
 {
 public:
@@ -453,10 +449,8 @@ protected:
    }
 };
 
-/** Class for integrating the bilinear form a(u,v) := -(Q u, D v) in 1D
-    where Q is an optional scalar coefficient,
-    u is in L2, and v is in H1.
- */
+/** Class for integrating the bilinear form a(u,v) := -(Q u, D v) in 1D where Q
+    is an optional scalar coefficient, u is in L2, and v is in H1. */
 class MixedScalarWeakDerivativeIntegrator : public MixedScalarIntegrator
 {
 public:
@@ -492,10 +486,9 @@ protected:
    }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (Q div u, v) in
-    either 2D or 3D where Q is an optional scalar coefficient,
-    u is in H(Div), and v is a scalar field.
- */
+/** Class for integrating the bilinear form a(u,v) := (Q div u, v) in either 2D
+    or 3D where Q is an optional scalar coefficient, u is in H(Div), and v is a
+    scalar field. */
 class MixedScalarDivergenceIntegrator : public MixedScalarIntegrator
 {
 public:
@@ -530,10 +523,9 @@ protected:
    { trial_fe.CalcPhysDivShape(Trans, shape); }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (V div u, v) in
-    either 2D or 3D where V is a vector coefficient, u is in H(Div),
-    and v is a vector field.
- */
+/** Class for integrating the bilinear form a(u,v) := (V div u, v) in either 2D
+    or 3D where V is a vector coefficient, u is in H(Div), and v is a vector
+    field. */
 class MixedVectorDivergenceIntegrator : public MixedScalarVectorIntegrator
 {
 public:
@@ -567,10 +559,9 @@ protected:
    { scalar_fe.CalcPhysDivShape(Trans, shape); }
 };
 
-/** Class for integrating the bilinear form a(u,v) := -(Q u, div v) in
-    either 2D or 3D where Q is an optional scalar coefficient,
-    u is in L2 or H1, and v is in H(Div).
- */
+/** Class for integrating the bilinear form a(u,v) := -(Q u, div v) in either 2D
+    or 3D where Q is an optional scalar coefficient, u is in L2 or H1, and v is
+    in H(Div). */
 class MixedScalarWeakGradientIntegrator : public MixedScalarIntegrator
 {
 public:
@@ -603,10 +594,9 @@ protected:
    }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (Q curl u, v) in 2D
-    where Q is an optional scalar coefficient, u is in H(Curl), and v is in
-    L2 or H1.
- */
+/** Class for integrating the bilinear form a(u,v) := (Q curl u, v) in 2D where
+    Q is an optional scalar coefficient, u is in H(Curl), and v is in L2 or
+    H1. */
 class MixedScalarCurlIntegrator : public MixedScalarIntegrator
 {
 public:
@@ -645,10 +635,9 @@ protected:
    }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (Q u, curl v) in 2D
-    where Q is an optional scalar coefficient, u is in L2 or H1, and v is
-    in H(Curl).
- */
+/** Class for integrating the bilinear form a(u,v) := (Q u, curl v) in 2D where
+    Q is an optional scalar coefficient, u is in L2 or H1, and v is in
+    H(Curl). */
 class MixedScalarWeakCurlIntegrator : public MixedScalarIntegrator
 {
 public:
@@ -682,10 +671,9 @@ protected:
    }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (Q u, v) in
-    either  2D or 3D and where Q is an optional coefficient (of type
-    scalar, matrix, or diagonal matrix) u and v are each in H(Curl) or H(Div).
- */
+/** Class for integrating the bilinear form a(u,v) := (Q u, v) in either 2D or
+    3D and where Q is an optional coefficient (of type scalar, matrix, or
+    diagonal matrix) u and v are each in H(Curl) or H(Div). */
 class MixedVectorMassIntegrator : public MixedVectorIntegrator
 {
 public:
@@ -698,9 +686,8 @@ public:
       : MixedVectorIntegrator(mq) { same_calc_shape = true; }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (V x u, v) in 3D
-    and where V is a vector coefficient u and v are each in H(Curl) or H(Div).
- */
+/** Class for integrating the bilinear form a(u,v) := (V x u, v) in 3D and where
+    V is a vector coefficient u and v are each in H(Curl) or H(Div). */
 class MixedCrossProductIntegrator : public MixedVectorIntegrator
 {
 public:
@@ -708,10 +695,9 @@ public:
       : MixedVectorIntegrator(vq, false) { same_calc_shape = true; }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (V . u, v) in 2D or 3D
-    and where V is a vector coefficient u is in H(Curl) or H(Div) and v is
-    in H1 or L2.
- */
+/** Class for integrating the bilinear form a(u,v) := (V . u, v) in 2D or 3D and
+    where V is a vector coefficient u is in H(Curl) or H(Div) and v is in H1 or
+    L2. */
 class MixedDotProductIntegrator : public MixedScalarVectorIntegrator
 {
 public:
@@ -734,10 +720,9 @@ public:
    }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (-V . u, Div v) in 2D
-    or 3D and where V is a vector coefficient u is in H(Curl) or H(Div) and
-    v is in RT.
- */
+/** Class for integrating the bilinear form a(u,v) := (-V . u, Div v) in 2D or
+    3D and where V is a vector coefficient u is in H(Curl) or H(Div) and v is in
+    RT. */
 class MixedWeakGradDotIntegrator : public MixedScalarVectorIntegrator
 {
 public:
@@ -766,10 +751,8 @@ public:
    { scalar_fe.CalcPhysDivShape(Trans, shape); shape *= -1.0; }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (V x u, Grad v) in 3D
-    and where V is a vector coefficient u is in H(Curl) or H(Div) and v is
-    in H1.
- */
+/** Class for integrating the bilinear form a(u,v) := (V x u, Grad v) in 3D and
+    where V is a vector coefficient u is in H(Curl) or H(Div) and v is in H1. */
 class MixedWeakDivCrossIntegrator : public MixedVectorIntegrator
 {
 public:
@@ -800,9 +783,8 @@ public:
 };
 
 /** Class for integrating the bilinear form a(u,v) := (Q Grad u, Grad v) in 3D
-    or in 2D and where Q is a scalar or matrix coefficient u and v are both
-    in H1.
- */
+    or in 2D and where Q is a scalar or matrix coefficient u and v are both in
+    H1. */
 class MixedGradGradIntegrator : public MixedVectorIntegrator
 {
 public:
@@ -853,8 +835,7 @@ public:
 };
 
 /** Class for integrating the bilinear form a(u,v) := (V x Grad u, Grad v) in 3D
-    or in 2D and where V is a vector coefficient u and v are both in H1.
- */
+    or in 2D and where V is a vector coefficient u and v are both in H1. */
 class MixedCrossGradGradIntegrator : public MixedVectorIntegrator
 {
 public:
@@ -890,8 +871,8 @@ public:
 };
 
 /** Class for integrating the bilinear form a(u,v) := (Q Curl u, Curl v) in 3D
-    and where Q is a scalar or matrix coefficient u and v are both in H(Curl).
- */
+    and where Q is a scalar or matrix coefficient u and v are both in
+    H(Curl). */
 class MixedCurlCurlIntegrator : public MixedVectorIntegrator
 {
 public:
@@ -933,8 +914,7 @@ public:
 };
 
 /** Class for integrating the bilinear form a(u,v) := (V x Curl u, Curl v) in 3D
-    and where V is a vector coefficient u and v are both in H(Curl).
- */
+    and where V is a vector coefficient u and v are both in H(Curl). */
 class MixedCrossCurlCurlIntegrator : public MixedVectorIntegrator
 {
 public:
@@ -971,8 +951,7 @@ public:
 };
 
 /** Class for integrating the bilinear form a(u,v) := (V x Curl u, Grad v) in 3D
-    and where V is a vector coefficient u is in H(Curl) and v is in H1.
- */
+    and where V is a vector coefficient u is in H(Curl) and v is in H1. */
 class MixedCrossCurlGradIntegrator : public MixedVectorIntegrator
 {
 public:
@@ -1009,8 +988,7 @@ public:
 };
 
 /** Class for integrating the bilinear form a(u,v) := (V x Grad u, Curl v) in 3D
-    and where V is a scalar coefficient u is in H1 and v is in H(Curl).
- */
+    and where V is a scalar coefficient u is in H1 and v is in H(Curl). */
 class MixedCrossGradCurlIntegrator : public MixedVectorIntegrator
 {
 public:
@@ -1046,10 +1024,9 @@ public:
    { test_fe.CalcPhysCurlShape(Trans, shape); }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (V x u, Curl v) in 3D
-    and where V is a vector coefficient u is in H(Curl) or H(Div) and v is
-    in H(Curl).
- */
+/** Class for integrating the bilinear form a(u,v) := (V x u, Curl v) in 3D and
+    where V is a vector coefficient u is in H(Curl) or H(Div) and v is in
+    H(Curl). */
 class MixedWeakCurlCrossIntegrator : public MixedVectorIntegrator
 {
 public:
@@ -1079,10 +1056,9 @@ public:
    { test_fe.CalcPhysCurlShape(Trans, shape); }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (V x u, Curl v) in 2D
-    and where V is a vector coefficient u is in H(Curl) or H(Div) and v is
-    in H(Curl).
- */
+/** Class for integrating the bilinear form a(u,v) := (V x u, Curl v) in 2D and
+    where V is a vector coefficient u is in H(Curl) or H(Div) and v is in
+    H(Curl). */
 class MixedScalarWeakCurlCrossIntegrator : public MixedScalarVectorIntegrator
 {
 public:
@@ -1115,10 +1091,9 @@ public:
    }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (V x Grad u, v) in 3D
-    or in 2D and where V is a vector coefficient u is in H1 and v is
-    in H(Curl) or H(Div).
- */
+/** Class for integrating the bilinear form a(u,v) := (V x Grad u, v) in 3D or
+    in 2D and where V is a vector coefficient u is in H1 and v is in H(Curl) or
+    H(Div). */
 class MixedCrossGradIntegrator : public MixedVectorIntegrator
 {
 public:
@@ -1153,10 +1128,9 @@ public:
    { test_fe.CalcVShape(Trans, shape); }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (V x Curl u, v) in 3D
-    and where V is a vector coefficient u is in H(Curl) and v is
-    in H(Curl) or H(Div).
- */
+/** Class for integrating the bilinear form a(u,v) := (V x Curl u, v) in 3D and
+    where V is a vector coefficient u is in H(Curl) and v is in H(Curl) or
+    H(Div). */
 class MixedCrossCurlIntegrator : public MixedVectorIntegrator
 {
 public:
@@ -1186,10 +1160,9 @@ public:
    { trial_fe.CalcPhysCurlShape(Trans, shape); }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (V x Curl u, v) in 2D
-    and where V is a vector coefficient u is in H(Curl) and v is
-    in H(Curl) or H(Div).
- */
+/** Class for integrating the bilinear form a(u,v) := (V x Curl u, v) in 2D and
+    where V is a vector coefficient u is in H(Curl) and v is in H(Curl) or
+    H(Div). */
 class MixedScalarCrossCurlIntegrator : public MixedScalarVectorIntegrator
 {
 public:
@@ -1222,9 +1195,8 @@ public:
    }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (V x Grad u, v) in 2D
-    and where V is a vector coefficient u is in H1 and v is in H1 or L2.
- */
+/** Class for integrating the bilinear form a(u,v) := (V x Grad u, v) in 2D and
+    where V is a vector coefficient u is in H1 and v is in H1 or L2. */
 class MixedScalarCrossGradIntegrator : public MixedScalarVectorIntegrator
 {
 public:
@@ -1254,9 +1226,8 @@ public:
    { vector_fe.CalcPhysDShape(Trans, shape); }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (V x u, v) in 2D
-    and where V is a vector coefficient u is in ND or RT and v is in H1 or L2.
- */
+/** Class for integrating the bilinear form a(u,v) := (V x u, v) in 2D and where
+    V is a vector coefficient u is in ND or RT and v is in H1 or L2. */
 class MixedScalarCrossProductIntegrator : public MixedScalarVectorIntegrator
 {
 public:
@@ -1280,9 +1251,8 @@ public:
    }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (V x z u, v) in 2D
-    and where V is a vector coefficient u is in H1 or L2 and v is in ND or RT.
- */
+/** Class for integrating the bilinear form a(u,v) := (V x z u, v) in 2D and
+    where V is a vector coefficient u is in H1 or L2 and v is in ND or RT. */
 class MixedScalarWeakCrossProductIntegrator : public MixedScalarVectorIntegrator
 {
 public:
@@ -1311,10 +1281,8 @@ public:
    { scalar_fe.CalcPhysShape(Trans, shape); shape *= -1.0; }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (V . Grad u, v) in 2D
-    or 3D and where V is a vector coefficient, u is in H1 and v is
-    in H1 or L2.
- */
+/** Class for integrating the bilinear form a(u,v) := (V . Grad u, v) in 2D or
+    3D and where V is a vector coefficient, u is in H1 and v is in H1 or L2. */
 class MixedDirectionalDerivativeIntegrator : public MixedScalarVectorIntegrator
 {
 public:
@@ -1344,9 +1312,7 @@ public:
 };
 
 /** Class for integrating the bilinear form a(u,v) := (-V . Grad u, Div v) in 2D
-    or 3D and where V is a vector coefficient, u is in H1 and v is
-    in RT.
- */
+    or 3D and where V is a vector coefficient, u is in H1 and v is in RT. */
 class MixedGradDivIntegrator : public MixedScalarVectorIntegrator
 {
 public:
@@ -1382,9 +1348,7 @@ public:
 };
 
 /** Class for integrating the bilinear form a(u,v) := (-V Div u, Grad v) in 2D
-    or 3D and where V is a vector coefficient, u is in RT and v is
-    in H1.
- */
+    or 3D and where V is a vector coefficient, u is in RT and v is in H1. */
 class MixedDivGradIntegrator : public MixedScalarVectorIntegrator
 {
 public:
@@ -1420,10 +1384,8 @@ public:
    { scalar_fe.CalcPhysDivShape(Trans, shape); }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (-V u, Grad v) in 2D
-    or 3D and where V is a vector coefficient, u is in H1 and v is
-    in H1.
- */
+/** Class for integrating the bilinear form a(u,v) := (-V u, Grad v) in 2D or 3D
+    and where V is a vector coefficient, u is in H1 and v is in H1. */
 class MixedScalarWeakDivergenceIntegrator : public MixedScalarVectorIntegrator
 {
 public:
@@ -1452,11 +1414,9 @@ public:
    { vector_fe.CalcPhysDShape(Trans, shape); shape *= -1.0; }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (Q grad u, v) in
-    either  2D or 3D and where Q is an optional coefficient (of type
-    scalar, matrix, or diagonal matrix) u is in H1 and v is in H(Curl)
-    or H(Div).
- */
+/** Class for integrating the bilinear form a(u,v) := (Q grad u, v) in either 2D
+    or 3D and where Q is an optional coefficient (of type scalar, matrix, or
+    diagonal matrix) u is in H1 and v is in H(Curl) or H(Div). */
 class MixedVectorGradientIntegrator : public MixedVectorIntegrator
 {
 public:
@@ -1495,10 +1455,9 @@ private:
    DenseMatrix Jinv;
 };
 
-/** Class for integrating the bilinear form a(u,v) := (Q curl u, v) in 3D
-    and where Q is an optional coefficient (of type scalar, matrix, or
-    diagonal matrix) u is in H(Curl) and v is in H(Div) or H(Curl).
- */
+/** Class for integrating the bilinear form a(u,v) := (Q curl u, v) in 3D and
+    where Q is an optional coefficient (of type scalar, matrix, or diagonal
+    matrix) u is in H(Curl) and v is in H(Div) or H(Curl). */
 class MixedVectorCurlIntegrator : public MixedVectorIntegrator
 {
 public:
@@ -1535,10 +1494,9 @@ protected:
    }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (Q u, curl v) in 3D
-    and where Q is an optional coefficient (of type scalar, matrix, or
-    diagonal matrix) u is in H(Div) or H(Curl) and v is in H(Curl).
- */
+/** Class for integrating the bilinear form a(u,v) := (Q u, curl v) in 3D and
+    where Q is an optional coefficient (of type scalar, matrix, or diagonal
+    matrix) u is in H(Div) or H(Curl) and v is in H(Curl). */
 class MixedVectorWeakCurlIntegrator : public MixedVectorIntegrator
 {
 public:
@@ -1575,10 +1533,9 @@ protected:
    }
 };
 
-/** Class for integrating the bilinear form a(u,v) := - (Q u, grad v) in
-    either 2D or 3D and where Q is an optional coefficient (of type scalar,
-    matrix, or diagonal matrix) u is in H(Div) or H(Curl) and v is in H1.
- */
+/** Class for integrating the bilinear form a(u,v) := - (Q u, grad v) in either
+    2D or 3D and where Q is an optional coefficient (of type scalar, matrix, or
+    diagonal matrix) u is in H(Div) or H(Curl) and v is in H1. */
 class MixedVectorWeakDivergenceIntegrator : public MixedVectorIntegrator
 {
 public:
@@ -1615,8 +1572,8 @@ protected:
    }
 };
 
-/** Class for integrating the bilinear form a(u,v) := (Q grad u, grad v)
-    where Q can be a scalar or a matrix coefficient. */
+/** Class for integrating the bilinear form a(u,v) := (Q grad u, grad v) where Q
+    can be a scalar or a matrix coefficient. */
 class DiffusionIntegrator: public BilinearFormIntegrator
 {
 private:
@@ -1810,8 +1767,7 @@ public:
 
 
 /** Integrator for `(-Q u, grad v)` for Nedelec (`u`) and H1 (`v`) elements.
-    This is equivalent to a weak divergence of the Nedelec basis functions.
- */
+    This is equivalent to a weak divergence of the Nedelec basis functions. */
 class VectorFEWeakDivergenceIntegrator: public BilinearFormIntegrator
 {
 private:
@@ -1834,8 +1790,8 @@ public:
                                        DenseMatrix &elmat);
 };
 
-/// Integrator for (curl u, v) for Nedelec and RT elements. If the trial and
-/// test spaces are switched, assembles the form (u, curl v).
+/** Integrator for (curl u, v) for Nedelec and RT elements. If the trial and
+    test spaces are switched, assembles the form (u, curl v). */
 class VectorFECurlIntegrator: public BilinearFormIntegrator
 {
 private:
@@ -1971,9 +1927,8 @@ public:
                                        DenseMatrix &elmat);
 };
 
-/** Integrator for (Q div u, p) where u=(v1,...,vn) and all
-    vi are in the same scalar FE space; p is also in
-    a (different) scalar FE space.  */
+/** Integrator for (Q div u, p) where u=(v1,...,vn) and all vi are in the same
+    scalar FE space; p is also in a (different) scalar FE space.  */
 class VectorDivergenceIntegrator : public BilinearFormIntegrator
 {
 private:
@@ -2289,14 +2244,14 @@ public:
                                    DenseMatrix &elmat);
 };
 
-/** Abstract class to serve as a base for local interpolators to be used in
-    the DiscreteLinearOperator class. */
+/** Abstract class to serve as a base for local interpolators to be used in the
+    DiscreteLinearOperator class. */
 class DiscreteInterpolator : public BilinearFormIntegrator { };
 
 
 /** Class for constructing the gradient as a DiscreteLinearOperator from an
-    H1-conforming space to an H(curl)-conforming space. The range space can
-    be vector L2 space as well. */
+    H1-conforming space to an H(curl)-conforming space. The range space can be
+    vector L2 space as well. */
 class GradientInterpolator : public DiscreteInterpolator
 {
 public:
