@@ -195,6 +195,7 @@ protected:
    void PrepareNodeReorder(DSTable **old_v_to_v, Table **old_elem_vert);
    void DoNodeReorder(DSTable *old_v_to_v, Table *old_elem_vert);
 
+   STable3D *GetFacesTable();
    STable3D *GetElementToFaceTable(int ret_ftbl = 0);
 
    /** Red refinement. Element with index i is refined. The default
@@ -289,6 +290,11 @@ protected:
    static void GetElementArrayEdgeTable(const Array<Element*> &elem_array,
                                         const DSTable &v_to_v,
                                         Table &el_to_edge);
+
+   /** Return vertex to vertex table. The connections stored in the table
+       are from smaller to bigger vertex index, i.e. if i<j and (i, j) is
+       in the table, then (j, i) is not stored. */
+   void GetVertexToVertexTable(DSTable &) const;
 
    /** Return element to edge table and the indices for the boundary edges.
        The entries in the table are ordered according to the order of the
@@ -530,6 +536,19 @@ public:
    /// Create a disjoint mesh from the given mesh array
    Mesh(Mesh *mesh_array[], int num_pieces);
 
+   /// Create a uniformly refined (by any factor) version of @a orig_mesh.
+   /** @param[in] orig_mesh  The starting coarse mesh.
+       @param[in] ref_factor The refinement factor, an integer > 1.
+       @param[in] ref_type   Specify the positions of the new vertices. The
+                             options are BasisType::ClosedUniform or
+                             BasisType::GaussLobatto.
+
+       The refinement data which can be accessed with GetRefinementTransforms()
+       is set to reflect the performed refinements.
+
+       @note The constructed Mesh is linear, i.e. it does not have nodes. */
+   Mesh(Mesh *orig_mesh, int ref_factor, int ref_type);
+
    /** This is similar to the mesh constructor with the same arguments, but here
        the current mesh is destroyed and another one created based on the data
        stream again given in MFEM, netgen, or VTK format. If generate_edges = 0
@@ -672,8 +691,6 @@ public:
    /// Returns the face-to-edge Table (3D)
    Table *GetFaceEdgeTable() const;
 
-   STable3D *GetFacesTable();
-
    /// Returns the edge-to-vertex Table (3D)
    Table *GetEdgeVertexTable() const;
 
@@ -809,11 +826,6 @@ public:
 
    const Table &ElementToEdgeTable() const;
 
-   /** Return vertex to vertex table. The connections stored in the table
-       are from smaller to bigger vertex index, i.e. if i<j and (i, j) is
-       in the table, then (j, i) is not stored. */
-   void GetVertexToVertexTable(DSTable &) const;
-
    ///  The returned Table must be destroyed by the caller
    Table *GetVertexToElementTable();
 
@@ -939,9 +951,10 @@ public:
    bool DerefineByError(const Vector &elem_error, double threshold,
                         int nc_limit = 0, int op = 1);
 
-   // NURBS mesh refinement methods
+   ///@{ @name NURBS mesh refinement methods
    void KnotInsert(Array<KnotVector *> &kv);
    void DegreeElevate(int t);
+   ///@}
 
    /** Make sure that a quad/hex mesh is considered to be non-conforming (i.e.,
        has an associated NCMesh object). Triangles meshes can be both conforming

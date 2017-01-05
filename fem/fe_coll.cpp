@@ -1644,6 +1644,32 @@ FiniteElementCollection *H1_FECollection::GetTraceCollection() const
    return (dim < 0) ? NULL : new H1_Trace_FECollection(p, dim, m_type);
 }
 
+const int *H1_FECollection::GetDofMap(int GeomType) const
+{
+   MFEM_ASSERT(m_type != BasisType::Positive, "");
+   const int *dof_map = NULL;
+   const FiniteElement *fe = H1_Elements[GeomType];
+   switch (GeomType)
+   {
+      case Geometry::SEGMENT:
+         dof_map = dynamic_cast<const H1_SegmentElement *>(fe)
+                   ->GetDofMap().GetData();
+         break;
+      case Geometry::SQUARE:
+         dof_map = dynamic_cast<const H1_QuadrilateralElement *>(fe)
+                   ->GetDofMap().GetData();
+         break;
+      case Geometry::CUBE:
+         dof_map = dynamic_cast<const H1_HexahedronElement *>(fe)
+                   ->GetDofMap().GetData();
+         break;
+      default:
+         MFEM_ABORT("Geometry type " << Geometry::Name[GeomType] << " is not "
+                    "implemented");
+   }
+   return dof_map;
+}
+
 H1_FECollection::~H1_FECollection()
 {
    delete [] SegDofOrd[0];

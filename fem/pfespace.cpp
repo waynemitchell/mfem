@@ -2306,7 +2306,7 @@ ParFiniteElementSpace::LowOrderRefinement(
 
       // Fix the local numbers of shared edges and faces
       DSTable v_to_v(mesh_lor->GetNV());
-      mesh_lor->GetVertexToVertexTable(v_to_v);
+      // mesh_lor->GetVertexToVertexTable(v_to_v); // FIXME
       for (i = 0; i < shared_edges_lor.Size(); i++)
       {
          v = shared_edges_lor[i]->GetVertices();
@@ -2315,7 +2315,8 @@ ParFiniteElementSpace::LowOrderRefinement(
 
       if (mesh->Dimension() == 3)
       {
-         STable3D *faces_tbl = mesh_lor->GetFacesTable();
+         STable3D *faces_tbl = NULL; // FIXME
+         // STable3D *faces_tbl = mesh_lor->GetFacesTable(); // FIXME
          for (i = 0; i < shared_faces_lor.Size(); i++)
          {
             v = shared_faces_lor[i]->GetVertices();
