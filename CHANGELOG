@@ -13,23 +13,28 @@ Version 3.3, released on Jan XX, 2017
 
 Support for SUNDIALS
 --------------------
-- Added optional support for the time integration and non-linear solvers methods
-  from the CVODE, ARKODE and KINSOL libraries of the SUNDIALS suite (version 2.7
-  or higher of SUNDIALS is required).
+- Added support for the time integrators and non-linear solvers from the CVODE,
+  ARKODE and KINSOL libraries of the SUNDIALS suite (version 2.7 or higher of
+  SUNDIALS is required). Their use is illustrated in the new examples/sundials
+  directory.
 
-General BilinearFormIntegrators for common families of operators
+FEM <-> linear system interface for action-only linear operators
 ----------------------------------------------------------------
-- Added MixedScalarIntegrator and 7 derived classes for integrating products of
-  two scalar basis functions and optional scalar coefficients.
+- Added a new class, ConstrainedOperator, which can impose essential boundary
+  conditions using only the action, Mult(), of a given square linear Operator.
 
-- Added MixedVectorIntegrator and 16 derived classes for integrating the inner
-  product of two vector basis functions with optional scalar, vector, or matrix
-  coefficients.
+- Added a FormLinearSystem + RecoverFEMSolution functionality for square linear
+  Operators that are available only through their action. This includes all
+  necessary transformations, such as: parallel assembly, conforming constraints
+  for non-conforming AMR and eliminating boundary conditions. (Hybridization and
+  static condensation are not supported.) See examples in miniapps/performance.
 
-- Added MixedScalarVectorIntegrator and 13 derived classes for integrating the
-  product of a scalar basis function with the inner product of a vector basis
-  function with a vector coefficient. In 2D the inner product can optionally be
-  replaced with a cross product.
+Scalable parallel mesh support
+------------------------------
+- Introduced a new mesh format (v1.2) that can describe/recover MFEM parallel
+  meshes. This way, computations can start directly in parallel without serial
+  refinement and splitting. Non-conforming meshes are currently not supported
+  only in serial.
 
 General quadrature and nodal finite element basis types
 -------------------------------------------------------
@@ -51,38 +56,48 @@ General quadrature and nodal finite element basis types
      const IntegrationRule *ir = gl(Geometry::SEGMENT, 5); // 4pt 1D rule
   The global IntRules object continues to use GaussLegendre.
 
-FEM <-> linear system interface for action-only linear operators
-----------------------------------------------------------------
-- Added a new class, ConstrainedOperator, which can impose essential boundary
-  conditions using only the action, Mult(), of a given square linear Operator.
+New integrators for common families of operators
+------------------------------------------------
+- Added MixedScalarIntegrator and 7 derived classes for integrating products of
+  two scalar basis functions and optional scalar coefficients.
 
-- Added a FormLinearSystem + RecoverFEMSolution functionality for square linear
-  Operators that are available only through their action. This includes all
-  necessary transformations, such as: parallel assembly, conforming constraints
-  for non-conforming AMR and eliminating boundary conditions. (Hybridization and
-  static condensation are not supported.) See examples in miniapps/performance.
+- Added MixedVectorIntegrator and 16 derived classes for integrating the inner
+  product of two vector basis functions with optional scalar, vector, or matrix
+  coefficients.
 
-Scalable parallel mesh support
-------------------------------
-- The new MFEM mesh format (v1.2) now supports parallel meshes so an MFEM
-  computation can start directly in parallel without serial refinement and
-  splitting. Non-conforming meshes are currently supported only in serial.
+- Added MixedScalarVectorIntegrator and 13 derived classes for integrating the
+  product of a scalar basis function with the inner product of a vector basis
+  function with a vector coefficient. In 2D the inner product can optionally be
+  replaced with a cross product.
 
-New integrators and extensions to BilinearForm and LinearForm
--------------------------------------------------------------
 - Added a new class DGElasticityIntegrator that supports a few types of DG
-  formulations for linear elasticity.
-
-- Added a new linear form integrator class DGElasticityDirichletLFIntegrator
-  that implements non-homogeneous Dirichlet b.c. for DG elasticity formulations.
+  formulations for linear elasticity and a new linear form integrator,
+  DGElasticityDirichletLFIntegrator, that implements non-homogeneous BCs.
 
 - Added support for DG spaces in class VectorBoundaryLFIntegrator.
 
-- In class BilinearForm, added support for boundary face integrators applied to
-  a subset of the boundary, see the method AddBdrFaceIntegrator.
+- In classes BilinearForm and LinearForm, added support for boundary face
+  integrators applied to a subset of the boundary, see AddBdrFaceIntegrator.
 
-- In class LinearForm, added support for boundary face integrators applied to
-  a subset of the boundary, see method AddBdrFaceIntegrator.
+Improved building options
+-------------------------
+- Added a new CMake build system, that can be used as an alternative to the GNU
+  make-based build system (e.g. for out-of-source building). For more details,
+  see the INSTALL file and the config/cmake directory.
+
+- Added support for out-of-source builds with GNU make, see the INSTALL file.
+
+Improved file output
+--------------------
+- Added on-the-fly compression of file streams input and output via gzstream,
+  see the MFEM_USE_GZSTREAM option.
+
+- Added experimental support for an HDF5-based output file format following the
+  Conduit (https://github.com/LLNL/conduit) mesh blueprint specification for
+  visualization and/or restart capability. This functionality is aimed primarily
+  at user of LLNL's ASC Toolkit (Sidre component) that run problems at extreme
+  scales. Users desiring a small scale binary format may want to look at the
+  gzstream functionality instead.
 
 New and updated examples and miniapps
 -------------------------------------
@@ -112,26 +127,6 @@ New and updated examples and miniapps
 
 - Added an option to Example 9/9p to save a binary visualization file using the
   Conduit mesh blueprint/hdf5 format.
-
-Improved building options
--------------------------
-- Added a new CMake build system, that can be used as an alternative to the GNU
-  make-based build system (e.g. for out-of-source building). For more details,
-  see the INSTALL file and the config/cmake directory.
-
-- Added support for out-of-source builds with GNU make, see the INSTALL file.
-
-Improved file output
---------------------
-- Added on-the-fly compression of file streams input and output via gzstream,
-  see the MFEM_USE_GZSTREAM option.
-
-- Added experimental support for an HDF5-based output file format following the
-  Conduit (https://github.com/LLNL/conduit) mesh blueprint specification for
-  visualization and/or restart capability. This functionality is aimed primarily
-  at user of LLNL's ASC Toolkit (Sidre component) that run problems at extreme
-  scales. Users desiring a small scale binary format may want to look at the
-  gzstream functionality instead.
 
 Miscellaneous
 -------------
