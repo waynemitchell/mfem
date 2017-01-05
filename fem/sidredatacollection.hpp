@@ -269,9 +269,6 @@ public:
    asctoolkit::sidre::DataGroup * GetBPGroup() { return bp_grp; }
    asctoolkit::sidre::DataGroup * GetBPIndexGroup() { return bp_index_grp; }
 
-   /** Check and update the state of the DataStore */
-   void PrepareToSave();
-
    /// Save the collection to file.
    /** This method calls `Save(collection_name, "sidre_hdf5")`. */
    virtual void Save();
