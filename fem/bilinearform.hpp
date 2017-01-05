@@ -255,7 +255,7 @@ public:
                          SparseMatrix &A, Vector &X, Vector &B,
                          int copy_interior = 0);
 
-   /// Form the linear sytem matrix A, see FormLinearSystem for details.
+   /// Form the linear system matrix A, see FormLinearSystem for details.
    void FormSystemMatrix(const Array<int> &ess_tdof_list, SparseMatrix &A);
 
    /** Call this method after solving a linear system constructed using the

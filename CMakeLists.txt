@@ -39,7 +39,7 @@ if (NOT CMAKE_CXX_COMPILER)
 endif()
 
 project(mfem CXX)
-set(${PROJECT_NAME}_VERSION 3.2)
+set(${PROJECT_NAME}_VERSION 3.3)
 
 # Prohibit in-source build
 if (${PROJECT_SOURCE_DIR} STREQUAL ${PROJECT_BINARY_DIR})
