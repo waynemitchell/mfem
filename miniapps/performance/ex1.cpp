@@ -37,19 +37,16 @@ using namespace std;
 using namespace mfem;
 
 // Define template parameters for optimized build.
-const Geometry::Type geom         =
-   Geometry::CUBE; // mesh elements  (default: hex)
-const int            mesh_p       =
-   3;              // mesh curvature (default: 3)
-const int            sol_p        =
-   3;              // solution order (default: 3)
-const int            mesh_lor_p   =
-   1;              // mesh curvature (default: 3)
-const int            sol_lor_p    =
-   1;              // solution order (default: 3)
-const int            rdim         = Geometry::Constants<geom>::Dimension;
-const int            ir_order     = 2*sol_p+rdim-1;
-const int            ir_order_lor = 2*sol_lor_p+rdim-1;
+const Geometry::Type geom     = Geometry::CUBE; // mesh elements  (default: hex)
+const int            mesh_p   = 3;              // mesh curvature (default: 3)
+const int            sol_p    = 3;              // solution order (default: 3)
+const int            rdim     = Geometry::Constants<geom>::Dimension;
+const int            ir_order = 2*sol_p+rdim-1;
+
+// Low-order-refined (LOR) parameters.
+const int          mesh_lor_p = 1;              // mesh curvature (default: 1)
+const int          sol_lor_p  = 1;              // solution order (default: 1)
+const int        ir_order_lor = 2*sol_lor_p+rdim-1;
 
 // Static mesh type
 typedef H1_FiniteElement<geom,mesh_p>         mesh_fe_t;
@@ -86,19 +83,17 @@ typedef TIntegrationRule<geom,ir_order_lor>     int_rule_lor_t;
 typedef TBilinearForm<mesh_lor_t,sol_fes_lor_t,int_rule_lor_t,integ_t>
 HPCBilinearForm_lor;
 
-double GaussianFunction(const Vector &x);
-
 int main(int argc, char *argv[])
 {
    // 1. Parse command-line options.
    const char *mesh_file = "../../data/fichera.mesh";
-   const char *pc = "default";
    int order = sol_p;
    const char *basis_type = "G"; // Gauss-Lobatto
    bool static_cond = false;
-   bool visualization = 1;
+   const char *pc = "lor";
    bool perf = true;
    bool matrix_free = true;
+   bool visualization = 1;
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -113,14 +108,14 @@ int main(int argc, char *argv[])
    args.AddOption(&matrix_free, "-mf", "--matrix-free", "-asm", "--assembly",
                   "Use matrix-free evaluation or efficient matrix assembly in "
                   "the high-performance version.");
+   args.AddOption(&pc, "-pc", "--preconditioner",
+                  "Preconditioner to use: `lor' for LOR (matrix-free) GS, "
+                  "`ho' for high-order (assembled) GS, `none'.");
    args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
                   "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
-   args.AddOption(&pc, "-pc", "--preconditioner",
-                  "Preconditioner to use: `lor' for LOR BoomerAMG Prec.,"
-                  "`dense' for Dense BoomerAMG Prec., `none'.");
    args.Parse();
    if (!args.Good())
    {
@@ -136,22 +131,11 @@ int main(int argc, char *argv[])
    if (!perf) { matrix_free = false; }
    args.PrintOptions(cout);
 
-   enum PCType { NONE, LOR, DENSE };
+   enum PCType { NONE, LOR, HO };
    PCType pc_choice;
-   if (!strcmp(pc, "dense")) { pc_choice = DENSE; }
+   if (!strcmp(pc, "ho")) { pc_choice = HO; }
    else if (!strcmp(pc, "lor")) { pc_choice = LOR; }
    else if (!strcmp(pc, "none")) { pc_choice = NONE; }
-   else if (!strcmp(pc,"default"))
-   {
-      if (matrix_free)
-      {
-         pc_choice = NONE;
-      }
-      else
-      {
-         pc_choice = DENSE;
-      }
-   }
    else
    {
       mfem_error("Invalid Preconditioner specified");
@@ -220,12 +204,14 @@ int main(int argc, char *argv[])
    }
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
 
+   Mesh *mesh_lor = NULL;
+   FiniteElementCollection *fec_lor = NULL;
    FiniteElementSpace *fespace_lor = NULL;
-   Operator *P = NULL, *R = NULL;
    if (pc_choice == LOR)
    {
-      fespace->BuildDofToArrays();
-      fespace_lor = fespace->LowOrderRefinement(sol_lor_p, P, R);
+      mesh_lor = new Mesh(mesh, order, basis);
+      fec_lor = new H1_FECollection(1, dim);
+      fespace_lor = new FiniteElementSpace(mesh_lor, fec_lor);
    }
    cout << "Number of finite element unknowns: "
         << fespace->GetTrueVSize() << endl;
@@ -306,7 +292,6 @@ int main(int argc, char *argv[])
    {
       // High-performance assembly/evaluation using the templated operator type
       a_hpc = new HPCBilinearForm(integ_t(coeff_t(1.0)), *fespace);
-
       if (matrix_free)
       {
          a_hpc->Assemble(); // partial assembly
@@ -341,19 +326,22 @@ int main(int argc, char *argv[])
    SparseMatrix A_pc;
    if (pc_choice != NONE)
    {
-      cout << "Assembling Linear System for the GS Preconditioner ... " << endl;
-      tic_toc.Clear();
-      tic_toc.Start();
-
       Vector X_tmp, B_tmp;
       if (pc_choice == LOR)
       {
+         cout << "Assembling linear system for the LOR GS preconditioner ..." << flush;
+         tic_toc.Clear();
+         tic_toc.Start();
+
          a_hpc_lor = new HPCBilinearForm_lor(integ_t(coeff_t(1.0)),
-                                             *fespace_lor);
+                                           *fespace_lor);
          a_hpc_lor->AssembleBilinearForm(*a_pc);
          a_pc->FormLinearSystem(ess_tdof_list, x, *b, A_pc, X_tmp, B_tmp);
+
+         tic_toc.Stop();
+         cout << " done, " << tic_toc.RealTime() << "s." << endl;
       }
-      else if (pc_choice == DENSE)
+      else if (pc_choice == HO)
       {
          if (!perf)
          {
@@ -361,12 +349,17 @@ int main(int argc, char *argv[])
          }
          else
          {
+            cout << "Assembling linear system for the HO GS preconditioner ..." << flush;
+            tic_toc.Clear();
+            tic_toc.Start();
+
             a_hpc->AssembleBilinearForm(*a_pc);
             a_pc->FormLinearSystem(ess_tdof_list, x, *b, A_pc, X_tmp, B_tmp);
+
+            tic_toc.Stop();
+            cout << " done, " << tic_toc.RealTime() << "s." << endl;
          }
       }
-      tic_toc.Stop();
-      cout << " done, " << tic_toc.RealTime() << "s." << endl;
    }
 
    if (perf && matrix_free)
@@ -446,11 +439,9 @@ int main(int argc, char *argv[])
    if (pc_choice == LOR)
    {
       delete a_hpc_lor;
-      delete P;
-      delete R;
-      delete fespace_lor->FEColl();
-      delete fespace_lor->GetMesh();
       delete fespace_lor;
+      delete fec_lor;
+      delete mesh_lor;
    }
    if (order > 0) { delete fec; }
    delete mesh;
