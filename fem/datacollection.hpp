@@ -89,9 +89,6 @@ protected:
    /// Error state
    int error;
 
-   /// Should the DC perform disk io?
-   bool io_disabled;
-
    /// Delete data owned by the DataCollection keeping field information
    void DeleteData();
    /// Delete data owned by the DataCollection including field information
@@ -207,9 +204,6 @@ public:
    virtual void SaveField(const std::string &field_name);
    /// Save one q-field, assuming the collection directory already exists.
    virtual void SaveQField(const std::string &q_field_name);
-
-   /// Set io_disabled member to true. allow external agent to perform disk io
-   void DisableIO() { io_disabled = true; };
 
    /// Load the collection. Not implemented in the base class DataCollection.
    virtual void Load(int cycle_ = 0);
