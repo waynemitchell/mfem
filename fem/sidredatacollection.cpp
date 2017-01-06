@@ -334,14 +334,25 @@ void SidreDataCollection::createMeshBlueprintCoordset(bool hasBP)
       bp_index_grp->getGroup("coordsets/coords")->copyView(
          bp_grp->getView("coordsets/coords/type") );
 
-      std::string coord_system = "x";
+      bp_index_grp->createViewString(
+         "coordsets/coords/coord_system/type", "cartesian");
+
+      // these are empty views, their existance in the group
+      // tree is used to define the number of dims
+      bp_index_grp->createView(
+         "coordsets/coords/coord_system/axes/x");
+
       if (dim >= 2)
       {
-         coord_system = (dim >= 3) ? "xyz" : "xy";
+          bp_index_grp->createView(
+             "coordsets/coords/coord_system/axes/y");
       }
-
-      bp_index_grp->createViewString(
-         "coordsets/coords/coord_system", coord_system);
+      
+      if (dim == 3)
+      {
+          bp_index_grp->createView(
+              "coordsets/coords/coord_system/axes/z");
+      }
    }
 
    if (m_owns_mesh_data)
@@ -403,10 +414,7 @@ createMeshBlueprintTopologies(bool hasBP, const std::string& mesh_name)
       // mesh nodes in the blueprint group.
       if (!isBdry && mesh->GetNodes() != NULL)
       {
-         // NOTE: The view name will be changing
-         //       from 'mfem_grid_function' to 'grid_function'
-         //       in the next release.
-         topology_grp->createViewString("mfem_grid_function",m_meshNodesGFName);
+         topology_grp->createViewString("grid_function",m_meshNodesGFName);
       }
 
       // Add material attribute field to blueprint
@@ -446,7 +454,7 @@ createMeshBlueprintTopologies(bool hasBP, const std::string& mesh_name)
       if (!isBdry && mesh->GetNodes() != NULL)
       {
          bp_index_topo_grp->copyView(
-            topology_grp->getView("mfem_grid_function") );
+            topology_grp->getView("grid_function") );
       }
 
       // Create blueprint index for material attributes.
@@ -530,7 +538,7 @@ void SidreDataCollection::SetMesh(Mesh *new_mesh)
       {
          // Get the bp mesh nodes name.
          sidre::DataView *v_bp_nodes_name =
-            bp_grp->getView("topologies/mesh/mfem_grid_function");
+            bp_grp->getView("topologies/mesh/grid_function");
          std::string bp_nodes_name(v_bp_nodes_name->getString());
 
          // Check that the names match, e.g. when loading the collection.
@@ -1011,12 +1019,12 @@ std::string SidreDataCollection::getElementName(Element::Type elementEnum)
 
    switch (elementEnum)
    {
-      case Element::POINT:          return "points";
-      case Element::SEGMENT:        return "lines";
-      case Element::TRIANGLE:       return "tris";
-      case Element::QUADRILATERAL:  return "quads";
-      case Element::TETRAHEDRON:    return "tets";
-      case Element::HEXAHEDRON:     return "hexs";
+      case Element::POINT:          return "point";
+      case Element::SEGMENT:        return "line";
+      case Element::TRIANGLE:       return "tri";
+      case Element::QUADRILATERAL:  return "quad";
+      case Element::TETRAHEDRON:    return "tet";
+      case Element::HEXAHEDRON:     return "hex";
    }
 
    return "unknown";
