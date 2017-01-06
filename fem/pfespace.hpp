@@ -68,10 +68,10 @@ private:
    /// The (block-diagonal) matrix R (restriction of dof to true dof)
    SparseMatrix *R;
 
-   ParNURBSExtension *pNURBSext()
+   ParNURBSExtension *pNURBSext() const
    { return dynamic_cast<ParNURBSExtension *>(NURBSext); }
 
-   GroupTopology &GetGroupTopo()
+   GroupTopology &GetGroupTopo() const
    { return (NURBSext) ? pNURBSext()->gtopo : pmesh->gtopo; }
 
    void Construct();
@@ -185,6 +185,9 @@ public:
    /** Returns the indexes of the degrees of freedom for i'th face
        including the dofs for the edges and the vertices of the face. */
    virtual void GetFaceDofs(int i, Array<int> &dofs) const;
+
+   void GetSharedEdgeDofs(int group, int ei, Array<int> &dofs) const;
+   void GetSharedFaceDofs(int group, int fi, Array<int> &dofs) const;
 
    /// The true dof-to-dof interpolation matrix
    HypreParMatrix *Dof_TrueDof_Matrix()

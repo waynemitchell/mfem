@@ -336,6 +336,9 @@ protected:
 
    void InitBaseGeom();
 
+   // Used in the methods FinalizeXXXMesh() and FinalizeTopology()
+   void FinalizeCheck();
+
    void Loader(std::istream &input, int generate_edges = 0,
                std::string parse_tag = "");
 
@@ -535,6 +538,19 @@ public:
 
    /// Create a disjoint mesh from the given mesh array
    Mesh(Mesh *mesh_array[], int num_pieces);
+
+   /// Create a uniformly refined (by any factor) version of @a orig_mesh.
+   /** @param[in] orig_mesh  The starting coarse mesh.
+       @param[in] ref_factor The refinement factor, an integer > 1.
+       @param[in] ref_type   Specify the positions of the new vertices. The
+                             options are BasisType::ClosedUniform or
+                             BasisType::GaussLobatto.
+
+       The refinement data which can be accessed with GetRefinementTransforms()
+       is set to reflect the performed refinements.
+
+       @note The constructed Mesh is linear, i.e. it does not have nodes. */
+   Mesh(Mesh *orig_mesh, int ref_factor, int ref_type);
 
    /** This is similar to the mesh constructor with the same arguments, but here
        the current mesh is destroyed and another one created based on the data
@@ -938,9 +954,10 @@ public:
    bool DerefineByError(const Vector &elem_error, double threshold,
                         int nc_limit = 0, int op = 1);
 
-   // NURBS mesh refinement methods
+   ///@{ @name NURBS mesh refinement methods
    void KnotInsert(Array<KnotVector *> &kv);
    void DegreeElevate(int t);
+   ///@}
 
    /** Make sure that a quad/hex mesh is considered to be non-conforming (i.e.,
        has an associated NCMesh object). Triangles meshes can be both conforming

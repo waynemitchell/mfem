@@ -11,13 +11,6 @@
 Version 3.3, released on Jan XX, 2017
 =====================================
 
-Support for SUNDIALS
---------------------
-- Added support for the time integrators and non-linear solvers from the CVODE,
-  ARKODE and KINSOL libraries of the SUNDIALS suite (version 2.7 or higher of
-  SUNDIALS is required). Their use is illustrated in the new examples/sundials
-  directory.
-
 FEM <-> linear system interface for action-only linear operators
 ----------------------------------------------------------------
 - Added a new class, ConstrainedOperator, which can impose essential boundary
@@ -29,12 +22,26 @@ FEM <-> linear system interface for action-only linear operators
   for non-conforming AMR and eliminating boundary conditions. (Hybridization and
   static condensation are not supported.) See examples in miniapps/performance.
 
+Matrix-free preconditioning and low-order-refined spaces
+--------------------------------------------------------
+- The HPC examples in miniapps/performance now support efficient preconditioning
+  in matrix-free mode based on applying a standard (e.g. AMG) preconditioner to
+  a sparsified version of the operator. The sparsification is obtained by
+  rediscretizing with a low-order refined spaces, currently at the high-order
+  degrees of freedom.
+
+- New mesh constructors support the creation of low-order-refined version of a
+  given mesh, both in serial and in parallel. These are illustrated in the HPC
+  examples in miniapp/performance (option -pc lor), as well as in mesh-explorer
+  miniapp, which now supports Gauss-Lobatto refinement and uniform refinement,
+  both for any factor > 1.
+
 Scalable parallel mesh support
 ------------------------------
 - Introduced a new mesh format (v1.2) that can describe/recover MFEM parallel
   meshes. This way, computations can start directly in parallel without serial
-  refinement and splitting. Non-conforming meshes are currently not supported
-  only in serial.
+  refinement and splitting. Non-conforming meshes are currently supported only
+  in serial.
 
 General quadrature and nodal finite element basis types
 -------------------------------------------------------
@@ -78,6 +85,13 @@ New integrators for common families of operators
 
 - In classes BilinearForm and LinearForm, added support for boundary face
   integrators applied to a subset of the boundary, see AddBdrFaceIntegrator.
+
+Support for SUNDIALS
+--------------------
+- Added support for the time integrators and non-linear solvers from the CVODE,
+  ARKODE and KINSOL libraries of the SUNDIALS suite (version 2.7 or higher of
+  SUNDIALS is required). Their use is illustrated in the new examples/sundials
+  directory.
 
 Improved building options
 -------------------------

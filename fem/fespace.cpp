@@ -1351,6 +1351,21 @@ void FiniteElementSpace::GetEdgeInteriorDofs (int i, Array<int> &dofs) const
    }
 }
 
+void FiniteElementSpace::GetFaceInteriorDofs (int i, Array<int> &dofs) const
+{
+   int j, k, nf;
+
+   nf = (fdofs) ? (fdofs[i+1]-fdofs[i]) : (0);
+   dofs.SetSize (nf);
+   if (nf > 0)
+   {
+      for (j = 0, k = nvdofs+nedofs+fdofs[i]; j < nf; j++, k++)
+      {
+         dofs[j] = k;
+      }
+   }
+}
+
 const FiniteElement *FiniteElementSpace::GetBE (int i) const
 {
    const FiniteElement *BE;

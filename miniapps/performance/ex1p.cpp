@@ -82,9 +82,10 @@ int main(int argc, char *argv[])
    int order = sol_p;
    const char *basis_type = "G"; // Gauss-Lobatto
    bool static_cond = false;
-   bool visualization = 1;
+   const char *pc = "lor";
    bool perf = true;
    bool matrix_free = true;
+   bool visualization = 1;
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -99,6 +100,9 @@ int main(int argc, char *argv[])
    args.AddOption(&matrix_free, "-mf", "--matrix-free", "-asm", "--assembly",
                   "Use matrix-free evaluation or efficient matrix assembly in "
                   "the high-performance version.");
+   args.AddOption(&pc, "-pc", "--preconditioner",
+                  "Preconditioner: lor - low-order-refined (matrix-free) AMG, "
+                  "ho - high-order (assembled) AMG, none.");
    args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
                   "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
@@ -128,6 +132,17 @@ int main(int argc, char *argv[])
    if (myid == 0)
    {
       args.PrintOptions(cout);
+   }
+
+   enum PCType { NONE, LOR, HO };
+   PCType pc_choice;
+   if (!strcmp(pc, "ho")) { pc_choice = HO; }
+   else if (!strcmp(pc, "lor")) { pc_choice = LOR; }
+   else if (!strcmp(pc, "none")) { pc_choice = NONE; }
+   else
+   {
+      mfem_error("Invalid Preconditioner specified");
+      return 3;
    }
 
    // See class BasisType in fem/fe_coll.hpp for available basis types
@@ -160,7 +175,7 @@ int main(int argc, char *argv[])
          }
          delete mesh;
          MPI_Finalize();
-         return 3;
+         return 4;
       }
       else if (!mesh_t::MatchesNodes(*mesh))
       {
@@ -226,6 +241,18 @@ int main(int argc, char *argv[])
       cout << "Number of finite element unknowns: " << size << endl;
    }
 
+   ParMesh *pmesh_lor = NULL;
+   FiniteElementCollection *fec_lor = NULL;
+   ParFiniteElementSpace *fespace_lor = NULL;
+   if (pc_choice == LOR)
+   {
+      int basis_lor = basis;
+      if (basis == BasisType::Positive) { basis_lor=BasisType::ClosedUniform; }
+      pmesh_lor = new ParMesh(pmesh, order, basis_lor);
+      fec_lor = new H1_FECollection(1, dim);
+      fespace_lor = new ParFiniteElementSpace(pmesh_lor, fec_lor);
+   }
+
    // 8. Check if the optimized version matches the given space
    if (perf && !sol_fes_t::Matches(*fespace))
    {
@@ -238,7 +265,7 @@ int main(int argc, char *argv[])
       delete fec;
       delete mesh;
       MPI_Finalize();
-      return 4;
+      return 5;
    }
 
    // 9. Determine the list of true (i.e. parallel conforming) essential
@@ -270,6 +297,9 @@ int main(int argc, char *argv[])
    // 12. Set up the parallel bilinear form a(.,.) on the finite element space
    //     that will hold the matrix corresponding to the Laplacian operator.
    ParBilinearForm *a = new ParBilinearForm(fespace);
+   ParBilinearForm *a_pc = NULL;
+   if (pc_choice == LOR) { a_pc = new ParBilinearForm(fespace_lor); }
+   if (pc_choice == HO)  { a_pc = new ParBilinearForm(fespace); }
 
    // 13. Assemble the parallel bilinear form and the corresponding linear
    //     system, applying any necessary transformations such as: parallel
@@ -297,7 +327,7 @@ int main(int argc, char *argv[])
    }
    else
    {
-      // High-performance assembly using the templated operator type
+      // High-performance assembly/evaluation using the templated operator type
       a_hpc = new HPCBilinearForm(integ_t(coeff_t(1.0)), *fespace);
       if (matrix_free)
       {
@@ -305,7 +335,7 @@ int main(int argc, char *argv[])
       }
       else
       {
-         a_hpc->AssembleBilinearForm(*a); // full local matrix assembly
+         a_hpc->AssembleBilinearForm(*a); // full matrix assembly
       }
    }
    tic_toc.Stop();
@@ -316,6 +346,8 @@ int main(int argc, char *argv[])
 
    // 14. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
    //     preconditioner from hypre.
+
+   // Setup the operator matrix (if applicable)
    HypreParMatrix A;
    Vector B, X;
    if (perf && matrix_free)
@@ -334,25 +366,72 @@ int main(int argc, char *argv[])
       {
          cout << "Size of linear system: " << A.GetGlobalNumRows() << endl;
       }
+      a_oper = &A;
    }
 
+   // Setup the matrix used for preconditioning
+   if (myid == 0)
+   {
+      cout << "Assembling the preconditioning matrix ..." << flush;
+   }
+   tic_toc.Clear();
+   tic_toc.Start();
+
+   HypreParMatrix A_pc;
+   if (pc_choice != NONE)
+   {
+      Vector X_pc, B_pc; // only for FormLinearSystem()
+      if (pc_choice == LOR)
+      {
+         a_pc->AddDomainIntegrator(new DiffusionIntegrator(one));
+         a_pc->Assemble();
+         a_pc->FormLinearSystem(ess_tdof_list, x, *b, A_pc, X_pc, B_pc);
+      }
+      else if (pc_choice == HO)
+      {
+         if (!perf)
+         {
+            A_pc.MakeRef(A); // matrix already assembled, reuse it
+         }
+         else
+         {
+            a_hpc->AssembleBilinearForm(*a_pc);
+            a_pc->FormLinearSystem(ess_tdof_list, x, *b, A_pc, X_pc, B_pc);
+         }
+      }
+   }
+   tic_toc.Stop();
+   if (myid == 0)
+   {
+      cout << " done, " << tic_toc.RealTime() << "s." << endl;
+   }
+
+   // Solve with CG or PCG, depending if the matrix A_pc is available
    CGSolver *pcg;
    pcg = new CGSolver(MPI_COMM_WORLD);
    pcg->SetRelTol(1e-6);
    pcg->SetMaxIter(500);
    pcg->SetPrintLevel(1);
 
-   if (perf && matrix_free)
+   HypreSolver *amg = NULL;
+   tic_toc.Clear();
+   tic_toc.Start();
+
+   pcg->SetOperator(*a_oper);
+   if (pc_choice != NONE)
    {
-      pcg->SetOperator(*a_oper);
-      pcg->Mult(B, X);
+      amg = new HypreBoomerAMG(A_pc);
+      pcg->SetPreconditioner(*amg);
    }
-   else
+   pcg->Mult(B, X);
+
+   tic_toc.Stop();
+   delete amg;
+
+   if (myid == 0)
    {
-      HypreBoomerAMG amg(A);
-      pcg->SetOperator(A);
-      pcg->SetPreconditioner(amg);
-      pcg->Mult(B, X);
+      cout << "Time per CG step: " << tic_toc.RealTime() / pcg->GetNumIterations() <<
+           "s." << endl;
    }
 
    // 15. Recover the parallel grid function corresponding to X. This is the
@@ -396,9 +475,13 @@ int main(int argc, char *argv[])
    // 18. Free the used memory.
    delete a;
    delete a_hpc;
-   delete a_oper;
+   if (a_oper != &A) { delete a_oper; }
+   delete a_pc;
    delete b;
    delete fespace;
+   delete fespace_lor;
+   delete fec_lor;
+   delete pmesh_lor;
    if (order > 0) { delete fec; }
    delete pmesh;
    delete pcg;

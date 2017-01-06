@@ -212,6 +212,7 @@ public:
 
    void GetRow(int r, Vector &row);
    void GetColumn(int c, Vector &col) const;
+   double *GetColumn(int col) { return data + col*height; }
 
    void GetColumnReference(int c, Vector &col)
    { col.SetDataAndSize(data + c * height, height); }

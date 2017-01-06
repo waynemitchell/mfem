@@ -98,7 +98,7 @@ private:
    Vector shape;
 
    const FiniteElement *FElem;
-   DenseMatrix PointMat;
+   DenseMatrix PointMat; // dim x dof
 
    // Evaluate the Jacobian of the transformation at the IntPoint and store it
    // in dFdx.
@@ -108,7 +108,18 @@ public:
    void SetFE(const FiniteElement *FE) { FElem = FE; }
    const FiniteElement* GetFE() const { return FElem; }
 
-   DenseMatrix &GetPointMat () { return PointMat; }
+   /** @brief Read and write access to the underlying point matrix describing
+       the transformation. */
+   /** The dimensions of the matrix are space-dim x dof. The transformation is
+       defined as
+
+           x=F(xh)=P.phi(xh),
+
+       where xh (x hat) is the reference point, x is the corresponding physical
+       point, P is the point matrix, and phi(xh) is the column-vector of all
+       basis functions evaluated at xh. The columns of P represent the control
+       points in physical space defining the transformation. */
+   DenseMatrix &GetPointMat() { return PointMat; }
 
    void SetIdentityTransformation(int GeomType);
 
