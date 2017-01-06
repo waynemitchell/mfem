@@ -236,6 +236,8 @@ public:
 
    void GetElementInteriorDofs(int i, Array<int> &dofs) const;
 
+   void GetFaceInteriorDofs(int i, Array<int> &dofs) const;
+
    int GetNumElementInteriorDofs(int i) const
    { return fec->DofForGeometry(mesh->GetElementBaseGeometry(i)); }
 
@@ -286,8 +288,8 @@ public:
    const Table &GetElementToDofTable() const { return *elem_dof; }
    const Table &GetBdrElementToDofTable() const { return *bdrElem_dof; }
 
-   int GetElementForDof(int i) { return dof_elem_array[i]; }
-   int GetLocalDofForDof(int i) { return dof_ldof_array[i]; }
+   int GetElementForDof(int i) const { return dof_elem_array[i]; }
+   int GetLocalDofForDof(int i) const { return dof_ldof_array[i]; }
 
    /// Returns pointer to the FiniteElement associated with i'th element.
    const FiniteElement *GetFE(int i) const;

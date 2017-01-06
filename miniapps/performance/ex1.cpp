@@ -67,9 +67,10 @@ int main(int argc, char *argv[])
    int order = sol_p;
    const char *basis_type = "G"; // Gauss-Lobatto
    bool static_cond = false;
-   bool visualization = 1;
+   const char *pc = "none";
    bool perf = true;
    bool matrix_free = true;
+   bool visualization = 1;
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -84,6 +85,9 @@ int main(int argc, char *argv[])
    args.AddOption(&matrix_free, "-mf", "--matrix-free", "-asm", "--assembly",
                   "Use matrix-free evaluation or efficient matrix assembly in "
                   "the high-performance version.");
+   args.AddOption(&pc, "-pc", "--preconditioner",
+                  "Preconditioner: lor - low-order-refined (matrix-free) GS, "
+                  "ho - high-order (assembled) GS, none.");
    args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
                   "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
@@ -103,6 +107,17 @@ int main(int argc, char *argv[])
    }
    if (!perf) { matrix_free = false; }
    args.PrintOptions(cout);
+
+   enum PCType { NONE, LOR, HO };
+   PCType pc_choice;
+   if (!strcmp(pc, "ho")) { pc_choice = HO; }
+   else if (!strcmp(pc, "lor")) { pc_choice = LOR; }
+   else if (!strcmp(pc, "none")) { pc_choice = NONE; }
+   else
+   {
+      mfem_error("Invalid Preconditioner specified");
+      return 3;
+   }
 
    // See class BasisType in fem/fe_coll.hpp for available basis types
    int basis = BasisType::GetType(basis_type[0]);
@@ -124,7 +139,7 @@ int main(int argc, char *argv[])
          cout << "The given mesh does not match the optimized 'geom' parameter.\n"
               << "Recompile with suitable 'geom' value." << endl;
          delete mesh;
-         return 3;
+         return 4;
       }
       else if (!mesh_t::MatchesNodes(*mesh))
       {
@@ -168,6 +183,20 @@ int main(int argc, char *argv[])
    cout << "Number of finite element unknowns: "
         << fespace->GetTrueVSize() << endl;
 
+   // Create the LOR mesh and finite element space. In the settings of this
+   // example, we can transfer between HO and LOR with the identity operator.
+   Mesh *mesh_lor = NULL;
+   FiniteElementCollection *fec_lor = NULL;
+   FiniteElementSpace *fespace_lor = NULL;
+   if (pc_choice == LOR)
+   {
+      int basis_lor = basis;
+      if (basis == BasisType::Positive) { basis_lor=BasisType::ClosedUniform; }
+      mesh_lor = new Mesh(mesh, order, basis_lor);
+      fec_lor = new H1_FECollection(1, dim);
+      fespace_lor = new FiniteElementSpace(mesh_lor, fec_lor);
+   }
+
    // 6. Check if the optimized version matches the given space
    if (perf && !sol_fes_t::Matches(*fespace))
    {
@@ -176,7 +205,7 @@ int main(int argc, char *argv[])
       delete fespace;
       delete fec;
       delete mesh;
-      return 4;
+      return 5;
    }
 
    // 7. Determine the list of true (i.e. conforming) essential boundary dofs.
@@ -207,7 +236,11 @@ int main(int argc, char *argv[])
 
    // 10. Set up the bilinear form a(.,.) on the finite element space that will
    //     hold the matrix corresponding to the Laplacian operator -Delta.
+   //     Optionally setup a form to be assembled for preconditioning (a_pc).
    BilinearForm *a = new BilinearForm(fespace);
+   BilinearForm *a_pc = NULL;
+   if (pc_choice == LOR) { a_pc = new BilinearForm(fespace_lor); }
+   if (pc_choice == HO)  { a_pc = new BilinearForm(fespace); }
 
    // 11. Assemble the bilinear form and the corresponding linear system,
    //     applying any necessary transformations such as: eliminating boundary
@@ -248,6 +281,8 @@ int main(int argc, char *argv[])
 
    // 12. Solve the system A X = B with CG. In the standard case, use a simple
    //     symmetric Gauss-Seidel preconditioner.
+
+   // Setup the operator matrix (if applicable)
    SparseMatrix A;
    Vector B, X;
    if (perf && matrix_free)
@@ -259,26 +294,50 @@ int main(int argc, char *argv[])
    {
       a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
       cout << "Size of linear system: " << A.Height() << endl;
+      a_oper = &A;
    }
 
-   if (perf && matrix_free)
+   // Setup the matrix used for preconditioning
+   cout << "Assembling the preconditioning matrix ..." << flush;
+   tic_toc.Clear();
+   tic_toc.Start();
+
+   SparseMatrix A_pc;
+   if (pc_choice != NONE)
    {
-      // Cannot utilize Gauss-Seidel preconditioner with how matrix-free operator
-      // handles essential BCs. See ConstrainedOperator.
-      CG(*a_oper, B, X, 1, 500, 1e-12, 0.0);
+      Vector X_pc, B_pc; // only for FormLinearSystem()
+      if (pc_choice == LOR)
+      {
+         a_pc->AddDomainIntegrator(new DiffusionIntegrator(one));
+         a_pc->Assemble();
+         a_pc->FormLinearSystem(ess_tdof_list, x, *b, A_pc, X_pc, B_pc);
+      }
+      else if (pc_choice == HO)
+      {
+         if (!perf)
+         {
+            A_pc.MakeRef(A); // matrix already assembled, reuse it
+         }
+         else
+         {
+            a_hpc->AssembleBilinearForm(*a_pc);
+            a_pc->FormLinearSystem(ess_tdof_list, x, *b, A_pc, X_pc, B_pc);
+         }
+      }
+   }
+
+   tic_toc.Stop();
+   cout << " done, " << tic_toc.RealTime() << "s." << endl;
+
+   // Solve with CG or PCG, depending if the matrix A_pc is available
+   if (pc_choice != NONE)
+   {
+      GSSmoother M(A_pc);
+      PCG(*a_oper, M, B, X, 1, 500, 1e-12, 0.0);
    }
    else
    {
-#ifndef MFEM_USE_SUITESPARSE
-      GSSmoother M(A);
-      PCG(A, M, B, X, 1, 500, 1e-12, 0.0);
-#else
-      // If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
-      UMFPackSolver umf_solver;
-      umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
-      umf_solver.SetOperator(A);
-      umf_solver.Mult(B, X);
-#endif
+      CG(*a_oper, B, X, 1, 500, 1e-12, 0.0);
    }
 
    // 13. Recover the solution as a finite element grid function.
@@ -313,9 +372,13 @@ int main(int argc, char *argv[])
    // 16. Free the used memory.
    delete a;
    delete a_hpc;
-   delete a_oper;
+   if (a_oper != &A) { delete a_oper; }
+   delete a_pc;
    delete b;
    delete fespace;
+   delete fespace_lor;
+   delete fec_lor;
+   delete mesh_lor;
    if (order > 0) { delete fec; }
    delete mesh;
 

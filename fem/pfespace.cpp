@@ -295,6 +295,52 @@ void ParFiniteElementSpace::GetFaceDofs(int i, Array<int> &dofs) const
    }
 }
 
+void ParFiniteElementSpace::GetSharedEdgeDofs(
+   int group, int ei, Array<int> &dofs) const
+{
+   int l_edge, ori;
+   MFEM_ASSERT(0 <= ei && ei < pmesh->GroupNEdges(group), "invalid edge index");
+   pmesh->GroupEdge(group, ei, l_edge, ori);
+   if (ori > 0) // ori = +1 or -1
+   {
+      GetEdgeDofs(l_edge, dofs);
+   }
+   else
+   {
+      Array<int> rdofs;
+      fec->SubDofOrder(Geometry::SEGMENT, 1, 1, dofs);
+      GetEdgeDofs(l_edge, rdofs);
+      for (int i = 0; i < dofs.Size(); i++)
+      {
+         const int di = dofs[i];
+         dofs[i] = (di >= 0) ? rdofs[di] : -1-rdofs[-1-di];
+      }
+   }
+}
+
+void ParFiniteElementSpace::GetSharedFaceDofs(
+   int group, int fi, Array<int> &dofs) const
+{
+   int l_face, ori;
+   MFEM_ASSERT(0 <= fi && fi < pmesh->GroupNFaces(group), "invalid face index");
+   pmesh->GroupFace(group, fi, l_face, ori);
+   if (ori == 0)
+   {
+      GetFaceDofs(l_face, dofs);
+   }
+   else
+   {
+      Array<int> rdofs;
+      fec->SubDofOrder(pmesh->GetFaceBaseGeometry(l_face), 2, ori, dofs);
+      GetFaceDofs(l_face, rdofs);
+      for (int i = 0; i < dofs.Size(); i++)
+      {
+         const int di = dofs[i];
+         dofs[i] = (di >= 0) ? rdofs[di] : -1-rdofs[-1-di];
+      }
+   }
+}
+
 void ParFiniteElementSpace::GenerateGlobalOffsets()
 {
    HYPRE_Int ldof[2];

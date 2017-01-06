@@ -100,6 +100,19 @@ public:
    /// Read a parallel mesh, each MPI rank from its own file/stream.
    ParMesh(MPI_Comm comm, std::istream &input);
 
+   /// Create a uniformly refined (by any factor) version of @a orig_mesh.
+   /** @param[in] orig_mesh  The starting coarse mesh.
+       @param[in] ref_factor The refinement factor, an integer > 1.
+       @param[in] ref_type   Specify the positions of the new vertices. The
+                             options are BasisType::ClosedUniform or
+                             BasisType::GaussLobatto.
+
+       The refinement data which can be accessed with GetRefinementTransforms()
+       is set to reflect the performed refinements.
+
+       @note The constructed ParMesh is linear, i.e. it does not have nodes. */
+   ParMesh(ParMesh *orig_mesh, int ref_factor, int ref_type);
+
    MPI_Comm GetComm() const { return MyComm; }
    int GetNRanks() const { return NRanks; }
    int GetMyRank() const { return MyRank; }
@@ -127,7 +140,7 @@ public:
    int GroupNFaces(int group)    { return group_sface.RowSize(group-1); }
 
    int GroupVertex(int group, int i)
-   { return svert_lvert[group_svert.GetJ()[group_svert.GetI()[group-1]+i]]; }
+   { return svert_lvert[group_svert.GetRow(group-1)[i]]; }
    void GroupEdge(int group, int i, int &edge, int &o);
    void GroupFace(int group, int i, int &face, int &o);
    ///@}

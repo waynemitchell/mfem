@@ -205,7 +205,34 @@ int main (int argc, char *argv[])
 
       if (mk == 'r')
       {
-         mesh->UniformRefinement();
+         cout <<
+              "Choose type of refinement:\n"
+              "s) standard refinement with Mesh::UniformRefinement()\n"
+              "u) uniform refinement with a factor\n"
+              "g) non-uniform refinement (Gauss-Lobatto) with a factor\n"
+              "--> " << flush;
+         char sk;
+         cin >> sk;
+         switch (sk)
+         {
+            case 's':
+               mesh->UniformRefinement();
+               break;
+            case 'u':
+            case 'g':
+            {
+               cout << "enter refinement factor --> " << flush;
+               int ref_factor;
+               cin >> ref_factor;
+               if (ref_factor <= 1 || ref_factor > 32) { break; }
+               int ref_type = (sk == 'u') ? BasisType::ClosedUniform :
+                              BasisType::GaussLobatto;
+               Mesh *rmesh = new Mesh(mesh, ref_factor, ref_type);
+               delete mesh;
+               mesh = rmesh;
+               break;
+            }
+         }
          print_char = 1;
       }
 
