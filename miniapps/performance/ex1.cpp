@@ -184,8 +184,7 @@ int main(int argc, char *argv[])
         << fespace->GetTrueVSize() << endl;
 
    // Create the LOR mesh and finite element space. In the settings of this
-   // example, we can the transfer between HO and LOR with the identity
-   // operator.
+   // example, we can transfer between HO and LOR with the identity operator.
    Mesh *mesh_lor = NULL;
    FiniteElementCollection *fec_lor = NULL;
    FiniteElementSpace *fespace_lor = NULL;

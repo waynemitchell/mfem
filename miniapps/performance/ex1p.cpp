@@ -46,19 +46,11 @@ using namespace std;
 using namespace mfem;
 
 // Define template parameters for optimized build.
-const Geometry::Type geom         =
-   Geometry::CUBE;   // mesh elements  (default: hex)
-const int            mesh_p       =
-   3;                // mesh curvature (default: 3)
-const int            sol_p        =
-   3;                // solution order (default: 3)
-const int            mesh_lor_p   =
-   1;                // mesh curvature (default: 3)
-const int            sol_lor_p    =
-   1;                // solution order (default: 3)
+const Geometry::Type geom     = Geometry::CUBE; // mesh elements  (default: hex)
+const int            mesh_p   = 3;              // mesh curvature (default: 3)
+const int            sol_p    = 3;              // solution order (default: 3)
 const int            rdim     = Geometry::Constants<geom>::Dimension;
 const int            ir_order = 2*sol_p+rdim-1;
-const int            ir_order_lor = 2*sol_lor_p+rdim-1;
 
 // Static mesh type
 typedef H1_FiniteElement<geom,mesh_p>         mesh_fe_t;
@@ -77,24 +69,6 @@ typedef TIntegrator<coeff_t,TDiffusionKernel> integ_t;
 // Static bilinear form type, combining the above types
 typedef TBilinearForm<mesh_t,sol_fes_t,int_rule_t,integ_t> HPCBilinearForm;
 
-// Low order refined types
-
-// Static mesh type
-typedef H1_FiniteElement<geom,mesh_lor_p>         mesh_lor_fe_t;
-typedef H1_FiniteElementSpace<mesh_lor_fe_t>      mesh_lor_fes_t;
-typedef TMesh<mesh_lor_fes_t>                     mesh_lor_t;
-
-// Static solution finite element space type
-typedef H1_FiniteElement<geom,sol_lor_p>          sol_fe_lor_t;
-typedef H1_FiniteElementSpace<sol_fe_lor_t>       sol_fes_lor_t;
-
-// Static quadrature, coefficient and integrator types
-typedef TIntegrationRule<geom,ir_order_lor>       int_rule_lor_t;
-
-// Static bilinear form type, combining the above types
-typedef TBilinearForm<mesh_lor_t,sol_fes_lor_t,int_rule_lor_t,integ_t>
-HPCBilinearForm_lor;
-
 int main(int argc, char *argv[])
 {
    // 1. Initialize MPI.
@@ -105,13 +79,13 @@ int main(int argc, char *argv[])
 
    // 2. Parse command-line options.
    const char *mesh_file = "../../data/fichera.mesh";
-   const char *pc = "default";
    int order = sol_p;
    const char *basis_type = "G"; // Gauss-Lobatto
    bool static_cond = false;
-   bool visualization = 1;
+   const char *pc = "none";
    bool perf = true;
    bool matrix_free = true;
+   bool visualization = 1;
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -126,14 +100,14 @@ int main(int argc, char *argv[])
    args.AddOption(&matrix_free, "-mf", "--matrix-free", "-asm", "--assembly",
                   "Use matrix-free evaluation or efficient matrix assembly in "
                   "the high-performance version.");
+   args.AddOption(&pc, "-pc", "--preconditioner",
+                  "Preconditioner to use: `lor' for LOR (matrix-free) AMG, "
+                  "`ho' for high-order (assembled) AMG, `none'.");
    args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
                   "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
-   args.AddOption(&pc, "-pc", "--preconditioner",
-                  "Preconditioner to use: `lor' for LOR BoomerAMG Prec., "
-                  "`dense' for Dense BoomerAMG Prec., `none'.");
    args.Parse();
    if (!args.Good())
    {
@@ -160,26 +134,15 @@ int main(int argc, char *argv[])
       args.PrintOptions(cout);
    }
 
-   enum PCType { NONE, LOR, DENSE };
+   enum PCType { NONE, LOR, HO };
    PCType pc_choice;
-   if (!strcmp(pc, "dense")) { pc_choice = DENSE; }
+   if (!strcmp(pc, "ho")) { pc_choice = HO; }
    else if (!strcmp(pc, "lor")) { pc_choice = LOR; }
    else if (!strcmp(pc, "none")) { pc_choice = NONE; }
-   else if (!strcmp(pc,"default"))
-   {
-      if (matrix_free)
-      {
-         pc_choice = NONE;
-      }
-      else
-      {
-         pc_choice = DENSE;
-      }
-   }
    else
    {
       mfem_error("Invalid Preconditioner specified");
-      return 2;
+      return 3;
    }
 
    // See class BasisType in fem/fe_coll.hpp for available basis types
@@ -212,7 +175,7 @@ int main(int argc, char *argv[])
          }
          delete mesh;
          MPI_Finalize();
-         return 3;
+         return 4;
       }
       else if (!mesh_t::MatchesNodes(*mesh))
       {
@@ -272,20 +235,22 @@ int main(int argc, char *argv[])
       fec = new H1_FECollection(order = 1, dim, basis);
    }
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
-
-   ParFiniteElementSpace *fespace_lor = NULL;
-   Operator *P_lor = NULL, *R_lor = NULL;
-   if (pc_choice == LOR)
-   {
-      fespace->BuildDofToArrays();
-      fespace_lor = fespace->LowOrderRefinement(sol_lor_p, P_lor, R_lor);
-   }
-
    HYPRE_Int size = fespace->GlobalTrueVSize();
    if (myid == 0)
    {
       cout << "Number of finite element unknowns: " << size << endl;
    }
+
+   ParMesh *pmesh_lor = NULL;
+   FiniteElementCollection *fec_lor = NULL;
+   ParFiniteElementSpace *fespace_lor = NULL;
+   if (pc_choice == LOR)
+   {
+      // pmesh_lor = new ParMesh(pmesh, order, basis);
+      fec_lor = new H1_FECollection(1, dim);
+      fespace_lor = new ParFiniteElementSpace(pmesh_lor, fec_lor);
+   }
+
 
    // 8. Check if the optimized version matches the given space
    if (perf && !sol_fes_t::Matches(*fespace))
@@ -299,7 +264,7 @@ int main(int argc, char *argv[])
       delete fec;
       delete mesh;
       MPI_Finalize();
-      return 4;
+      return 5;
    }
 
    // 9. Determine the list of true (i.e. parallel conforming) essential
@@ -332,14 +297,8 @@ int main(int argc, char *argv[])
    //     that will hold the matrix corresponding to the Laplacian operator.
    ParBilinearForm *a = new ParBilinearForm(fespace);
    ParBilinearForm *a_pc = NULL;
-   if (pc_choice == LOR)
-   {
-      a_pc = new ParBilinearForm(fespace_lor);
-   }
-   else if (pc_choice != NONE)
-   {
-      a_pc = new ParBilinearForm(fespace);
-   }
+   if (pc_choice == LOR) { a_pc = new ParBilinearForm(fespace_lor); }
+   if (pc_choice == HO)  { a_pc = new ParBilinearForm(fespace); }
 
    // 13. Assemble the parallel bilinear form and the corresponding linear
    //     system, applying any necessary transformations such as: parallel
@@ -357,7 +316,6 @@ int main(int argc, char *argv[])
    a->UsePrecomputedSparsity();
 
    HPCBilinearForm *a_hpc = NULL;
-   HPCBilinearForm_lor *a_hpc_lor = NULL;
    Operator *a_oper = NULL;
 
    if (!perf)
@@ -368,16 +326,15 @@ int main(int argc, char *argv[])
    }
    else
    {
-      // High-performance assembly using the templated operator type
+      // High-performance assembly/evaluation using the templated operator type
       a_hpc = new HPCBilinearForm(integ_t(coeff_t(1.0)), *fespace);
-
       if (matrix_free)
       {
          a_hpc->Assemble(); // partial assembly
       }
       else
       {
-         a_hpc->AssembleBilinearForm(*a); // full local matrix assembly
+         a_hpc->AssembleBilinearForm(*a); // full matrix assembly
       }
    }
    tic_toc.Stop();
@@ -389,7 +346,7 @@ int main(int argc, char *argv[])
    // 14. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
    //     preconditioner from hypre.
 
-   // Setup the operator matrix
+   // Setup the operator matrix (if applicable)
    HypreParMatrix A;
    Vector B, X;
    if (perf && matrix_free)
@@ -408,46 +365,47 @@ int main(int argc, char *argv[])
       {
          cout << "Size of linear system: " << A.GetGlobalNumRows() << endl;
       }
+      a_oper = &A;
    }
 
-   // Setup the preconditioner
+   // Setup the matrix used for preconditioning
+   if (myid == 0)
+   {
+      cout << "Assembling the preconditioning matrix ..." << endl;
+   }
+   tic_toc.Clear();
+   tic_toc.Start();
+
    HypreParMatrix A_pc;
    if (pc_choice != NONE)
    {
-      if (myid == 0)
-      {
-         cout << "Assembling Linear System for BoomerAMG ... " << endl;
-      }
-      tic_toc.Clear();
-      tic_toc.Start();
-
-      Vector X_tmp, B_tmp;
+      Vector X_pc, B_pc; // only for FormLinearSystem()
       if (pc_choice == LOR)
       {
-         a_hpc_lor = new HPCBilinearForm_lor(integ_t(coeff_t(1.0)),
-                                             *fespace_lor);
-         a_hpc_lor->AssembleBilinearForm(*a_pc);
-         a_pc->FormLinearSystem(ess_tdof_list, x, *b, A_pc, X_tmp, B_tmp);
+         a_pc->AddDomainIntegrator(new DiffusionIntegrator(one));
+         a_pc->Assemble();
+         a_pc->FormLinearSystem(ess_tdof_list, x, *b, A_pc, X_pc, B_pc);
       }
-      else if (pc_choice == DENSE)
+      else if (pc_choice == HO)
       {
          if (!perf)
          {
-            A_pc.MakeRef(A);
+            A_pc.MakeRef(A); // matrix already assembled, reuse it
          }
          else
          {
             a_hpc->AssembleBilinearForm(*a_pc);
-            a_pc->FormLinearSystem(ess_tdof_list, x, *b, A_pc, X_tmp, B_tmp);
+            a_pc->FormLinearSystem(ess_tdof_list, x, *b, A_pc, X_pc, B_pc);
          }
       }
-      tic_toc.Stop();
-      if (myid == 0)
-      {
-         cout << " done, " << tic_toc.RealTime() << "s." << endl;
-      }
+   }
+   tic_toc.Stop();
+   if (myid == 0)
+   {
+      cout << " done, " << tic_toc.RealTime() << "s." << endl;
    }
 
+   // Solve with CG or PCG, depending if the matrix A_pc is available
    CGSolver *pcg;
    pcg = new CGSolver(MPI_COMM_WORLD);
    pcg->SetRelTol(1e-6);
@@ -455,34 +413,20 @@ int main(int argc, char *argv[])
    pcg->SetPrintLevel(1);
 
    HypreSolver *amg = NULL;
-
    tic_toc.Clear();
    tic_toc.Start();
-   if (perf && matrix_free)
-   {
-      pcg->SetOperator(*a_oper);
-      if (pc_choice != NONE)
-      {
-         amg = new HypreBoomerAMG(A_pc);
-         pcg->SetPreconditioner(*amg);
-      }
-      pcg->Mult(B, X);
-   }
-   else
-   {
-      pcg->SetOperator(A);
-      if (pc_choice != NONE)
-      {
-         amg = new HypreBoomerAMG(A_pc);
-         pcg->SetPreconditioner(*amg);
-      }
-      pcg->Mult(B, X);
-   }
-   tic_toc.Stop();
+
+   pcg->SetOperator(*a_oper);
    if (pc_choice != NONE)
    {
-      delete amg;
+      amg = new HypreBoomerAMG(A_pc);
+      pcg->SetPreconditioner(*amg);
    }
+   pcg->Mult(B, X);
+
+   tic_toc.Stop();
+   delete amg;
+
    if (myid == 0)
    {
       cout << "Time per CG step: " << tic_toc.RealTime() / pcg->GetNumIterations() <<
@@ -530,22 +474,13 @@ int main(int argc, char *argv[])
    // 18. Free the used memory.
    delete a;
    delete a_hpc;
-   delete a_oper;
-   if (pc_choice != NONE)
-   {
-      delete a_pc;
-   }
+   if (a_oper != &A) { delete a_oper; }
+   delete a_pc;
    delete b;
    delete fespace;
-   if (pc_choice == LOR)
-   {
-      delete a_hpc_lor;
-      delete P_lor;
-      delete R_lor;
-      delete fespace_lor->FEColl();
-      delete fespace_lor->GetParMesh();
-      delete fespace_lor;
-   }
+   delete fespace_lor;
+   delete fec_lor;
+   delete pmesh_lor;
    if (order > 0) { delete fec; }
    delete pmesh;
    delete pcg;
