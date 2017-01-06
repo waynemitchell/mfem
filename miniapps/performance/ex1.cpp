@@ -86,8 +86,8 @@ int main(int argc, char *argv[])
                   "Use matrix-free evaluation or efficient matrix assembly in "
                   "the high-performance version.");
    args.AddOption(&pc, "-pc", "--preconditioner",
-                  "Preconditioner to use: `lor' for LOR (matrix-free) GS, "
-                  "`ho' for high-order (assembled) GS, `none'.");
+                  "Preconditioner: lor - low-order-refined (matrix-free) GS, "
+                  "ho - high-order (assembled) GS, none.");
    args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
                   "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
@@ -190,7 +190,9 @@ int main(int argc, char *argv[])
    FiniteElementSpace *fespace_lor = NULL;
    if (pc_choice == LOR)
    {
-      mesh_lor = new Mesh(mesh, order, basis);
+      int basis_lor = basis;
+      if (basis == BasisType::Positive) { basis_lor=BasisType::ClosedUniform; }
+      mesh_lor = new Mesh(mesh, order, basis_lor);
       fec_lor = new H1_FECollection(1, dim);
       fespace_lor = new FiniteElementSpace(mesh_lor, fec_lor);
    }

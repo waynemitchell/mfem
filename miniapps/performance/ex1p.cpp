@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
    int order = sol_p;
    const char *basis_type = "G"; // Gauss-Lobatto
    bool static_cond = false;
-   const char *pc = "none";
+   const char *pc = "lor";
    bool perf = true;
    bool matrix_free = true;
    bool visualization = 1;
@@ -101,8 +101,8 @@ int main(int argc, char *argv[])
                   "Use matrix-free evaluation or efficient matrix assembly in "
                   "the high-performance version.");
    args.AddOption(&pc, "-pc", "--preconditioner",
-                  "Preconditioner to use: `lor' for LOR (matrix-free) AMG, "
-                  "`ho' for high-order (assembled) AMG, `none'.");
+                  "Preconditioner: lor - low-order-refined (matrix-free) AMG, "
+                  "ho - high-order (assembled) AMG, none.");
    args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
                   "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
@@ -246,11 +246,12 @@ int main(int argc, char *argv[])
    ParFiniteElementSpace *fespace_lor = NULL;
    if (pc_choice == LOR)
    {
-      // pmesh_lor = new ParMesh(pmesh, order, basis);
+      int basis_lor = basis;
+      if (basis == BasisType::Positive) { basis_lor=BasisType::ClosedUniform; }
+      pmesh_lor = new ParMesh(pmesh, order, basis_lor);
       fec_lor = new H1_FECollection(1, dim);
       fespace_lor = new ParFiniteElementSpace(pmesh_lor, fec_lor);
    }
-
 
    // 8. Check if the optimized version matches the given space
    if (perf && !sol_fes_t::Matches(*fespace))
@@ -371,7 +372,7 @@ int main(int argc, char *argv[])
    // Setup the matrix used for preconditioning
    if (myid == 0)
    {
-      cout << "Assembling the preconditioning matrix ..." << endl;
+      cout << "Assembling the preconditioning matrix ..." << flush;
    }
    tic_toc.Clear();
    tic_toc.Start();
