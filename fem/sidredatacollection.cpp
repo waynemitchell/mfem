@@ -337,21 +337,18 @@ void SidreDataCollection::createMeshBlueprintCoordset(bool hasBP)
       bp_index_grp->createViewString(
          "coordsets/coords/coord_system/type", "cartesian");
 
-      // these are empty views, their existance in the group
-      // tree is used to define the number of dims
-      bp_index_grp->createView(
-         "coordsets/coords/coord_system/axes/x");
+      // These are empty views, their existence in the group tree is used to
+      // define the number of dims
+      bp_index_grp->createView("coordsets/coords/coord_system/axes/x");
 
       if (dim >= 2)
       {
-          bp_index_grp->createView(
-             "coordsets/coords/coord_system/axes/y");
+         bp_index_grp->createView("coordsets/coords/coord_system/axes/y");
       }
-      
+
       if (dim == 3)
       {
-          bp_index_grp->createView(
-              "coordsets/coords/coord_system/axes/z");
+         bp_index_grp->createView("coordsets/coords/coord_system/axes/z");
       }
    }
 
@@ -453,8 +450,7 @@ createMeshBlueprintTopologies(bool hasBP, const std::string& mesh_name)
       // mesh nodes in the blueprint_index group.
       if (!isBdry && mesh->GetNodes() != NULL)
       {
-         bp_index_topo_grp->copyView(
-            topology_grp->getView("grid_function") );
+         bp_index_topo_grp->copyView(topology_grp->getView("grid_function"));
       }
 
       // Create blueprint index for material attributes.
@@ -669,7 +665,8 @@ void SidreDataCollection::UpdateStateToDS()
    }
 }
 
-void PrepareToSave() {
+void SidreDataCollection::PrepareToSave()
+{
    verifyMeshBlueprint();
    UpdateStateToDS();
 }
