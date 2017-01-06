@@ -189,6 +189,9 @@ public:
        including the dofs for the edges and the vertices of the face. */
    virtual void GetFaceDofs(int i, Array<int> &dofs) const;
 
+   void GetSharedEdgeDofs(int group, int ei, Array<int> &dofs) const;
+   void GetSharedFaceDofs(int group, int fi, Array<int> &dofs) const;
+
    /// The true dof-to-dof interpolation matrix
    HypreParMatrix *Dof_TrueDof_Matrix()
    { if (!P) { Build_Dof_TrueDof_Matrix(); } return P; }
