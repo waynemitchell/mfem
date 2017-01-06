@@ -1038,8 +1038,22 @@ void Mesh::GenerateBoundaryElements()
    // In 3D, 'bel_to_edge' is destroyed but it's not updated.
 }
 
+void Mesh::FinalizeCheck()
+{
+   MFEM_VERIFY(vertices.Size() == NumOfVertices,
+               "incorrect number of vertices: preallocated: " << vertices.Size()
+               << ", actually added: " << NumOfVertices);
+   MFEM_VERIFY(elements.Size() == NumOfElements,
+               "incorrect number of elements: preallocated: " << elements.Size()
+               << ", actually added: " << NumOfElements);
+   MFEM_VERIFY(boundary.Size() == NumOfBdrElements,
+               "incorrect number of boundary elements: preallocated: "
+               << boundary.Size() << ", actually added: " << NumOfBdrElements);
+}
+
 void Mesh::FinalizeTriMesh(int generate_edges, int refine, bool fix_orientation)
 {
+   FinalizeCheck();
    CheckElementOrientation(fix_orientation);
 
    if (refine)
@@ -1072,6 +1086,7 @@ void Mesh::FinalizeTriMesh(int generate_edges, int refine, bool fix_orientation)
 void Mesh::FinalizeQuadMesh(int generate_edges, int refine,
                             bool fix_orientation)
 {
+   FinalizeCheck();
    if (fix_orientation)
    {
       CheckElementOrientation(fix_orientation);
@@ -1089,8 +1104,6 @@ void Mesh::FinalizeQuadMesh(int generate_edges, int refine,
       NumOfEdges = 0;
    }
 
-   vertices.SetSize(NumOfVertices);
-   elements.SetSize(NumOfElements);
    NumOfFaces = 0;
 
    SetAttributes();
@@ -1638,6 +1651,7 @@ void Mesh::DoNodeReorder(DSTable *old_v_to_v, Table *old_elem_vert)
 
 void Mesh::FinalizeTetMesh(int generate_edges, int refine, bool fix_orientation)
 {
+   FinalizeCheck();
    CheckElementOrientation(fix_orientation);
 
    if (NumOfBdrElements == 0)
@@ -1681,6 +1695,7 @@ void Mesh::FinalizeTetMesh(int generate_edges, int refine, bool fix_orientation)
 
 void Mesh::FinalizeHexMesh(int generate_edges, int refine, bool fix_orientation)
 {
+   FinalizeCheck();
    CheckElementOrientation(fix_orientation);
 
    GetElementToFaceTable();
@@ -1703,8 +1718,6 @@ void Mesh::FinalizeHexMesh(int generate_edges, int refine, bool fix_orientation)
       NumOfEdges = 0;
    }
 
-   vertices.SetSize(NumOfVertices);
-   elements.SetSize(NumOfElements);
    SetAttributes();
 
    BaseGeom = Geometry::CUBE;
@@ -1724,6 +1737,7 @@ void Mesh::FinalizeTopology()
    //   2) ncmesh may be defined
    //   3) el_to_edge may be allocated (it will be re-computed)
 
+   FinalizeCheck();
    bool generate_edges = true;
 
    if (spaceDim == 0) { spaceDim = Dim; }

@@ -336,6 +336,9 @@ protected:
 
    void InitBaseGeom();
 
+   // Used in the methods FinalizeXXXMesh() and FinalizeTopology()
+   void FinalizeCheck();
+
    void Loader(std::istream &input, int generate_edges = 0,
                std::string parse_tag = "");
 

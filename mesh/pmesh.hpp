@@ -100,17 +100,6 @@ public:
    /// Read a parallel mesh, each MPI rank from its own file/stream.
    ParMesh(MPI_Comm comm, std::istream &input);
 
-   /** Create a parallel mesh from a local serial mesh plus information
-       about its shared geometric entities. */
-   ParMesh(const Mesh &mesh,
-           const GroupTopology &_gtopo,
-           const Table &_group_svert,
-           const Table &_group_sedge,
-           const Table &_group_sface,
-           const Array<int> &_svert_lvert,
-           const Array<int> &_sedge_ledge,
-           const Array<int> &_sface_lface);
-
    /// Create a uniformly refined (by any factor) version of @a orig_mesh.
    /** @param[in] orig_mesh  The starting coarse mesh.
        @param[in] ref_factor The refinement factor, an integer > 1.
@@ -165,17 +154,6 @@ public:
    int GetNFaceNeighbors() const { return face_nbr_group.Size(); }
    int GetFaceNbrGroup(int fn) const { return face_nbr_group[fn]; }
    int GetFaceNbrRank(int fn) const;
-
-   const Table &GetGroupSharedVertexTable() const { return group_svert; }
-   const Table &GetGroupSharedEdgeTable() const { return group_sedge; }
-   const Table &GetGroupSharedFaceTable() const { return group_sface; }
-
-   const Array<int> &GetSharedLocalVertexTable() const { return svert_lvert; }
-   const Array<int> &GetSharedLocalEdgeTable() const { return sedge_ledge; }
-   const Array<int> &GetSharedLocalFaceTable() const { return sface_lface; }
-
-   const Array<Element *> &GetSharedEdges() const { return shared_edges; }
-   const Array<Element *> &GetSharedFaces() const { return shared_faces; }
 
    /** Similar to Mesh::GetFaceToElementTable with added face-neighbor elements
        with indices offset by the local number of elements. */

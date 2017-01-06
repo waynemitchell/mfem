@@ -127,22 +127,10 @@ protected:
    /// Calculate GridFunction restriction matrix after mesh derefinement.
    SparseMatrix* DerefinementMatrix(int old_ndofs, const Table* old_elem_dof);
 
-   // Build a refined (serial) mesh based on the nodes of a high-order FES.
-   // Helper function for LowOrderRefinement.
-   void BuildLORMesh(int order, Mesh *& mesh_lor) const;
 
 public:
    FiniteElementSpace(Mesh *mesh, const FiniteElementCollection *fec,
                       int vdim = 1, int ordering = Ordering::byNODES);
-
-   /** Create a low order refinement of the mesh and build new FE Space.
-       Sets P, R to the inter-space restriction, interpolation Operators.
-
-       Caller is responsible for deleting P, R. The Mesh and
-       FiniteElementCollection objects should be deleted by using appropriate
-       accessor methods */
-   virtual FiniteElementSpace *LowOrderRefinement(int order, Operator *&P,
-                                                  Operator *&R) const;
 
    /// Returns the mesh
    inline Mesh *GetMesh() const { return mesh; }

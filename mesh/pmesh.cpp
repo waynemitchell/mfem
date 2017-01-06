@@ -837,61 +837,6 @@ ParMesh::ParMesh(MPI_Comm comm, istream &input)
    // TODO: AMR meshes, NURBS meshes?
 }
 
-ParMesh::ParMesh(const Mesh &mesh,
-                 const GroupTopology &_gtopo,
-                 const Table &_group_svert,
-                 const Table &_group_sedge,
-                 const Table &_group_sface,
-                 const Array<int> &_svert_lvert,
-                 const Array<int> &_sedge_ledge,
-                 const Array<int> &_sface_lface)
-   : Mesh(mesh, false),
-     group_svert(_group_svert),
-     group_sedge(_group_sedge),
-     group_sface(_group_sface),
-     gtopo(_gtopo)
-{
-   MyComm = gtopo.GetComm();
-   MPI_Comm_size(MyComm, &NRanks);
-   MPI_Comm_rank(MyComm, &MyRank);
-
-   // TODO: AMR meshes, NURBS meshes?
-   //       Need support in the Mesh copy ctor as well.
-
-   have_face_nbr_data = false;
-   pncmesh = NULL;
-
-   _svert_lvert.Copy(svert_lvert);
-   _sedge_ledge.Copy(sedge_ledge);
-   _sface_lface.Copy(sface_lface);
-
-   // Create element objects for the shared entities
-   int num_sedges = sedge_ledge.Size();
-   int num_sfaces = sface_lface.Size();
-   // FIXME - generating the shared_edges from the local edges is only correct
-   // in special cases. Shared edges have to be oriented the same way in all
-   // processors in their group.
-   shared_edges.SetSize(num_sedges);
-   for (int i = 0; i < shared_edges.Size(); i++)
-   {
-      Array<int> vert;
-      GetEdgeVertices(sedge_ledge[i], vert);
-      shared_edges[i] = new Segment(vert[0],vert[1]);
-   }
-   // FIXME - generating the shared_faces from the local faces is not correct.
-   // Shared faces have to be oriented the same way in both adjacent processors.
-   shared_faces.SetSize(num_sfaces);
-   for (int i = 0; i < shared_faces.Size(); i++)
-   {
-      shared_faces[i] = mesh.GetFace(sface_lface[i])->Duplicate(this);
-   }
-
-   // Prepare tet meshes for refinement
-   const bool refine = true;
-   const bool fix_orientation = false;
-   Finalize(refine, fix_orientation);
-}
-
 ParMesh::ParMesh(ParMesh *orig_mesh, int ref_factor, int ref_type)
    : Mesh(orig_mesh, ref_factor, ref_type),
      MyComm(orig_mesh->GetComm()),
