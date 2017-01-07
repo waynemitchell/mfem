@@ -12,11 +12,11 @@
 # Use the MFEM build directory
 MFEM_DIR ?= ../..
 MFEM_BUILD_DIR ?= ../..
-SRC = $(if $(MFEM_DIR:../..=),$(MFEM_DIR)/examples/,)
+SRC = $(if $(MFEM_DIR:../..=),$(MFEM_DIR)/examples/petsc/,)
 CONFIG_MK = $(MFEM_BUILD_DIR)/config/config.mk
 TEST_MK = $(MFEM_DIR)/config/test.mk
 # Use the MFEM install directory
-# SRC = $(if $(MFEM_DIR),$(MFEM_DIR)/examples/,)
+# SRC = $(if $(MFEM_DIR),$(MFEM_DIR)/examples/petsc/,)
 # MFEM_DIR = ../../mfem
 # CONFIG_MK = $(MFEM_DIR)/config.mk
 # TEST_MK = $(MFEM_DIR)/test.mk
@@ -24,9 +24,10 @@ TEST_MK = $(MFEM_DIR)/config/test.mk
 MFEM_LIB_FILE = mfem_is_not_built
 -include $(CONFIG_MK)
 
+SEQ_EXAMPLES =
 PAR_EXAMPLES = ex1p ex2p ex3p ex4p ex5p ex6p ex9p ex10p
 ifeq ($(MFEM_USE_MPI),NO)
-	$(error MFEM is not configured in parallel)
+   EXAMPLES = $(SEQ_EXAMPLES)
 else
    EXAMPLES = $(PAR_EXAMPLES)
 endif

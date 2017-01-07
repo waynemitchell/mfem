@@ -12,11 +12,11 @@
 # Use the MFEM build directory
 MFEM_DIR ?= ../..
 MFEM_BUILD_DIR ?= ../..
-SRC = $(if $(MFEM_DIR:../..=),$(MFEM_DIR)/examples/,)
+SRC = $(if $(MFEM_DIR:../..=),$(MFEM_DIR)/examples/sundials/,)
 CONFIG_MK = $(MFEM_BUILD_DIR)/config/config.mk
 TEST_MK = $(MFEM_DIR)/config/test.mk
 # Use the MFEM install directory
-# SRC = $(if $(MFEM_DIR),$(MFEM_DIR)/examples/,)
+# SRC = $(if $(MFEM_DIR),$(MFEM_DIR)/examples/sundials/,)
 # MFEM_DIR = ../../mfem
 # CONFIG_MK = $(MFEM_DIR)/config.mk
 # TEST_MK = $(MFEM_DIR)/test.mk

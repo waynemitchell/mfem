@@ -171,7 +171,7 @@ endif
 
 # List of MFEM dependencies, processed below
 MFEM_DEPENDENCIES = LIBUNWIND SIDRE LAPACK OPENMP SUNDIALS MESQUITE SUITESPARSE\
- SUPERLU GECKO GNUTLS NETCDF MPFR
+ SUPERLU GECKO GNUTLS NETCDF PETSC MPFR
 
 # Macro for adding dependencies
 define mfem_add_dependency
@@ -183,22 +183,6 @@ endef
 
 # Process dependencies
 $(foreach dep,$(MFEM_DEPENDENCIES),$(eval $(call mfem_add_dependency,$(dep))))
-
-# PETSc library configuration
-ifeq ($(MFEM_USE_PETSC),YES)
-   INCFLAGS += -I$(PETSC_DIR)/include -I$(PETSC_DIR)/$(PETSC_ARCH)/include
-   # If we have 'config' target, resolve PETSC_LIB
-   ifneq (,$(filter config,$(MAKECMDGOALS)))
-     include ${PETSC_DIR}/${PETSC_ARCH}/lib/petsc/conf/petscvariables
-     ALL_LIBS += $(PETSC_LIB)
-   endif
-endif
-
-# MPFR library configuration
-ifeq ($(MFEM_USE_MPFR),YES)
-   INCFLAGS += $(MPFR_OPT)
-   ALL_LIBS += $(MPFR_LIB)
-endif
 
 # Timer option
 ifeq ($(MFEM_TIMER_TYPE),2)
@@ -391,6 +375,8 @@ build-config:
 	      > $(BLD)$${dir}GNUmakefile; done
 	$(MAKE) -C $(BLD)config all
 	cd "$(BUILD_DIR)" && ln -sf "$(MFEM_REAL_DIR)/data" .
+	cp -pf "$(MFEM_REAL_DIR)/examples/petsc/rc_"* \
+	  "$(BUILD_REAL_DIR)/examples/petsc"
 	for hdr in mfem.hpp mfem-performance.hpp; do \
 	   printf "// Auto-generated file.\n%s\n%s\n" \
 	   "#define MFEM_BUILD_DIR $(BUILD_REAL_DIR)" \

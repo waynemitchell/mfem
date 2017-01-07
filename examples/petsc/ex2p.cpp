@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
    // 2. Parse command-line options.
-   const char *mesh_file = "../data/beam-tri.mesh";
+   const char *mesh_file = "../../data/beam-tri.mesh";
    int order = 1;
    bool static_cond = false;
    bool visualization = 1;
