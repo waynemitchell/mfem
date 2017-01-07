@@ -159,12 +159,14 @@ NETCDF_LIB  = -L$(NETCDF_DIR)/lib -lnetcdf -L$(HDF5_DIR)/lib -lhdf5_hl -lhdf5\
  -L$(ZLIB_DIR)/lib -lz
 
 # PETSc library configuration (version greater or equal to 3.8 or the dev branch)
-PETSC_DIR := $(MFEM_DIR)/../petsc/arch-linux2-c-debug
-PETSC_PC  := $(PETSC_DIR)/lib/pkgconfig/PETSc.pc
-$(if $(wildcard $(PETSC_PC)),,$(error PETSc config not found - $(PETSC_PC)))
-PETSC_OPT := $(shell sed -n "s/Cflags: *//p" $(PETSC_PC))
-PETSC_LIB := $(shell sed -n "s/Libs.*: *//p" $(PETSC_PC))
-PETSC_LIB := -Wl,-rpath -Wl,$(abspath $(PETSC_DIR))/lib $(PETSC_LIB)
+ifeq ($(MFEM_USE_PETSC),YES)
+   PETSC_DIR := $(MFEM_DIR)/../petsc/arch-linux2-c-debug
+   PETSC_PC  := $(PETSC_DIR)/lib/pkgconfig/PETSc.pc
+   $(if $(wildcard $(PETSC_PC)),,$(error PETSc config not found - $(PETSC_PC)))
+   PETSC_OPT := $(shell sed -n "s/Cflags: *//p" $(PETSC_PC))
+   PETSC_LIB := $(shell sed -n "s/Libs.*: *//p" $(PETSC_PC))
+   PETSC_LIB := -Wl,-rpath -Wl,$(abspath $(PETSC_DIR))/lib $(PETSC_LIB)
+endif
 
 # MPFR library configuration
 MPFR_OPT =
