@@ -100,7 +100,13 @@ Operator &ParNonlinearForm::GetGradient(const Vector &x) const
       delete A;
       return *pGrad;
    }
-#ifdef MFEM_USE_PETSC
+#ifndef MFEM_USE_PETSC
+   else
+   {
+      MFEM_ABORT("MFEM was not compiled with PETSc support");
+      return *pGrad;
+   }
+#else
    else
    {
       PetscParMatrix *A =

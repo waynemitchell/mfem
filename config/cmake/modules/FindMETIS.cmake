@@ -15,7 +15,8 @@
 #   - METIS_INCLUDE_DIRS
 
 include(MfemCmakeUtilities)
-mfem_find_package(METIS METIS METIS_DIR "include;Lib" "metis.h" "lib" "metis"
+mfem_find_package(METIS METIS METIS_DIR "include;Lib" "metis.h"
+  "lib" "metis;metis4;metis5"
   "Paths to headers required by METIS." "Libraries required by METIS."
   CHECK_BUILD METIS_VERSION_5 FALSE
   "

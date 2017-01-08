@@ -81,6 +81,10 @@ if (MFEM_USE_MPI)
   include_directories(${METIS_INCLUDE_DIRS})
   if (MFEM_USE_PETSC)
     find_package(PETSc REQUIRED)
+    message(STATUS "Found PETSc version ${PETSC_VERSION}")
+    if (PETSC_VERSION AND (PETSC_VERSION VERSION_LESS 3.7.5.99))
+      message(FATAL_ERROR "PETSc version >= 3.7.5.99 is required")
+    endif()
     include_directories(${PETSC_INCLUDES})
   endif()
 endif()
@@ -113,6 +117,13 @@ if (MFEM_USE_OPENMP)
   endif()
 endif()
 
+# SuiteSparse (before SUNDIALS which may depend on KLU)
+if (MFEM_USE_SUITESPARSE)
+  find_package(SuiteSparse REQUIRED
+    UMFPACK KLU AMD BTF CHOLMOD COLAMD CAMD CCOLAMD config)
+  include_directories(${SuiteSparse_INCLUDE_DIRS})
+endif()
+
 # SUNDIALS
 if (MFEM_USE_SUNDIALS)
   if (NOT MFEM_USE_MPI)
@@ -128,13 +139,6 @@ endif()
 if (MFEM_USE_MESQUITE)
   find_package(Mesquite REQUIRED)
   include_directories(${MESQUITE_INCLUDE_DIRS})
-endif()
-
-# SuiteSparse
-if (MFEM_USE_SUITESPARSE)
-  find_package(SuiteSparse REQUIRED
-    UMFPACK KLU AMD BTF CHOLMOD COLAMD CAMD CCOLAMD config)
-  include_directories(${SuiteSparse_INCLUDE_DIRS})
 endif()
 
 # SuperLU_DIST can only be enabled if parallel

@@ -31,6 +31,7 @@ ifeq ($(MFEM_USE_MPI),NO)
 else
    EXAMPLES = $(PAR_EXAMPLES)
 endif
+RC_FILES = $(patsubst $(SRC)%,%,$(wildcard $(SRC)rc_*))
 
 .SUFFIXES:
 .SUFFIXES: .o .cpp .mk
@@ -44,6 +45,16 @@ endif
 	$(MFEM_CXX) $(MFEM_FLAGS) $< -o $@ $(MFEM_LIBS)
 
 all: $(EXAMPLES)
+
+# Examples depend on their corresponding rc_* files:
+make-rc-rule = $(1): | $(filter rc_$(1)%,$(RC_FILES))
+$(foreach ex,$(EXAMPLES),$(eval $(call make-rc-rule,$(ex))))
+
+# Rules to copy the rc_* files when building out-of-source:
+ifneq ($(SRC),)
+$(RC_FILES): %: $(SRC)%
+	cp -pf $(<) .
+endif
 
 ifeq ($(MFEM_USE_PETSC),NO)
 $(EXAMPLES):
@@ -98,4 +109,4 @@ clean-build:
 
 clean-exec:
 	@rm -f ex9.mesh ex9-mesh.* ex9-init.* ex9-final.* Example9*
-	@rm -f deformed.* velocity.* elastic_energy.*
+	@rm -f mesh.* sol.* deformed.* velocity.* elastic_energy.*

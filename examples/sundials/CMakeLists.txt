@@ -25,13 +25,19 @@ endif()
 # Include the source directory where mfem.hpp and mfem-performance.hpp are.
 include_directories(${PROJECT_BINARY_DIR})
 
-# Add one executable per cpp file, adding "sundials_" as prefix.
+# Add "test_petsc" target, see below.
+add_custom_target(test_sundials
+  ${CMAKE_CTEST_COMMAND} -R sundials -C SUNDIALS USES_TERMINAL)
+
+# Add one executable per cpp file, adding "sundials_" as prefix. Sets
+# "test_sundials" as a target that depends on the given examples.
 set(PFX sundials_)
-add_mfem_examples(SUNDIALS_EXAMPLES_SRCS ${PFX})
+add_mfem_examples(SUNDIALS_EXAMPLES_SRCS ${PFX} "" test_sundials)
 
 # Testing.
 # We do not want these tests to be run by default, so we add them to their own
-# configuration - SUNDIALS. To run the tests defined here use:
+# configuration - SUNDIALS. To run the tests defined here use the
+# "test_sundials" target which builds the examples and runs:
 #   ctest -C SUNDIALS -R sundials
 
 # Command line options for the tests.

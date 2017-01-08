@@ -116,12 +116,14 @@ POSIX_CLOCKS_LIB = -lrt
 # SUNDIALS library configuration
 SUNDIALS_DIR = @MFEM_DIR@/../sundials-2.7.0
 SUNDIALS_OPT = -I$(SUNDIALS_DIR)/include
-SUNDIALS_LIB = -L$(SUNDIALS_DIR)/lib -lsundials_arkode -lsundials_cvode\
-  -lsundials_nvecserial -lsundials_kinsol
+SUNDIALS_LIB = -Wl,-rpath,$(SUNDIALS_DIR)/lib -L$(SUNDIALS_DIR)/lib\
+  -lsundials_arkode -lsundials_cvode -lsundials_nvecserial -lsundials_kinsol
 
 ifeq ($(MFEM_USE_MPI),YES)
    SUNDIALS_LIB += -lsundials_nvecparhyp -lsundials_nvecparallel
 endif
+# If SUNDIALS was built with KLU:
+# MFEM_USE_SUITESPARSE = YES
 
 # MESQUITE library configuration
 MESQUITE_DIR = @MFEM_DIR@/../mesquite-2.99

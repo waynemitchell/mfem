@@ -375,8 +375,6 @@ build-config:
 	      > $(BLD)$${dir}GNUmakefile; done
 	$(MAKE) -C $(BLD)config all
 	cd "$(BUILD_DIR)" && ln -sf "$(MFEM_REAL_DIR)/data" .
-	cp -pf "$(MFEM_REAL_DIR)/examples/petsc/rc_"* \
-	  "$(BUILD_REAL_DIR)/examples/petsc"
 	for hdr in mfem.hpp mfem-performance.hpp; do \
 	   printf "// Auto-generated file.\n%s\n%s\n" \
 	   "#define MFEM_BUILD_DIR $(BUILD_REAL_DIR)" \
