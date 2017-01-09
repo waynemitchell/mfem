@@ -1974,7 +1974,7 @@ void PetscBDDCSolver::BDDCSolverConstructor(PetscBDDCSolverParams opts)
          if (dir) // if essential dofs are present, we need to zero the columns
          {
             Mat pB = *B;
-            ierr = MatTranspose(pB,MAT_REUSE_MATRIX,&pB); PCHKERRQ(pA,ierr);
+            ierr = MatTranspose(pB,MAT_INPLACE_MATRIX,&pB); PCHKERRQ(pA,ierr);
             if (!opts.ess_dof_local)
             {
                ierr = MatZeroRowsIS(pB,dir,0.,NULL,NULL); PCHKERRQ(pA,ierr);
