@@ -52,10 +52,10 @@ namespace mfem
          │              ├── topologies
          │              │    ├── mesh
          │              │    │    ├─• path = "<bp-path>/topologies/mesh"
-         │              │    │    ├─• type               ─> <bp-grp>/topologies/mesh/type = "unstructured"
-         │              │    │    ├─• coordset           ─> <bp-grp>/topologies/mesh/coordset = "coords"
-         │              │    │    ├─• mfem_grid_function ─> <bp-grp>/topologies/mesh/mfem_grid_function = "<nodes-field-name>"
-         │              │    │    └─• boundary_topology  ─> <bp-grp>/topologies/mesh/boundary_topology = "boundary"
+         │              │    │    ├─• type              ─> <bp-grp>/topologies/mesh/type = "unstructured"
+         │              │    │    ├─• coordset          ─> <bp-grp>/topologies/mesh/coordset = "coords"
+         │              │    │    ├─• grid_function     ─> <bp-grp>/topologies/mesh/grid_function = "<nodes-field-name>"
+         │              │    │    └─• boundary_topology ─> <bp-grp>/topologies/mesh/boundary_topology = "boundary"
          │              │    └── boundary
          │              │         ├─• path = "<bp-path>/topologies/mesh"
          │              │         ├─• type     ─> <bp-grp>/topologies/boundary/type = "unstructured"
@@ -104,7 +104,7 @@ namespace mfem
               │    │    │    │    ├─• shape = "points"|"lines"|...
               │    │    │    │    └─• connectivity = <vert-idx-array>
               │    │    │    ├─• coordset = "coords"
-              │    │    │    ├─• mfem_grid_function = "<nodes-field-name>"
+              │    │    │    ├─• grid_function = "<nodes-field-name>"
               │    │    │    └─• boundary_topology = "boundary"
               │    │    └── boundary
               │    │         ├─• type = "unstructured"
@@ -268,6 +268,9 @@ public:
 
    asctoolkit::sidre::DataGroup * GetBPGroup() { return bp_grp; }
    asctoolkit::sidre::DataGroup * GetBPIndexGroup() { return bp_index_grp; }
+
+   /// Prepare the DataStore for writing
+   virtual void PrepareToSave();
 
    /// Save the collection to file.
    /** This method calls `Save(collection_name, "sidre_hdf5")`. */
