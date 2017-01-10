@@ -217,6 +217,7 @@ public:
    void ComputeSolution(const Vector &b, const Vector &sc_sol,
                         Vector &sol) const;
 
+#ifdef MFEM_USE_MPI
    /** Turn on or off the usage of PETSc */
    void SetUsePetsc(bool use = true)
    {
@@ -246,6 +247,7 @@ public:
 #endif
       if (unassembled) { SetUsePetsc(true); }
    }
+#endif
 
 };
 
