@@ -99,30 +99,35 @@ private:
    socketstream&    sout;
    ParMesh*         pmesh;
    ParGridFunction* u;
+   int              vt;
    bool             pause;
 
 public:
-   UserMonitor(socketstream& _s, ParMesh* _m, ParGridFunction* _u) :
-      PetscSolverMonitorCtx(true,false), sout(_s), pmesh(_m), u(_u), pause(true) {}
+   UserMonitor(socketstream& _s, ParMesh* _m, ParGridFunction* _u, int _vt) :
+      PetscSolverMonitorCtx(true,false), sout(_s), pmesh(_m), u(_u), vt(_vt),
+      pause(true) {}
 
    void MonitorSolution(PetscInt step, PetscReal norm, Vector &X)
    {
-      int  num_procs, myid;
-
-      *u = X;
-      MPI_Comm_size(pmesh->GetComm(),&num_procs);
-      MPI_Comm_rank(pmesh->GetComm(),&myid);
-      sout << "parallel " << num_procs << " " << myid << "\n";
-      sout << "solution\n" << *pmesh << *u;
-      if (pause) { sout << "pause\n"; }
-      sout << flush;
-      if (pause)
+      if (step % vt == 0)
       {
-         pause = false;
-         if (myid == 0)
+         int  num_procs, myid;
+
+         *u = X;
+         MPI_Comm_size(pmesh->GetComm(),&num_procs);
+         MPI_Comm_rank(pmesh->GetComm(),&myid);
+         sout << "parallel " << num_procs << " " << myid << "\n";
+         sout << "solution\n" << *pmesh << *u;
+         if (pause) { sout << "pause\n"; }
+         sout << flush;
+         if (pause)
          {
-            cout << "GLVis visualization paused."
-                 << " Press space (in the GLVis window) to resume it.\n";
+            pause = false;
+            if (myid == 0)
+            {
+               cout << "GLVis visualization paused."
+                    << " Press space (in the GLVis window) to resume it.\n";
+            }
          }
       }
    }
@@ -379,7 +384,7 @@ int main(int argc, char *argv[])
       {
          // Set the monitoring routine for the PETScODESolver.
          sout.precision(precision);
-         pmon = new UserMonitor(sout,pmesh,u);
+         pmon = new UserMonitor(sout,pmesh,u,vis_steps);
          pode_solver->SetMonitor(pmon);
       }
 #endif
