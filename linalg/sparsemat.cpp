@@ -739,7 +739,7 @@ double SparseMatrix::GetRowNorml1(int irow) const
    return a;
 }
 
-void SparseMatrix::Finalize(int skip_zeros)
+void SparseMatrix::Finalize(int skip_zeros, bool fix_empty_row)
 {
    int i, j, nr, nz;
    RowNode *aux;
@@ -762,6 +762,7 @@ void SparseMatrix::Finalize(int skip_zeros)
          {
             nr++;
          }
+      if (fix_empty_row && !nr) { nr = 1; }
       I[i] = I[i-1] + nr;
    }
 
@@ -773,6 +774,7 @@ void SparseMatrix::Finalize(int skip_zeros)
    for (j = i = 0; i < height; i++)
    {
       int lastCol = -1;
+      nr = 0;
       for (aux = Rows[i]; aux != NULL; aux = aux->Prev)
       {
          if (!skip_zeros || aux->Value != 0.0)
@@ -787,7 +789,14 @@ void SparseMatrix::Finalize(int skip_zeros)
             lastCol = J[j];
 
             j++;
+            nr++;
          }
+      }
+      if (fix_empty_row && !nr)
+      {
+         J[j] = i;
+         A[j] = 1.0;
+         j++;
       }
    }
 

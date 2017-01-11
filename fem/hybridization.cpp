@@ -666,7 +666,7 @@ void Hybridization::ComputeH()
    ParFiniteElementSpace *c_pfes = dynamic_cast<ParFiniteElementSpace*>(c_fes);
    if (!pC)
    {
-      H->Finalize();
+      H->Finalize(1,usepetsc);
       if (!c_pfes) { return; }
 
       if (!usepetsc)
@@ -730,7 +730,6 @@ void Hybridization::ComputeH()
       delete lpH;
    }
 #endif
-   // TODO: add ones on the diagonal of zero rows.
 }
 
 void Hybridization::Finalize()

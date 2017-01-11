@@ -260,7 +260,7 @@ public:
        only once, after the matrix has been initialized. Internally, this
        method converts the matrix from row-wise linked list format into
        CSR (compressed sparse row) format. */
-   virtual void Finalize(int skip_zeros = 1);
+   virtual void Finalize(int skip_zeros = 1, bool fix_empty_rows = false);
 
    bool Finalized() const { return (A != NULL); }
    bool areColumnsSorted() const { return isSorted; }
