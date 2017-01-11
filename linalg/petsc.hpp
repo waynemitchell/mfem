@@ -321,6 +321,10 @@ public:
    void SetMaxIter(int max_iter);
    void SetPrintLevel(int plev);
    ///@}
+
+   /// Customize object with options set
+   /** If customize is false, it disables any options customization */
+   void Customize(bool customize = true) const;
    int GetConverged();
    int GetNumIterations();
    double GetFinalNorm();
@@ -338,9 +342,6 @@ class PetscLinearSolver : public PetscSolver, public Solver
 private:
    /// Internal flag to handle HypreParMatrix conversion or not.
    bool wrap;
-
-protected:
-   void Customize() const;
 
 public:
    PetscLinearSolver(MPI_Comm comm, std::string prefix = std::string());
@@ -375,9 +376,6 @@ public:
 /// Abstract class for PETSc's preconditioners.
 class PetscPreconditioner : public PetscSolver, public Solver
 {
-protected:
-   void Customize() const;
-
 public:
    PetscPreconditioner(MPI_Comm comm, std::string prefix = std::string());
    PetscPreconditioner(PetscParMatrix &_A, std::string prefix = std::string());
@@ -453,9 +451,6 @@ public:
 /// Abstract class for PETSc's nonlinear solvers.
 class PetscNonlinearSolver : public PetscSolver, public Solver
 {
-protected:
-   void Customize() const;
-
 public:
    PetscNonlinearSolver(MPI_Comm comm, std::string prefix = std::string());
    PetscNonlinearSolver(MPI_Comm comm, Operator &op,
@@ -475,9 +470,6 @@ public:
 /// Abstract class for PETSc's ODE solvers.
 class PetscODESolver : public PetscSolver, public ODESolver
 {
-protected:
-   void Customize() const;
-
 public:
    PetscODESolver(MPI_Comm comm, std::string prefix = std::string());
    virtual ~PetscODESolver();

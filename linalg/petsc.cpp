@@ -1323,6 +1323,39 @@ void PetscSolver::SetMonitor(PetscSolverMonitorCtx *ctx)
    SetPrintLevel(-1);
 }
 
+void PetscSolver::Customize(bool customize) const
+{
+   if (!customize) { clcustom = true; }
+   if (!clcustom)
+   {
+      if (cid == PC_CLASSID)
+      {
+         PC pc = (PC)obj;
+         ierr = PCSetFromOptions(pc); PCHKERRQ(pc, ierr);
+      }
+      else if (cid == KSP_CLASSID)
+      {
+         KSP ksp = (KSP)obj;
+         ierr = KSPSetFromOptions(ksp); PCHKERRQ(ksp, ierr);
+      }
+      else if (cid == SNES_CLASSID)
+      {
+         SNES snes = (SNES)obj;
+         ierr = SNESSetFromOptions(snes); PCHKERRQ(snes, ierr);
+      }
+      else if (cid == TS_CLASSID)
+      {
+         TS ts = (TS)obj;
+         ierr = TSSetFromOptions(ts); PCHKERRQ(ts, ierr);
+      }
+      else
+      {
+         MFEM_ABORT("SetRelTol() to be implemented!");
+      }
+   }
+   clcustom = true;
+}
+
 int PetscSolver::GetConverged()
 {
    if (cid == KSP_CLASSID)
@@ -1575,16 +1608,6 @@ PetscLinearSolver::~PetscLinearSolver()
    ierr = KSPDestroy(&ksp); CCHKERRQ(comm,ierr);
 }
 
-void PetscLinearSolver::Customize() const
-{
-   if (!clcustom)
-   {
-      KSP ksp = (KSP)obj;
-      ierr = KSPSetFromOptions(ksp); PCHKERRQ(ksp, ierr);
-      clcustom = true;
-   }
-}
-
 // PetscPCGSolver methods
 
 PetscPCGSolver::PetscPCGSolver(MPI_Comm comm,
@@ -1706,16 +1729,6 @@ PetscPreconditioner::~PetscPreconditioner()
    PC pc = (PC)obj;
    ierr = PetscObjectGetComm((PetscObject)pc,&comm); PCHKERRQ(pc,ierr);
    ierr = PCDestroy(&pc); CCHKERRQ(comm,ierr);
-}
-
-void PetscPreconditioner::Customize() const
-{
-   if (!clcustom)
-   {
-      PC pc = (PC)obj;
-      ierr = PCSetFromOptions(pc); PCHKERRQ(pc, ierr);
-      clcustom = true;
-   }
 }
 
 // PetscBDDCSolver methods
@@ -2119,16 +2132,6 @@ void PetscNonlinearSolver::Mult(const Vector &b, Vector &x) const
    if (b_nonempty) { B->ResetData(); }
 }
 
-void PetscNonlinearSolver::Customize() const
-{
-   if (!clcustom)
-   {
-      SNES snes = (SNES)obj;
-      ierr = SNESSetFromOptions(snes); PCHKERRQ(snes, ierr);
-      clcustom = true;
-   }
-}
-
 // PetscODESolver methods
 
 PetscODESolver::PetscODESolver(MPI_Comm comm, std::string prefix)
@@ -2232,16 +2235,6 @@ void PetscODESolver::Steps(Vector &x, double &t, double &dt, double t_final)
    t = pt;
    ierr = TSGetTimeStep(ts,&pt); PCHKERRQ(ts,ierr);
    dt = pt;
-}
-
-void PetscODESolver::Customize() const
-{
-   if (!clcustom)
-   {
-      TS ts = (TS)obj;
-      ierr = TSSetFromOptions(ts); PCHKERRQ(ts, ierr);
-      clcustom = true;
-   }
 }
 
 }  // namespace mfem
