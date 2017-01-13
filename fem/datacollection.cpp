@@ -95,6 +95,7 @@ DataCollection::DataCollection(const std::string& collection_name, Mesh *mesh_)
    time_step = 0.0;
    precision = precision_default;
    pad_digits = pad_digits_default;
+   format = 0; // use older serial mesh format
    error = NO_ERROR;
 }
 
@@ -237,7 +238,8 @@ void DataCollection::SaveMesh()
       return; // do not even try to write the mesh
    }
 
-   std::string mesh_name = dir_name + (serial ? "/mesh" : "/pmesh");
+   std::string mesh_name = dir_name +
+                           ((serial || format == 0 )? "/mesh" : "/pmesh");
    if (appendRankToFileName)
    {
       mesh_name += "." + to_padded_string(myid, pad_digits);
@@ -246,7 +248,7 @@ void DataCollection::SaveMesh()
    mesh_file.precision(precision);
 #ifdef MFEM_USE_MPI
    const ParMesh *pmesh = dynamic_cast<const ParMesh*>(mesh);
-   if (pmesh)
+   if (pmesh && format == 1 )
    {
       pmesh->ParPrint(mesh_file);
    }
@@ -517,7 +519,8 @@ std::string VisItDataCollection::GetVisItRootString()
    mtags["spatial_dim"] = picojson::value(to_string(spatial_dim));
    mtags["topo_dim"] = picojson::value(to_string(topo_dim));
    mtags["max_lods"] = picojson::value(to_string(visit_max_levels_of_detail));
-   mesh["path"] = picojson::value(path_str + "mesh" + file_ext_format);
+   mesh["path"] = picojson::value(path_str + ((format==0)?"":"p") + "mesh" +
+                                  file_ext_format);
    mesh["tags"] = picojson::value(mtags);
 
    // Build the fields data entries
