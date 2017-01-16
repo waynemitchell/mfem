@@ -68,8 +68,11 @@ set(EX3P_ARGS -m ../../data/klein-bottle.mesh
     -o 2 -f 0.1 --usepetsc --petscopts rc_ex3p_bddc --nonoverlapping)
 set(EX4P_ARGS -m ../../data/klein-bottle.mesh
     -o 2 --usepetsc --petscopts rc_ex4p_bddc --nonoverlapping)
-set(EX5P_ARGS -m ../../data/star.mesh
+set(EX5_BDDC_ARGS -m ../../data/star.mesh
     --usepetsc --petscopts rc_ex5p_bddc --nonoverlapping)
+set(EX5_FSPL_ARGS -m ../../data/beam-tet.mesh
+    --usepetsc --petscopts rc_ex5p_fieldsplit)
+set(EX5P_ARGS ${EX5_FSPL_ARGS})
 set(EX6P_ARGS -m ../../data/amr-quad.mesh --usepetsc)
 set(EX9P_ARGS -m ../../data/periodic-hexagon.mesh
     --usepetsc --petscopts rc_ex9p_expl)

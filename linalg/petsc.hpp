@@ -27,11 +27,12 @@ namespace mfem
 class ParFiniteElementSpace;
 class PetscParMatrix;
 
+
 /// Wrapper for PETSc's vector class
 class PetscParVector : public Vector
 {
 protected:
-   /// The actual object
+   /// The actual PETSc object
    Vec x;
 
    friend class PetscParMatrix;
@@ -45,44 +46,46 @@ protected:
    void _SetDataAndSize_();
 
 public:
-   /** Creates vector with given global size and partitioning of the columns.
-       Processor P owns columns [col[P],col[P+1]) */
+   /// Creates vector with given global size and partitioning of the columns.
+   /** Processor P owns columns [col[P],col[P+1]). */
    PetscParVector(MPI_Comm comm, PetscInt glob_size, PetscInt *col);
 
-   /// Calls PETSc's destroy function
-   ~PetscParVector();
+   /** @brief Creates vector with given global size, partitioning of the
+       columns, and data.
 
-   /** Creates vector with given global size, partitioning of the columns,
-       and data. The data must be allocated and destroyed outside.
-       If _data is NULL, a dummy vector without a valid data array will
-       be created. */
+       The data must be allocated and destroyed outside. If @a _data is NULL, a
+       dummy vector without a valid data array will be created. */
    PetscParVector(MPI_Comm comm, PetscInt glob_size, PetscScalar *_data,
                   PetscInt *col);
 
-   /// Creates vector compatible with y
+   /// Creates vector compatible with @a y
    PetscParVector(const PetscParVector &y);
 
-   /// Creates vector compatible with the Operator (i.e. in the domain of) op
-   /// or its adjoint
+   /** @brief Creates vector compatible with the Operator (i.e. in the domain
+       of) @a op or its adjoint. */
    explicit PetscParVector(MPI_Comm comm, const Operator &op, int transpose = 0);
 
-   /// Creates vector compatible with (i.e. in the domain of) A or A^T
+   /// Creates vector compatible with (i.e. in the domain of) @a A or @a A^T
    explicit PetscParVector(const PetscParMatrix &A, int transpose = 0);
 
-   /// Creates PetscParVector out of PETSc's Mat
-   /// If ref is true, we increase the reference count of the PETSc's Vec object
+   /// Creates PetscParVector out of PETSc Vec object.
+   /** @param[in] y    The PETSc Vec object.
+       @param[in] ref  If true, we increase the reference count of @a y. */
    explicit PetscParVector(Vec y, bool ref=false);
 
    /// Create a true dof parallel vector on a given ParFiniteElementSpace
    explicit PetscParVector(ParFiniteElementSpace *pfes);
 
-   /// MPI communicator
+   /// Calls PETSc's destroy function
+   virtual ~PetscParVector();
+
+   /// Get the associated MPI communicator
    MPI_Comm GetComm() const { return PetscObjectComm((PetscObject)x); }
 
    /// Returns the global number of rows
-   PetscInt GlobalSize();
+   PetscInt GlobalSize() const;
 
-   /// Typecasting to PETSc's Vec
+   /// Conversion function to PETSc's Vec type
    operator Vec() const { return x; }
 
    /// Returns the global vector in each processor
@@ -94,24 +97,32 @@ public:
    /// Define '=' for PETSc vectors.
    PetscParVector& operator= (const PetscParVector &y);
 
-   /// Replace PetscParVector array
-   void SetData(PetscScalar *_data);
+   /** @brief Temporarily replace the data of the PETSc Vec object. To return to
+       the original data array, call ResetArray().
 
-   /// Restore PetscParVector array to its original state
-   void ResetData();
+       @note This method calls PETSc's VecPlaceArray() function.
+       @note The inherited Vector::data pointer is not affected by this call. */
+   void PlaceArray(PetscScalar *temp_data);
+
+   /** @brief Reset the PETSc Vec object to use its default data. Call this
+       method after the use of PlaceArray().
+
+       @note This method calls PETSc's VecResetArray() function. */
+   void ResetArray();
 
    /// Set random values
    void Randomize(PetscInt seed);
 
-   /// Prints the vector (to stdout if fname is NULL)
+   /// Prints the vector (to stdout if @a fname is NULL)
    void Print(const char *fname = NULL, bool binary = false) const;
 };
+
 
 /// Wrapper for PETSc's matrix class
 class PetscParMatrix : public Operator
 {
 protected:
-   /// The actual object
+   /// The actual PETSc object
    Mat A;
 
    /// Auxiliary vectors for typecasting
@@ -123,77 +134,87 @@ protected:
    /// Delete all owned data. Does not perform re-initialization with defaults.
    void Destroy();
 
-   /// Creates a wrapper around a mfem::Operator op using PETSc's MATSHELL object
-   /// and returns the Mat in B. This does not take any reference to op, that
-   /// should not be destroyed until B is needed.
+   /** @brief Creates a wrapper around a mfem::Operator @a op using PETSc's
+       MATSHELL object and returns the Mat in @a B.
+
+       This does not take any reference to @a op, that should not be destroyed
+       until @a B is needed. */
    void MakeWrapper(MPI_Comm comm, const Operator* op, Mat *B);
 
-   /// Convert a mfem::Operator into a Mat B
-   /// Op can be destroyed
-   void ConvertOperator(MPI_Comm comm, const Operator& op, Mat *B, bool assembled);
+   /// Convert an mfem::Operator into a Mat @a B; @a op can be destroyed.
+   void ConvertOperator(MPI_Comm comm, const Operator& op, Mat *B,
+                        bool assembled);
 
    friend class PetscLinearSolver;
    friend class PetscPreconditioner;
 
 private:
    /// Constructs a block-diagonal Mat object
-   void BlockDiagonalConstructor(MPI_Comm comm, PetscInt global_num_rows,
-                                 PetscInt global_num_cols, PetscInt *row_starts,
+   void BlockDiagonalConstructor(MPI_Comm comm, PetscInt *row_starts,
                                  PetscInt *col_starts, SparseMatrix *diag,
                                  bool assembled, Mat *A);
 
 public:
-   /// An empty matrix to be used as a reference to an existing matrix.
+   /// Create an empty matrix to be used as a reference to an existing matrix.
    PetscParMatrix();
 
-   /// Calls PETSc's destroy function.
-   virtual ~PetscParMatrix() { Destroy(); }
-
    /// Creates PetscParMatrix out of PETSc's Mat.
-   /// If ref is true, we increase the reference count of PETSc's Mat object.
+   /** @param[in]  a    The PETSc Mat object.
+       @param[in]  ref  If true, we increase the reference count of @a a. */
    PetscParMatrix(Mat a, bool ref=false);
 
    /// Converts HypreParMatrix to PetscParMatrix
-   /// If wrap is false, a PETSc's MATAIJ (resp. MATIS) object
-   /// is created if assembled is true (resp. false).
-   /// If wrap is true, the matvec operations of the HypreParMatrix are wrapped
-   /// through PETSc's MATSHELL object. In this case, the HypreParMatrix should
-   /// not be destroyed before the PetscParMatrix; assembled is not referenced.
+   /** If @a wrap is false, a PETSc's MATAIJ (resp. MATIS) object is created if
+       @a assembled is true (resp. false).
+
+       If @a wrap is true, the matvec operations of the HypreParMatrix are
+       wrapped through PETSc's MATSHELL object. In this case, the HypreParMatrix
+       should not be destroyed before the PetscParMatrix; @a assembled is not
+       referenced. */
    PetscParMatrix(const HypreParMatrix* a, bool wrap=false, bool assembled=true);
 
-   /// If wrap is true, it converts any mfem::Operator op implementing Mult and
-   /// MultTranspose into a PetscParMatrix. The Operator destructor should not
-   /// be called before the one of the PetscParMatrix.
-   /// If wrap is false, it tries to convert the operator in PETSc's classes.
+   /// Convert an mfem::Operator into a PetscParMatrix.
+   /** If @a wrap is true, it converts any mfem::Operator @a op implementing
+       Operator::Mult() and Operator::MultTranspose() into a PetscParMatrix. The
+       Operator destructor should not be called before the one of the
+       PetscParMatrix.
+
+       If @a wrap is false, it tries to convert the operator in PETSc's classes.
+    */
    PetscParMatrix(MPI_Comm comm, const Operator* op, bool wrap = true,
                   bool assembled=true);
 
-   /** Creates block-diagonal square parallel matrix. Diagonal is given by diag
-       which must be in CSR format (finalized). The new PetscParMatrix does not
-       take ownership of any of the input arrays.
-       If assembled is false, a MATIS object is constructed.
-       Otherwise, a MATAIJ (parallel distributed CSR) is used */
+   /// Creates block-diagonal square parallel matrix.
+   /** The block-diagonal is given by @a diag which must be in CSR format
+       (finalized). The new PetscParMatrix does not take ownership of any of the
+       input arrays. If @a assembled is false, a MATIS object is constructed.
+       Otherwise, a MATAIJ (parallel distributed CSR) is used. */
    PetscParMatrix(MPI_Comm comm, PetscInt glob_size, PetscInt *row_starts,
                   SparseMatrix *diag, bool assembled = true);
 
-   /** Creates block-diagonal rectangular parallel matrix. Diagonal is given by
-       diag which must be in CSR format (finalized). The new PetscParMatrix does
-       not take ownership of any of the input arrays.
-       If assembled is false, a MATIS object is constructed.
-       Otherwise, a MATAIJ (parallel distributed CSR) is used */
+   /// Creates block-diagonal rectangular parallel matrix.
+   /** The block-diagonal is given by @a diag which must be in CSR format
+       (finalized). The new PetscParMatrix does not take ownership of any of the
+       input arrays. If @a assembled is false, a MATIS object is constructed.
+       Otherwise, a MATAIJ (parallel distributed CSR) is used. */
    PetscParMatrix(MPI_Comm comm, PetscInt global_num_rows,
                   PetscInt global_num_cols, PetscInt *row_starts,
                   PetscInt *col_starts, SparseMatrix *diag, bool assembled = true);
 
-   // Assignment operators
+   /// Calls PETSc's destroy function.
+   virtual ~PetscParMatrix() { Destroy(); }
+
+   /// @name Assignment operators
+   ///@{
    PetscParMatrix& operator=(const PetscParMatrix& B);
    PetscParMatrix& operator=(const HypreParMatrix& B);
    PetscParMatrix& operator+=(const PetscParMatrix& B);
+   ///@}
 
-   // MatMultAdd operations
+   /// Matvec: @a y = @a a A @a x + @a b @a y.
    void Mult(double a, const Vector &x, double b, Vector &y) const;
 
-   // MatMultTransoseAdd operations
+   /// Matvec transpose: @a y = @a a A^T @a x + @a b @a y.
    void MultTranspose(double a, const Vector &x, double b, Vector &y) const;
 
    virtual void Mult(const Vector &x, Vector &y) const
@@ -202,37 +223,34 @@ public:
    virtual void MultTranspose(const Vector &x, Vector &y) const
    { MultTranspose(1.0, x, 0.0, y); }
 
-   /// MPI communicator
+   /// Get the associated MPI communicator
    MPI_Comm GetComm() const { return PetscObjectComm((PetscObject)A); }
 
-   /// Typecasting to PETSc's Mat
-   operator Mat() { return A; }
-
-   /// Typecasting to PETSc's Mat (const version)
+   /// Typecasting to PETSc's Mat type
    operator Mat() const { return A; }
 
    /// Returns the local number of rows
-   PetscInt GetNumRows();
+   PetscInt GetNumRows() const;
 
    /// Returns the local number of columns
-   PetscInt GetNumCols();
+   PetscInt GetNumCols() const;
 
    /// Returns the global number of rows
-   PetscInt M();
+   PetscInt M() const;
 
    /// Returns the global number of columns
-   PetscInt N();
+   PetscInt N() const;
 
    /// Returns the global number of rows
-   PetscInt GetGlobalNumRows() { return M(); }
+   PetscInt GetGlobalNumRows() const { return M(); }
 
    /// Returns the global number of columns
-   PetscInt GetGlobalNumCols() { return N(); }
+   PetscInt GetGlobalNumCols() const { return N(); }
 
-   /// Returns the number of nonzeros
-   /// Differently from HYPRE, this call is collective on the communicator,
-   /// as this number is not stored inside PETSc, but needs to be computed
-   PetscInt NNZ();
+   /// Returns the number of nonzeros.
+   /** Differently from HYPRE, this call is collective on the communicator,
+       as this number is not stored inside PETSc, but needs to be computed. */
+   PetscInt NNZ() const;
 
    /// Returns the inner vector in the domain of A (it creates it if needed)
    PetscParVector* GetX() const;
@@ -240,9 +258,13 @@ public:
    /// Returns the inner vector in the range of A (it creates it if needed)
    PetscParVector* GetY() const;
 
-   /// Returns the transpose of *this if action is false
-   /// If action is true, then the matrix is not actually transposed.
-   /// Instead, an object that behaves like the transpose is returned.
+   /// Returns the transpose of the PetscParMatrix.
+   /** If @a action is false, the new matrix is constructed with the PETSc
+       function MatTranspose(). FIXME - question: can we delete this matrix
+       without invalidating the transpose?
+
+       If @a action is true, then the matrix is not actually transposed.
+       Instead, an object that behaves like the transpose is returned. */
    PetscParMatrix* Transpose(bool action = false);
 
    /// Prints the matrix (to stdout if fname is NULL)
@@ -251,24 +273,26 @@ public:
    /// Scale all entries by s: A_scaled = s*A.
    void operator*=(double s);
 
-   /** Eliminate rows and columns from the matrix, and rows from the vector B.
-       Modify B with the BC values in X. */
+   /** @brief Eliminate rows and columns from the matrix, and rows from the
+       vector @a B. Modify @a B with the BC values in @a X. */
    void EliminateRowsCols(const Array<int> &rows_cols, const HypreParVector &X,
                           HypreParVector &B);
 
-   /** Eliminate rows and columns from the matrix and store the eliminated
-      elements in a new matrix Ae (returned), so that the modified matrix and
-      Ae sum to the original matrix. */
+   /** @brief Eliminate rows and columns from the matrix and store the
+       eliminated elements in a new matrix Ae (returned).
+
+       The sum of the modified matrix and the returned matrix, Ae, is equal to
+       the original matrix. */
    PetscParMatrix* EliminateRowsCols(const Array<int> &rows_cols);
 
-   /// Takes a reference to another PetscParMatrix
+   /// Makes this object a reference to another PetscParMatrix
    void MakeRef(const PetscParMatrix &master);
 
-   /// Releases the Mat object. If dereference is true, it decrement
-   /// the refcount of the Mat.
+   /** @brief Release the PETSc Mat object. If @a dereference is true, decrement
+       the refcount of the Mat object. */
    Mat ReleaseMat(bool dereference);
-
 };
+
 
 /// Returns the matrix Rt^t * A * P
 PetscParMatrix * RAP(PetscParMatrix *Rt, PetscParMatrix *A, PetscParMatrix *P);
@@ -276,13 +300,17 @@ PetscParMatrix * RAP(PetscParMatrix *Rt, PetscParMatrix *A, PetscParMatrix *P);
 /// Returns the matrix P^t * A * P
 PetscParMatrix * RAP(PetscParMatrix *A, PetscParMatrix *P);
 
-/** Eliminate essential BC specified by 'ess_dof_list' from the solution X to
-    the r.h.s. B. Here A is a matrix with eliminated BC, while Ae is such that
-    (A+Ae) is the original (Neumann) matrix before elimination. */
+/** @brief Eliminate essential BC specified by @a ess_dof_list from the solution
+    @a X to the r.h.s. @a B.
+
+    Here, @a A is a matrix with eliminated BC, while @a Ae is such that
+    (@a A + @a Ae) is the original (Neumann) matrix before elimination. */
 void EliminateBC(PetscParMatrix &A, PetscParMatrix &Ae,
                  const Array<int> &ess_dof_list, const Vector &X, Vector &B);
 
-class PetscSolverMonitorCtx;
+
+class PetscSolverMonitor;
+
 
 /// Abstract class for PETSc's solvers.
 class PetscSolver
@@ -301,19 +329,19 @@ protected:
    mutable PetscParVector *B, *X;
 
    /// Monitor context
-   PetscSolverMonitorCtx *monitor_ctx;
+   PetscSolverMonitor *monitor_ctx;
 
 public:
-   /// Initialize protected objects to NULL.
+   /// Construct an empty PetscSolver. Initialize protected objects to NULL.
    PetscSolver();
 
    /// Destroy the PetscParVectors allocated (if any).
    virtual ~PetscSolver();
 
-   /// @name Update of PETSc options.
-   /** The following Set methods can be used to update the internal PETSc
+   /** @name Update of PETSc options.
+       The following Set methods can be used to update the internal PETSc
        options.
-       @note They will be overwritten by the options in the input PETSC file. */
+       @note They will be overwritten by the options in the input PETSc file. */
    ///@{
    void SetTol(double tol);
    void SetRelTol(double tol);
@@ -323,18 +351,19 @@ public:
    ///@}
 
    /// Customize object with options set
-   /** If customize is false, it disables any options customization */
+   /** If @a customize is false, it disables any options customization. */
    void Customize(bool customize = true) const;
    int GetConverged();
    int GetNumIterations();
    double GetFinalNorm();
 
    /// Sets user-defined monitoring routine.
-   void SetMonitor(PetscSolverMonitorCtx *ctx);
+   void SetMonitor(PetscSolverMonitor *ctx);
 
-   /// Typecasting to PETScObject.
+   /// Conversion function to PetscObject.
    operator PetscObject() const { return obj; }
 };
+
 
 /// Abstract class for PETSc's linear solvers.
 class PetscLinearSolver : public PetscSolver, public Solver
@@ -344,43 +373,49 @@ private:
    bool wrap;
 
 public:
-   PetscLinearSolver(MPI_Comm comm, std::string prefix = std::string());
-   PetscLinearSolver(PetscParMatrix &_A, std::string prefix = std::string());
+   PetscLinearSolver(MPI_Comm comm, const std::string &prefix = std::string());
+   PetscLinearSolver(const PetscParMatrix &A,
+                     const std::string &prefix = std::string());
    /// Constructs a solver using a HypreParMatrix.
-   /** If @a #wrap is true, then the MatMult ops of HypreParMatrix are wrapped.
+   /** If @a wrap is true, then the MatMult ops of HypreParMatrix are wrapped.
        No preconditioner can be automatically constructed from PETSc. If
-       @a #wrap is false, the HypreParMatrix is converted into PETSc format. */
-   PetscLinearSolver(HypreParMatrix &_A, bool wrap = true,
-                     std::string prefix = std::string());
+       @a wrap is false, the HypreParMatrix is converted into PETSc format. */
+   PetscLinearSolver(const HypreParMatrix &A, bool wrap = true,
+                     const std::string &prefix = std::string());
    virtual ~PetscLinearSolver();
 
    virtual void SetOperator(const Operator &op);
+   // not inherited
    virtual void SetPreconditioner(Solver &precond);
 
    /// Application of the solver.
    virtual void Mult(const Vector &b, Vector &x) const;
 
-   /// Typecasting to PETSc's KSP.
+   /// Conversion function to PETSc's KSP type.
    operator KSP() const { return (KSP)obj; }
 };
+
 
 class PetscPCGSolver : public PetscLinearSolver
 {
 public:
-   PetscPCGSolver(MPI_Comm comm, std::string prefix = std::string());
-   PetscPCGSolver(PetscParMatrix &_A, std::string prefix = std::string());
-   PetscPCGSolver(HypreParMatrix &_A,bool wrap=true,
-                  std::string prefix = std::string());
+   PetscPCGSolver(MPI_Comm comm, const std::string &prefix = std::string());
+   PetscPCGSolver(PetscParMatrix &A, const std::string &prefix = std::string());
+   PetscPCGSolver(HypreParMatrix &A,bool wrap=true,
+                  const std::string &prefix = std::string());
 };
+
 
 /// Abstract class for PETSc's preconditioners.
 class PetscPreconditioner : public PetscSolver, public Solver
 {
 public:
-   PetscPreconditioner(MPI_Comm comm, std::string prefix = std::string());
-   PetscPreconditioner(PetscParMatrix &_A, std::string prefix = std::string());
+   PetscPreconditioner(MPI_Comm comm,
+                       const std::string &prefix = std::string());
+   PetscPreconditioner(PetscParMatrix &A,
+                       const std::string &prefix = std::string());
    PetscPreconditioner(MPI_Comm comm, Operator &op,
-                       std::string prefix = std::string());
+                       const std::string &prefix = std::string());
    virtual ~PetscPreconditioner();
 
    virtual void SetOperator(const Operator &op);
@@ -388,18 +423,19 @@ public:
    /// Application of the preconditioner.
    virtual void Mult(const Vector &b, Vector &x) const;
 
-   /// Typecasting to PETSc's PC.
+   /// Conversion function to PETSc's PC type.
    operator PC() const { return (PC)obj; }
 };
+
 
 /// Auxiliary class for BDDC customization.
 class PetscBDDCSolverParams
 {
 protected:
    ParFiniteElementSpace *fespace;
-   Array<int>            *ess_dof;
+   const Array<int>      *ess_dof;
    bool                  ess_dof_local;
-   Array<int>            *nat_dof;
+   const Array<int>      *nat_dof;
    bool                  nat_dof_local;
    friend class PetscBDDCSolver;
 
@@ -410,51 +446,55 @@ public:
    void SetSpace(ParFiniteElementSpace *fe) { fespace = fe; }
 
    /// Specify dofs on the essential boundary.
-   /** If loc is false, it is a list of true dofs in local ordering.
-       If loc is true, it is a marker for Vdofs in local ordering. */
-   void SetEssBdrDofs(Array<int> *essdofs, bool loc = false)
+   /** If @a loc is false, it is a list of true dofs in local ordering.
+       If @a loc is true, it is a marker for Vdofs in local ordering. */
+   void SetEssBdrDofs(const Array<int> *essdofs, bool loc = false)
    {
       ess_dof = essdofs;
       ess_dof_local = loc;
    }
    /// Specify dofs on the natural boundary.
-   /** If loc is false, it is a list of true dofs in local ordering.
-       If loc is true, it is a marker for Vdofs in local ordering. */
-   void SetNatBdrDofs(Array<int> *natdofs, bool loc = false)
+   /** If @a loc is false, it is a list of true dofs in local ordering.
+       If @a loc is true, it is a marker for Vdofs in local ordering. */
+   void SetNatBdrDofs(const Array<int> *natdofs, bool loc = false)
    {
       nat_dof = natdofs;
       nat_dof_local = loc;
    }
 };
 
+
 class PetscBDDCSolver : public PetscPreconditioner
 {
 private:
-   void BDDCSolverConstructor(PetscBDDCSolverParams opts);
+   void BDDCSolverConstructor(const PetscBDDCSolverParams &opts);
 
 public:
    PetscBDDCSolver(MPI_Comm comm, Operator &op,
-                   PetscBDDCSolverParams opts = PetscBDDCSolverParams(),
-                   std::string prefix = std::string());
+                   const PetscBDDCSolverParams &opts = PetscBDDCSolverParams(),
+                   const std::string &prefix = std::string());
    PetscBDDCSolver(PetscParMatrix &op,
-                   PetscBDDCSolverParams opts = PetscBDDCSolverParams(),
-                   std::string prefix = std::string());
+                   const PetscBDDCSolverParams &opts = PetscBDDCSolverParams(),
+                   const std::string &prefix = std::string());
 };
+
 
 class PetscFieldSplitSolver : public PetscPreconditioner
 {
 public:
    PetscFieldSplitSolver(MPI_Comm comm, Operator &op,
-                         std::string prefix = std::string());
+                         const std::string &prefix = std::string());
 };
+
 
 /// Abstract class for PETSc's nonlinear solvers.
 class PetscNonlinearSolver : public PetscSolver, public Solver
 {
 public:
-   PetscNonlinearSolver(MPI_Comm comm, std::string prefix = std::string());
+   PetscNonlinearSolver(MPI_Comm comm,
+                        const std::string &prefix = std::string());
    PetscNonlinearSolver(MPI_Comm comm, Operator &op,
-                        std::string prefix = std::string());
+                        const std::string &prefix = std::string());
    virtual ~PetscNonlinearSolver();
 
    /// Specification of the nonlinear operator.
@@ -463,50 +503,52 @@ public:
    /// Application of the solver.
    virtual void Mult(const Vector &b, Vector &x) const;
 
-   /// Typecasting to PETSc's SNES.
+   /// Conversion function to PETSc's SNES type.
    operator SNES() const { return (SNES)obj; }
 };
+
 
 /// Abstract class for PETSc's ODE solvers.
 class PetscODESolver : public PetscSolver, public ODESolver
 {
 public:
-   PetscODESolver(MPI_Comm comm, std::string prefix = std::string());
+   PetscODESolver(MPI_Comm comm, const std::string &prefix = std::string());
    virtual ~PetscODESolver();
 
-   virtual void Init(TimeDependentOperator &_f);
+   virtual void Init(TimeDependentOperator &f_);
 
    virtual void Step(Vector &x, double &t, double &dt);
-   virtual void Steps(Vector &x, double &t, double &dt, double t_final);
+   virtual void Run(Vector &x, double &t, double &dt, double t_final);
 
-   /// Typecasting to PETSc's TS.
+   /// Conversion function to PETSc's TS type.
    operator TS() const { return (TS)obj; }
 };
 
+
 /// Abstract class for monitoring PETSc's solvers.
-class PetscSolverMonitorCtx
+class PetscSolverMonitor
 {
 public:
-   bool _msol;
-   bool _mres;
-   PetscSolverMonitorCtx(bool msol = false, bool mres = true) : _msol(msol),
-      _mres(mres) {}
-   virtual ~PetscSolverMonitorCtx() {}
+   bool mon_sol;
+   bool mon_res;
+   PetscSolverMonitor(bool monitor_sol = false, bool monitor_res = true)
+      : mon_sol(monitor_sol), mon_res(monitor_res) {}
+   virtual ~PetscSolverMonitor() {}
 
    /// Monitor the solution vector x
-   virtual void MonitorSolution(PetscInt it, PetscReal norm, Vector &x)
+   virtual void MonitorSolution(PetscInt it, PetscReal norm, const Vector &x)
    {
-      MFEM_ABORT("MonitorSolution() not implemented!")
+      MFEM_ABORT("MonitorSolution() is not implemented!")
    }
 
    /// Monitor the residual vector r
-   virtual void MonitorResidual(PetscInt it, PetscReal norm, Vector &r)
+   virtual void MonitorResidual(PetscInt it, PetscReal norm, const Vector &r)
    {
-      MFEM_ABORT("MonitorResidual() not implemented!")
+      MFEM_ABORT("MonitorResidual() is not implemented!")
    }
 };
 
-}
+} // namespace mfem
 
 #endif // MFEM_USE_MPI
 #endif // MFEM_USE_PETSC

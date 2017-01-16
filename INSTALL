@@ -421,6 +421,9 @@ Note that debug and optimization options are controlled through the CMake
 variable CMAKE_BUILD_TYPE which can be set to standard values like "Debug", and
 "Release" (default).
 
+With CMake it is possible to build MFEM as a shared library using the standard
+CMake option -DBUILD_SHARED_LIBS=1.
+
 Once configured, the library can be built simply with (assuming a UNIX type
 system, where the default is to generate "UNIX Makefiles")
 

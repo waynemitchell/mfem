@@ -33,6 +33,11 @@
 #include <fstream>
 #include <iostream>
 
+// FIXME - make this purely PETSc example?
+#ifndef MFEM_USE_PETSC
+#error This example requires MFEM to be built with PETSc support.
+#endif
+
 using namespace std;
 using namespace mfem;
 
@@ -80,12 +85,13 @@ public:
    FE_Evolution(HypreParMatrix &_M, HypreParMatrix &_K, const Vector &_b,
                 bool M_in_lhs);
 
+   virtual void ExplicitMult(const Vector &x, Vector &y) const;
+   virtual void ImplicitMult(const Vector &x, const Vector &xp, Vector &y) const;
    virtual void Mult(const Vector &x, Vector &y) const;
-   virtual void Mult(const Vector &x, const Vector &xp, Vector &y) const;
 #ifdef MFEM_USE_PETSC
-   virtual Operator& GetGradient(const Vector &x) const;
-   virtual Operator& GetGradient(const Vector &x, const Vector &xp,
-                                 double shift) const;
+   virtual Operator& GetExplicitGradient(const Vector &x) const;
+   virtual Operator& GetImplicitGradient(const Vector &x, const Vector &xp,
+                                         double shift) const;
 #endif
    virtual ~FE_Evolution() { delete iJacobian; delete rJacobian; }
 };
@@ -93,7 +99,7 @@ public:
 #ifdef MFEM_USE_PETSC
 // we monitor the solution at time step "step"
 // as it is done explicitly in the time loop
-class UserMonitor : public PetscSolverMonitorCtx
+class UserMonitor : public PetscSolverMonitor
 {
 private:
    socketstream&    sout;
@@ -104,10 +110,10 @@ private:
 
 public:
    UserMonitor(socketstream& _s, ParMesh* _m, ParGridFunction* _u, int _vt) :
-      PetscSolverMonitorCtx(true,false), sout(_s), pmesh(_m), u(_u), vt(_vt),
+      PetscSolverMonitor(true,false), sout(_s), pmesh(_m), u(_u), vt(_vt),
       pause(true) {}
 
-   void MonitorSolution(PetscInt step, PetscReal norm, Vector &X)
+   void MonitorSolution(PetscInt step, PetscReal norm, const Vector &X)
    {
       if (step % vt == 0)
       {
@@ -176,8 +182,8 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Order (degree) of the finite elements.");
    args.AddOption(&ode_solver_type, "-s", "--ode-solver",
-                  "ODE solver: 1 - Forward Euler, 2 - RK2 SSP, 3 - RK3 SSP,"
-                  " 4 - RK4, 6 - RK6.");
+                  "ODE solver: 1 - Forward Euler,\n\t"
+                  "            2 - RK2 SSP, 3 - RK3 SSP, 4 - RK4, 6 - RK6.");
    args.AddOption(&t_final, "-tf", "--t-final",
                   "Final time; start time is 0.");
    args.AddOption(&dt, "-dt", "--time-step",
@@ -330,6 +336,7 @@ int main(int argc, char *argv[])
    ParGridFunction *u = new ParGridFunction(fes);
    u->ProjectCoefficient(u0);
    HypreParVector *U = u->GetTrueDofs();
+
    {
       ostringstream mesh_name, sol_name;
       mesh_name << "ex9-mesh." << setfill('0') << setw(6) << myid;
@@ -392,24 +399,25 @@ int main(int argc, char *argv[])
 
    // 10. Define the time-dependent evolution operator describing the ODE
    FE_Evolution *adv = new FE_Evolution(*M, *K, *B, implicit);
+
+   double t = 0.0;
+   adv->SetTime(t);
    ode_solver->Init(*adv);
 
    // Explicitly perform time-integration (looping over the time iterations,
    // ti, with a time-step dt), or use the Mult method of the solver class.
-   double t = 0.0;
    if (use_step)
    {
-      for (int ti = 0; true; )
+      bool done = false;
+      for (int ti = 0; !done; )
       {
-         if (t >= t_final - dt/2)
-         {
-            break;
-         }
-
-         ode_solver->Step(*U, t, dt);
+         double dt_real = min(dt, t_final - t);
+         ode_solver->Step(*U, t, dt_real);
          ti++;
 
-         if (ti % vis_steps == 0)
+         done = (t >= t_final - 1e-8*dt);
+
+         if (done || ti % vis_steps == 0)
          {
             if (myid == 0)
             {
@@ -435,7 +443,7 @@ int main(int argc, char *argv[])
          }
       }
    }
-   else { ode_solver->Steps(*U, t, dt, t_final); }
+   else { ode_solver->Run(*U, t, dt, t_final); }
 
    // 12. Save the final solution in parallel. This output can be viewed later
    //     using GLVis: "glvis -np <np> -m ex9-mesh -g ex9-final".
@@ -463,6 +471,7 @@ int main(int argc, char *argv[])
    delete adv;
 #ifdef MFEM_USE_PETSC
    delete pmon;
+   // FIXME - add class PETSc_Session?
    if (use_petsc) { PetscFinalize(); }
 #endif
    MPI_Finalize();
@@ -473,11 +482,13 @@ int main(int argc, char *argv[])
 // Implementation of class FE_Evolution
 FE_Evolution::FE_Evolution(HypreParMatrix &_M, HypreParMatrix &_K,
                            const Vector &_b,bool M_in_lhs)
-   : TimeDependentOperator(_M.Height(), M_in_lhs),
+   : TimeDependentOperator(_M.Height(), 0.0,
+                           M_in_lhs ? TimeDependentOperator::IMPLICIT
+                           : TimeDependentOperator::EXPLICIT),
      M(_M), K(_K), b(_b), M_solver(M.GetComm()), z(_M.Height()),
      iJacobian(NULL), rJacobian(NULL)
 {
-   if (!M_in_lhs)
+   if (isExplicit())
    {
       M_prec.SetType(HypreSmoother::Jacobi);
       M_solver.SetPreconditioner(M_prec);
@@ -492,9 +503,9 @@ FE_Evolution::FE_Evolution(HypreParMatrix &_M, HypreParMatrix &_K,
 }
 
 // RHS evaluation
-void FE_Evolution::Mult(const Vector &x, Vector &y) const
+void FE_Evolution::ExplicitMult(const Vector &x, Vector &y) const
 {
-   if (!HasLHS())
+   if (isExplicit())
    {
       // y = M^{-1} (K x + b)
       K.Mult(x, z);
@@ -510,9 +521,10 @@ void FE_Evolution::Mult(const Vector &x, Vector &y) const
 }
 
 // LHS evaluation
-void FE_Evolution::Mult(const Vector &x, const Vector &xp, Vector &y) const
+void FE_Evolution::ImplicitMult(const Vector &x, const Vector &xp,
+                                Vector &y) const
 {
-   if (HasLHS())
+   if (isImplicit())
    {
       M.Mult(xp, y);
    }
@@ -522,18 +534,26 @@ void FE_Evolution::Mult(const Vector &x, const Vector &xp, Vector &y) const
    }
 }
 
+void FE_Evolution::Mult(const Vector &x, Vector &y) const
+{
+   // y = M^{-1} (K x + b)
+   K.Mult(x, z);
+   z += b;
+   M_solver.Mult(z, y);
+}
+
 // RHS Jacobian
 #ifdef MFEM_USE_PETSC
-Operator& FE_Evolution::GetGradient(const Vector &x) const
+Operator& FE_Evolution::GetExplicitGradient(const Vector &x) const
 {
    delete rJacobian;
-   if (HasLHS())
+   if (isImplicit())
    {
       rJacobian = new PetscParMatrix(&K, false);
    }
    else
    {
-      mfem_error("FE_Evolution::GetGradient(x): Capability not coded!");
+      mfem_error("FE_Evolution::GetExplicitGradient(x): Capability not coded!");
    }
    return *rJacobian;
 }
@@ -541,18 +561,19 @@ Operator& FE_Evolution::GetGradient(const Vector &x) const
 
 // LHS Jacobian, evaluated as shift*F_du/dt + F_u
 #ifdef MFEM_USE_PETSC
-Operator& FE_Evolution::GetGradient(const Vector &x, const Vector &xp,
-                                    double shift) const
+Operator& FE_Evolution::GetImplicitGradient(const Vector &x, const Vector &xp,
+                                            double shift) const
 {
    delete iJacobian;
-   if (HasLHS())
+   if (isImplicit())
    {
       iJacobian = new PetscParMatrix(&M, false);
       *iJacobian *= shift;
    }
    else
    {
-      mfem_error("FE_Evolution::GetGradient(x,xp,shift): Capability not coded!");
+      mfem_error("FE_Evolution::GetImplicitGradient(x,xp,shift):"
+                 " Capability not coded!");
    }
    return *iJacobian;
 }

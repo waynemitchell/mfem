@@ -21,7 +21,8 @@ namespace mfem
 class Operator
 {
 protected:
-   int height, width;
+   int height; ///< Dimension of the output / number of rows in the matrix.
+   int width;  ///< Dimension of the input / number of columns in the matrix.
 
 public:
    /// Construct a square Operator with given size s (default 0).
@@ -120,43 +121,35 @@ public:
 };
 
 
-/// Base abstract class for time dependent operators:
-/// a) (x,t) -> f(x,t) or b) F(x,xdot,t) = G(x,t)
-/// In case a): f(x,t) is implemented with the Mult method of the base class
-/// In case b): G(x,t) is implemented with the Mult method of the base class
-///             and F(x,xdot,t) by TimeDependentOperator::Mult
+/// Base abstract class for time dependent operators.
+/** The general form of the operator is: (x,t) -> k = f(x,t), where k solves the
+    algebraic equation F(x,k,t) = G(x,t). We call the functions F and G the
+    _implicit_ and _explicit_ parts of the operator, respectively. */
 class TimeDependentOperator : public Operator
 {
+public:
+   enum Type
+   {
+      EXPLICIT,   ///< This type assumes F(x,k,t) = k, i.e. k = f(x,t) = G(x,t).
+      IMPLICIT,   ///< This is the most general type, no assumptions on F and G.
+      HOMOGENEOUS ///< This type assumes that G(x,t) = 0.
+   };
+
 protected:
-   double t;
-   bool has_lhs;
-   bool has_rhs;
+   double t;  ///< Current time.
+   Type type; ///< Describes the form of the TimeDependentOperator.
 
 public:
-   using Operator::Mult;
+   /** @brief Construct a "square" TimeDependentOperator y = f(x,t), where x and
+       y have the same dimension @a n. */
+   explicit TimeDependentOperator(int n = 0, double t_ = 0.0,
+                                  Type type_ = EXPLICIT)
+      : Operator(n) { t = t_; type = type_; }
 
-   /** @brief Construct a "square" time dependent Operator `y=f(x,t)`, where `x`
-       and `y` have the same dimension @a n. */
-   explicit TimeDependentOperator(int n = 0, double _t = 0.0, bool _lhs = false,
-                                  bool _rhs = true)
-      : Operator(n) { t = _t; has_lhs = _lhs; has_rhs = _rhs; }
-
-   /** @brief Construct a "square" time dependent Operator `y=f(x,t)`, where `x`
-       and `y` have the same dimension @a n. */
-   explicit TimeDependentOperator(int n = 0, bool _lhs = false, bool _rhs = true)
-      : Operator(n) { t = 0.0; has_lhs = _lhs; has_rhs = _rhs; }
-
-   /** @brief Construct a time dependent Operator `y=f(x,t)`, where `x` and `y`
-       have dimensions @a w and @a h, respectively. */
-   TimeDependentOperator(int h, int w, double _t = 0.0, bool _lhs = false,
-                         bool _rhs = true)
-      : Operator(h, w) { t = _t; has_lhs = _lhs; has_rhs = _rhs; }
-
-   /** Returns true if the Operator has a non-trivial left-hand side */
-   bool HasLHS() const { return has_lhs; }
-
-   /** Returns true if the Operator has a non-zero right-hand side */
-   bool HasRHS() const { return has_rhs; }
+   /** @brief Construct a TimeDependentOperator y = f(x,t), where x and y have
+       dimensions @a w and @a h, respectively. */
+   TimeDependentOperator(int h, int w, double t_ = 0.0, Type type_ = EXPLICIT)
+      : Operator(h, w) { t = t_; type = type_; }
 
    /// Read the currently set time.
    virtual double GetTime() const { return t; }
@@ -164,8 +157,51 @@ public:
    /// Set the current time.
    virtual void SetTime(const double _t) { t = _t; }
 
+   /// True if #type is #EXPLICIT.
+   bool isExplicit() const { return (type == EXPLICIT); }
+   /// True if #type is #IMPLICIT or #HOMOGENEOUS.
+   bool isImplicit() const { return !isExplicit(); }
+   /// True if #type is #HOMOGENEOUS.
+   bool isHomogeneous() const { return (type == HOMOGENEOUS); }
+
+   /** @brief Perform the action of the explicit part of the operator, G:
+       @a y = G(@a x, t) where t is the current time.
+
+       Presently, this method is used by some PETSc ODE solvers, for more
+       details, see the PETSc Manual. */
+   virtual void ExplicitMult(const Vector &x, Vector &y) const
+   {
+      mfem_error("TimeDependentOperator::ExplicitMult() is not overridden!");
+   }
+
+   /** @brief Perform the action of the implicit part of the operator, F:
+       @a y = F(@a x, @a k, t) where t is the current time.
+
+       Presently, this method is used by some PETSc ODE solvers, for more
+       details, see the PETSc Manual.*/
+   virtual void ImplicitMult(const Vector &x, const Vector &k, Vector &y) const
+   {
+      mfem_error("TimeDependentOperator::ImplicitMult() is not overridden!");
+   }
+
+   /** @brief Perform the action of the operator: @a y = k = f(@a x, t), where
+       k solves the algebraic equation F(@a x, k, t) = G(@a x, t) and t is the
+       current time. */
+   virtual void Mult(const Vector &x, Vector &y) const
+   {
+      mfem_error("TimeDependentOperator::Mult() is not overridden!");
+   }
+
    /** @brief Solve the equation: @a k = f(@a x + @a dt @a k, t), for the
        unknown @a k at the current time t.
+
+       For general F and G, the equation for @a k becomes:
+       F(@a x + @a dt @a k, @a k, t) = G(@a x + @a dt @a k, t).
+
+       The input vector @a x corresonds to time index (or cycle) n, while the
+       currently set time, #t, and the result vector @a k correspond to time
+       index n+1. The time step @a dt corresponds to the time interval between
+       cycles n and n+1.
 
        This method allows for the abstract implementation of some time
        integration methods, including diagonal implicit Runge-Kutta (DIRK)
@@ -174,22 +210,31 @@ public:
        If not re-implemented, this method simply generates an error. */
    virtual void ImplicitSolve(const double dt, const Vector &x, Vector &k)
    {
-      mfem_error("TimeDependentOperator::ImplicitSolve() is not overloaded!");
+      mfem_error("TimeDependentOperator::ImplicitSolve() is not overridden!");
    }
 
-   /** Implements F(x,dxdt,t) */
-   virtual void Mult(const Vector &x, const Vector &dxdt, Vector &k) const
+   /** @brief Return an Operator representing (dF/dk @a shift + dF/dx) at the
+       given @a x, @a k, and the currently set time.
+
+       Presently, this method is used by some PETSc ODE solvers, for more
+       details, see the PETSc Manual. */
+   virtual Operator& GetImplicitGradient(const Vector &x, const Vector &k,
+                                         double shift) const
    {
-      mfem_error("TimeDependentOperator::Mult(y,dydt,k) is not overloaded!");
+      mfem_error("TimeDependentOperator::GetImplicitGradient() is "
+                 "not overridden!");
+      return const_cast<Operator &>(dynamic_cast<const Operator &>(*this));
    }
 
-   /** Implements F_dxdt(y,dydt) * shift + F_x(y,dydt), with F_dxdt and F_x the
-       Jacobians of F with respect to dx/dt and x evaluated at y and dydt.  For
-       more details, see PETSc Manual */
-   virtual Operator& GetGradient(const Vector &y, const Vector &dydt,
-                                 double shift) const
+   /** @brief Return an Operator representing dG/dx at the given point @a x and
+       the currently set time.
+
+       Presently, this method is used by some PETSc ODE solvers, for more
+       details, see the PETSc Manual. */
+   virtual Operator& GetExplicitGradient(const Vector &x) const
    {
-      mfem_error("TimeDependentOperator::GetGradient(y,dydt,shift) is not overloaded!");
+      mfem_error("TimeDependentOperator::GetExplicitGradient() is "
+                 "not overridden!");
       return const_cast<Operator &>(dynamic_cast<const Operator &>(*this));
    }
 

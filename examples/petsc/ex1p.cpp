@@ -35,17 +35,17 @@ using namespace std;
 using namespace mfem;
 
 #ifdef MFEM_USE_PETSC
-class UserMonitor : public PetscSolverMonitorCtx
+class UserMonitor : public PetscSolverMonitor
 {
 private:
    ParBilinearForm *_a;
    ParLinearForm *_b;
 
 public:
-   UserMonitor(ParBilinearForm *a, ParLinearForm *b) :
-      PetscSolverMonitorCtx(true,false), _a(a), _b(b) {}
+   UserMonitor(ParBilinearForm *a, ParLinearForm *b)
+      : PetscSolverMonitor(true,false), _a(a), _b(b) {}
 
-   void MonitorSolution(PetscInt it, PetscReal norm, Vector &X)
+   void MonitorSolution(PetscInt it, PetscReal norm, const Vector &X)
    {
       // we plot the first 5 iterates
       if (!it || it > 5) { return; }
@@ -63,8 +63,8 @@ public:
       socketstream sol_sock(vishost, visport);
       sol_sock << "parallel " << num_procs << " " << myid << "\n";
       sol_sock.precision(8);
-      sol_sock << "solution\n" << *mesh << _x <<
-               "window_title 'Iteration no " << it << "'" << flush;
+      sol_sock << "solution\n" << *mesh << _x
+               << "window_title 'Iteration no " << it << "'" << flush;
    }
 };
 #endif

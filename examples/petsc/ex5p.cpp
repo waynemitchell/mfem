@@ -310,12 +310,13 @@ int main(int argc, char *argv[])
    {
       if (use_nonoverlapping)
       {
-         // For saddle point problems, we need to provide BDDC the list of buondary dofs
-         // either essential or natural.
-         // Since R_space is the only space that may have boundary dofs and it is ordered
-         // first then W_space, we don't need any local offset when specifying the dofs.
+         // For saddle point problems, we need to provide BDDC the list of
+         // boundary dofs either essential or natural.
+         // Since R_space is the only space that may have boundary dofs and it
+         // is ordered first then W_space, we don't need any local offset when
+         // specifying the dofs.
          Array<int> bdr_tdof_list;
-         bool local;
+         bool local = false;
          if (pmesh->bdr_attributes.Size())
          {
             Array<int> bdr(pmesh->bdr_attributes.Max());
@@ -323,10 +324,11 @@ int main(int argc, char *argv[])
 
             R_space->GetEssentialTrueDofs(bdr, bdr_tdof_list);
             local = false;
-            // Alternatively, you can also provide the list of dofs in local ordering
-            //R_space->GetEssentialVDofs(bdr, bdr_tdof_list);
-            //bdr_tdof_list.SetSize(R_space->GetVSize()+W_space->GetVSize(),0);
-            //local = true;
+            // Alternatively, you can also provide the list of dofs in local
+            // ordering:
+            // R_space->GetEssentialVDofs(bdr, bdr_tdof_list);
+            // bdr_tdof_list.SetSize(R_space->GetVSize()+W_space->GetVSize(),0);
+            // local = true;
          }
          else
          {

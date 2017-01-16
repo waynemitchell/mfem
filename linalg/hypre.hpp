@@ -46,14 +46,25 @@ class HypreParMatrix;
 namespace internal
 {
 
-// Convert a HYPRE_Int to int
-inline int to_int(HYPRE_Int i)
+template <typename int_type>
+inline int to_int(int_type i)
 {
-#ifdef HYPRE_BIGINT
-   MFEM_ASSERT(HYPRE_Int(int(i)) == i, "overflow converting HYPRE_Int to int");
-#endif
+   MFEM_ASSERT(int_type(int(i)) == i, "overflow converting int_type to int");
    return int(i);
 }
+
+// Specialization for to_int(int)
+template <> inline int to_int(int i) { return i; }
+
+// Convert a HYPRE_Int to int
+#ifdef HYPRE_BIGINT
+template <>
+inline int to_int(HYPRE_Int i)
+{
+   MFEM_ASSERT(HYPRE_Int(int(i)) == i, "overflow converting HYPRE_Int to int");
+   return int(i);
+}
+#endif
 
 }
 

@@ -42,6 +42,6 @@
 #include "superlu.hpp"
 #endif
 
-#endif
+#endif // MFEM_USE_MPI
 
 #endif
