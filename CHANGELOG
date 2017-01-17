@@ -36,24 +36,31 @@ Matrix-free preconditioning and low-order-refined spaces
   miniapp, which now supports Gauss-Lobatto refinement and uniform refinement,
   both for any factor > 1.
 
+Full-featured interface to PETSc and SUNDIALS
+---------------------------------------------
+- Added support for many linear and nonlinear solvers, preconditioners, time
+  integrators and other features from the PETSc suite (version 3.8 or higher of
+  the PETSc dev branch is required). The new features include:
+  * support for PETSc matrices in MATAIJ, MATIS, MATSHELL and MATNEST formats.
+  * PETSc linear solvers can take any mfem Operator and support user-defined
+    monitoring routines (see examples/petsc/ex1p).
+  * BDDC preconditioners for H1, H(curl) and H(div), including with static
+    condensation/hybridization, FieldSplit preconditioner for BlockOperators.
+  * PETSc non-linear solvers can take any mfem Operator that implements the
+    GetGradient() method.
+  * PETSc ODE solvers are supported for mfem's TimeDependentOperators.
+
+- Added support for the time integrators and non-linear solvers from the CVODE,
+  ARKODE and KINSOL libraries of the SUNDIALS suite (version 2.7 or higher of
+  SUNDIALS is required). Their use of these features is illustrated in the new
+  examples/sundials directory.
+
 Scalable parallel mesh support
 ------------------------------
 - Introduced a new mesh format (v1.2) that can describe/recover MFEM parallel
   meshes. This way, computations can start directly in parallel without serial
   refinement and splitting. Non-conforming meshes are currently supported only
   in serial.
-
-Support for PETSc and SUNDIALS
-------------------------------
-- Added support for many linear and nonlinear solvers, preconditioners, time
-  integrators and other features based from the PETSc package (version 3.8 or
-  higher of the PETSC dev branch is required).  Their use is illustrated in the
-  new examples/petsc directory.
-
-- Added support for the time integrators and non-linear solvers from the CVODE,
-  ARKODE and KINSOL libraries of the SUNDIALS suite (version 2.7 or higher of
-  SUNDIALS is required). Their use is illustrated in the new examples/sundials
-  directory.
 
 General quadrature and nodal finite element basis types
 -------------------------------------------------------
