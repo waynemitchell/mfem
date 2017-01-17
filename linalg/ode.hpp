@@ -41,12 +41,12 @@ public:
 
    /** @brief Perform a time step from time @a t [in] to time @a t [out] based
        on the requested step size @a dt [in]. */
-   /** @param[in,out] x   Approxiamte solution.
+   /** @param[in,out] x   Approximate solution.
        @param[in,out] t   Time associated with the approximate solution @a x.
        @param[in,out] dt  Time step size.
 
        The following rules describe the common behavior of the method:
-       - Ihe input @a x [in] is the approximate solution for the input time
+       - The input @a x [in] is the approximate solution for the input time
          @a t [in].
        - The input @a dt [in] is the desired time step size, defining the desired
          target time: t [target] = @a t [in] + @a dt [in].
@@ -72,10 +72,25 @@ public:
          between the two Step() calls. */
    virtual void Step(Vector &x, double &t, double &dt) = 0;
 
-   /// FIXME - add documentation
-   virtual void Run(Vector &x, double &t, double &dt, double t_final)
+   /// Perform time integration from time @a t [in] to time @a tf [in].
+   /** @param[in,out] x   Approximate solution.
+       @param[in,out] t   Time associated with the approximate solution @a x.
+       @param[in,out] dt  Time step size.
+       @param[in]     tf  Requested final time.
+
+       The default implementation makes consecutive calls to Step() until
+       reaching @a tf.
+       The following rules describe the common behavior of the method:
+       - The input @a x [in] is the approximate solution for the input time
+         @a t [in].
+       - The input @a dt [in] is the initial time step size.
+       - The output @a dt [out] is the last time step taken by the method which
+         may be smaller or larger than the input @a dt [in] value, e.g. because
+         of time step control.
+       - The output value of @a t [out] is not smaller than @a tf [in]. */
+   virtual void Run(Vector &x, double &t, double &dt, double tf)
    {
-      while (t < t_final) { Step(x, t, dt); }
+      while (t < tf) { Step(x, t, dt); }
    }
 
    virtual ~ODESolver() { }
