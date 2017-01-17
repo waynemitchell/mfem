@@ -43,6 +43,18 @@ Scalable parallel mesh support
   refinement and splitting. Non-conforming meshes are currently supported only
   in serial.
 
+Support for PETSc and SUNDIALS
+------------------------------
+- Added support for many linear and nonlinear solvers, preconditioners, time
+  integrators and other features based from the PETSc package (version 3.8 or
+  higher of the PETSC dev branch is required).  Their use is illustrated in the
+  new examples/petsc directory.
+
+- Added support for the time integrators and non-linear solvers from the CVODE,
+  ARKODE and KINSOL libraries of the SUNDIALS suite (version 2.7 or higher of
+  SUNDIALS is required). Their use is illustrated in the new examples/sundials
+  directory.
+
 General quadrature and nodal finite element basis types
 -------------------------------------------------------
 - Added support for different numerical quadrature schemes and finite element
@@ -86,13 +98,6 @@ New integrators for common families of operators
 - In classes BilinearForm and LinearForm, added support for boundary face
   integrators applied to a subset of the boundary, see AddBdrFaceIntegrator.
 
-Support for SUNDIALS
---------------------
-- Added support for the time integrators and non-linear solvers from the CVODE,
-  ARKODE and KINSOL libraries of the SUNDIALS suite (version 2.7 or higher of
-  SUNDIALS is required). Their use is illustrated in the new examples/sundials
-  directory.
-
 Improved building options
 -------------------------
 - Added a new CMake build system, that can be used as an alternative to the GNU
@@ -115,9 +120,11 @@ Improved file output
 
 New and updated examples and miniapps
 -------------------------------------
-- Eight new serial and parallel example codes that demonstrate:
+- Sixteen new serial and parallel example codes that demonstrate:
   * solution of a time-dependent nonlinear heat equation (Example 16/16p)
   * DG formulations of static linear elasticity (Example 17/17p)
+  * the use of PETSc solvers and preconditioners (Examples 1p, 2p, 3p, 4p, 5p,
+    6p, 9p and 10p in examples/petsc)
   * the use of SUNDIALS time integrators and nonlinear solvers (Examples 9/9p
     and 10/10p in examples/sundials)
 
