@@ -272,13 +272,8 @@ $(OBJECT_FILES): $(BLD)%.o: $(SRC)%.cpp $(CONFIG_MK)
 
 all: examples miniapps
 
-<<<<<<< HEAD
 .PHONY: miniapps $(EM_DIRS)
 miniapps: $(MINIAPP_DIRS)
-=======
-.PHONY: examples miniapps $(MINIAPP_DIRS)
-miniapps: lib-extras $(MINIAPP_DIRS)
->>>>>>> fe49596... Removing an unneeded argument.
 $(MINIAPP_USE_COMMON): miniapps/common
 $(EM_DIRS): lib
 	$(MAKE) -C $(BLD)$(@)
