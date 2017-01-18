@@ -35,9 +35,7 @@ Hybridization::Hybridization(FiniteElementSpace *fespace,
 #ifdef MFEM_USE_MPI
    pC = P_pc = NULL;
    pH = NULL;
-#ifdef MFEM_USE_PETSC
    ppH = NULL;
-#endif
 #endif
 }
 
@@ -47,9 +45,7 @@ Hybridization::~Hybridization()
    delete P_pc;
    delete pC;
    delete pH;
-#ifdef MFEM_USE_PETSC
    delete ppH;
-#endif
 #endif
    delete [] Af_ipiv;
    delete [] Af_data;
