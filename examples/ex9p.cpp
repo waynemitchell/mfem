@@ -384,7 +384,7 @@ int main(int argc, char *argv[])
 // Implementation of class FE_Evolution
 FE_Evolution::FE_Evolution(HypreParMatrix &_M, HypreParMatrix &_K,
                            const Vector &_b)
-   : TimeDependentOperator(_M.Height(), 0.0),
+   : TimeDependentOperator(_M.Height()),
      M(_M), K(_K), b(_b), M_solver(M.GetComm()), z(_M.Height())
 {
    M_prec.SetType(HypreSmoother::Jacobi);

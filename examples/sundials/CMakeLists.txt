@@ -25,7 +25,7 @@ endif()
 # Include the source directory where mfem.hpp and mfem-performance.hpp are.
 include_directories(${PROJECT_BINARY_DIR})
 
-# Add "test_petsc" target, see below.
+# Add "test_sundials" target, see below.
 add_custom_target(test_sundials
   ${CMAKE_CTEST_COMMAND} -R sundials -C SUNDIALS USES_TERMINAL)
 

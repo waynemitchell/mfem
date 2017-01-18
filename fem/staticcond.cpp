@@ -264,7 +264,7 @@ void StaticCondensation::Finalize()
    else // parallel
    {
 #ifdef MFEM_USE_MPI
-      if (!S) { return; }  // already finalized
+      if (!S) { return; } // already finalized
       S->Finalize(skip_zeros);
       if (S_e) { S_e->Finalize(skip_zeros); }
 #ifdef MFEM_USE_PETSC

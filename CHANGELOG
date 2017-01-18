@@ -173,6 +173,8 @@ Miscellaneous
 
 - Added method MemoryUsage to the classes Stack and MemAlloc.
 
+- Improved Doxygen formatting of code comments.
+
 - Various other simplifications, extensions, and bugfixes in the code.
 
 

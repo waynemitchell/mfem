@@ -21,20 +21,23 @@
 //               discrete linear system. We also cover the explicit elimination
 //               of essential boundary conditions, static condensation, and the
 //               optional connection to the GLVis tool for visualization.
-//               The example also shows how PETSc Krylov solvers can be used
-//               by wrapping a HypreParMatrix (or not) and a Solver, together
-//               with customization using an options file (see rc_ex1p)
-//               We also provide an example on how to visualize the iterative
-//               solution inside a PETSc solver.
+//               The example also shows how PETSc Krylov solvers can be used by
+//               wrapping a HypreParMatrix (or not) and a Solver, together with
+//               customization using an options file (see rc_ex1p) We also
+//               provide an example on how to visualize the iterative solution
+//               inside a PETSc solver.
 
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
 
+#ifndef MFEM_USE_PETSC
+#error This example requires that MFEM is built with MFEM_USE_PETSC=YES
+#endif
+
 using namespace std;
 using namespace mfem;
 
-#ifdef MFEM_USE_PETSC
 class UserMonitor : public PetscSolverMonitor
 {
 private:
@@ -67,7 +70,6 @@ public:
                << "window_title 'Iteration no " << it << "'" << flush;
    }
 };
-#endif
 
 int main(int argc, char *argv[])
 {
@@ -106,7 +108,6 @@ int main(int argc, char *argv[])
                   "-no-petscmonitor",
                   "--no-petscmonitor",
                   "Enable or disable GLVis visualization of residual.");
-
    args.Parse();
    if (!args.Good())
    {
@@ -122,10 +123,8 @@ int main(int argc, char *argv[])
       args.PrintOptions(cout);
    }
 
-#ifdef MFEM_USE_PETSC
    // 2b. We initialize PETSc
    PetscInitialize(NULL,NULL,petscrc_file,NULL);
-#endif
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
@@ -250,10 +249,9 @@ int main(int argc, char *argv[])
    }
    else
    {
-#ifdef MFEM_USE_PETSC
       // If petscrc_file has been given, we convert the HypreParMatrix to a
-      // PetscParMatrix; the user can then experiment with PETSc command
-      // line options.
+      // PetscParMatrix; the user can then experiment with PETSc command line
+      // options.
       bool wrap = !strlen(petscrc_file);
       PetscPCGSolver *pcg = new PetscPCGSolver(A, wrap);
       if (wrap)
@@ -275,9 +273,6 @@ int main(int argc, char *argv[])
       }
       pcg->Mult(B, X);
       delete pcg;
-#else
-      MFEM_ABORT("You did not enable PETSc when configuring MFEM");
-#endif
    }
 
    // 13. Recover the parallel grid function corresponding to X. This is the
@@ -319,9 +314,9 @@ int main(int argc, char *argv[])
    if (order > 0) { delete fec; }
    delete pmesh;
 
-#ifdef MFEM_USE_PETSC
+   // We finalize PETSc
    PetscFinalize();
-#endif
+
    MPI_Finalize();
 
    return 0;

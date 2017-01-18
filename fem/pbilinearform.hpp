@@ -86,10 +86,14 @@ public:
    HypreParMatrix *ParallelAssemble() { return ParallelAssemble(mat); }
 
 #ifdef MFEM_USE_PETSC
-   /// Returns the matrix assembled on the true dofs, i.e. P^t A P as a PetscParMatrix.
-   /// If usenatively is false and the non-overlapping format has not been requested,
-   /// then Hypre RAP operations are used and the final matrix is converted into PETSc format.
-   PetscParMatrix *PetscParallelAssemble(bool usenatively = false) { return PetscParallelAssemble(mat,usenatively); }
+   /// Returns the matrix assembled on the true dofs, i.e. P^t A P as a
+   /// PetscParMatrix.  If usenatively is false and the non-overlapping format
+   /// has not been requested, then Hypre RAP operations are used and the final
+   /// matrix is converted into PETSc format.
+   PetscParMatrix *PetscParallelAssemble(bool usenatively = false)
+   {
+      return PetscParallelAssemble(mat,usenatively);
+   }
 #endif
 
    /// Returns the eliminated matrix assembled on the true dofs, i.e. P^t A_e P.
@@ -99,9 +103,10 @@ public:
    HypreParMatrix *ParallelAssemble(SparseMatrix *m);
 
 #ifdef MFEM_USE_PETSC
-   /// Return the matrix m assembled on the true dofs, i.e. P^t A P as a PetscParMatrix.
-   /// If usenatively is false and the non-overlapping format has not been requested,
-   /// then Hypre RAP operations are used and the final matrix is converted into PETSc format.
+   /// Return the matrix m assembled on the true dofs, i.e. P^t A P as a
+   /// PetscParMatrix.  If usenatively is false and the non-overlapping format
+   /// has not been requested, then Hypre RAP operations are used and the final
+   /// matrix is converted into PETSc format.
    PetscParMatrix *PetscParallelAssemble(SparseMatrix *m,
                                          bool usenatively = false);
 #endif
@@ -218,9 +223,10 @@ public:
    HypreParMatrix *ParallelAssemble();
 
 #ifdef MFEM_USE_PETSC
-   /// Returns the matrix assembled on the true dofs, i.e. P^t A P (PETSc version).
-   /// If usenatively is false and the non-overlapping format has not been requested,
-   /// then Hypre RAP operations are used and the final matrix is converted into PETSc format.
+   /// Returns the matrix assembled on the true dofs, i.e. P^t A P (PETSc
+   /// version).  If usenatively is false and the non-overlapping format has not
+   /// been requested, then Hypre RAP operations are used and the final matrix
+   /// is converted into PETSc format.
    PetscParMatrix *PetscParallelAssemble(bool usenatively = false);
 #endif
 

@@ -122,9 +122,10 @@ public:
 
 
 /// Base abstract class for time dependent operators.
-/** The general form of the operator is: (x,t) -> k = f(x,t), where k solves the
-    algebraic equation F(x,k,t) = G(x,t). We call the functions F and G the
-    _implicit_ and _explicit_ parts of the operator, respectively. */
+/** Operator of the form: (x,t) -> f(x,t), where k = f(x,t) generally solves the
+    algebraic equation F(x,k,t) = G(x,t). The functions F and G represent the
+    _implicit_ and _explicit_ parts of the operator, respectively. For explicit
+    operators, F(x,k,t) = k, so f(x,t) = G(x,t).*/
 class TimeDependentOperator : public Operator
 {
 public:
@@ -198,7 +199,7 @@ public:
        For general F and G, the equation for @a k becomes:
        F(@a x + @a dt @a k, @a k, t) = G(@a x + @a dt @a k, t).
 
-       The input vector @a x corresonds to time index (or cycle) n, while the
+       The input vector @a x corresponds to time index (or cycle) n, while the
        currently set time, #t, and the result vector @a k correspond to time
        index n+1. The time step @a dt corresponds to the time interval between
        cycles n and n+1.

@@ -32,6 +32,10 @@
 #include <fstream>
 #include <iostream>
 
+#ifndef MFEM_USE_PETSC
+#error This example requires that MFEM is built with MFEM_USE_PETSC=YES
+#endif
+
 using namespace std;
 using namespace mfem;
 
@@ -59,9 +63,7 @@ int main(int argc, char *argv[])
    bool visualization = 1;
    bool use_petsc = false;
    bool use_nonoverlapping = false;
-#ifdef MFEM_USE_PETSC
    const char *petscrc_file = "";
-#endif
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -71,7 +73,6 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
-#ifdef MFEM_USE_PETSC
    args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "no-petsc",
                   "--no-petsc",
                   "Use or not PETSc to solve the linear system.");
@@ -82,7 +83,6 @@ int main(int argc, char *argv[])
                   "--no-nonoverlapping",
                   "Use or not the block diagonal PETSc's matrix format "
                   "for non-overlapping domain decomposition.");
-#endif
    args.Parse();
    if (!args.Good())
    {
@@ -98,9 +98,7 @@ int main(int argc, char *argv[])
       args.PrintOptions(cout);
    }
    // 2b. We initialize PETSc
-#ifdef MFEM_USE_PETSC
    if (use_petsc) { PetscInitialize(NULL,NULL,petscrc_file,NULL); }
-#endif
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
@@ -210,9 +208,7 @@ int main(int argc, char *argv[])
    ParBilinearForm *mVarf(new ParBilinearForm(R_space));
    ParMixedBilinearForm *bVarf(new ParMixedBilinearForm(R_space, W_space));
 
-#ifdef MFEM_USE_PETSC
    PetscParMatrix *pM = NULL, *pB = NULL, *pBT = NULL;
-#endif
    HypreParMatrix *M = NULL, *B = NULL, *BT = NULL;
 
    mVarf->AddDomainIntegrator(new VectorFEMassIntegrator(k));
@@ -220,9 +216,7 @@ int main(int argc, char *argv[])
    mVarf->Finalize();
    mVarf->SetUseNonoverlappingFormat(use_nonoverlapping);
    if (!use_petsc) { M = mVarf->ParallelAssemble(); }
-#ifdef MFEM_USE_PETSC
    else { pM = mVarf->PetscParallelAssemble(); }
-#endif
 
    bVarf->AddDomainIntegrator(new VectorFEDivergenceIntegrator);
    bVarf->Assemble();
@@ -233,18 +227,14 @@ int main(int argc, char *argv[])
       B = bVarf->ParallelAssemble();
       (*B) *= -1;
    }
-#ifdef MFEM_USE_PETSC
    else
    {
       pB = bVarf->PetscParallelAssemble();
       (*pB) *= -1;
    }
-#endif
 
    if (!use_petsc) { BT = B->Transpose(); }
-#ifdef MFEM_USE_PETSC
    else { pBT = pB->Transpose(); };
-#endif
 
    Operator *darcyOp = NULL;
    if (!use_petsc)
@@ -255,12 +245,11 @@ int main(int argc, char *argv[])
       tdarcyOp->SetBlock(1,0,B);
       darcyOp = tdarcyOp;
    }
-#ifdef MFEM_USE_PETSC
    else
    {
-      // We construct the BlockOperator and we then convert it to
-      // a PetscParMatrix to avoid any conversion in the
-      // construction of the preconditioners.
+      // We construct the BlockOperator and we then convert it to a
+      // PetscParMatrix to avoid any conversion in the construction of the
+      // preconditioners.
       BlockOperator *tdarcyOp = new BlockOperator(block_trueOffsets);
       tdarcyOp->SetBlock(0,0,pM);
       tdarcyOp->SetBlock(0,1,pBT);
@@ -268,7 +257,6 @@ int main(int argc, char *argv[])
       darcyOp = new PetscParMatrix(pM->GetComm(),tdarcyOp,false,!use_nonoverlapping);
       delete tdarcyOp;
    }
-#endif
 
    // 11. Construct the operators for preconditioner
    //
@@ -277,9 +265,7 @@ int main(int argc, char *argv[])
    //
    //     Here we use Symmetric Gauss-Seidel to approximate the inverse of the
    //     pressure Schur Complement.
-#ifdef MFEM_USE_PETSC
    PetscPreconditioner *pdarcyPr = NULL;
-#endif
    BlockDiagonalPreconditioner *darcyPr = NULL;
    HypreSolver *invM = NULL, *invS = NULL;
    HypreParMatrix *S = NULL;
@@ -305,7 +291,6 @@ int main(int argc, char *argv[])
       darcyPr->SetDiagonalBlock(0, invM);
       darcyPr->SetDiagonalBlock(1, invS);
    }
-#ifdef MFEM_USE_PETSC
    else
    {
       if (use_nonoverlapping)
@@ -347,7 +332,6 @@ int main(int argc, char *argv[])
          pdarcyPr = new PetscFieldSplitSolver(MPI_COMM_WORLD,*darcyOp,"prec_");
       }
    }
-#endif
 
    // 12. Solve the linear system with MINRES.
    //     Check the norm of the unpreconditioned residual.
@@ -382,7 +366,6 @@ int main(int argc, char *argv[])
       }
 
    }
-#ifdef MFEM_USE_PETSC
    else
    {
       std::string solvertype;
@@ -417,7 +400,6 @@ int main(int argc, char *argv[])
       }
       delete solver;
    }
-#endif
    chrono.Stop();
 
    // 13. Extract the parallel grid function corresponding to the finite element
@@ -502,20 +484,16 @@ int main(int argc, char *argv[])
    delete p;
    delete darcyOp;
    delete darcyPr;
-#ifdef MFEM_USE_PETSC
    delete pdarcyPr;
-#endif
    delete invM;
    delete invS;
    delete S;
    delete BT;
    delete B;
    delete M;
-#ifdef MFEM_USE_PETSC
    delete pBT;
    delete pB;
    delete pM;
-#endif
    delete MinvBt;
    delete Md;
    delete mVarf;
@@ -526,9 +504,9 @@ int main(int argc, char *argv[])
    delete hdiv_coll;
    delete pmesh;
 
-#ifdef MFEM_USE_PETSC
+   // We finalize PETSc
    if (use_petsc) { PetscFinalize(); }
-#endif
+
    MPI_Finalize();
 
    return 0;

@@ -1941,9 +1941,8 @@ void PetscBDDCSolver::BDDCSolverConstructor(const PetscBDDCSolverParams &opts)
       if (needint)
       {
          // Generate bilinear form in unassembled format which is used to
-         // compute the net-flux across subdomain boundaries
-         // for H(div) and Elasticity, and the line integral \int u x n of
-         // 2D H(curl) fields
+         // compute the net-flux across subdomain boundaries for H(div) and
+         // Elasticity, and the line integral \int u x n of 2D H(curl) fields
          FiniteElementCollection *auxcoll;
          if (tracespace) { auxcoll = new RT_Trace_FECollection(p,dim); }
          else { auxcoll = new L2_FECollection(p,dim); };
@@ -2770,12 +2769,10 @@ static PetscErrorCode MatConvert_hypreParCSR_AIJ(hypre_ParCSRMatrix* hA,Mat* pA)
       oa = NULL;
       ierr = MatCreateSeqAIJWithArrays(comm,m,n,dii,djj,da,pA); CHKERRQ(ierr);
    }
-   /* We are responsible to free the CSR arrays.
-      However, since we can take references of a PetscParMatrix
-      but we cannot take reference of PETSc arrays,
-      we need to create a PetscContainer object
-      to take reference of these arrays in
-      reference objects */
+   /* We are responsible to free the CSR arrays.  However, since we can take
+      references of a PetscParMatrix but we cannot take reference of PETSc
+      arrays, we need to create a PetscContainer object to take reference of
+      these arrays in reference objects */
    void *ptrs[6] = {dii,djj,da,oii,ojj,oa};
    const char *names[6] = {"_mfem_csr_dii",
                            "_mfem_csr_djj",

@@ -233,8 +233,8 @@ public:
        If d != 0 then the element (rc,rc) remains the same. */
    void EliminateRowCol(int rc, const double sol, Vector &rhs, int d = 0);
 
-   /** Like previous one, but multiple values for eliminated dofs are accepted,
-       and accordingly multiple right-hand-sides are used. */
+   /** Like previous one, but multiple values for eliminated unknowns are
+       accepted, and accordingly multiple right-hand-sides are used. */
    void EliminateRowColMultipleRHS(int rc, const Vector &sol,
                                    DenseMatrix &rhs, int d = 0);
 

@@ -63,7 +63,7 @@ public:
        - The value @a x [out] may be obtained by interpolation using internally
          stored data.
        - In some cases, the contents of @a x [in] may not be used, e.g. when
-         @a x [out] from a previous Step() call was obtained by interpolaton.
+         @a x [out] from a previous Step() call was obtained by interpolation.
        - In consecutive calls to this method, the output @a t [out] of one
          Step() call has to be the same as the input @a t [in] to the next
          Step() call.

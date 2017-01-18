@@ -230,9 +230,9 @@ int main(int argc, char *argv[])
    switch (ode_solver_type)
    {
       // Implicit L-stable methods
-      case 1: ode_solver = new BackwardEulerSolver; break;
-      case 2: ode_solver = new SDIRK23Solver(2); break;
-      case 3: ode_solver = new SDIRK33Solver; break;
+      case 1:  ode_solver = new BackwardEulerSolver; break;
+      case 2:  ode_solver = new SDIRK23Solver(2); break;
+      case 3:  ode_solver = new SDIRK33Solver; break;
       // Explicit methods
       case 11: ode_solver = new ForwardEulerSolver; break;
       case 12: ode_solver = new RK2Solver(0.5); break; // midpoint method

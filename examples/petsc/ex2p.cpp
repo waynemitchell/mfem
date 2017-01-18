@@ -37,6 +37,10 @@
 #include <fstream>
 #include <iostream>
 
+#ifndef MFEM_USE_PETSC
+#error This example requires that MFEM is built with MFEM_USE_PETSC=YES
+#endif
+
 using namespace std;
 using namespace mfem;
 
@@ -55,10 +59,8 @@ int main(int argc, char *argv[])
    bool visualization = 1;
    bool amg_elast = 0;
    bool use_petsc = false;
-#ifdef MFEM_USE_PETSC
    const char *petscrc_file = "";
    bool use_nonoverlapping = false;
-#endif
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -74,7 +76,6 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
-#ifdef MFEM_USE_PETSC
    args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "no-petsc",
                   "--no-petsc",
                   "Use or not PETSc to solve the linear system.");
@@ -85,7 +86,6 @@ int main(int argc, char *argv[])
                   "--no-nonoverlapping",
                   "Use or not the block diagonal PETSc's matrix format "
                   "for non-overlapping domain decomposition.");
-#endif
    args.Parse();
    if (!args.Good())
    {
@@ -102,9 +102,7 @@ int main(int argc, char *argv[])
    }
 
    // 2b. We initialize PETSc
-#ifdef MFEM_USE_PETSC
    if (use_petsc) { PetscInitialize(NULL,NULL,petscrc_file,NULL); }
-#endif
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
@@ -280,7 +278,6 @@ int main(int argc, char *argv[])
    }
    else
    {
-#ifdef MFEM_USE_PETSC
       // 13b. Use PETSc to solve the linear system.
       //      Assemble a PETSc matrix, so that PETSc solvers can be used natively.
       PetscParMatrix A;
@@ -298,9 +295,6 @@ int main(int argc, char *argv[])
       pcg->SetPrintLevel(2);
       pcg->Mult(B, X);
       delete pcg;
-#else
-      MFEM_ABORT("You did not enable PETSc when configuring MFEM");
-#endif
    }
 
    // 14. Recover the parallel grid function corresponding to X. This is the
@@ -363,9 +357,8 @@ int main(int argc, char *argv[])
    delete pmesh;
 
    // We finalize PETSc
-#ifdef MFEM_USE_PETSC
    if (use_petsc) { PetscFinalize(); }
-#endif
+
    MPI_Finalize();
 
    return 0;

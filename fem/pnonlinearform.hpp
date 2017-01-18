@@ -45,8 +45,8 @@ public:
    ParNonlinearForm(ParFiniteElementSpace *pf)
       : NonlinearForm(pf), X(pf), Y(pf)
    {
-      height = width = pf->TrueVSize(); pGrad = NULL; ppGrad = NULL,
-             use_petsc = false; unassembled = false;
+      height = width = pf->TrueVSize(); pGrad = NULL;
+      ppGrad = NULL; use_petsc = false; unassembled = false;
    }
 
    ParFiniteElementSpace *ParFESpace() const

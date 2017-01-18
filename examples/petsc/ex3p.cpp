@@ -30,6 +30,10 @@
 #include <fstream>
 #include <iostream>
 
+#ifndef MFEM_USE_PETSC
+#error This example requires that MFEM is built with MFEM_USE_PETSC=YES
+#endif
+
 using namespace std;
 using namespace mfem;
 
@@ -53,10 +57,8 @@ int main(int argc, char *argv[])
    bool static_cond = false;
    bool visualization = 1;
    bool use_petsc = false;
-#ifdef MFEM_USE_PETSC
    const char *petscrc_file = "";
    bool use_nonoverlapping = false;
-#endif
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -70,7 +72,6 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
-#ifdef MFEM_USE_PETSC
    args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "no-petsc",
                   "--no-petsc",
                   "Use or not PETSc to solve the linear system.");
@@ -81,7 +82,6 @@ int main(int argc, char *argv[])
                   "--no-nonoverlapping",
                   "Use or not the block diagonal PETSc's matrix format "
                   "for non-overlapping domain decomposition.");
-#endif
    args.Parse();
    if (!args.Good())
    {
@@ -97,9 +97,7 @@ int main(int argc, char *argv[])
       args.PrintOptions(cout);
    }
    // 2b. We initialize PETSc
-#ifdef MFEM_USE_PETSC
    if (use_petsc) { PetscInitialize(NULL,NULL,petscrc_file,NULL); }
-#endif
    kappa = freq * M_PI;
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
@@ -219,7 +217,6 @@ int main(int argc, char *argv[])
       delete pcg;
       delete ams;
    }
-#ifdef MFEM_USE_PETSC
    else
    {
       PetscParMatrix A;
@@ -261,7 +258,6 @@ int main(int argc, char *argv[])
       delete pcg;
       delete prec;
    }
-#endif
 
    // 13. Recover the parallel grid function corresponding to X. This is the
    //     local finite element solution on each processor.
@@ -312,9 +308,9 @@ int main(int argc, char *argv[])
    delete fec;
    delete pmesh;
 
-#ifdef MFEM_USE_PETSC
+   // We finalize PETSc
    if (use_petsc) { PetscFinalize(); }
-#endif
+
    MPI_Finalize();
 
    return 0;

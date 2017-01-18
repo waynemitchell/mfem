@@ -30,6 +30,10 @@
 #include <fstream>
 #include <iostream>
 
+#ifndef MFEM_USE_PETSC
+#error This example requires that MFEM is built with MFEM_USE_PETSC=YES
+#endif
+
 using namespace std;
 using namespace mfem;
 
@@ -46,11 +50,9 @@ int main(int argc, char *argv[])
    int order = 1;
    bool visualization = true;
    int max_dofs = 100000;
-#ifdef MFEM_USE_PETSC
    bool use_petsc = false;
    const char *petscrc_file = "";
    bool use_nonoverlapping = false;
-#endif
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -62,7 +64,6 @@ int main(int argc, char *argv[])
                   "Enable or disable GLVis visualization.");
    args.AddOption(&max_dofs, "-md", "--max_dofs",
                   "Maximum number of dofs.");
-#ifdef MFEM_USE_PETSC
    args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "no-petsc",
                   "--no-petsc",
                   "Use or not PETSc to solve the linear system.");
@@ -73,7 +74,6 @@ int main(int argc, char *argv[])
                   "--no-nonoverlapping",
                   "Use or not the block diagonal PETSc's matrix format "
                   "for non-overlapping domain decomposition.");
-#endif
    args.Parse();
    if (!args.Good())
    {
@@ -89,9 +89,7 @@ int main(int argc, char *argv[])
       args.PrintOptions(cout);
    }
    // 2b. We initialize PETSc
-#ifdef MFEM_USE_PETSC
    if (use_petsc) { PetscInitialize(NULL,NULL,petscrc_file,NULL); }
-#endif
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
@@ -219,7 +217,6 @@ int main(int argc, char *argv[])
       time += MPI_Wtime();
       if (myid == 0) { cout << "HYPRE assembly timing : " << time << endl; }
 
-#ifdef MFEM_USE_PETSC
       if (use_petsc)
       {
          if (use_nonoverlapping) { a.SetUseNonoverlappingFormat(); }
@@ -234,7 +231,6 @@ int main(int argc, char *argv[])
          time += MPI_Wtime();
          if (myid == 0) { cout << "PETSc assembly timing : " << time << endl; }
       }
-#endif
 
       // 15. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
       //     preconditioner from hypre.
@@ -265,9 +261,10 @@ int main(int argc, char *argv[])
          {
             cout << "Reached the maximum number of dofs. Stop." << endl;
          }
-         // we need to call Update here to delete any internal PETSc object that have been
-         // created internally by the ParBilinearForm; otherwise, these objects will be
-         // detroyed at the end of the main scope, when PETSc has been already finalized.
+         // we need to call Update here to delete any internal PETSc object that
+         // have been created by the ParBilinearForm; otherwise, these objects
+         // will be destroyed at the end of the main scope, when PETSc has been
+         // already finalized.
          a.Update();
          b.Update();
          break;
@@ -315,9 +312,9 @@ int main(int argc, char *argv[])
       b.Update();
    }
 
-#ifdef MFEM_USE_PETSC
+   // We finalize PETSc
    if (use_petsc) { PetscFinalize(); }
-#endif
+
    MPI_Finalize();
    return 0;
 }

@@ -32,11 +32,14 @@
 //               We recommend viewing examples 2 and 9 before viewing this
 //               example.
 
-
 #include "mfem.hpp"
 #include <memory>
 #include <iostream>
 #include <fstream>
+
+#ifndef MFEM_USE_PETSC
+#error This example requires that MFEM is built with MFEM_USE_PETSC=YES
+#endif
 
 using namespace std;
 using namespace mfem;
@@ -73,13 +76,8 @@ protected:
    /// Newton solver for the backward Euler equation
    NewtonSolver newton_solver;
 
-#ifdef MFEM_USE_PETSC
    /// Newton solver for the backward Euler equation (PETSc SNES)
    PetscNonlinearSolver* pnewton_solver;
-#else
-   /// Dummy object
-   NewtonSolver *pnewton_solver;
-#endif
 
    /// Solver for the Jacobian solve in the Newton method
    Solver *J_solver;
@@ -174,9 +172,7 @@ int main(int argc, char *argv[])
    bool visualization = true;
    int vis_steps = 1;
    bool use_petsc = false;
-#ifdef MFEM_USE_PETSC
    const char *petscrc_file = "";
-#endif
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -189,7 +185,8 @@ int main(int argc, char *argv[])
                   "Order (degree) of the finite elements.");
    args.AddOption(&ode_solver_type, "-s", "--ode-solver",
                   "ODE solver: 1 - Backward Euler, 2 - SDIRK2, 3 - SDIRK3,\n\t"
-                  "\t   11 - Forward Euler, 12 - RK2, 13 - RK3 SSP, 14 - RK4.");
+                  "            11 - Forward Euler, 12 - RK2,\n\t"
+                  "            13 - RK3 SSP, 14 - RK4.");
    args.AddOption(&t_final, "-tf", "--t-final",
                   "Final time; start time is 0.");
    args.AddOption(&dt, "-dt", "--time-step",
@@ -208,10 +205,8 @@ int main(int argc, char *argv[])
    args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "no-petsc",
                   "--no-petsc",
                   "Use or not PETSc to solve the nonlinear system.");
-#ifdef MFEM_USE_PETSC
    args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
                   "PetscOptions file to use.");
-#endif
    args.Parse();
    if (!args.Good())
    {
@@ -226,14 +221,11 @@ int main(int argc, char *argv[])
    {
       args.PrintOptions(cout);
    }
+
    // 2b. We initialize PETSc
    if (use_petsc)
    {
-#ifdef MFEM_USE_PETSC
       PetscInitialize(NULL,NULL,petscrc_file,NULL);
-#else
-      MFEM_ABORT("You did not configure MFEM with PETSc");
-#endif
    }
 
    // 3. Read the serial mesh from the given mesh file on all processors. We can
@@ -433,9 +425,9 @@ int main(int argc, char *argv[])
    delete ode_solver;
    delete pmesh;
    delete oper;
-#ifdef MFEM_USE_PETSC
+
+   // We finalize PETSc
    if (use_petsc) { PetscFinalize(); }
-#endif
 
    MPI_Finalize();
 
@@ -579,7 +571,6 @@ HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
       newton_solver.SetAbsTol(0.0);
       newton_solver.SetMaxIter(10);
    }
-#ifdef MFEM_USE_PETSC
    else
    {
       // if using PETSc, we create the same solver (NEWTON+MINRES+Jacobi)
@@ -593,7 +584,6 @@ HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
       pnewton_solver->SetAbsTol(0.0);
       pnewton_solver->SetMaxIter(10);
    }
-#endif
 }
 
 void HyperelasticOperator::Mult(const Vector &vx, Vector &dvx_dt) const
