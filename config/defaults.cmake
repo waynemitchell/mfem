@@ -68,7 +68,7 @@ set(LIBUNWIND_DIR "" CACHE PATH "Path to Libunwind.")
 
 set(SUNDIALS_DIR "${MFEM_DIR}/../sundials-2.7.0" CACHE PATH
     "Path to the SUNDIALS library.")
-# May be necessary, if SUNDIALS was built with KLU:
+# The following may be necessary, if SUNDIALS was built with KLU:
 # set(SUNDIALS_REQUIRED_PACKAGES "SuiteSparse/KLU/AMD/BTF/COLAMD/config"
 #     CACHE STRING "Additional packages required by SUNDIALS.")
 

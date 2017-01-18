@@ -37,13 +37,15 @@ endif()
 # Include the source directory where mfem.hpp and mfem-performance.hpp are.
 include_directories(${PROJECT_BINARY_DIR})
 
-# Add target to copy rc_* files from the source directory
-add_custom_command(OUTPUT ${PETSC_RC_FILES}
-  COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PETSC_RC_FILES}
-  ${CMAKE_CURRENT_BINARY_DIR}
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-  COMMENT "Copying the PETSC examples rc files ...")
-add_custom_target(copy_petsc_rc_files DEPENDS ${PETSC_RC_FILES})
+# Add targets to copy rc_* files from the source directory
+foreach(RC_FILE ${PETSC_RC_FILES})
+  add_custom_command(OUTPUT ${RC_FILE}
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    ${CMAKE_CURRENT_SOURCE_DIR}/${RC_FILE} ${RC_FILE}
+    COMMENT "copy ${RC_FILE}")
+endforeach()
+add_custom_target(copy_petsc_rc_files DEPENDS ${PETSC_RC_FILES}
+  COMMENT "Copying PETSC example rc files ...")
 
 # Add "test_petsc" target, see below.
 add_custom_target(test_petsc
