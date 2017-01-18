@@ -125,7 +125,6 @@ class SurfaceCurrent
 {
 public:
    SurfaceCurrent(ParFiniteElementSpace & H1FESpace,
-                  ParFiniteElementSpace & HCurlFESpace,
                   ParDiscreteGradOperator & Grad,
                   Array<int> & kbcs, Array<int> & vbcs, Vector & vbcv);
    ~SurfaceCurrent();
@@ -142,7 +141,6 @@ private:
    int myid_;
 
    ParFiniteElementSpace   * H1FESpace_;
-   ParFiniteElementSpace   * HCurlFESpace_;
    ParDiscreteGradOperator * grad_;
    Array<int>              * kbcs_;
    Array<int>              * vbcs_;
