@@ -83,7 +83,7 @@ protected:
    /// Default value for pad_digits
    static const int pad_digits_default = 6;
 
-   /// Desired output mesh format (0 -> serial format, 1 -> new parallel format)
+   /// Output mesh format: 0 - serial format (default), 1 - parallel format
    int format;
 
    /// Should the collection delete its mesh and fields
@@ -191,7 +191,8 @@ public:
    void SetPrecision(int prec) { precision = prec; }
    /// Set the number of digits used for the cycle and MPI rank in filenames
    void SetPadDigits(int digits) { pad_digits = digits; }
-   /// Set the desired output mesh format
+   /** @brief Set the desired output mesh format: 0 - serial format (default),
+       1 - parallel format. */
    void SetFormat(int fmt) { format = fmt; }
 
    /// Set the path where the DataCollection will be saved.
