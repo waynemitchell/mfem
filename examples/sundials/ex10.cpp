@@ -84,8 +84,10 @@ protected:
    /// Newton solver for the reduced backward Euler equation
    NewtonSolver *newton_solver;
 
-   /// Solver and preconditioner for the Jacobian solve in the Newton method.
-   Solver *J_solver, *J_prec;
+   /// Solver for the Jacobian solve in the Newton method
+   Solver *J_solver;
+   /// Preconditioner for the Jacobian solve in the Newton method
+   Solver *J_prec;
 
    mutable Vector z; // auxiliary vector
 
@@ -534,7 +536,7 @@ void visualize(ostream &out, Mesh *mesh, GridFunction *deformed_nodes,
 ReducedSystemOperator::ReducedSystemOperator(
    BilinearForm *M_, BilinearForm *S_, NonlinearForm *H_)
    : Operator(M_->Height()), M(M_), S(S_), H(H_), Jacobian(NULL),
-     v(NULL), x(NULL), w(height), z(height)
+     dt(0.0), v(NULL), x(NULL), w(height), z(height)
 { }
 
 void ReducedSystemOperator::SetParameters(double dt_, const Vector *v_,

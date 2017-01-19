@@ -380,7 +380,7 @@ The specific libraries and their options are:
   Options: NETCDF_OPT, NETCDF_LIB.
 
 - PETSc (optional), used when MFEM_USE_PETSC = YES.  Version 3.8 or higher of
-  the PETSC dev branch is required.The MFEM and PETSc builds can share common
+  the PETSC dev branch is required. The MFEM and PETSc builds can share common
   libraries, e.g., hypre and SUNDIALS. Here's an example configuration, assuming
   PETSc has been cloned on the same level as mfem and hypre:
     ./configure --download-fblaslapack=yes --download-scalapack=yes \

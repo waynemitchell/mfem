@@ -45,7 +45,7 @@ protected:
    // significant only with PETSc backend
    bool unassembled;
 
-   // called when (mat == NULL && fbfi.Size() > 0)
+   // Allocate mat - called when (mat == NULL && fbfi.Size() > 0)
    void pAllocMat();
 
    void AssembleSharedFaces(int skip_zeros = 1);
@@ -83,65 +83,76 @@ public:
    void Assemble(int skip_zeros = 1);
 
    /// Returns the matrix assembled on the true dofs, i.e. P^t A P.
+   /** The returned matrix has to be deleted by the caller. */
    HypreParMatrix *ParallelAssemble() { return ParallelAssemble(mat); }
 
 #ifdef MFEM_USE_PETSC
-   /// Returns the matrix assembled on the true dofs, i.e. P^t A P as a
-   /// PetscParMatrix.  If usenatively is false and the non-overlapping format
-   /// has not been requested, then Hypre RAP operations are used and the final
-   /// matrix is converted into PETSc format.
-   PetscParMatrix *PetscParallelAssemble(bool usenatively = false)
+   /** @brief Returns the matrix assembled on the true dofs, i.e. P^t A P as a
+       PetscParMatrix. */
+   /** If @a use_natively is false and the non-overlapping format has not been
+       requested, then Hypre RAP operations are used and the final matrix is
+       converted into PETSc format.
+
+       The returned matrix has to be deleted by the caller. */
+   PetscParMatrix *PetscParallelAssemble(bool use_natively = false)
    {
-      return PetscParallelAssemble(mat,usenatively);
+      return PetscParallelAssemble(mat,use_natively);
    }
 #endif
 
    /// Returns the eliminated matrix assembled on the true dofs, i.e. P^t A_e P.
+   /** The returned matrix has to be deleted by the caller. */
    HypreParMatrix *ParallelAssembleElim() { return ParallelAssemble(mat_e); }
 
-   /// Return the matrix m assembled on the true dofs, i.e. P^t A P
+   /// Return the matrix @a m assembled on the true dofs, i.e. P^t A P.
+   /** The returned matrix has to be deleted by the caller. */
    HypreParMatrix *ParallelAssemble(SparseMatrix *m);
 
 #ifdef MFEM_USE_PETSC
-   /// Return the matrix m assembled on the true dofs, i.e. P^t A P as a
-   /// PetscParMatrix.  If usenatively is false and the non-overlapping format
-   /// has not been requested, then Hypre RAP operations are used and the final
-   /// matrix is converted into PETSc format.
+   /** @brief Return the matrix @a m assembled on the true dofs, i.e. P^t A P as
+       a PetscParMatrix. */
+   /** If @a use_natively is false and the non-overlapping format has not been
+       requested, then Hypre RAP operations are used and the final matrix is
+       converted into PETSc format.
+
+       The returned matrix has to be deleted by the caller. */
    PetscParMatrix *PetscParallelAssemble(SparseMatrix *m,
-                                         bool usenatively = false);
+                                         bool use_natively = false);
 #endif
 
-   /** Eliminate essential boundary DOFs from a parallel assembled system.
-       The array 'bdr_attr_is_ess' marks boundary attributes that constitute
+   /// Eliminate essential boundary DOFs from a parallel assembled system.
+   /** The array @a bdr_attr_is_ess marks boundary attributes that constitute
        the essential part of the boundary. */
    void ParallelEliminateEssentialBC(const Array<int> &bdr_attr_is_ess,
                                      HypreParMatrix &A,
                                      const HypreParVector &X,
                                      HypreParVector &B) const;
 
-   /** Eliminate essential boundary DOFs from a parallel assembled matrix A.
-       The array 'bdr_attr_is_ess' marks boundary attributes that constitute the
-       essential part of the boundary. The eliminated part is stored in a matrix
-       A_elim such that A_new = A_original + A_elim. Returns a pointer to the
-       newly allocated matrix A_elim which should be deleted by the caller. The
-       matrices A and A_elim can be used to eliminate boundary conditions in
-       multiple right-hand sides, by calling the function EliminateBC (from
-       hypre.hpp).*/
+   /// Eliminate essential boundary DOFs from a parallel assembled matrix @a A.
+   /** The array @a bdr_attr_is_ess marks boundary attributes that constitute
+       the essential part of the boundary. The eliminated part is stored in a
+       matrix A_elim such that A_new = A_original + A_elim. Returns a pointer to
+       the newly allocated matrix A_elim which should be deleted by the caller.
+       The matrices @a A and A_elim can be used to eliminate boundary conditions
+       in multiple right-hand sides, by calling the function EliminateBC() (from
+       hypre.hpp). */
    HypreParMatrix *ParallelEliminateEssentialBC(const Array<int> &bdr_attr_is_ess,
                                                 HypreParMatrix &A) const;
 
-   /** Given a list of essential true dofs and the parallel assembled matrix A,
-       eliminate the true dofs from the matrix storing the eliminated part in a
-       matrix A_elim such that A_new = A_original + A_elim. Returns a pointer to
-       the newly allocated matrix A_elim which should be deleted by the
-       caller. The matrices A and A_elim can be used to eliminate boundary
-       conditions in multiple right-hand sides, by calling the function
-       EliminateBC (from hypre.hpp). */
+   /// Eliminate essential true DOFs from a parallel assembled matrix @a A.
+   /** Given a list of essential true dofs and the parallel assembled matrix
+       @a A, eliminate the true dofs from the matrix, storing the eliminated
+       part in a matrix A_elim such that A_new = A_original + A_elim. Returns a
+       pointer to the newly allocated matrix A_elim which should be deleted by
+       the caller. The matrices @a A and A_elim can be used to eliminate
+       boundary conditions in multiple right-hand sides, by calling the function
+       EliminateBC() (from hypre.hpp). */
    HypreParMatrix *ParallelEliminateTDofs(const Array<int> &tdofs_list,
                                           HypreParMatrix &A) const
    { return A.EliminateRowsCols(tdofs_list); }
 
-   /// Compute y += a (P^t A P) x, where x and y are vectors on the true dofs
+   /** @brief Compute @a y += @a a (P^t A P) @a x, where @a x and @a y are
+       vectors on the true dofs. */
    void TrueAddMult(const Vector &x, Vector &y, const double a = 1.0) const;
 
    /// Return the parallel FE space associated with the ParBilinearForm.
@@ -183,7 +194,7 @@ public:
                          Operator &A, Vector &X, Vector &B,
                          int copy_interior = 0);
 
-   /// Form the linear system matrix A, see FormLinearSystem for details.
+   /// Form the linear system matrix @a A, see FormLinearSystem() for details.
    void FormSystemMatrix(const Array<int> &ess_tdof_list, Operator &A);
 
    /** Call this method after solving a linear system constructed using the
@@ -197,7 +208,7 @@ public:
    { delete p_mat_e; delete p_mat; delete pp_mat; delete pp_mat_e; }
 };
 
-/// Class for parallel bilinear form
+/// Class for parallel bilinear form using different test and trial FE spaces.
 class ParMixedBilinearForm : public MixedBilinearForm
 {
 protected:
@@ -224,10 +235,10 @@ public:
 
 #ifdef MFEM_USE_PETSC
    /// Returns the matrix assembled on the true dofs, i.e. P^t A P (PETSc
-   /// version).  If usenatively is false and the non-overlapping format has not
+   /// version).  If use_natively is false and the non-overlapping format has not
    /// been requested, then Hypre RAP operations are used and the final matrix
    /// is converted into PETSc format.
-   PetscParMatrix *PetscParallelAssemble(bool usenatively = false);
+   PetscParMatrix *PetscParallelAssemble(bool use_natively = false);
 #endif
 
    /// Compute y += a (P^t A P) x, where x and y are vectors on the true dofs

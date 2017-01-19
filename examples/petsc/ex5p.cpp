@@ -73,14 +73,13 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
-   args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "no-petsc",
+   args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "-no-petsc",
                   "--no-petsc",
                   "Use or not PETSc to solve the linear system.");
    args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
                   "PetscOptions file to use.");
    args.AddOption(&use_nonoverlapping, "-nonoverlapping", "--nonoverlapping",
-                  "-no-nonoverlapping",
-                  "--no-nonoverlapping",
+                  "-no-nonoverlapping", "--no-nonoverlapping",
                   "Use or not the block diagonal PETSc's matrix format "
                   "for non-overlapping domain decomposition.");
    args.Parse();

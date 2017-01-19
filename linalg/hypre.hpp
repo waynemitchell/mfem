@@ -295,7 +295,6 @@ public:
    MPI_Comm GetComm() const { return A->comm; }
 
    /// Typecasting to hypre's hypre_ParCSRMatrix*
-   operator hypre_ParCSRMatrix*() { return A; }
    operator hypre_ParCSRMatrix*() const { return A; }
 #ifndef HYPRE_PAR_CSR_MATRIX_STRUCT
    /// Typecasting to hypre's HYPRE_ParCSRMatrix, a.k.a. void *
@@ -325,19 +324,19 @@ public:
    void CopyColStarts();
 
    /// Returns the global number of nonzeros
-   inline HYPRE_Int NNZ() { return A->num_nonzeros; }
+   inline HYPRE_Int NNZ() const { return A->num_nonzeros; }
    /// Returns the row partitioning
    inline HYPRE_Int *RowPart() { return A->row_starts; }
    /// Returns the column partitioning
    inline HYPRE_Int *ColPart() { return A->col_starts; }
    /// Returns the row partitioning (const version)
-   inline HYPRE_Int *RowPart() const { return A->row_starts; }
+   inline const HYPRE_Int *RowPart() const { return A->row_starts; }
    /// Returns the column partitioning (const version)
-   inline HYPRE_Int *ColPart() const { return A->col_starts; }
+   inline const HYPRE_Int *ColPart() const { return A->col_starts; }
    /// Returns the global number of rows
-   inline HYPRE_Int M() { return A->global_num_rows; }
+   inline HYPRE_Int M() const { return A->global_num_rows; }
    /// Returns the global number of columns
-   inline HYPRE_Int N() { return A->global_num_cols; }
+   inline HYPRE_Int N() const { return A->global_num_cols; }
 
    /// Get the local diagonal of the matrix.
    void GetDiag(Vector &diag) const;

@@ -70,8 +70,7 @@ int main(int argc, char *argv[])
    args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
                   "PetscOptions file to use.");
    args.AddOption(&use_nonoverlapping, "-nonoverlapping", "--nonoverlapping",
-                  "no-nonoverlapping",
-                  "--no-nonoverlapping",
+                  "-no-nonoverlapping", "--no-nonoverlapping",
                   "Use or not the block diagonal PETSc's matrix format "
                   "for non-overlapping domain decomposition.");
    args.Parse();

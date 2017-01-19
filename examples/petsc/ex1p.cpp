@@ -99,14 +99,13 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
-   args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "no-petsc",
+   args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "-no-petsc",
                   "--no-petsc",
                   "Use or not PETSc to solve the linear system.");
    args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
                   "PetscOptions file to use.");
    args.AddOption(&petscmonitor, "-petscmonitor", "--petscmonitor",
-                  "-no-petscmonitor",
-                  "--no-petscmonitor",
+                  "-no-petscmonitor", "--no-petscmonitor",
                   "Enable or disable GLVis visualization of residual.");
    args.Parse();
    if (!args.Good())

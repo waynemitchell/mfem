@@ -173,14 +173,14 @@ HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
 // this function is almost a verbatim copy of the one before
 // we may want to glue them together?
 PetscParMatrix *ParBilinearForm::PetscParallelAssemble(SparseMatrix *m,
-                                                       bool usenatively)
+                                                       bool use_natively)
 {
    if (m == NULL) { return NULL; }
 
    MFEM_VERIFY(m->Finalized(), "local matrix needs to be finalized for "
                "ParallelAssemble");
 
-   if (!unassembled && !usenatively)
+   if (!unassembled && !use_natively)
    {
       HypreParMatrix *hrap = ParallelAssemble(m);
       PetscParMatrix *trap = new PetscParMatrix(hrap);
@@ -192,8 +192,8 @@ PetscParMatrix *ParBilinearForm::PetscParallelAssemble(SparseMatrix *m,
    if (fbfi.Size() == 0)
    {
       // construct a parallel block-diagonal wrapper matrix A based on m
-      A = new PetscParMatrix(pfes->GetComm(),
-                             pfes->GlobalVSize(), pfes->GetDofOffsets(), m, !unassembled);
+      A = new PetscParMatrix(pfes->GetComm(), pfes->GlobalVSize(),
+                             pfes->GetDofOffsets(), m, !unassembled);
    }
    else
    {
@@ -217,11 +217,12 @@ PetscParMatrix *ParBilinearForm::PetscParallelAssemble(SparseMatrix *m,
       }
 
       // TODO : add PetscParMatrix constructor for this
-      HypreParMatrix *hA = new HypreParMatrix(pfes->GetComm(), lvsize,
-                                              pfes->GlobalVSize(),
-                                              pfes->GlobalVSize(), m->GetI(), glob_J,
-                                              m->GetData(), pfes->GetDofOffsets(),
-                                              pfes->GetDofOffsets());
+      HypreParMatrix *hA =
+         new HypreParMatrix(pfes->GetComm(), lvsize,
+                            pfes->GlobalVSize(),
+                            pfes->GlobalVSize(), m->GetI(), glob_J,
+                            m->GetData(), pfes->GetDofOffsets(),
+                            pfes->GetDofOffsets());
       A = new PetscParMatrix(hA,false,!unassembled);
       delete hA;
    }
@@ -341,9 +342,8 @@ void ParBilinearForm::FormLinearSystem(
    HypreParMatrix *pA = NULL;
 #endif
    MFEM_VERIFY(hA || pA, "Unexpected operator! FormLinearSystem "
-               "needs an HypreParMatrix or a PetscParMatrix");
-   bool use_petsc = false;
-   if (pA) { use_petsc = true; }
+               "needs a HypreParMatrix or a PetscParMatrix");
+   const bool use_petsc = (pA != NULL);
 
    // Make sure PETSc settings are disabled
    if (hybridization)
@@ -576,9 +576,9 @@ HypreParMatrix *ParMixedBilinearForm::ParallelAssemble()
 #ifdef MFEM_USE_PETSC
 // this function is almost a verbatim copy of the one before
 // we may want to glue them together?
-PetscParMatrix *ParMixedBilinearForm::PetscParallelAssemble(bool usenatively)
+PetscParMatrix *ParMixedBilinearForm::PetscParallelAssemble(bool use_natively)
 {
-   if (!unassembled && !usenatively)
+   if (!unassembled && !use_natively)
    {
       HypreParMatrix *hrap = ParallelAssemble();
       PetscParMatrix *trap = new PetscParMatrix(hrap);

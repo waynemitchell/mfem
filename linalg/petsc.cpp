@@ -26,6 +26,7 @@
 #include <iomanip>
 #include <cmath>
 #include <cstdlib>
+// Note: there are additional #include statements below.
 
 // Error handling
 // Prints PETSc's stacktrace and then calls MFEM_ABORT
@@ -368,8 +369,7 @@ PetscParMatrix::PetscParMatrix(const HypreParMatrix *hmat, bool wrap,
    }
    else
    {
-      ConvertOperator(hmat->GetComm(),const_cast<HypreParMatrix&>(*hmat),&A,
-                      assembled);
+      ConvertOperator(hmat->GetComm(),*hmat,&A,assembled);
    }
 }
 
@@ -599,11 +599,14 @@ void PetscParMatrix::MakeWrapper(MPI_Comm comm, const Operator* op, Mat *A)
    ierr = MatSetType(*A,MATSHELL); PCHKERRQ(A,ierr);
    ierr = MatShellSetContext(*A,(void *)ctx); PCHKERRQ(A,ierr);
    ierr = MatShellSetOperation(*A,MATOP_MULT,
-                               (void (*)())__mfem_mat_shell_apply); PCHKERRQ(A,ierr);
+                               (void (*)())__mfem_mat_shell_apply);
+   PCHKERRQ(A,ierr);
    ierr = MatShellSetOperation(*A,MATOP_MULT_TRANSPOSE,
-                               (void (*)())__mfem_mat_shell_apply_transpose); PCHKERRQ(A,ierr);
+                               (void (*)())__mfem_mat_shell_apply_transpose);
+   PCHKERRQ(A,ierr);
    ierr = MatShellSetOperation(*A,MATOP_DESTROY,
-                               (void (*)())__mfem_mat_shell_destroy); PCHKERRQ(A,ierr);
+                               (void (*)())__mfem_mat_shell_destroy);
+   PCHKERRQ(A,ierr);
    ierr = MatSetUp(*A); PCHKERRQ(*A,ierr);
    ctx->op = const_cast<Operator *>(op);
 }
@@ -716,16 +719,19 @@ void PetscParMatrix::ConvertOperator(MPI_Comm comm, const Operator &op, Mat* A,
                   ierr = PetscObjectQuery((PetscObject)mats[i*nc+j],"__mfem_l2l",
                                           (PetscObject*)&c);
                   PCHKERRQ(mats[i*nc+j],ierr);
-                  // special case for block operators: the local Vdofs should be ordered as
+                  // special case for block operators: the local Vdofs should be
+                  // ordered as:
                   // [f1_1,...f1_N1,f2_1,...,f2_N2,...,fm_1,...,fm_Nm]
                   // with m fields, Ni the number of Vdofs for the i-th field
                   if (c)
                   {
                      Array<Mat> *l2l = NULL;
-                     ierr = PetscContainerGetPointer(c,(void**)&l2l); PCHKERRQ(c,ierr);
-                     MFEM_VERIFY(l2l->Size() == 1,"Unexpected size " << l2l->Size() << " for block"
-                                 " row " << i );
-                     ierr = PetscObjectReference((PetscObject)(*l2l)[0]); PCHKERRQ(c,ierr);
+                     ierr = PetscContainerGetPointer(c,(void**)&l2l);
+                     PCHKERRQ(c,ierr);
+                     MFEM_VERIFY(l2l->Size() == 1,"Unexpected size "
+                                 << l2l->Size() << " for block row " << i );
+                     ierr = PetscObjectReference((PetscObject)(*l2l)[0]);
+                     PCHKERRQ(c,ierr);
                      matsl2l[i] = (*l2l)[0];
                      needl2l = PETSC_FALSE;
                   }
@@ -1684,6 +1690,11 @@ void PetscPreconditioner::SetOperator(const Operator &op)
 
    height = op.Height();
    width = op.Width();
+
+   // FIXME - we probably want to check if X and B are allocated and their sizes
+   //         do not match the new dimensions.
+   //         Something like that us already done in PetscLinearSolver's
+   //         SetOperator().
 }
 
 void PetscPreconditioner::Mult(const Vector &b, Vector &x) const
@@ -1696,12 +1707,20 @@ void PetscPreconditioner::Mult(const Vector &b, Vector &x) const
       ierr = PCGetOperators(pc, NULL, &pA); PCHKERRQ(obj, ierr);
       if (!B)
       {
-         PetscParMatrix A = PetscParMatrix(pA, true);
+         PetscParMatrix A(pA, true);
          B = new PetscParVector(A, true);
+         // FIXME - can we create a PETSc Vec object (stored inside a
+         //         PetscParVector) that allocates no data array but is
+         //         otherwise valid?
+         //         If that is possible, we can construct B in that way --
+         //         because B does not need to have its own data array.
+         //         The same applies to X below.
+         //
+         //         The same applies to PetscLinearSolver::Mult()
       }
       if (!X)
       {
-         PetscParMatrix A = PetscParMatrix(pA, true);
+         PetscParMatrix A(pA, true);
          X = new PetscParVector(A, false);
       }
    }
@@ -2100,6 +2119,8 @@ void PetscNonlinearSolver::SetOperator(const Operator &op)
    PCHKERRQ(snes, ierr);
    ierr = SNESSetJacobian(snes, NULL, NULL, __mfem_snes_jacobian, (void *)&op);
    PCHKERRQ(snes, ierr);
+
+   // FIXME - reset B and X?
 }
 
 void PetscNonlinearSolver::Mult(const Vector &b, Vector &x) const
@@ -2175,6 +2196,8 @@ void PetscODESolver::Init(TimeDependentOperator &f_)
       ierr = TSSetRHSJacobian(ts, NULL, NULL, __mfem_ts_rhsjacobian, (void *)f);
       PCHKERRQ(ts, ierr);
    }
+
+   // FIXME - reset X? B seems to not be used.
 }
 
 void PetscODESolver::Step(Vector &x, double &t, double &dt)

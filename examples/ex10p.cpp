@@ -74,8 +74,10 @@ protected:
    /// Newton solver for the reduced backward Euler equation
    NewtonSolver newton_solver;
 
-   /// Solver and preconditioner for the Jacobian solve in the Newton method.
-   Solver *J_solver, *J_prec;
+   /// Solver for the Jacobian solve in the Newton method
+   Solver *J_solver;
+   /// Preconditioner for the Jacobian solve in the Newton method
+   Solver *J_prec;
 
    mutable Vector z; // auxiliary vector
 
@@ -373,7 +375,6 @@ int main(int argc, char *argv[])
          {
             cout << "step " << ti << ", t = " << t << ", EE = " << ee
                  << ", KE = " << ke << ", ΔTE = " << (ee+ke)-(ee0+ke0) << endl;
-
          }
 
          if (visualization)

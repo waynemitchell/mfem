@@ -18,6 +18,7 @@
 
 #ifdef MFEM_USE_MPI
 #include "../linalg/hypre.hpp"
+#include "../linalg/petsc.hpp"
 #endif
 
 namespace mfem

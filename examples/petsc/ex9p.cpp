@@ -89,6 +89,7 @@ public:
    virtual ~FE_Evolution() { delete iJacobian; delete rJacobian; }
 };
 
+
 // Monitor the solution at time step "step", explicitly in the time loop
 class UserMonitor : public PetscSolverMonitor
 {
@@ -129,6 +130,7 @@ public:
       }
    }
 };
+
 
 int main(int argc, char *argv[])
 {
@@ -195,7 +197,7 @@ int main(int argc, char *argv[])
                   "PetscOptions file to use.");
    args.AddOption(&use_step, "-usestep", "--usestep", "-no-step",
                   "--no-step",
-                  "Use the step or mult method to solve the ODE system.");
+                  "Use the Step() or Run() method to solve the ODE system.");
    args.AddOption(&implicit, "-implicit", "--implicit", "-no-implicit",
                   "--no-implicit",
                   "Use or not an implicit method in PETSc to solve the ODE system.");
@@ -389,7 +391,7 @@ int main(int argc, char *argv[])
       }
       else if (use_petsc)
       {
-         // Set the monitoring routine for the PETScODESolver.
+         // Set the monitoring routine for the PetscODESolver.
          sout.precision(precision);
          pmon = new UserMonitor(sout,pmesh,u,vis_steps);
          pode_solver->SetMonitor(pmon);
@@ -404,7 +406,7 @@ int main(int argc, char *argv[])
    ode_solver->Init(*adv);
 
    // Explicitly perform time-integration (looping over the time iterations, ti,
-   // with a time-step dt), or use the Mult method of the solver class.
+   // with a time-step dt), or use the Run method of the ODE solver class.
    if (use_step)
    {
       bool done = false;
