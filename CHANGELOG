@@ -41,6 +41,7 @@ Full-featured interface to PETSc and SUNDIALS
 - Added support for many linear and nonlinear solvers, preconditioners, time
   integrators and other features from the PETSc suite (version 3.8 or higher of
   the PETSc dev branch is required). The new features include:
+
   * support for PETSc matrices in MATAIJ, MATIS, MATSHELL and MATNEST formats.
   * PETSc linear solvers can take any mfem Operator and support user-defined
     monitoring routines (see examples/petsc/ex1p).
@@ -50,9 +51,11 @@ Full-featured interface to PETSc and SUNDIALS
     GetGradient() method.
   * PETSc ODE solvers are supported for mfem's TimeDependentOperators.
 
+  The use of these features is illustrated in the new examples/petsc directory.
+
 - Added support for the time integrators and non-linear solvers from the CVODE,
   ARKODE and KINSOL libraries of the SUNDIALS suite (version 2.7 or higher of
-  SUNDIALS is required). Their use of these features is illustrated in the new
+  SUNDIALS is required). The use of these features is illustrated in the new
   examples/sundials directory.
 
 Scalable parallel mesh support
@@ -67,6 +70,7 @@ General quadrature and nodal finite element basis types
 - Added support for different numerical quadrature schemes and finite element
   basis points. Different basis points can be selected via optional integer
   argument(s) to the finite element collection constructor of type BasisType:
+
   * H1 elements can use GaussLobatto (default), Positive, or ClosedUniform;
   * L2 elements can use GaussLegendre (default), GaussLobatto, Positive,
        ClosedUniform, OpenUniform or OpenHalfUniform;
@@ -128,6 +132,7 @@ Improved file output
 New and updated examples and miniapps
 -------------------------------------
 - Sixteen new serial and parallel example codes that demonstrate:
+
   * solution of a time-dependent nonlinear heat equation (Example 16/16p)
   * DG formulations of static linear elasticity (Example 17/17p)
   * the use of PETSc solvers and preconditioners (Examples 1p, 2p, 3p, 4p, 5p,

@@ -31,7 +31,6 @@
 // Error handling
 // Prints PETSc's stacktrace and then calls MFEM_ABORT
 // We cannot use PETSc's CHKERRQ since it returns a PetscErrorCode
-// FIXME - do we want to add an option (e.g. a macro) to disable these checks?
 #define PCHKERRQ(obj,err) do {                                                 \
      if ((err))                                                                \
      {                                                                         \

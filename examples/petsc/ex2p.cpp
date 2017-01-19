@@ -4,7 +4,7 @@
 // Compile with: make ex2p
 //
 // Sample runs:
-//    mpirun -np 4 ex2p -m ../../data/beam-quad.mesh --usepetsc --petscopts rc_ex2p
+//    mpirun -np 4 ex2p -m ../../data/beam-quad.mesh --petscopts rc_ex2p
 //
 // Description:  This example code solves a simple linear elasticity problem
 //               describing a multi-material cantilever beam.
@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
    bool static_cond = false;
    bool visualization = 1;
    bool amg_elast = 0;
-   bool use_petsc = false;
+   bool use_petsc = true;
    const char *petscrc_file = "";
    bool use_nonoverlapping = false;
 

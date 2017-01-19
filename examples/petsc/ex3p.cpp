@@ -4,8 +4,8 @@
 // Compile with: make ex3p
 //
 // Sample runs:
-//    mpirun -np 4 ex3p -m ../../data/klein-bottle.mesh -o 2 -f 0.1 --usepetsc --petscopts rc_ex3p
-//    mpirun -np 4 ex3p -m ../../data/klein-bottle.mesh -o 2 -f 0.1 --usepetsc --petscopts rc_ex3p_bddc --nonoverlapping
+//    mpirun -np 4 ex3p -m ../../data/klein-bottle.mesh -o 2 -f 0.1 --petscopts rc_ex3p
+//    mpirun -np 4 ex3p -m ../../data/klein-bottle.mesh -o 2 -f 0.1 --petscopts rc_ex3p_bddc --nonoverlapping
 //
 // Description:  This example code solves a simple electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell
@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
    int order = 1;
    bool static_cond = false;
    bool visualization = 1;
-   bool use_petsc = false;
+   bool use_petsc = true;
    const char *petscrc_file = "";
    bool use_nonoverlapping = false;
 

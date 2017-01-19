@@ -4,8 +4,8 @@
 // Compile with: make ex1p
 //
 // Sample runs:
-//    mpirun -np 4 ex1p -m ../../data/amr-quad.mesh --usepetsc
-//    mpirun -np 4 ex1p -m ../../data/amr-quad.mesh --usepetsc --petscopts rc_ex1p
+//    mpirun -np 4 ex1p -m ../../data/amr-quad.mesh
+//    mpirun -np 4 ex1p -m ../../data/amr-quad.mesh --petscopts rc_ex1p
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               simple finite element discretization of the Laplace problem
@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
    int order = 1;
    bool static_cond = false;
    bool visualization = false;
-   bool use_petsc = false;
+   bool use_petsc = true;
    const char *petscrc_file = "";
    bool petscmonitor = false;
 

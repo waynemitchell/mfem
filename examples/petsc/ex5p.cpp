@@ -4,8 +4,8 @@
 // Compile with: make ex5p
 //
 // Sample runs:
-//    mpirun -np 4 ex5p -m ../../data/beam-tet.mesh --usepetsc --petscopts rc_ex5p_fieldsplit
-//    mpirun -np 4 ex5p -m ../../data/star.mesh     --usepetsc --petscopts rc_ex5p_bddc --nonoverlapping
+//    mpirun -np 4 ex5p -m ../../data/beam-tet.mesh --petscopts rc_ex5p_fieldsplit
+//    mpirun -np 4 ex5p -m ../../data/star.mesh     --petscopts rc_ex5p_bddc --nonoverlapping
 //
 // Description:  This example code solves a simple 2D/3D mixed Darcy problem
 //               corresponding to the saddle point system
@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../../data/star.mesh";
    int order = 1;
    bool visualization = 1;
-   bool use_petsc = false;
+   bool use_petsc = true;
    bool use_nonoverlapping = false;
    const char *petscrc_file = "";
 
@@ -133,8 +133,8 @@ int main(int argc, char *argv[])
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use the Raviart-Thomas finite elements of the specified order.
-   FiniteElementCollection *hdiv_coll(new RT_FECollection(order-1, dim));
-   FiniteElementCollection *l2_coll(new L2_FECollection(order-1, dim));
+   FiniteElementCollection *hdiv_coll(new RT_FECollection(order, dim));
+   FiniteElementCollection *l2_coll(new L2_FECollection(order, dim));
 
    ParFiniteElementSpace *R_space = new ParFiniteElementSpace(pmesh, hdiv_coll);
    ParFiniteElementSpace *W_space = new ParFiniteElementSpace(pmesh, l2_coll);

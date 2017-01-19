@@ -4,7 +4,7 @@
 // Compile with: make ex10p
 //
 // Sample runs:
-//    mpirun -np 4 ex10p -m ../../data/beam-quad.mesh --usepetsc --petscopts rc_ex10p -s 3 -rs 2 -dt 3
+//    mpirun -np 4 ex10p -m ../../data/beam-quad.mesh --petscopts rc_ex10p -s 3 -rs 2 -dt 3
 //
 // Description:  This examples solves a time dependent nonlinear elasticity
 //               problem of the form dv/dt = H(x) + S v, dx/dt = v, where H is a
@@ -181,7 +181,7 @@ int main(int argc, char *argv[])
    double K = 5.0;
    bool visualization = true;
    int vis_steps = 1;
-   bool use_petsc = false;
+   bool use_petsc = true;
    const char *petscrc_file = "";
 
    OptionsParser args(argc, argv);

@@ -4,8 +4,8 @@
 // Compile with: make ex4p
 //
 // Sample runs:
-//    mpirun -np 4 ex4p -m ../../data/klein-bottle.mesh -o 2 --usepetsc --petscopts rc_ex4p
-//    mpirun -np 4 ex4p -m ../../data/klein-bottle.mesh -o 2 --usepetsc --petscopts rc_ex4p_bddc --nonoverlapping
+//    mpirun -np 4 ex4p -m ../../data/klein-bottle.mesh -o 2 --petscopts rc_ex4p
+//    mpirun -np 4 ex4p -m ../../data/klein-bottle.mesh -o 2 --petscopts rc_ex4p_bddc --nonoverlapping
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
 //               problem corresponding to the second order definite equation
@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
    bool static_cond = false;
    bool hybridization = false;
    bool visualization = 1;
-   bool use_petsc = false;
+   bool use_petsc = true;
    const char *petscrc_file = "";
    bool use_nonoverlapping = false;
 

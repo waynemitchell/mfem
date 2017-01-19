@@ -4,8 +4,8 @@
 // Compile with: make ex6p
 //
 // Sample runs:
-//    mpirun -np 4 ex6p -m ../../data/amr-quad.mesh -usepetsc
-//    mpirun -np 4 ex6p -m ../../data/amr-quad.mesh -usepetsc -nonoverlapping
+//    mpirun -np 4 ex6p -m ../../data/amr-quad.mesh
+//    mpirun -np 4 ex6p -m ../../data/amr-quad.mesh -nonoverlapping
 //
 // Description:  This is a version of Example 1 with a simple adaptive mesh
 //               refinement loop. The problem being solved is again the Laplace
@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
    int order = 1;
    bool visualization = true;
    int max_dofs = 100000;
-   bool use_petsc = false;
+   bool use_petsc = true;
    const char *petscrc_file = "";
    bool use_nonoverlapping = false;
 

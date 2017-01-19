@@ -4,8 +4,8 @@
 // Compile with: make ex9p
 //
 // Sample runs:
-//    mpirun -np 4 ex9p -m ../../data/periodic-hexagon.mesh --usepetsc --petscopts rc_ex9p_expl
-//    mpirun -np 4 ex9p -m ../../data/periodic-hexagon.mesh --usepetsc --petscopts rc_ex9p_impl -implicit
+//    mpirun -np 4 ex9p -m ../../data/periodic-hexagon.mesh --petscopts rc_ex9p_expl
+//    mpirun -np 4 ex9p -m ../../data/periodic-hexagon.mesh --petscopts rc_ex9p_impl -implicit
 //
 // Description:  This example code solves the time-dependent advection equation
 //               du/dt + v.grad(u) = 0, where v is a given fluid velocity, and
@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
    bool visit = false;
    bool binary = false;
    int vis_steps = 5;
-   bool use_petsc = false;
+   bool use_petsc = true;
    bool implicit = false;
    bool use_step = true;
    const char *petscrc_file = "";
