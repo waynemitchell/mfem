@@ -347,8 +347,8 @@ The specific libraries and their options are:
   Option: POSIX_CLOCKS_LIB (default = -lrt).
 
 - SUNDIALS (optional), used when MFEM_USE_SUNDIALS = YES.
-  URL: http://computation.llnl.gov/projects/sundials/sundials-software
   In parallel we expect that SUNDIALS is built with support for MPI and hypre.
+  URL: http://computation.llnl.gov/projects/sundials/sundials-software
   Options: SUNDIALS_OPT, SUNDIALS_LIB.
 
 - Mesquite (optional), used when MFEM_USE_MESQUITE = YES.
