@@ -1687,13 +1687,13 @@ void PetscPreconditioner::SetOperator(const Operator &op)
    ierr = PCSetOperators(pc,pA->A,pA->A); PCHKERRQ(obj,ierr);
    if (delete_pA) { delete pA; };
 
+   MFEM_VERIFY(height && height != op.Height(),"Incompatible operator height " <<
+                                             height << " != " << op.Height());
+   MFEM_VERIFY(width && width != op.Width(),"Incompatible operator width " <<
+                                             width << " != " << op.Width());
+
    height = op.Height();
    width = op.Width();
-
-   // FIXME - we probably want to check if X and B are allocated and their sizes
-   //         do not match the new dimensions.
-   //         Something like that us already done in PetscLinearSolver's
-   //         SetOperator().
 }
 
 void PetscPreconditioner::Mult(const Vector &b, Vector &x) const
