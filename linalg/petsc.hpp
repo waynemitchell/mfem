@@ -262,9 +262,7 @@ public:
 
    /// Returns the transpose of the PetscParMatrix.
    /** If @a action is false, the new matrix is constructed with the PETSc
-       function MatTranspose(). FIXME - question: can we delete this matrix
-       without invalidating the transpose?
-
+       function MatTranspose().
        If @a action is true, then the matrix is not actually transposed.
        Instead, an object that behaves like the transpose is returned. */
    PetscParMatrix* Transpose(bool action = false);
