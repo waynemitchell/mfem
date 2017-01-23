@@ -720,8 +720,9 @@ void Hybridization::ComputeH()
       else
       {
          MFEM_VERIFY(!unassembled,"To be implemented");
-         ppH = new PetscParMatrix(RAP(lpH, P_pc),false,false);
-         // FIXME - we need to delete the matrix returned by the RAP call.
+         HypreParMatrix* temp = RAP(lpH, P_pc);
+         ppH = new PetscParMatrix(temp,false,false);
+         delete temp;
       }
 #endif
       delete lpH;
