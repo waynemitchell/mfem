@@ -475,7 +475,7 @@ inline scalar_t TDet(const layout_t &a, const data_t &A)
 {
    MFEM_STATIC_ASSERT(layout_t::rank == 2, "invalid rank");
    return internal::MatrixOps<layout_t::dim_1,layout_t::dim_2>::
-          template Det<scalar_t>(a, A);
+          Det<scalar_t>(a, A);
 }
 
 // Compute the determinants of a set of (small) matrices: D[i] = det(A[i,*,*]).
@@ -486,7 +486,7 @@ inline void TDet(const A_layout_t &a, const A_data_t &A, D_data_t &D)
 {
    MFEM_STATIC_ASSERT(A_layout_t::rank == 3, "invalid rank");
    internal::MatrixOps<A_layout_t::dim_2,A_layout_t::dim_3>::
-   template Det<Op>(a, A, D);
+   Det<Op>(a, A, D);
 }
 
 // Compute the adjugate matrix of a (small) matrix: B = adj(A).
