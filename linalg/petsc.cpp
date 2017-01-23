@@ -153,7 +153,7 @@ PetscParVector::PetscParVector(MPI_Comm comm, PetscInt glob_size,
    MFEM_VERIFY(col,"Missing distribution");
    PetscMPIInt myid;
    MPI_Comm_rank(comm, &myid);
-   ierr = VecCreateMPIWithArray(comm,1,col[myid+1]-col[myid],PETSC_DECIDE,_data,
+   ierr = VecCreateMPIWithArray(comm,1,col[myid+1]-col[myid],glob_size,_data,
                                 &x); CCHKERRQ(comm,ierr)
    _SetDataAndSize_();
 }
@@ -164,7 +164,7 @@ PetscParVector::PetscParVector(const PetscParVector &y) : Vector()
 }
 
 PetscParVector::PetscParVector(MPI_Comm comm, const Operator &op,
-                               int transpose) : Vector()
+                               bool transpose) : Vector()
 {
    PetscInt loc = transpose ? op.Height() : op.Width();
    ierr = VecCreate(comm,&x);
@@ -179,7 +179,7 @@ PetscParVector::PetscParVector(MPI_Comm comm, const Operator &op,
 }
 
 PetscParVector::PetscParVector(const PetscParMatrix &A,
-                               int transpose) : Vector()
+                               bool transpose, bool allocate) : Vector()
 {
    Mat pA = const_cast<PetscParMatrix&>(A);
    if (!transpose)
@@ -189,6 +189,10 @@ PetscParVector::PetscParVector(const PetscParMatrix &A,
    else
    {
       ierr = MatCreateVecs(pA,NULL,&x);
+   }
+   if (!allocate)
+   {
+      ierr = VecReplaceArray(x,NULL); PCHKERRQ(x,ierr);
    }
    PCHKERRQ(pA,ierr);
    _SetDataAndSize_();
@@ -1575,12 +1579,12 @@ void PetscLinearSolver::Mult(const Vector &b, Vector &x) const
       if (!B)
       {
          PetscParMatrix A = PetscParMatrix(pA, true);
-         B = new PetscParVector(A, true);
+         B = new PetscParVector(A, true, false);
       }
       if (!X)
       {
          PetscParMatrix A = PetscParMatrix(pA, true);
-         X = new PetscParVector(A, false);
+         X = new PetscParVector(A, false, false);
       }
    }
    B->PlaceArray(b.GetData());
@@ -1707,20 +1711,12 @@ void PetscPreconditioner::Mult(const Vector &b, Vector &x) const
       if (!B)
       {
          PetscParMatrix A(pA, true);
-         B = new PetscParVector(A, true);
-         // FIXME - can we create a PETSc Vec object (stored inside a
-         //         PetscParVector) that allocates no data array but is
-         //         otherwise valid?
-         //         If that is possible, we can construct B in that way --
-         //         because B does not need to have its own data array.
-         //         The same applies to X below.
-         //
-         //         The same applies to PetscLinearSolver::Mult()
+         B = new PetscParVector(A, true, false);
       }
       if (!X)
       {
          PetscParMatrix A(pA, true);
-         X = new PetscParVector(A, false);
+         X = new PetscParVector(A, false, false);
       }
    }
    B->PlaceArray(b.GetData());
