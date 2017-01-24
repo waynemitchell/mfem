@@ -161,6 +161,7 @@ PetscParVector::PetscParVector(MPI_Comm comm, PetscInt glob_size,
 PetscParVector::PetscParVector(const PetscParVector &y) : Vector()
 {
    ierr = VecDuplicate(y.x,&x); PCHKERRQ(x,ierr);
+   _SetDataAndSize_();
 }
 
 PetscParVector::PetscParVector(MPI_Comm comm, const Operator &op,
