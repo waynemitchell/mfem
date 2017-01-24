@@ -428,6 +428,7 @@ PetscParMatrix& PetscParMatrix::operator=(const HypreParMatrix& B)
       ierr = MatDestroy(&A); CCHKERRQ(comm,ierr);
       if (X) { delete X; }
       if (Y) { delete Y; }
+      X = Y = NULL;
    }
    height = B.Height();
    width  = B.Width();
@@ -447,6 +448,7 @@ PetscParMatrix& PetscParMatrix::operator=(const PetscParMatrix& B)
       ierr = MatDestroy(&A); CCHKERRQ(comm,ierr);
       if (X) { delete X; }
       if (Y) { delete Y; }
+      X = Y = NULL;
    }
    height = B.Height();
    width  = B.Width();
@@ -808,6 +810,7 @@ void PetscParMatrix::Destroy()
    }
    delete X;
    delete Y;
+   X = Y = NULL;
 }
 
 PetscParMatrix::PetscParMatrix(Mat a, bool ref)
@@ -1160,12 +1163,13 @@ PetscSolver::PetscSolver() : clcustom(false)
    B = X = NULL;
    cid         = -1;
    monitor_ctx = NULL;
+   operatorset = false;
 }
 
 PetscSolver::~PetscSolver()
 {
-   if (B) { delete B; }
-   if (X) { delete X; }
+   delete B;
+   delete X;
 }
 
 void PetscSolver::SetTol(double tol)
@@ -1525,7 +1529,7 @@ void PetscLinearSolver::SetOperator(const Operator &op)
    // Set operators into PETSc KSP
    KSP ksp = (KSP)obj;
    Mat A = pA->A;
-   if (height || width)
+   if (operatorset)
    {
       Mat C;
       PetscInt nheight,nwidth,oheight,owidth;
@@ -1540,11 +1544,14 @@ void PetscLinearSolver::SetOperator(const Operator &op)
          ierr = KSPReset(ksp); PCHKERRQ(ksp,ierr);
          delete X;
          delete B;
-         B = X = NULL;
+         X = B = NULL;
          wrap = false;
       }
    }
    ierr = KSPSetOperators(ksp,A,A); PCHKERRQ(ksp,ierr);
+
+   // Update PetscSolver
+   operatorset = true;
 
    // Update the Operator fields.
    height = pA->Height();
@@ -1696,17 +1703,36 @@ void PetscPreconditioner::SetOperator(const Operator &op)
       delete_pA = true;
    }
 
+   // Set operators into PETSc PC
    PC pc = (PC)obj;
+   Mat A = pA->A;
+   if (operatorset)
+   {
+      Mat C;
+      PetscInt nheight,nwidth,oheight,owidth;
+
+      ierr = PCGetOperators(pc,&C,NULL); PCHKERRQ(pc,ierr);
+      ierr = MatGetSize(A,&nheight,&nwidth); PCHKERRQ(A,ierr);
+      ierr = MatGetSize(C,&oheight,&owidth); PCHKERRQ(A,ierr);
+      if (nheight != oheight || nwidth != owidth)
+      {
+         // reinit without destroying the PC
+         // communicator remains the same
+         ierr = PCReset(pc); PCHKERRQ(pc,ierr);
+         delete X;
+         delete B;
+         X = B = NULL;
+      }
+   }
    ierr = PCSetOperators(pc,pA->A,pA->A); PCHKERRQ(obj,ierr);
    if (delete_pA) { delete pA; };
 
-   MFEM_VERIFY(height && height != op.Height(),"Incompatible operator height " <<
-                                             height << " != " << op.Height());
-   MFEM_VERIFY(width && width != op.Width(),"Incompatible operator width " <<
-                                             width << " != " << op.Width());
+   // Update PetscSolver
+   operatorset = true;
 
-   height = op.Height();
-   width = op.Width();
+   // Update the Operator fields.
+   height = pA->Height();
+   width  = pA->Width();
 }
 
 void PetscPreconditioner::Mult(const Vector &b, Vector &x) const
@@ -2115,16 +2141,43 @@ PetscNonlinearSolver::~PetscNonlinearSolver()
 
 void PetscNonlinearSolver::SetOperator(const Operator &op)
 {
-   height = op.Height();
-   width  = op.Width();
-
    SNES snes = (SNES)obj;
+
+   if (operatorset)
+   {
+      PetscBool ls,gs;
+      void *fctx,*jctx;
+
+      ierr = SNESGetFunction(snes, NULL, NULL, &fctx);
+      PCHKERRQ(snes, ierr);
+      ierr = SNESGetJacobian(snes, NULL, NULL, NULL, &jctx);
+      PCHKERRQ(snes, ierr);
+
+      ls   = (PetscBool)(height == op.Height() && width  == op.Width() &&
+                         (void*)&op == fctx && (void*)&op == jctx);
+      ierr = MPI_Allreduce(&ls,&gs,1,MPIU_BOOL,MPI_LAND,
+                           PetscObjectComm((PetscObject)snes));
+      PCHKERRQ(snes,ierr);
+      if (!gs)
+      {
+         ierr = SNESReset(snes); PCHKERRQ(snes,ierr);
+         delete X;
+         delete B;
+         X = B = NULL;
+      }
+   }
+
    ierr = SNESSetFunction(snes, NULL, __mfem_snes_function, (void *)&op);
    PCHKERRQ(snes, ierr);
    ierr = SNESSetJacobian(snes, NULL, NULL, __mfem_snes_jacobian, (void *)&op);
    PCHKERRQ(snes, ierr);
 
-   // FIXME - reset B and X?
+   // Update PetscSolver
+   operatorset = true;
+
+   // Update the Operator fields.
+   height = op.Height();
+   width  = op.Width();
 }
 
 void PetscNonlinearSolver::Mult(const Vector &b, Vector &x) const
@@ -2179,9 +2232,51 @@ PetscODESolver::~PetscODESolver()
 
 void PetscODESolver::Init(TimeDependentOperator &f_)
 {
+   TS ts = (TS)obj;
+
+   if (operatorset)
+   {
+      PetscBool ls,gs;
+      void *fctx = NULL,*jctx = NULL,*rfctx = NULL,*rjctx = NULL;
+
+      if (f->isImplicit())
+      {
+         ierr = TSGetIFunction(ts, NULL, NULL, &fctx);
+         PCHKERRQ(ts, ierr);
+         ierr = TSGetIJacobian(ts, NULL, NULL, NULL, &jctx);
+         PCHKERRQ(ts, ierr);
+      }
+      if (!f->isHomogeneous())
+      {
+         ierr = TSGetRHSFunction(ts, NULL, NULL, &rfctx);
+         PCHKERRQ(ts, ierr);
+         ierr = TSGetRHSJacobian(ts, NULL, NULL, NULL, &rjctx);
+         PCHKERRQ(ts, ierr);
+      }
+      ls = (PetscBool)(f->Height() == f_.Height() &&
+                       f->Width() == f_.Width() &&
+                       f->isImplicit() == f_.isImplicit() &&
+                       f->isHomogeneous() == f_.isHomogeneous());
+      if (ls && f_.isImplicit())
+      {
+         ls = (PetscBool)(ls && (void*)&f_ == fctx && (void*)&f_ == jctx);
+      }
+      if (ls && !f_.isHomogeneous())
+      {
+         ls = (PetscBool)(ls && (void*)&f_ == rfctx && (void*)&f_ == rjctx);
+      }
+      ierr = MPI_Allreduce(&ls,&gs,1,MPIU_BOOL,MPI_LAND,
+                           PetscObjectComm((PetscObject)ts));
+      PCHKERRQ(ts,ierr);
+      if (!gs)
+      {
+         ierr = TSReset(ts); PCHKERRQ(ts,ierr);
+         delete X;
+         X = NULL;
+      }
+   }
    f = &f_;
 
-   TS ts = (TS)obj;
    if (f->isImplicit())
    {
       ierr = TSSetIFunction(ts, NULL, __mfem_ts_ifunction, (void *)f);
@@ -2198,8 +2293,7 @@ void PetscODESolver::Init(TimeDependentOperator &f_)
       ierr = TSSetRHSJacobian(ts, NULL, NULL, __mfem_ts_rhsjacobian, (void *)f);
       PCHKERRQ(ts, ierr);
    }
-
-   // FIXME - reset X? B seems to not be used.
+   operatorset = true;
 }
 
 void PetscODESolver::Step(Vector &x, double &t, double &dt)

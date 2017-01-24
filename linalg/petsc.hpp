@@ -333,6 +333,9 @@ protected:
    /// Monitor context
    PetscSolverMonitor *monitor_ctx;
 
+   /// Boolean to handle SetOperator calls.
+   mutable bool operatorset;
+
 public:
    /// Construct an empty PetscSolver. Initialize protected objects to NULL.
    PetscSolver();
