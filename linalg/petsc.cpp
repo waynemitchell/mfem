@@ -165,17 +165,25 @@ PetscParVector::PetscParVector(const PetscParVector &y) : Vector()
 }
 
 PetscParVector::PetscParVector(MPI_Comm comm, const Operator &op,
-                               bool transpose) : Vector()
+                               bool transpose, bool allocate) : Vector()
 {
    PetscInt loc = transpose ? op.Height() : op.Width();
-   ierr = VecCreate(comm,&x);
-   CCHKERRQ(comm,ierr);
-   ierr = VecSetSizes(x,loc,PETSC_DECIDE);
-   PCHKERRQ(x,ierr);
-   ierr = VecSetType(x,VECSTANDARD);
-   PCHKERRQ(x,ierr);
-   ierr = VecSetUp(x);
-   PCHKERRQ(x,ierr);
+   if (allocate)
+   {
+      ierr = VecCreate(comm,&x);
+      CCHKERRQ(comm,ierr);
+      ierr = VecSetSizes(x,loc,PETSC_DECIDE);
+      PCHKERRQ(x,ierr);
+      ierr = VecSetType(x,VECSTANDARD);
+      PCHKERRQ(x,ierr);
+      ierr = VecSetUp(x);
+      PCHKERRQ(x,ierr);
+   }
+   else
+   {
+      ierr = VecCreateMPIWithArray(comm,1,loc,PETSC_DECIDE,NULL,
+                                   &x); CCHKERRQ(comm,ierr);
+   }
    _SetDataAndSize_();
 }
 
@@ -2125,17 +2133,15 @@ void PetscNonlinearSolver::Mult(const Vector &b, Vector &x) const
 
    bool b_nonempty = b.Size();
    if (!B) { B = new PetscParVector(PetscObjectComm(obj), *this, true); }
-   if (!X) { X = new PetscParVector(PetscObjectComm(obj), *this, false); }
+   if (!X) { X = new PetscParVector(PetscObjectComm(obj), *this, false, false); }
    X->PlaceArray(x.GetData());
    if (b_nonempty) { B->PlaceArray(b.GetData()); }
    else { *B = 0.0; }
 
    Customize();
 
-   if (!iterative_mode)
-   {
-      ierr = VecSet(X->x, 0.); PCHKERRQ(X->x, ierr);
-   }
+   if (!iterative_mode) { *X = 0.; }
+
    // Solve the system.
    ierr = SNESSolve(snes, B->x, X->x); PCHKERRQ(snes, ierr);
    X->ResetArray();
@@ -2203,7 +2209,7 @@ void PetscODESolver::Step(Vector &x, double &t, double &dt)
    ierr = TSSetTime(ts, t); PCHKERRQ(ts, ierr);
    ierr = TSSetTimeStep(ts, dt); PCHKERRQ(ts, ierr);
 
-   if (!X) { X = new PetscParVector(PetscObjectComm(obj), *f, false); }
+   if (!X) { X = new PetscParVector(PetscObjectComm(obj), *f, false, false); }
    X->PlaceArray(x.GetData());
 
    Customize();
@@ -2231,7 +2237,7 @@ void PetscODESolver::Run(Vector &x, double &t, double &dt, double t_final)
    ierr = TSSetExactFinalTime(ts, TS_EXACTFINALTIME_MATCHSTEP);
    PCHKERRQ(ts, ierr);
 
-   if (!X) { X = new PetscParVector(PetscObjectComm(obj), *f, false); }
+   if (!X) { X = new PetscParVector(PetscObjectComm(obj), *f, false, false); }
    X->PlaceArray(x.GetData());
 
    Customize();

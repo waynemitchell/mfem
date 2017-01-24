@@ -62,11 +62,13 @@ public:
    PetscParVector(const PetscParVector &y);
 
    /** @brief Creates vector compatible with the Operator (i.e. in the domain
-       of) @a op or its adjoint. */
-   explicit PetscParVector(MPI_Comm comm, const Operator &op, bool transpose = false);
+       of) @a op or its adjoint.
+       allocate determines if the memory is actually allocated to store the data. */
+   explicit PetscParVector(MPI_Comm comm, const Operator &op,
+                           bool transpose = false, bool allocate = true);
 
    /// Creates vector compatible with (i.e. in the domain of) @a A or @a A^T
-   /** @brief allocate determines allocation of memory to store the data. */
+   /** @brief allocate determines if the memory is actually allocated to store the data. */
    explicit PetscParVector(const PetscParMatrix &A, bool transpose = false,
                            bool allocate = true);
 
