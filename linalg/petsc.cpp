@@ -1725,7 +1725,6 @@ void PetscPreconditioner::SetOperator(const Operator &op)
       }
    }
    ierr = PCSetOperators(pc,pA->A,pA->A); PCHKERRQ(obj,ierr);
-   if (delete_pA) { delete pA; };
 
    // Update PetscSolver
    operatorset = true;
@@ -1733,6 +1732,8 @@ void PetscPreconditioner::SetOperator(const Operator &op)
    // Update the Operator fields.
    height = pA->Height();
    width  = pA->Width();
+
+   if (delete_pA) { delete pA; };
 }
 
 void PetscPreconditioner::Mult(const Vector &b, Vector &x) const
