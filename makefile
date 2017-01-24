@@ -153,6 +153,9 @@ CXXFLAGS ?= $(OPTIM_FLAGS)
 # MPI configuration
 ifneq ($(MFEM_USE_MPI),YES)
    MFEM_CXX ?= $(CXX)
+   $(foreach mpidep,SUPERLU PETSC,$(if $(MFEM_USE_$(mpidep):NO=),\
+     $(warning *** [MPI is OFF] setting MFEM_USE_$(mpidep) = NO)\
+     $(eval override MFEM_USE_$(mpidep)=NO),))
 else
    MFEM_CXX ?= $(MPICXX)
    INCFLAGS += $(METIS_OPT) $(HYPRE_OPT)
