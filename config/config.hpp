@@ -22,3 +22,15 @@
 #else
 #include "_config.hpp"
 #endif
+
+// Check dependencies:
+
+// Options that require MPI
+#ifndef MFEM_USE_MPI
+#ifdef MFEM_USE_SUPERLU
+#error Building with SuperLU_DIST (MFEM_USE_SUPERLU=YES) requires MPI (MFEM_USE_MPI=YES)
+#endif
+#ifdef MFEM_USE_PETSC
+#error Building with PETSc (MFEM_USE_PETSC=YES) requires MPI (MFEM_USE_MPI=YES)
+#endif
+#endif // MFEM_USE_MPI not defined

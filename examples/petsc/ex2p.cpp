@@ -287,7 +287,9 @@ int main(int argc, char *argv[])
          cout << "done." << endl;
          cout << "Size of linear system: " << A.M() << endl;
       }
-
+      // The preconditioner for the PCG solver defined below is specified in the
+      // PETSc config file, rc_ex2p, since a Krylov solver in PETSc can also
+      // customize its preconditioner.
       PetscPCGSolver *pcg = new PetscPCGSolver(A);
       pcg->SetMaxIter(500);
       pcg->SetTol(1e-8);
