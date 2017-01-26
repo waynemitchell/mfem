@@ -796,7 +796,8 @@ void PetscParMatrix::ConvertOperator(MPI_Comm comm, const Operator &op, Mat* A,
    }
    else
    {
-      MFEM_ABORT("PetscParMatrix::ConvertOperator : don't know how to convert");
+      // fallback to MatShell
+      MakeWrapper(comm,&op,A);
    }
 }
 
