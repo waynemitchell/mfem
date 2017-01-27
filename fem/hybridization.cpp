@@ -821,7 +821,7 @@ void Hybridization::ReduceRHS(const Vector &b, Vector &b_r) const
    {
       Vector bl(pC ? pC->Height() : Ct->Width());
       pC ? pC->Mult(bf, bl) : Ct->MultTranspose(bf, bl);
-      if (pH.Ptr()) { b_r.SetSize(pH.Ptr()->Height()); }
+      b_r.SetSize(pH.Ptr()->Height());
       (P_pc ? P_pc : c_pfes->Dof_TrueDof_Matrix())->MultTranspose(bl, b_r);
    }
 #else
