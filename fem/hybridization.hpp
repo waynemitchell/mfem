@@ -125,11 +125,11 @@ public:
    HypreParMatrix &GetParallelMatrix() { return *pH.Is<HypreParMatrix>(); }
 
    /** @brief Return the parallel hybridized matrix in the format specified by
-       SetOperatorTypeID(). */
+       SetOperatorType(). */
    void GetParallelMatrix(OperatorHandle &H_h) const { H_h = pH; }
 
    /// Set the operator type id for the parallel hybridized matrix/operator.
-   void SetOperatorTypeID(Operator::TypeID tid) { pH.SetTypeID(tid); }
+   void SetOperatorType(Operator::Type tid) { pH.SetType(tid); }
 #endif
 
    /** Perform the reduction of the given r.h.s. vector, b, to a r.h.s vector,

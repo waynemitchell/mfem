@@ -16,9 +16,9 @@ namespace mfem
 {
 
 const char OperatorHandle::not_supported_msg[] =
-   "Operator::TypeID is not supported: type_id = ";
+   "Operator::Type is not supported: type_id = ";
 
-Operator::TypeID OperatorHandle::CheckID(Operator::TypeID tid)
+Operator::Type OperatorHandle::CheckType(Operator::Type tid)
 {
    switch (tid)
    {
@@ -39,7 +39,7 @@ Operator::TypeID OperatorHandle::CheckID(Operator::TypeID tid)
                     "MFEM is not built with PETSc support");
 #endif
       default:
-         MFEM_ABORT("invalid Operator::TypeID, type_id = " << (int)type_id);
+         MFEM_ABORT("invalid Operator::Type, type_id = " << (int)type_id);
    }
    return tid;
 }
@@ -97,9 +97,9 @@ MakeRectangularBlockDiag(MPI_Comm comm, HYPRE_Int glob_num_rows,
 
 void OperatorHandle::MakePtAP(OperatorHandle &A, OperatorHandle &P)
 {
-   MFEM_VERIFY(A.TypeID() == P.TypeID(), "type mismatch in A and P");
+   MFEM_VERIFY(A.Type() == P.Type(), "type mismatch in A and P");
    Clear();
-   switch (A.TypeID())
+   switch (A.Type())
    {
       case Operator::MFEM_SPARSEMAT:
       {
@@ -130,10 +130,10 @@ void OperatorHandle::MakePtAP(OperatorHandle &A, OperatorHandle &P)
 void OperatorHandle::MakeRAP(OperatorHandle &Rt, OperatorHandle &A,
                              OperatorHandle &P)
 {
-   MFEM_VERIFY(A.TypeID() == Rt.TypeID(), "type mismatch in A and Rt");
-   MFEM_VERIFY(A.TypeID() == P.TypeID(), "type mismatch in A and P");
+   MFEM_VERIFY(A.Type() == Rt.Type(), "type mismatch in A and Rt");
+   MFEM_VERIFY(A.Type() == P.Type(), "type mismatch in A and P");
    Clear();
-   switch (A.TypeID())
+   switch (A.Type())
    {
       case Operator::MFEM_SPARSEMAT:
       {
@@ -163,22 +163,22 @@ void OperatorHandle::MakeRAP(OperatorHandle &Rt, OperatorHandle &A,
 void OperatorHandle::ConvertFrom(OperatorHandle &A)
 {
    if (own_oper) { delete oper; }
-   if (TypeID() == A.TypeID())
+   if (Type() == A.Type())
    {
       oper = A.Ptr();
       own_oper = false;
       return;
    }
    oper = NULL;
-   switch (TypeID()) // target type id
+   switch (Type()) // target type id
    {
       case Operator::PETSC_MATAIJ:
       case Operator::PETSC_MATIS:
-         switch (A.TypeID()) // source type id
+         switch (A.Type()) // source type id
          {
             case Operator::HYPRE_PARCSR:
 #ifdef MFEM_USE_PETSC
-               oper = new PetscParMatrix(A.As<HypreParMatrix>(), TypeID());
+               oper = new PetscParMatrix(A.As<HypreParMatrix>(), Type());
 #endif
                break;
             default: break;
@@ -186,8 +186,8 @@ void OperatorHandle::ConvertFrom(OperatorHandle &A)
          break;
       default: break;
    }
-   MFEM_VERIFY(oper != NULL, "conversion from type id = " << A.TypeID()
-               << " to type id = " << TypeID() << " is not supported");
+   MFEM_VERIFY(oper != NULL, "conversion from type id = " << A.Type()
+               << " to type id = " << Type() << " is not supported");
    own_oper = true;
 }
 
@@ -195,7 +195,7 @@ void OperatorHandle::EliminateRowsCols(OperatorHandle &A,
                                        const Array<int> &ess_dof_list)
 {
    Clear();
-   switch (A.TypeID())
+   switch (A.Type())
    {
       case Operator::MFEM_SPARSEMAT:
       {
@@ -229,7 +229,7 @@ void OperatorHandle::EliminateRowsCols(OperatorHandle &A,
 #endif
          break;
       }
-      default: MFEM_ABORT(not_supported_msg << A.TypeID());
+      default: MFEM_ABORT(not_supported_msg << A.Type());
    }
 }
 
@@ -237,7 +237,7 @@ void OperatorHandle::EliminateBC(const OperatorHandle &A_e,
                                  const Array<int> &ess_dof_list,
                                  const Vector &X, Vector &B) const
 {
-   switch (TypeID())
+   switch (Type())
    {
       case Operator::MFEM_SPARSEMAT:
       {
@@ -266,7 +266,7 @@ void OperatorHandle::EliminateBC(const OperatorHandle &A_e,
 #endif
          break;
       }
-      default: MFEM_ABORT(not_supported_msg << TypeID());
+      default: MFEM_ABORT(not_supported_msg << Type());
    }
 }
 

@@ -173,7 +173,7 @@ public:
        PETSc format @a tid. */
    /** The supported type ids are: Operator::PETSC_MATAIJ,
        Operator::PETSC_MATIS, and Operator::PETSC_MATSHELL. */
-   PetscParMatrix(const HypreParMatrix *ha, Operator::TypeID tid);
+   PetscParMatrix(const HypreParMatrix *ha, Operator::Type tid);
 
    /** @brief Convert an mfem::Operator into a PetscParMatrix in the given PETSc
        format @a tid. */
@@ -186,7 +186,7 @@ public:
 
        In particular, if @a op is a BlockOperator, then a MATNEST Mat object is
        created using @a tid as the type for the blocks. */
-   PetscParMatrix(MPI_Comm comm, const Operator *op, Operator::TypeID tid);
+   PetscParMatrix(MPI_Comm comm, const Operator *op, Operator::Type tid);
 
    /// Creates block-diagonal square parallel matrix.
    /** The block-diagonal is given by @a diag which must be in CSR format
@@ -194,7 +194,7 @@ public:
        input arrays. The type id @a tid can be either PETSC_MATAIJ (parallel
        distributed CSR) or PETSC_MATIS. */
    PetscParMatrix(MPI_Comm comm, PetscInt glob_size, PetscInt *row_starts,
-                  SparseMatrix *diag, Operator::TypeID tid);
+                  SparseMatrix *diag, Operator::Type tid);
 
    /// Creates block-diagonal rectangular parallel matrix.
    /** The block-diagonal is given by @a diag which must be in CSR format
@@ -204,7 +204,7 @@ public:
    PetscParMatrix(MPI_Comm comm, PetscInt global_num_rows,
                   PetscInt global_num_cols, PetscInt *row_starts,
                   PetscInt *col_starts, SparseMatrix *diag,
-                  Operator::TypeID tid);
+                  Operator::Type tid);
 
    /// Calls PETSc's destroy function.
    virtual ~PetscParMatrix() { Destroy(); }
@@ -295,7 +295,7 @@ public:
        the refcount of the Mat object. */
    Mat ReleaseMat(bool dereference);
 
-   TypeID GetTypeID() const;
+   Type GetType() const;
 };
 
 

@@ -60,11 +60,11 @@ public:
    /// Set the operator type id for the parallel matrix/operator.
    /** If using static condensation or hybridization, call this method *after*
        enabling it. */
-   void SetOperatorTypeID(Operator::TypeID tid)
+   void SetOperatorType(Operator::Type tid)
    {
-      p_mat.SetTypeID(tid); p_mat_e.SetTypeID(tid);
-      if (hybridization) { hybridization->SetOperatorTypeID(tid); }
-      if (static_cond) { static_cond->SetOperatorTypeID(tid); }
+      p_mat.SetType(tid); p_mat_e.SetType(tid);
+      if (hybridization) { hybridization->SetOperatorType(tid); }
+      if (static_cond) { static_cond->SetOperatorType(tid); }
    }
 
    /// Assemble the local matrix
@@ -173,7 +173,7 @@ public:
    /** Version of the method FormLinearSystem() where the system matrix is
        returned in the variable @a A, of type OpType, holding a *reference* to
        the system matrix (created with the method OpType::MakeRef()). The
-       reference will be invalidated when SetOperatorTypeID(), Update(), or the
+       reference will be invalidated when SetOperatorType(), Update(), or the
        destructor is called. */
    template <typename OpType>
    void FormLinearSystem(const Array<int> &ess_tdof_list, Vector &x, Vector &b,
@@ -193,7 +193,7 @@ public:
    /** Version of the method FormSystemMatrix() where the system matrix is
        returned in the variable @a A, of type OpType, holding a *reference* to
        the system matrix (created with the method OpType::MakeRef()). The
-       reference will be invalidated when SetOperatorTypeID(), Update(), or the
+       reference will be invalidated when SetOperatorType(), Update(), or the
        destructor is called. */
    template <typename OpType>
    void FormSystemMatrix(const Array<int> &ess_tdof_list, OpType &A)

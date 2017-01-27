@@ -210,8 +210,8 @@ int main(int argc, char *argv[])
 
       if (use_petsc)
       {
-         a.SetOperatorTypeID(use_nonoverlapping ?
-                             Operator::PETSC_MATIS : Operator::PETSC_MATAIJ);
+         a.SetOperatorType(use_nonoverlapping ?
+                           Operator::PETSC_MATIS : Operator::PETSC_MATAIJ);
          PetscParMatrix pA;
          Vector pX,pB;
          MPI_Barrier(MPI_COMM_WORLD);
@@ -224,7 +224,7 @@ int main(int argc, char *argv[])
 
       a.Assemble();
       b.Assemble();
-      a.SetOperatorTypeID(Operator::HYPRE_PARCSR);
+      a.SetOperatorType(Operator::HYPRE_PARCSR);
       HypreParMatrix A;
       Vector B, X;
       MPI_Barrier(MPI_COMM_WORLD);

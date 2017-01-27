@@ -463,7 +463,7 @@ public:
    /// Calls hypre's destroy function
    virtual ~HypreParMatrix() { Destroy(); }
 
-   TypeID GetTypeID() const { return HYPRE_PARCSR; }
+   Type GetType() const { return HYPRE_PARCSR; }
 };
 
 /** @brief Return a new matrix `C = alpha*A + beta*B`, assuming that both `A`

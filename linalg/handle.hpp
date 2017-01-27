@@ -27,17 +27,17 @@ class OperatorHandle
 protected:
    static const char not_supported_msg[];
 
-   Operator        *oper;
-   Operator::TypeID type_id;
-   bool             own_oper;
+   Operator      *oper;
+   Operator::Type type_id;
+   bool           own_oper;
 
-   Operator::TypeID CheckID(Operator::TypeID tid);
+   Operator::Type CheckType(Operator::Type tid);
 
    template <typename OpType>
    void pSet(OpType *A, bool own_A = true)
    {
       oper = A;
-      type_id = A->GetTypeID();
+      type_id = A->GetType();
       own_oper = own_A;
    }
 
@@ -49,8 +49,8 @@ public:
 
    /** @brief Create a OperatorHandle with a specified type id, @a tid, without
        allocating the actual matrix. */
-   OperatorHandle(Operator::TypeID tid)
-      : oper(NULL), type_id(CheckID(tid)), own_oper(false) { }
+   OperatorHandle(Operator::Type tid)
+      : oper(NULL), type_id(CheckType(tid)), own_oper(false) { }
 
    /// Create an OperatorHandle for the given OpType pointer, @a A.
    /** Presently, OpType can be SparseMatrix, HypreParMatrix, or PetscParMatrix.
@@ -74,7 +74,7 @@ public:
    Operator *Ptr() const { return oper; }
 
    /// Get the currently set operator type id.
-   Operator::TypeID TypeID() const { return type_id; }
+   Operator::Type Type() const { return type_id; }
 
    /** @brief Return the Operator pointer statically cast to a specified OpType.
        Similar to the method Get(). */
@@ -107,10 +107,10 @@ public:
    }
 
    /// Invoke Clear() and set a new type id.
-   void SetTypeID(Operator::TypeID tid)
+   void SetType(Operator::Type tid)
    {
       Clear();
-      type_id = CheckID(tid);
+      type_id = CheckType(tid);
    }
 
    /// Reset the OperatorHandle to the given OpType pointer, @a A.

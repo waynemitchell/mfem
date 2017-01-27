@@ -35,8 +35,8 @@ StaticCondensation::StaticCondensation(FiniteElementSpace *fespace)
                                           ordering);
       tr_fes = tr_pfes;
    }
-   pS.SetTypeID(Operator::HYPRE_PARCSR);
-   pS_e.SetTypeID(Operator::HYPRE_PARCSR);
+   pS.SetType(Operator::HYPRE_PARCSR);
+   pS_e.SetType(Operator::HYPRE_PARCSR);
 #endif
    S = S_e = NULL;
    symm = false;
@@ -262,7 +262,7 @@ void StaticCondensation::Finalize()
       if (!S) { return; } // already finalized
       S->Finalize(skip_zeros);
       if (S_e) { S_e->Finalize(skip_zeros); }
-      OperatorHandle dS(pS.TypeID()), pP(pS.TypeID());
+      OperatorHandle dS(pS.Type()), pP(pS.Type());
       dS.MakeSquareBlockDiag(tr_pfes->GetComm(), tr_pfes->GlobalVSize(),
                              tr_pfes->GetDofOffsets(), S);
       // TODO - construct Dof_TrueDof_Matrix directly in the pS format
@@ -273,7 +273,7 @@ void StaticCondensation::Finalize()
       S = NULL;
       if (S_e)
       {
-         OperatorHandle dS_e(pS_e.TypeID());
+         OperatorHandle dS_e(pS_e.Type());
          dS_e.MakeSquareBlockDiag(tr_pfes->GetComm(), tr_pfes->GlobalVSize(),
                                   tr_pfes->GetDofOffsets(), S_e);
          pS_e.MakePtAP(dS_e, pP);
@@ -427,7 +427,7 @@ void StaticCondensation::ReduceSystem(Vector &x, Vector &b, Vector &X,
    else
    {
 #ifdef MFEM_USE_MPI
-      MFEM_ASSERT(pS.TypeID() == pS_e.TypeID(), "type id mismatch");
+      MFEM_ASSERT(pS.Type() == pS_e.Type(), "type id mismatch");
       pS.EliminateBC(pS_e, ess_rtdof_list, X, B);
 #endif
    }

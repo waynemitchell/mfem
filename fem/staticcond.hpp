@@ -163,16 +163,16 @@ public:
    { return *pS_e.Is<HypreParMatrix>(); }
 
    /** @brief Return the parallel Schur complement matrix in the format
-       specified by SetOperatorTypeID(). */
+       specified by SetOperatorType(). */
    void GetParallelMatrix(OperatorHandle &S_h) const { S_h = pS; }
 
    /** @brief Return the eliminated part of the parallel Schur complement matrix
-       in the format specified by SetOperatorTypeID(). */
+       in the format specified by SetOperatorType(). */
    void GetParallelMatrixElim(OperatorHandle &S_e_h) const { S_e_h = pS_e; }
 
    /// Set the operator type id for the parallel reduced matrix/operator.
-   void SetOperatorTypeID(Operator::TypeID tid)
-   { pS.SetTypeID(tid); pS_e.SetTypeID(tid); }
+   void SetOperatorType(Operator::Type tid)
+   { pS.SetType(tid); pS_e.SetType(tid); }
 #endif
 
    /** Given a RHS vector for the full linear system, compute the RHS for the

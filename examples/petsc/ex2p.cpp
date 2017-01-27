@@ -280,8 +280,8 @@ int main(int argc, char *argv[])
       // 13b. Use PETSc to solve the linear system.
       //      Assemble a PETSc matrix, so that PETSc solvers can be used natively.
       PetscParMatrix A;
-      a->SetOperatorTypeID(use_nonoverlapping ?
-                           Operator::PETSC_MATIS : Operator::PETSC_MATAIJ);
+      a->SetOperatorType(use_nonoverlapping ?
+                         Operator::PETSC_MATIS : Operator::PETSC_MATAIJ);
       a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
       if (myid == 0)
       {

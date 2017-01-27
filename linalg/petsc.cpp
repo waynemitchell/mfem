@@ -368,7 +368,7 @@ PetscParMatrix::PetscParMatrix()
    Init();
 }
 
-PetscParMatrix::PetscParMatrix(const HypreParMatrix *ha, Operator::TypeID tid)
+PetscParMatrix::PetscParMatrix(const HypreParMatrix *ha, Operator::Type tid)
 {
    Init();
    height = ha->Height();
@@ -388,7 +388,7 @@ PetscParMatrix::PetscParMatrix(const HypreParMatrix *ha, Operator::TypeID tid)
 }
 
 PetscParMatrix::PetscParMatrix(MPI_Comm comm, const Operator *op,
-                               Operator::TypeID tid)
+                               Operator::Type tid)
 {
    Init();
    PetscParMatrix *pA = const_cast<PetscParMatrix *>
@@ -401,7 +401,7 @@ PetscParMatrix::PetscParMatrix(MPI_Comm comm, const Operator *op,
 
 PetscParMatrix::PetscParMatrix(MPI_Comm comm, PetscInt glob_size,
                                PetscInt *row_starts, SparseMatrix *diag,
-                               Operator::TypeID tid)
+                               Operator::Type tid)
 {
    Init();
    BlockDiagonalConstructor(comm,row_starts,row_starts,diag,
@@ -414,7 +414,7 @@ PetscParMatrix::PetscParMatrix(MPI_Comm comm, PetscInt glob_size,
 PetscParMatrix::PetscParMatrix(MPI_Comm comm, PetscInt global_num_rows,
                                PetscInt global_num_cols, PetscInt *row_starts,
                                PetscInt *col_starts, SparseMatrix *diag,
-                               Operator::TypeID tid)
+                               Operator::Type tid)
 {
    Init();
    BlockDiagonalConstructor(comm,row_starts,col_starts,diag,
@@ -1146,7 +1146,7 @@ Mat PetscParMatrix::ReleaseMat(bool dereference)
    return B;
 }
 
-Operator::TypeID PetscParMatrix::GetTypeID() const
+Operator::Type PetscParMatrix::GetType() const
 {
    PetscBool ok;
    MFEM_VERIFY(A, "no associated PETSc Mat object");

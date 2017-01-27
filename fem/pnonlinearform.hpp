@@ -55,7 +55,7 @@ public:
    virtual Operator &GetGradient(const Vector &x) const;
 
    /// Set the operator type id for the parallel gradient matrix/operator.
-   void SetGradientTypeID(Operator::TypeID tid) { pGrad.SetTypeID(tid); }
+   void SetGradientType(Operator::Type tid) { pGrad.SetType(tid); }
 
    virtual ~ParNonlinearForm() { }
 };

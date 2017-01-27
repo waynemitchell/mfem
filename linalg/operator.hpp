@@ -120,7 +120,7 @@ public:
    virtual ~Operator() { }
 
    /// Enumeration defining IDs for some classes derived from Operator.
-   enum TypeID
+   enum Type
    {
       MFEM_SPARSEMAT,
       HYPRE_PARCSR,

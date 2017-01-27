@@ -69,7 +69,7 @@ namespace mfem {
  * - <a class="el" href="ex17p_8cpp_source.html">Example 17p</a>: parallel Discontinuous Galerkin (DG) for linear elasticity
  *
  * <H4>SUNDIALS Examples</H4>
- * - Versions of Examples
+ * - Variants of Examples
  *   <a class="el" href="sundials_2ex9_8cpp_source.html">9</a>,
  *   <a class="el" href="sundials_2ex9p_8cpp_source.html">9p</a>,
  *   <a class="el" href="sundials_2ex10_8cpp_source.html">10</a>,
@@ -78,7 +78,7 @@ namespace mfem {
  *   demonstrating the use of MFEM's \link sundials.hpp SUNDIALS classes\endlink
  *
  * <H4>PETSc Examples</H4>
- * - Versions of Examples
+ * - Variants of Examples
  *   <a class="el" href="examples_2petsc_2ex1p_8cpp_source.html">1p</a>,
  *   <a class="el" href="petsc_2ex2p_8cpp_source.html">2p</a>,
  *   <a class="el" href="petsc_2ex3p_8cpp_source.html">3p</a>,

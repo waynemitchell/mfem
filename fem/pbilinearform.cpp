@@ -128,7 +128,7 @@ void ParBilinearForm::ParallelAssemble(OperatorHandle &A, SparseMatrix *A_local)
    if (A_local == NULL) { return; }
    MFEM_VERIFY(A_local->Finalized(), "the local matrix must be finalized");
 
-   OperatorHandle dA(A.TypeID()), Ph(A.TypeID()), hdA;
+   OperatorHandle dA(A.Type()), Ph(A.Type()), hdA;
 
    if (fbfi.Size() == 0)
    {
@@ -428,7 +428,7 @@ HypreParMatrix *ParMixedBilinearForm::ParallelAssemble()
 void ParMixedBilinearForm::ParallelAssemble(OperatorHandle &A)
 {
    // construct the rectangular block-diagonal matrix dA
-   OperatorHandle dA(A.TypeID());
+   OperatorHandle dA(A.Type());
    dA.MakeRectangularBlockDiag(trial_pfes->GetComm(),
                                test_pfes->GlobalVSize(),
                                trial_pfes->GlobalVSize(),
@@ -436,7 +436,7 @@ void ParMixedBilinearForm::ParallelAssemble(OperatorHandle &A)
                                trial_pfes->GetDofOffsets(),
                                mat);
 
-   OperatorHandle P_test(A.TypeID()), P_trial(A.TypeID());
+   OperatorHandle P_test(A.Type()), P_trial(A.Type());
 
    // TODO - construct the Dof_TrueDof_Matrix directly in the required format.
    P_test.ConvertFrom(test_pfes->Dof_TrueDof_Matrix());

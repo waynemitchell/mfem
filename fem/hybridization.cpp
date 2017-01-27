@@ -34,7 +34,7 @@ Hybridization::Hybridization(FiniteElementSpace *fespace,
 {
 #ifdef MFEM_USE_MPI
    pC = P_pc = NULL;
-   pH.SetTypeID(Operator::HYPRE_PARCSR);
+   pH.SetType(Operator::HYPRE_PARCSR);
 #endif
 }
 
@@ -664,7 +664,7 @@ void Hybridization::ComputeH()
       H->Finalize(skip_zeros, fix_empty_rows);
       if (!c_pfes) { return; }
 
-      OperatorHandle pP(pH.TypeID()), dH(pH.TypeID());
+      OperatorHandle pP(pH.Type()), dH(pH.Type());
       // TODO - construct P_pc / Dof_TrueDof_Matrix directly in the pH format
       pP.ConvertFrom(P_pc ? P_pc : c_pfes->Dof_TrueDof_Matrix());
       dH.MakeSquareBlockDiag(c_pfes->GetComm(),c_pfes->GlobalVSize(),
@@ -702,11 +702,11 @@ void Hybridization::ComputeH()
          delete V;
          lpH = ParMult(pC, &pV);
       }
-      OperatorHandle pP(pH.TypeID()), plpH(pH.TypeID());
+      OperatorHandle pP(pH.Type()), plpH(pH.Type());
       // TODO - construct P_pc directly in the pH format
       pP.ConvertFrom(P_pc);
       plpH.ConvertFrom(lpH);
-      MFEM_VERIFY(pH.TypeID() != Operator::PETSC_MATIS, "To be implemented");
+      MFEM_VERIFY(pH.Type() != Operator::PETSC_MATIS, "To be implemented");
       pH.MakePtAP(plpH, pP);
       delete lpH;
    }

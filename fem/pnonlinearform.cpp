@@ -87,7 +87,7 @@ Operator &ParNonlinearForm::GetGradient(const Vector &x) const
 
    NonlinearForm::GetGradient(X); // (re)assemble Grad with b.c.
 
-   OperatorHandle dA(pGrad.TypeID()), Ph(pGrad.TypeID());
+   OperatorHandle dA(pGrad.Type()), Ph(pGrad.Type());
    dA.MakeSquareBlockDiag(pfes->GetComm(), pfes->GlobalVSize(),
                           pfes->GetDofOffsets(), Grad);
    // TODO - construct Dof_TrueDof_Matrix directly in the pGrad format

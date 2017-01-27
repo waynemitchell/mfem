@@ -405,7 +405,7 @@ public:
    /// Destroys sparse matrix.
    virtual ~SparseMatrix() { Destroy(); }
 
-   TypeID GetTypeID() const { return MFEM_SPARSEMAT; }
+   Type GetType() const { return MFEM_SPARSEMAT; }
 };
 
 /// Applies f() to each element of the matrix (after it is finalized).

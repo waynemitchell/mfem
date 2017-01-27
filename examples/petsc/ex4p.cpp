@@ -243,8 +243,8 @@ int main(int argc, char *argv[])
    {
       PetscParMatrix A;
       PetscPreconditioner *prec = NULL;
-      a->SetOperatorTypeID(use_nonoverlapping ?
-                           Operator::PETSC_MATIS : Operator::PETSC_MATAIJ);
+      a->SetOperatorType(use_nonoverlapping ?
+                         Operator::PETSC_MATIS : Operator::PETSC_MATAIJ);
       a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
 
       if (myid == 0)
