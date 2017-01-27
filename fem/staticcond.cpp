@@ -35,15 +35,13 @@ StaticCondensation::StaticCondensation(FiniteElementSpace *fespace)
                                           ordering);
       tr_fes = tr_pfes;
    }
-   pS = pS_e = NULL;
-   ppS = ppS_e = NULL;
+   pS.SetTypeID(Operator::HYPRE_PARCSR);
+   pS_e.SetTypeID(Operator::HYPRE_PARCSR);
 #endif
    S = S_e = NULL;
    symm = false;
    A_data = NULL;
    A_ipiv = NULL;
-   usepetsc = false;
-   unassembled = false;
 
    Array<int> vdofs;
    const int NE = fes->GetNE();
@@ -107,10 +105,7 @@ StaticCondensation::StaticCondensation(FiniteElementSpace *fespace)
 StaticCondensation::~StaticCondensation()
 {
 #ifdef MFEM_USE_MPI
-   delete pS_e;
-   delete pS;
-   delete ppS;
-   delete ppS_e;
+   // pS, pS_e are automatically destroyed
 #endif
    delete S_e;
    delete S;
@@ -267,56 +262,25 @@ void StaticCondensation::Finalize()
       if (!S) { return; } // already finalized
       S->Finalize(skip_zeros);
       if (S_e) { S_e->Finalize(skip_zeros); }
-#ifdef MFEM_USE_PETSC
-      PetscParMatrix *ptemp = NULL;
-#endif
-      if (!usepetsc)
-      {
-         HypreParMatrix *dS =
-            new HypreParMatrix(tr_pfes->GetComm(), tr_pfes->GlobalVSize(),
-                               tr_pfes->GetDofOffsets(), S);
-         pS = RAP(dS, tr_pfes->Dof_TrueDof_Matrix());
-         delete dS;
-      }
-#ifdef MFEM_USE_PETSC
-      else
-      {
-         PetscParMatrix *dS =
-            new PetscParMatrix(tr_pfes->GetComm(), tr_pfes->GlobalVSize(),
-                               tr_pfes->GetDofOffsets(), S, !unassembled);
-         ptemp = new PetscParMatrix(tr_pfes->Dof_TrueDof_Matrix(),false,!unassembled);
-         ppS = RAP(dS, ptemp);
-         delete dS;
-      }
-#endif
+      OperatorHandle dS(pS.TypeID()), pP(pS.TypeID());
+      dS.MakeSquareBlockDiag(tr_pfes->GetComm(), tr_pfes->GlobalVSize(),
+                             tr_pfes->GetDofOffsets(), S);
+      // TODO - construct Dof_TrueDof_Matrix directly in the pS format
+      pP.ConvertFrom(tr_pfes->Dof_TrueDof_Matrix());
+      pS.MakePtAP(dS, pP);
+      dS.Clear();
       delete S;
       S = NULL;
       if (S_e)
       {
-         if (!usepetsc)
-         {
-            HypreParMatrix *dS_e =
-               new HypreParMatrix(tr_pfes->GetComm(), tr_pfes->GlobalVSize(),
+         OperatorHandle dS_e(pS_e.TypeID());
+         dS_e.MakeSquareBlockDiag(tr_pfes->GetComm(), tr_pfes->GlobalVSize(),
                                   tr_pfes->GetDofOffsets(), S_e);
-            pS_e = RAP(dS_e, tr_pfes->Dof_TrueDof_Matrix());
-            delete dS_e;
-         }
-#ifdef MFEM_USE_PETSC
-         else
-         {
-            PetscParMatrix *dS_e =
-               new PetscParMatrix(tr_pfes->GetComm(), tr_pfes->GlobalVSize(),
-                                  tr_pfes->GetDofOffsets(), S_e, !unassembled);
-            ppS_e = RAP(dS_e, ptemp);
-            delete dS_e;
-         }
-#endif
+         pS_e.MakePtAP(dS_e, pP);
+         dS_e.Clear();
          delete S_e;
          S_e = NULL;
       }
-#ifdef MFEM_USE_PETSC
-      if (ptemp) { delete ptemp; }
-#endif
 #endif
    }
 }
@@ -338,18 +302,8 @@ void StaticCondensation::EliminateReducedTrueDofs(
    else // parallel and finalized
    {
 #ifdef MFEM_USE_MPI
-      if (!usepetsc)
-      {
-         MFEM_ASSERT(pS_e == NULL, "essential b.c. already eliminated");
-         pS_e = pS->EliminateRowsCols(ess_rtdof_list);
-      }
-#ifdef MFEM_USE_PETSC
-      else
-      {
-         MFEM_ASSERT(ppS_e == NULL, "essential b.c. already eliminated");
-         ppS_e = ppS->EliminateRowsCols(ess_rtdof_list);
-      }
-#endif
+      MFEM_ASSERT(pS_e.Ptr() == NULL, "essential b.c. already eliminated");
+      pS_e.EliminateRowsCols(pS, ess_rtdof_list);
 #endif
    }
 }
@@ -473,9 +427,8 @@ void StaticCondensation::ReduceSystem(Vector &x, Vector &b, Vector &X,
    else
    {
 #ifdef MFEM_USE_MPI
-      // If ppS is present, we are using PETSc
-      if (ppS) { EliminateBC(*ppS, *ppS_e, ess_rtdof_list, X, B); }
-      else { EliminateBC(*pS, *pS_e, ess_rtdof_list, X, B); }
+      MFEM_ASSERT(pS.TypeID() == pS_e.TypeID(), "type id mismatch");
+      pS.EliminateBC(pS_e, ess_rtdof_list, X, B);
 #endif
    }
    if (!copy_interior)

@@ -551,7 +551,7 @@ Operator& FE_Evolution::GetExplicitGradient(const Vector &x) const
    delete rJacobian;
    if (isImplicit())
    {
-      rJacobian = new PetscParMatrix(&K, false);
+      rJacobian = new PetscParMatrix(&K, Operator::PETSC_MATAIJ);
    }
    else
    {
@@ -567,7 +567,7 @@ Operator& FE_Evolution::GetImplicitGradient(const Vector &x, const Vector &xp,
    delete iJacobian;
    if (isImplicit())
    {
-      iJacobian = new PetscParMatrix(&M, false);
+      iJacobian = new PetscParMatrix(&M, Operator::PETSC_MATAIJ);
       *iJacobian *= shift;
    }
    else

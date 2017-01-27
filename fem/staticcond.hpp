@@ -74,12 +74,7 @@ class StaticCondensation
    SparseMatrix *S, *S_e;
 #ifdef MFEM_USE_MPI
    ParFiniteElementSpace *pfes, *tr_pfes;
-   HypreParMatrix *pS, *pS_e;
-#ifdef MFEM_USE_PETSC
-   PetscParMatrix *ppS, *ppS_e;
-#else
-   HypreParMatrix *ppS, *ppS_e;
-#endif
+   OperatorHandle pS, pS_e;
    bool Parallel() const { return (tr_pfes != NULL); }
 #else
    bool Parallel() const { return false; }
@@ -89,8 +84,6 @@ class StaticCondensation
    Array<int> A_offsets, A_ipiv_offsets;
    double *A_data;
    int *A_ipiv;
-   bool usepetsc;
-   bool unassembled;
 
    Array<int> ess_rtdof_list;
 
@@ -140,19 +133,18 @@ public:
                                  int keep_diagonal);
 
    /// @brief Eliminate the internal reduced true dofs (set using
-   /// SetEssentialTrueDofs) from the Schur complement matrix S.
+   /// SetEssentialTrueDofs()) from the Schur complement matrix S.
    void EliminateReducedTrueDofs(int keep_diagonal)
    { EliminateReducedTrueDofs(ess_rtdof_list, keep_diagonal); }
 
-   /** Return true if essential boundary conditions have been eliminated from
-       the Schur complement matrix. */
+   /** @brief Return true if essential boundary conditions have been eliminated
+       from the Schur complement matrix. */
    bool HasEliminatedBC() const
-
    {
 #ifndef MFEM_USE_MPI
       return S_e;
 #else
-      return S_e || pS_e || ppS_e;
+      return S_e || pS_e.Ptr();
 #endif
    }
 
@@ -164,18 +156,23 @@ public:
 
 #ifdef MFEM_USE_MPI
    /// Return the parallel Schur complement matrix.
-   HypreParMatrix &GetParallelMatrix() { return *pS; }
+   HypreParMatrix &GetParallelMatrix() { return *pS.Is<HypreParMatrix>(); }
 
    /// Return the eliminated part of the parallel Schur complement matrix.
-   HypreParMatrix &GetParallelMatrixElim() { return *pS_e; }
-#ifdef MFEM_USE_PETSC
-   /// Return the parallel Schur complement matrix (PetscParMatrix).
-   PetscParMatrix &GetPetscParallelMatrix() { return *ppS; }
+   HypreParMatrix &GetParallelMatrixElim()
+   { return *pS_e.Is<HypreParMatrix>(); }
 
-   /** Return the eliminated part of the parallel Schur complement matrix
-       (PetscParMatrix). */
-   PetscParMatrix &GetPetscParallelMatrixElim() { return *ppS_e; }
-#endif
+   /** @brief Return the parallel Schur complement matrix in the format
+       specified by SetOperatorTypeID(). */
+   void GetParallelMatrix(OperatorHandle &S_h) const { S_h = pS; }
+
+   /** @brief Return the eliminated part of the parallel Schur complement matrix
+       in the format specified by SetOperatorTypeID(). */
+   void GetParallelMatrixElim(OperatorHandle &S_e_h) const { S_e_h = pS_e; }
+
+   /// Set the operator type id for the parallel reduced matrix/operator.
+   void SetOperatorTypeID(Operator::TypeID tid)
+   { pS.SetTypeID(tid); pS_e.SetTypeID(tid); }
 #endif
 
    /** Given a RHS vector for the full linear system, compute the RHS for the
@@ -190,7 +187,7 @@ public:
        linear system solution `x` and r.h.s. `b` vectors.
 
        This method should be called after the internal reduced essential dofs
-       have been set using SetEssentialTrueDofs and both the Schur complement
+       have been set using SetEssentialTrueDofs() and both the Schur complement
        and its eliminated part have been finalized. */
    void ReduceSystem(Vector &x, Vector &b, Vector &X, Vector &B,
                      int copy_interior = 0) const;
@@ -216,39 +213,6 @@ public:
        full linear system, compute the solution of the full system 'sol'. */
    void ComputeSolution(const Vector &b, const Vector &sc_sol,
                         Vector &sol) const;
-
-#ifdef MFEM_USE_MPI
-   /** Turn on or off the usage of PETSc */
-   void SetUsePetsc(bool use = true)
-   {
-#ifndef MFEM_USE_PETSC
-      if (use) { MFEM_ABORT("You did not configure MFEM with PETSc support"); }
-      usepetsc = false;
-#else
-      usepetsc = use;
-#endif
-      if (!usepetsc)
-      {
-         delete ppS;
-         delete ppS_e;
-         ppS = ppS_e = NULL;
-      }
-   }
-
-   /** Assemble the matrix in "unassembled format" for non-overlapping DD. Only
-       significant with PETSc backend. */
-   void SetUseNonoverlappingFormat(bool use = true)
-   {
-#ifndef MFEM_USE_PETSC
-      if (use) { MFEM_ABORT("You did not configure MFEM with PETSc support"); }
-      unassembled = false;
-#else
-      unassembled = use;
-#endif
-      if (unassembled) { SetUsePetsc(true); }
-   }
-#endif
-
 };
 
 }

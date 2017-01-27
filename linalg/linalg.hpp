@@ -25,6 +25,7 @@
 #include "densemat.hpp"
 #include "ode.hpp"
 #include "solvers.hpp"
+#include "handle.hpp"
 
 #ifdef MFEM_USE_SUNDIALS
 #include "sundials.hpp"

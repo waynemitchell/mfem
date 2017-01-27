@@ -209,18 +209,22 @@ int main(int argc, char *argv[])
 
    PetscParMatrix *pM = NULL, *pB = NULL, *pBT = NULL;
    HypreParMatrix *M = NULL, *B = NULL, *BT = NULL;
+   Operator::TypeID tid =
+      !use_petsc ? Operator::HYPRE_PARCSR :
+      (use_nonoverlapping ? Operator::PETSC_MATIS : Operator::PETSC_MATAIJ);
+   OperatorHandle Mh(tid), Bh(tid);
 
    mVarf->AddDomainIntegrator(new VectorFEMassIntegrator(k));
    mVarf->Assemble();
    mVarf->Finalize();
-   mVarf->SetUseNonoverlappingFormat(use_nonoverlapping);
-   if (!use_petsc) { M = mVarf->ParallelAssemble(); }
-   else { pM = mVarf->PetscParallelAssemble(); }
+   mVarf->ParallelAssemble(Mh);
+   if (!use_petsc) { Mh.Get(M); }
+   else { Mh.Get(pM); }
+   Mh.SetOperatorOwner(false);
 
    bVarf->AddDomainIntegrator(new VectorFEDivergenceIntegrator);
    bVarf->Assemble();
    bVarf->Finalize();
-   bVarf->SetUseNonoverlappingFormat(use_nonoverlapping);
    if (!use_petsc)
    {
       B = bVarf->ParallelAssemble();
@@ -228,7 +232,9 @@ int main(int argc, char *argv[])
    }
    else
    {
-      pB = bVarf->PetscParallelAssemble();
+      bVarf->ParallelAssemble(Bh);
+      Bh.Get(pB);
+      Bh.SetOperatorOwner(false);
       (*pB) *= -1;
    }
 
@@ -253,7 +259,9 @@ int main(int argc, char *argv[])
       tdarcyOp->SetBlock(0,0,pM);
       tdarcyOp->SetBlock(0,1,pBT);
       tdarcyOp->SetBlock(1,0,pB);
-      darcyOp = new PetscParMatrix(pM->GetComm(),tdarcyOp,false,!use_nonoverlapping);
+      darcyOp = new PetscParMatrix(pM->GetComm(),tdarcyOp,
+                                   use_nonoverlapping ? Operator::PETSC_MATIS :
+                                   Operator::PETSC_MATAIJ);
       delete tdarcyOp;
    }
 
@@ -356,11 +364,18 @@ int main(int argc, char *argv[])
       if (verbose)
       {
          if (solver.GetConverged())
+         {
             std::cout << "MINRES converged in " << solver.GetNumIterations()
-                      << " iterations with a residual norm of " << solver.GetFinalNorm() << ".\n";
+                      << " iterations with a residual norm of "
+                      << solver.GetFinalNorm() << ".\n";
+         }
          else
-            std::cout << "MINRES did not converge in " << solver.GetNumIterations()
-                      << " iterations. Residual norm is " << solver.GetFinalNorm() << ".\n";
+         {
+            std::cout << "MINRES did not converge in "
+                      << solver.GetNumIterations()
+                      << " iterations. Residual norm is "
+                      << solver.GetFinalNorm() << ".\n";
+         }
          std::cout << "MINRES solver took " << chrono.RealTime() << "s. \n";
       }
 
@@ -390,12 +405,21 @@ int main(int argc, char *argv[])
       if (verbose)
       {
          if (solver->GetConverged())
-            std::cout << solvertype << " converged in " << solver->GetNumIterations()
-                      << " iterations with a residual norm of " << solver->GetFinalNorm() << ".\n";
+         {
+            std::cout << solvertype << " converged in "
+                      << solver->GetNumIterations()
+                      << " iterations with a residual norm of "
+                      << solver->GetFinalNorm() << ".\n";
+         }
          else
-            std::cout << solvertype << " did not converge in " << solver->GetNumIterations()
-                      << " iterations. Residual norm is " << solver->GetFinalNorm() << ".\n";
-         std::cout << solvertype << " solver took " << chrono.RealTime() << "s. \n";
+         {
+            std::cout << solvertype << " did not converge in "
+                      << solver->GetNumIterations()
+                      << " iterations. Residual norm is "
+                      << solver->GetFinalNorm() << ".\n";
+         }
+         std::cout << solvertype << " solver took "
+                   << chrono.RealTime() << "s. \n";
       }
       delete solver;
    }

@@ -536,6 +536,7 @@ void SparseMatrix::AddMult(const Vector &x, Vector &y, const double a) const
 #endif
    }
    else
+   {
       for (i = j = 0; i < height; i++)
       {
          double d = 0.0;
@@ -545,6 +546,7 @@ void SparseMatrix::AddMult(const Vector &x, Vector &y, const double a) const
          }
          yp[i] += a * d;
       }
+   }
 }
 
 void SparseMatrix::MultTranspose(const Vector &x, Vector &y) const

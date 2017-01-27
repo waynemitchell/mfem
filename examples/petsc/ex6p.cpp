@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
                   "Enable or disable GLVis visualization.");
    args.AddOption(&max_dofs, "-md", "--max_dofs",
                   "Maximum number of dofs.");
-   args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "no-petsc",
+   args.AddOption(&use_petsc, "-usepetsc", "--usepetsc", "-no-petsc",
                   "--no-petsc",
                   "Use or not PETSc to solve the linear system.");
    args.AddOption(&petscrc_file, "-petscopts", "--petscopts",
@@ -205,22 +205,13 @@ int main(int argc, char *argv[])
       //     The system will be solved for true (unconstrained/unique) DOFs only.
       Array<int> ess_tdof_list;
       fespace.GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-
-      HypreParMatrix A;
-      Vector B, X;
+      double time;
       const int copy_interior = 1;
-      MPI_Barrier(MPI_COMM_WORLD);
-      double time = -MPI_Wtime();
-      a.FormLinearSystem(ess_tdof_list, x, b, A, X, B, copy_interior);
-      MPI_Barrier(MPI_COMM_WORLD);
-      time += MPI_Wtime();
-      if (myid == 0) { cout << "HYPRE assembly timing : " << time << endl; }
 
       if (use_petsc)
       {
-         if (use_nonoverlapping) { a.SetUseNonoverlappingFormat(); }
-         a.Assemble();
-         b.Assemble();
+         a.SetOperatorTypeID(use_nonoverlapping ?
+                             Operator::PETSC_MATIS : Operator::PETSC_MATAIJ);
          PetscParMatrix pA;
          Vector pX,pB;
          MPI_Barrier(MPI_COMM_WORLD);
@@ -230,6 +221,18 @@ int main(int argc, char *argv[])
          time += MPI_Wtime();
          if (myid == 0) { cout << "PETSc assembly timing : " << time << endl; }
       }
+
+      a.Assemble();
+      b.Assemble();
+      a.SetOperatorTypeID(Operator::HYPRE_PARCSR);
+      HypreParMatrix A;
+      Vector B, X;
+      MPI_Barrier(MPI_COMM_WORLD);
+      time = -MPI_Wtime();
+      a.FormLinearSystem(ess_tdof_list, x, b, A, X, B, copy_interior);
+      MPI_Barrier(MPI_COMM_WORLD);
+      time += MPI_Wtime();
+      if (myid == 0) { cout << "HYPRE assembly timing : " << time << endl; }
 
       // 15. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
       //     preconditioner from hypre.

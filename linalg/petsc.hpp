@@ -62,13 +62,15 @@ public:
    PetscParVector(const PetscParVector &y);
 
    /** @brief Creates vector compatible with the Operator (i.e. in the domain
-       of) @a op or its adjoint.
-       allocate determines if the memory is actually allocated to store the data. */
+       of) @a op or its adjoint. */
+   /** The argument @a allocate determines if the memory is actually allocated
+       to store the data. */
    explicit PetscParVector(MPI_Comm comm, const Operator &op,
                            bool transpose = false, bool allocate = true);
 
    /// Creates vector compatible with (i.e. in the domain of) @a A or @a A^T
-   /** @brief allocate determines if the memory is actually allocated to store the data. */
+   /** The argument @a allocate determines if the memory is actually allocated
+       to store the data. */
    explicit PetscParVector(const PetscParMatrix &A, bool transpose = false,
                            bool allocate = true);
 
@@ -167,43 +169,42 @@ public:
        @param[in]  ref  If true, we increase the reference count of @a a. */
    PetscParMatrix(Mat a, bool ref=false);
 
-   /// Converts HypreParMatrix to PetscParMatrix
-   /** If @a wrap is false, a PETSc's MATAIJ (resp. MATIS) object is created if
-       @a assembled is true (resp. false).
+   /** @brief Convert a HypreParMatrix @a ha to a PetscParMatrix in the given
+       PETSc format @a tid. */
+   /** The supported type ids are: Operator::PETSC_MATAIJ,
+       Operator::PETSC_MATIS, and Operator::PETSC_MATSHELL. */
+   PetscParMatrix(const HypreParMatrix *ha, Operator::TypeID tid);
 
-       If @a wrap is true, the matvec operations of the HypreParMatrix are
-       wrapped through PETSc's MATSHELL object. In this case, the HypreParMatrix
-       should not be destroyed before the PetscParMatrix; @a assembled is not
-       referenced. */
-   PetscParMatrix(const HypreParMatrix* a, bool wrap=false, bool assembled=true);
+   /** @brief Convert an mfem::Operator into a PetscParMatrix in the given PETSc
+       format @a tid. */
+   /** If @a tid is Operator::PETSC_MATSHELL and @a op is not a PetscParMatrix,
+       it converts any mfem::Operator @a op implementing Operator::Mult() and
+       Operator::MultTranspose() into a PetscParMatrix. The Operator @a op
+       should not be deleted while the constructed PetscParMatrix is used.
 
-   /// Convert an mfem::Operator into a PetscParMatrix.
-   /** If @a wrap is true, it converts any mfem::Operator @a op implementing
-       Operator::Mult() and Operator::MultTranspose() into a PetscParMatrix. The
-       Operator destructor should not be called before the one of the
-       PetscParMatrix.
+       Otherwise, it tries to convert the operator in PETSc's classes.
 
-       If @a wrap is false, it tries to convert the operator in PETSc's classes.
-    */
-   PetscParMatrix(MPI_Comm comm, const Operator* op, bool wrap = true,
-                  bool assembled=true);
+       In particular, if @a op is a BlockOperator, then a MATNEST Mat object is
+       created using @a tid as the type for the blocks. */
+   PetscParMatrix(MPI_Comm comm, const Operator *op, Operator::TypeID tid);
 
    /// Creates block-diagonal square parallel matrix.
    /** The block-diagonal is given by @a diag which must be in CSR format
        (finalized). The new PetscParMatrix does not take ownership of any of the
-       input arrays. If @a assembled is false, a MATIS object is constructed.
-       Otherwise, a MATAIJ (parallel distributed CSR) is used. */
+       input arrays. The type id @a tid can be either PETSC_MATAIJ (parallel
+       distributed CSR) or PETSC_MATIS. */
    PetscParMatrix(MPI_Comm comm, PetscInt glob_size, PetscInt *row_starts,
-                  SparseMatrix *diag, bool assembled = true);
+                  SparseMatrix *diag, Operator::TypeID tid);
 
    /// Creates block-diagonal rectangular parallel matrix.
    /** The block-diagonal is given by @a diag which must be in CSR format
        (finalized). The new PetscParMatrix does not take ownership of any of the
-       input arrays. If @a assembled is false, a MATIS object is constructed.
-       Otherwise, a MATAIJ (parallel distributed CSR) is used. */
+       input arrays. The type id @a tid can be either PETSC_MATAIJ (parallel
+       distributed CSR) or PETSC_MATIS. */
    PetscParMatrix(MPI_Comm comm, PetscInt global_num_rows,
                   PetscInt global_num_cols, PetscInt *row_starts,
-                  PetscInt *col_starts, SparseMatrix *diag, bool assembled = true);
+                  PetscInt *col_starts, SparseMatrix *diag,
+                  Operator::TypeID tid);
 
    /// Calls PETSc's destroy function.
    virtual ~PetscParMatrix() { Destroy(); }
@@ -293,6 +294,8 @@ public:
    /** @brief Release the PETSc Mat object. If @a dereference is true, decrement
        the refcount of the Mat object. */
    Mat ReleaseMat(bool dereference);
+
+   TypeID GetTypeID() const;
 };
 
 

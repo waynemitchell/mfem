@@ -27,27 +27,12 @@ class ParNonlinearForm : public NonlinearForm
 {
 protected:
    mutable ParGridFunction X, Y;
-   mutable HypreParMatrix *pGrad;
-#ifdef MFEM_USE_PETSC
-   mutable PetscParMatrix *ppGrad;
-#else // unused: just to not pollute the hpp file with lots of ifdefs
-   mutable HypreParMatrix *ppGrad;
-#endif
-
-   // Assemble Jacobian matrix with PETSc
-   bool use_petsc;
-
-   // Assemble the Jacobian matrix in "unassembled format" for non-overlapping
-   // DD. Only significant with PETSc backend.
-   bool unassembled;
+   mutable OperatorHandle pGrad;
 
 public:
    ParNonlinearForm(ParFiniteElementSpace *pf)
-      : NonlinearForm(pf), X(pf), Y(pf)
-   {
-      height = width = pf->TrueVSize(); pGrad = NULL;
-      ppGrad = NULL; use_petsc = false; unassembled = false;
-   }
+      : NonlinearForm(pf), X(pf), Y(pf), pGrad(Operator::HYPRE_PARCSR)
+   { height = width = pf->TrueVSize(); }
 
    ParFiniteElementSpace *ParFESpace() const
    { return (ParFiniteElementSpace *)fes; }
@@ -69,32 +54,10 @@ public:
 
    virtual Operator &GetGradient(const Vector &x) const;
 
-   /// Assemble the Jacobian matrix with PETSc
-   void SetUsePetsc(bool use = true)
-   {
-#ifndef MFEM_USE_PETSC
-      if (true) { MFEM_ABORT("You did not configure MFEM with PETSc support"); }
-      use_petsc = false;
-#else
-      use_petsc = use;
-#endif
-   }
+   /// Set the operator type id for the parallel gradient matrix/operator.
+   void SetGradientTypeID(Operator::TypeID tid) { pGrad.SetTypeID(tid); }
 
-   bool GetUsePetsc() { return use_petsc; }
-
-   /// Assemble the Jacobian matrix in "unassembled format" for non-overlapping
-   //  DD. Only significant with PETSc backend.
-   void SetUseNonoverlappingFormat(bool use = true)
-   {
-#ifndef MFEM_USE_PETSC
-      if (true) { MFEM_ABORT("You did not configure MFEM with PETSc support"); }
-      unassembled = false;
-#else
-      unassembled = use;
-#endif
-   }
-
-   virtual ~ParNonlinearForm() { delete pGrad; delete ppGrad; }
+   virtual ~ParNonlinearForm() { }
 };
 
 }

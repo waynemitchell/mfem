@@ -121,122 +121,67 @@ void ParBilinearForm::pAllocMat()
    dof_dof.LoseData();
 }
 
+void ParBilinearForm::ParallelAssemble(OperatorHandle &A, SparseMatrix *A_local)
+{
+   A.Clear();
+
+   if (A_local == NULL) { return; }
+   MFEM_VERIFY(A_local->Finalized(), "the local matrix must be finalized");
+
+   OperatorHandle dA(A.TypeID()), Ph(A.TypeID()), hdA;
+
+   if (fbfi.Size() == 0)
+   {
+      // construct a parallel block-diagonal matrix 'A' based on 'a'
+      dA.MakeSquareBlockDiag(pfes->GetComm(), pfes->GlobalVSize(),
+                             pfes->GetDofOffsets(), A_local);
+   }
+   else
+   {
+      // handle the case when 'a' contains offdiagonal
+      int lvsize = pfes->GetVSize();
+      const HYPRE_Int *face_nbr_glob_ldof = pfes->GetFaceNbrGlobalDofMap();
+      HYPRE_Int ldof_offset = pfes->GetMyDofOffset();
+
+      Array<HYPRE_Int> glob_J(A_local->NumNonZeroElems());
+      int *J = A_local->GetJ();
+      for (int i = 0; i < glob_J.Size(); i++)
+      {
+         if (J[i] < lvsize)
+         {
+            glob_J[i] = J[i] + ldof_offset;
+         }
+         else
+         {
+            glob_J[i] = face_nbr_glob_ldof[J[i] - lvsize];
+         }
+      }
+
+      // TODO - construct dA directly in the A format
+      hdA.Reset(
+         new HypreParMatrix(pfes->GetComm(), lvsize, pfes->GlobalVSize(),
+                            pfes->GlobalVSize(), A_local->GetI(), glob_J,
+                            A_local->GetData(), pfes->GetDofOffsets(),
+                            pfes->GetDofOffsets()));
+      // - hdA owns the new HypreParMatrix
+      // - the above constructor copies all input arrays
+      glob_J.DeleteAll();
+      dA.ConvertFrom(hdA);
+   }
+
+   // TODO - assemble the Dof_TrueDof_Matrix directly in the required format?
+   Ph.ConvertFrom(pfes->Dof_TrueDof_Matrix());
+
+   A.MakePtAP(dA, Ph);
+}
+
 HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
 {
-   if (m == NULL) { return NULL; }
-
-   MFEM_VERIFY(m->Finalized(), "local matrix needs to be finalized for "
-               "ParallelAssemble");
-
-   HypreParMatrix *A;
-   if (fbfi.Size() == 0)
-   {
-      // construct a parallel block-diagonal wrapper matrix A based on m
-      A = new HypreParMatrix(pfes->GetComm(),
-                             pfes->GlobalVSize(), pfes->GetDofOffsets(), m);
-   }
-   else
-   {
-      // handle the case when 'm' contains offdiagonal
-      int lvsize = pfes->GetVSize();
-      const HYPRE_Int *face_nbr_glob_ldof = pfes->GetFaceNbrGlobalDofMap();
-      HYPRE_Int ldof_offset = pfes->GetMyDofOffset();
-
-      Array<HYPRE_Int> glob_J(m->NumNonZeroElems());
-      int *J = m->GetJ();
-      for (int i = 0; i < glob_J.Size(); i++)
-      {
-         if (J[i] < lvsize)
-         {
-            glob_J[i] = J[i] + ldof_offset;
-         }
-         else
-         {
-            glob_J[i] = face_nbr_glob_ldof[J[i] - lvsize];
-         }
-      }
-
-      A = new HypreParMatrix(pfes->GetComm(), lvsize, pfes->GlobalVSize(),
-                             pfes->GlobalVSize(), m->GetI(), glob_J,
-                             m->GetData(), pfes->GetDofOffsets(),
-                             pfes->GetDofOffsets());
-   }
-
-   HypreParMatrix *rap = RAP(A, pfes->Dof_TrueDof_Matrix());
-
-   delete A;
-
-   return rap;
+   OperatorHandle Mh(Operator::HYPRE_PARCSR);
+   ParallelAssemble(Mh, m);
+   Mh.SetOperatorOwner(false);
+   return Mh.As<HypreParMatrix>();
 }
-
-#ifdef MFEM_USE_PETSC
-// this function is almost a verbatim copy of the one before
-// we may want to glue them together?
-PetscParMatrix *ParBilinearForm::PetscParallelAssemble(SparseMatrix *m,
-                                                       bool use_natively)
-{
-   if (m == NULL) { return NULL; }
-
-   MFEM_VERIFY(m->Finalized(), "local matrix needs to be finalized for "
-               "ParallelAssemble");
-
-   if (!unassembled && !use_natively)
-   {
-      HypreParMatrix *hrap = ParallelAssemble(m);
-      PetscParMatrix *trap = new PetscParMatrix(hrap);
-      delete hrap;
-      return trap;
-   }
-
-   PetscParMatrix *A;
-   if (fbfi.Size() == 0)
-   {
-      // construct a parallel block-diagonal wrapper matrix A based on m
-      A = new PetscParMatrix(pfes->GetComm(), pfes->GlobalVSize(),
-                             pfes->GetDofOffsets(), m, !unassembled);
-   }
-   else
-   {
-      // handle the case when 'm' contains offdiagonal
-      int lvsize = pfes->GetVSize();
-      const HYPRE_Int *face_nbr_glob_ldof = pfes->GetFaceNbrGlobalDofMap();
-      HYPRE_Int ldof_offset = pfes->GetMyDofOffset();
-
-      Array<HYPRE_Int> glob_J(m->NumNonZeroElems());
-      int *J = m->GetJ();
-      for (int i = 0; i < glob_J.Size(); i++)
-      {
-         if (J[i] < lvsize)
-         {
-            glob_J[i] = J[i] + ldof_offset;
-         }
-         else
-         {
-            glob_J[i] = face_nbr_glob_ldof[J[i] - lvsize];
-         }
-      }
-
-      // TODO : add PetscParMatrix constructor for this
-      HypreParMatrix *hA =
-         new HypreParMatrix(pfes->GetComm(), lvsize,
-                            pfes->GlobalVSize(),
-                            pfes->GlobalVSize(), m->GetI(), glob_J,
-                            m->GetData(), pfes->GetDofOffsets(),
-                            pfes->GetDofOffsets());
-      A = new PetscParMatrix(hA,false,!unassembled);
-      delete hA;
-   }
-
-   // TODO assemble Dof_TrueDof_Matrix in PETSc format?
-   PetscParMatrix *temp = new PetscParMatrix(pfes->Dof_TrueDof_Matrix(),false,
-                                             !unassembled);
-   PetscParMatrix *rap = RAP(A, temp);
-   delete temp;
-   delete A;
-
-   return rap;
-}
-#endif
 
 void ParBilinearForm::AssembleSharedFaces(int skip_zeros)
 {
@@ -333,30 +278,8 @@ const
 
 void ParBilinearForm::FormLinearSystem(
    const Array<int> &ess_tdof_list, Vector &x, Vector &b,
-   Operator &A, Vector &X, Vector &B, int copy_interior)
+   OperatorHandle &A, Vector &X, Vector &B, int copy_interior)
 {
-   HypreParMatrix *hA = dynamic_cast<HypreParMatrix *>(&A);
-#ifdef MFEM_USE_PETSC
-   PetscParMatrix *pA = dynamic_cast<PetscParMatrix *>(&A);
-#else
-   HypreParMatrix *pA = NULL;
-#endif
-   MFEM_VERIFY(hA || pA, "Unexpected operator! FormLinearSystem "
-               "needs a HypreParMatrix or a PetscParMatrix");
-   const bool use_petsc = (pA != NULL);
-
-   // Make sure PETSc settings are disabled
-   if (hybridization)
-   {
-      hybridization->SetUsePetsc(use_petsc);
-      hybridization->SetUseNonoverlappingFormat(unassembled);
-   }
-   if (static_cond)
-   {
-      static_cond->SetUsePetsc(use_petsc);
-      static_cond->SetUseNonoverlappingFormat(unassembled);
-   }
-
    // Finish the matrix assembly and perform BC elimination, storing the
    // eliminated part of the matrix.
    FormSystemMatrix(ess_tdof_list, A);
@@ -379,9 +302,7 @@ void ParBilinearForm::FormLinearSystem(
       HypreParVector true_X(pfes), true_B(pfes);
       P.MultTranspose(b, true_B);
       R.Mult(x, true_X);
-      // if pp_mat is not null, we are using PETSc
-      if (pp_mat) { EliminateBC(*pp_mat, *pp_mat_e, ess_tdof_list, true_X, true_B); }
-      else { EliminateBC(*p_mat, *p_mat_e, ess_tdof_list, true_X, true_B); }
+      p_mat.EliminateBC(p_mat_e, ess_tdof_list, true_X, true_B);
       R.MultTranspose(true_B, b);
       hybridization->ReduceRHS(true_B, B);
       X.SetSize(B.Size());
@@ -394,25 +315,14 @@ void ParBilinearForm::FormLinearSystem(
       B.SetSize(X.Size());
       P.MultTranspose(b, B);
       R.Mult(x, X);
-      // if pp_mat is not null, we are using PETSc
-      if (pp_mat) { EliminateBC(*pp_mat, *pp_mat_e, ess_tdof_list, X, B); }
-      else { EliminateBC(*p_mat, *p_mat_e, ess_tdof_list, X, B); }
+      p_mat.EliminateBC(p_mat_e, ess_tdof_list, X, B);
       if (!copy_interior) { X.SetSubVectorComplement(ess_tdof_list, 0.0); }
    }
 }
 
 void ParBilinearForm::FormSystemMatrix(const Array<int> &ess_tdof_list,
-                                       Operator &A)
+                                       OperatorHandle &A)
 {
-   HypreParMatrix *hA = dynamic_cast<HypreParMatrix *>(&A);
-#ifdef MFEM_USE_PETSC
-   PetscParMatrix *pA = dynamic_cast<PetscParMatrix *>(&A);
-#else
-   HypreParMatrix *pA = NULL;
-#endif
-   MFEM_VERIFY(hA || pA, "Unexpected operator! FormSystemMatrix "
-               "needs an HypreParMatrix or a PetscParMatrix");
-
    // Finish the matrix assembly and perform BC elimination, storing the
    // eliminated part of the matrix.
    if (static_cond)
@@ -423,10 +333,7 @@ void ParBilinearForm::FormSystemMatrix(const Array<int> &ess_tdof_list,
          static_cond->Finalize();
          static_cond->EliminateReducedTrueDofs(0);
       }
-      if (hA) { hA->MakeRef(static_cond->GetParallelMatrix()); }
-#ifdef MFEM_USE_PETSC
-      else if (pA) { pA->MakeRef(static_cond->GetPetscParallelMatrix()); }
-#endif
+      static_cond->GetParallelMatrix(A);
    }
    else
    {
@@ -434,46 +341,23 @@ void ParBilinearForm::FormSystemMatrix(const Array<int> &ess_tdof_list,
       {
          const int remove_zeros = 0;
          Finalize(remove_zeros);
-         if (hA)
-         {
-            MFEM_VERIFY(p_mat == NULL && p_mat_e == NULL,
-                        "The ParBilinearForm must be updated with Update() before "
-                        "re-assembling the ParBilinearForm.");
-            p_mat = ParallelAssemble();
-            delete mat;
-            mat = NULL;
-            delete mat_e;
-            mat_e = NULL;
-            p_mat_e = p_mat->EliminateRowsCols(ess_tdof_list);
-         }
-#ifdef MFEM_USE_PETSC
-         else if (pA)
-         {
-            MFEM_VERIFY(pp_mat == NULL && pp_mat_e == NULL,
-                        "The ParBilinearForm must be updated with Update() before "
-                        "re-assembling the ParBilinearForm.");
-            pp_mat = PetscParallelAssemble();
-            delete mat;
-            mat = NULL;
-            delete mat_e;
-            mat_e = NULL;
-            pp_mat_e = pp_mat->EliminateRowsCols(ess_tdof_list);
-         }
-#endif
+         MFEM_VERIFY(p_mat.Ptr() == NULL && p_mat_e.Ptr() == NULL,
+                     "The ParBilinearForm must be updated with Update() before "
+                     "re-assembling the ParBilinearForm.");
+         ParallelAssemble(p_mat, mat);
+         delete mat;
+         mat = NULL;
+         delete mat_e;
+         mat_e = NULL;
+         p_mat_e.EliminateRowsCols(p_mat, ess_tdof_list);
       }
       if (hybridization)
       {
-         if (hA) { hA->MakeRef(hybridization->GetParallelMatrix()); }
-#ifdef MFEM_USE_PETSC
-         else if (pA) { pA->MakeRef(hybridization->GetPetscParallelMatrix()); }
-#endif
+         hybridization->GetParallelMatrix(A);
       }
       else
       {
-         if (hA) { hA->MakeRef(*p_mat); }
-#ifdef MFEM_USE_PETSC
-         else if (pA) { pA->MakeRef(*pp_mat); }
-#endif
+         A = p_mat;
       }
    }
 }
@@ -517,12 +401,63 @@ void ParBilinearForm::Update(FiniteElementSpace *nfes)
       MFEM_VERIFY(pfes != NULL, "nfes must be a ParFiniteElementSpace!");
    }
 
-   delete p_mat;
-   delete p_mat_e;
-   p_mat = p_mat_e = NULL;
-   delete pp_mat;
-   delete pp_mat_e;
-   pp_mat = pp_mat_e = NULL;
+   p_mat.Clear();
+   p_mat_e.Clear();
+}
+
+
+HypreParMatrix *ParMixedBilinearForm::ParallelAssemble()
+{
+   // construct the block-diagonal matrix A
+   HypreParMatrix *A =
+      new HypreParMatrix(trial_pfes->GetComm(),
+                         test_pfes->GlobalVSize(),
+                         trial_pfes->GlobalVSize(),
+                         test_pfes->GetDofOffsets(),
+                         trial_pfes->GetDofOffsets(),
+                         mat);
+
+   HypreParMatrix *rap = RAP(test_pfes->Dof_TrueDof_Matrix(), A,
+                             trial_pfes->Dof_TrueDof_Matrix());
+
+   delete A;
+
+   return rap;
+}
+
+void ParMixedBilinearForm::ParallelAssemble(OperatorHandle &A)
+{
+   // construct the rectangular block-diagonal matrix dA
+   OperatorHandle dA(A.TypeID());
+   dA.MakeRectangularBlockDiag(trial_pfes->GetComm(),
+                               test_pfes->GlobalVSize(),
+                               trial_pfes->GlobalVSize(),
+                               test_pfes->GetDofOffsets(),
+                               trial_pfes->GetDofOffsets(),
+                               mat);
+
+   OperatorHandle P_test(A.TypeID()), P_trial(A.TypeID());
+
+   // TODO - construct the Dof_TrueDof_Matrix directly in the required format.
+   P_test.ConvertFrom(test_pfes->Dof_TrueDof_Matrix());
+   P_trial.ConvertFrom(trial_pfes->Dof_TrueDof_Matrix());
+
+   A.MakeRAP(P_test, dA, P_trial);
+}
+
+/// Compute y += a (P^t A P) x, where x and y are vectors on the true dofs
+void ParMixedBilinearForm::TrueAddMult(const Vector &x, Vector &y,
+                                       const double a) const
+{
+   if (X.ParFESpace() != trial_pfes)
+   {
+      X.SetSpace(trial_pfes);
+      Y.SetSpace(test_pfes);
+   }
+
+   X.Distribute(&x);
+   mat->Mult(X, Y);
+   test_pfes->Dof_TrueDof_Matrix()->MultTranspose(a, Y, 1.0, y);
 }
 
 
@@ -552,79 +487,6 @@ const
                   domain_fes->GetOrdering() == Ordering::byVDIM);
 
    delete RLP;
-}
-
-HypreParMatrix *ParMixedBilinearForm::ParallelAssemble()
-{
-   // construct the block-diagonal matrix A
-   HypreParMatrix *A =
-      new HypreParMatrix(trial_pfes->GetComm(),
-                         test_pfes->GlobalVSize(),
-                         trial_pfes->GlobalVSize(),
-                         test_pfes->GetDofOffsets(),
-                         trial_pfes->GetDofOffsets(),
-                         mat);
-
-   HypreParMatrix *rap = RAP(test_pfes->Dof_TrueDof_Matrix(), A,
-                             trial_pfes->Dof_TrueDof_Matrix());
-
-   delete A;
-
-   return rap;
-}
-
-#ifdef MFEM_USE_PETSC
-// this function is almost a verbatim copy of the one before
-// we may want to glue them together?
-PetscParMatrix *ParMixedBilinearForm::PetscParallelAssemble(bool use_natively)
-{
-   if (!unassembled && !use_natively)
-   {
-      HypreParMatrix *hrap = ParallelAssemble();
-      PetscParMatrix *trap = new PetscParMatrix(hrap);
-      delete hrap;
-      return trap;
-   }
-
-   // construct the block-diagonal matrix A
-   PetscParMatrix *A =
-      new PetscParMatrix(trial_pfes->GetComm(),
-                         test_pfes->GlobalVSize(),
-                         trial_pfes->GlobalVSize(),
-                         test_pfes->GetDofOffsets(),
-                         trial_pfes->GetDofOffsets(),
-                         mat,!unassembled);
-
-   // TODO assemble Dof_TrueDof_Matrix in PETSc format?
-   PetscParMatrix *tetemp = new PetscParMatrix(test_pfes->Dof_TrueDof_Matrix(),
-                                               false,
-                                               !unassembled);
-   PetscParMatrix *trtemp = new PetscParMatrix(trial_pfes->Dof_TrueDof_Matrix(),
-                                               false,
-                                               !unassembled);
-   PetscParMatrix *rap = RAP(tetemp, A, trtemp);
-
-   delete tetemp;
-   delete trtemp;
-   delete A;
-
-   return rap;
-}
-#endif
-
-/// Compute y += a (P^t A P) x, where x and y are vectors on the true dofs
-void ParMixedBilinearForm::TrueAddMult(const Vector &x, Vector &y,
-                                       const double a) const
-{
-   if (X.ParFESpace() != trial_pfes)
-   {
-      X.SetSpace(trial_pfes);
-      Y.SetSpace(test_pfes);
-   }
-
-   X.Distribute(&x);
-   mat->Mult(X, Y);
-   test_pfes->Dof_TrueDof_Matrix()->MultTranspose(a, Y, 1.0, y);
 }
 
 }

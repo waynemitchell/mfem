@@ -9,8 +9,8 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#ifndef MFEM_SPARSEMAT
-#define MFEM_SPARSEMAT
+#ifndef MFEM_SPARSEMAT_HPP
+#define MFEM_SPARSEMAT_HPP
 
 // Data types for sparse matrix
 
@@ -404,6 +404,8 @@ public:
 
    /// Destroys sparse matrix.
    virtual ~SparseMatrix() { Destroy(); }
+
+   TypeID GetTypeID() const { return MFEM_SPARSEMAT; }
 };
 
 /// Applies f() to each element of the matrix (after it is finalized).

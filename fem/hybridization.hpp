@@ -16,11 +16,6 @@
 #include "fespace.hpp"
 #include "bilininteg.hpp"
 
-#ifdef MFEM_USE_MPI
-#include "../linalg/hypre.hpp"
-#include "../linalg/petsc.hpp"
-#endif
-
 namespace mfem
 {
 
@@ -77,15 +72,8 @@ protected:
 
 #ifdef MFEM_USE_MPI
    HypreParMatrix *pC, *P_pc; // for parallel non-conforming meshes
-   HypreParMatrix *pH;
-#ifdef MFEM_USE_PETSC
-   PetscParMatrix *ppH;
-#else
-   HypreParMatrix *ppH;
+   OperatorHandle pH;
 #endif
-#endif
-   bool usepetsc;
-   bool unassembled;
 
    void ConstructC();
 
@@ -134,11 +122,14 @@ public:
 
 #ifdef MFEM_USE_MPI
    /// Return the parallel hybridized matrix.
-   HypreParMatrix &GetParallelMatrix() { return *pH; }
-#ifdef MFEM_USE_PETSC
-   /// Return the parallel hybridized matrix (PetscParMatrix case).
-   PetscParMatrix &GetPetscParallelMatrix() { return *ppH; }
-#endif
+   HypreParMatrix &GetParallelMatrix() { return *pH.Is<HypreParMatrix>(); }
+
+   /** @brief Return the parallel hybridized matrix in the format specified by
+       SetOperatorTypeID(). */
+   void GetParallelMatrix(OperatorHandle &H_h) const { H_h = pH; }
+
+   /// Set the operator type id for the parallel hybridized matrix/operator.
+   void SetOperatorTypeID(Operator::TypeID tid) { pH.SetTypeID(tid); }
 #endif
 
    /** Perform the reduction of the given r.h.s. vector, b, to a r.h.s vector,
@@ -158,38 +149,6 @@ public:
        un-modified. If that is not the case, a new Hybridization object must be
        created. */
    void Reset();
-
-#ifdef MFEM_USE_MPI
-   /** Turn on or off the usage of PETSc */
-   void SetUsePetsc(bool use = true)
-   {
-#ifndef MFEM_USE_PETSC
-      if (use) { MFEM_ABORT("You did not configure MFEM with PETSc support"); }
-      usepetsc = false;
-#else
-      usepetsc = use;
-#endif
-      if (!usepetsc)
-      {
-         delete ppH;
-         ppH = NULL;
-      }
-   }
-
-   /// Assemble the matrix in "unassembled format" for non-overlapping DD
-   /// Only significant with PETSc backend
-   void SetUseNonoverlappingFormat(bool use = true)
-   {
-#ifndef MFEM_USE_PETSC
-      if (use) { MFEM_ABORT("You did not configure MFEM with PETSc support"); }
-      unassembled = false;
-#else
-      unassembled = use;
-#endif
-      if (unassembled) { SetUsePetsc(true); }
-   }
-#endif
-
 };
 
 }

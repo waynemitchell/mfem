@@ -72,7 +72,7 @@ const SparseMatrix &ParNonlinearForm::GetLocalGradient(const Vector &x) const
 {
    X.Distribute(&x);
 
-   NonlinearForm::GetGradient(X); // (re)assemble Grad
+   NonlinearForm::GetGradient(X); // (re)assemble Grad with b.c.
 
    return *Grad;
 }
@@ -81,50 +81,20 @@ Operator &ParNonlinearForm::GetGradient(const Vector &x) const
 {
    ParFiniteElementSpace *pfes = ParFESpace();
 
-   delete pGrad;
-   delete ppGrad;
+   pGrad.Clear();
 
    X.Distribute(&x);
 
-   NonlinearForm::GetGradient(X); // (re)assemble Grad
+   NonlinearForm::GetGradient(X); // (re)assemble Grad with b.c.
 
-   // construct a parallel block-diagonal wrapper matrix A based on Grad
-   if (!use_petsc)
-   {
-      HypreParMatrix *A =
-         new HypreParMatrix(pfes->GetComm(),
-                            pfes->GlobalVSize(), pfes->GetDofOffsets(), Grad);
+   OperatorHandle dA(pGrad.TypeID()), Ph(pGrad.TypeID());
+   dA.MakeSquareBlockDiag(pfes->GetComm(), pfes->GlobalVSize(),
+                          pfes->GetDofOffsets(), Grad);
+   // TODO - construct Dof_TrueDof_Matrix directly in the pGrad format
+   Ph.ConvertFrom(pfes->Dof_TrueDof_Matrix());
+   pGrad.MakePtAP(dA, Ph);
 
-      pGrad = RAP(A, pfes->Dof_TrueDof_Matrix());
-
-      delete A;
-      return *pGrad;
-   }
-#ifndef MFEM_USE_PETSC
-   else
-   {
-      MFEM_ABORT("MFEM was not compiled with PETSc support");
-      return *pGrad;
-   }
-#else
-   else
-   {
-      PetscParMatrix *A =
-         new PetscParMatrix(pfes->GetComm(),
-                            pfes->GlobalVSize(), pfes->GetDofOffsets(), Grad,
-                            !unassembled);
-
-      // TODO assemble Dof_TrueDof_Matrix in PETSc format?
-      PetscParMatrix *temp = new PetscParMatrix(pfes->Dof_TrueDof_Matrix(),false,
-                                                !unassembled);
-
-      ppGrad = RAP(A, temp);
-
-      delete A;
-      delete temp;
-      return *ppGrad;
-   }
-#endif
+   return *pGrad.Ptr();
 }
 
 }

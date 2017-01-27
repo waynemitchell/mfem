@@ -74,8 +74,8 @@ public:
        necessary transformations such as: parallel assembly, conforming
        constraints for non-conforming AMR and eliminating boundary conditions.
        @note Static condensation and hybridization are not supported for general
-       operators (cf. the analogous methods BilinearForm::FormLinearSystem and
-       ParBilinearForm::FormLinearSystem).
+       operators (cf. the analogous methods BilinearForm::FormLinearSystem() and
+       ParBilinearForm::FormLinearSystem()).
 
        The constraints are specified through the prolongation P from
        GetProlongation(), and restriction R from GetRestriction() methods, which
@@ -91,7 +91,7 @@ public:
        copied from @a x (@a copy_interior != 0).
 
        After solving the system `A(X)=B`, the (finite element) solution @a x can
-       be recovered by calling Operator::RecoverFEMSolution with the same
+       be recovered by calling Operator::RecoverFEMSolution() with the same
        vectors @a X, @a b, and @a x.
 
        @note The caller is responsible for destroying the output operator @a A!
@@ -104,11 +104,11 @@ public:
 
    /** @brief Reconstruct a solution vector @a x (e.g. a GridFunction) from the
        solution @a X of a constrained linear system obtained from
-       Operator::FormLinearSystem.
+       Operator::FormLinearSystem().
 
        Call this method after solving a linear system constructed using
-       Operator::FormLinearSystem to recover the solution as an input vector, @a
-       x, for this Operator (presumably a finite element grid function). This
+       Operator::FormLinearSystem() to recover the solution as an input vector,
+       @a x, for this Operator (presumably a finite element grid function). This
        method has identical signature to the analogous method for bilinear
        forms, though currently @a b is not used in the implementation. */
    virtual void RecoverFEMSolution(const Vector &X, const Vector &b, Vector &x);
@@ -118,6 +118,17 @@ public:
 
    /// Virtual destructor.
    virtual ~Operator() { }
+
+   /// Enumeration defining IDs for some classes derived from Operator.
+   enum TypeID
+   {
+      MFEM_SPARSEMAT,
+      HYPRE_PARCSR,
+      PETSC_MATAIJ,
+      PETSC_MATIS,
+      PETSC_MATSHELL,
+      PETSC_MATNEST
+   };
 };
 
 

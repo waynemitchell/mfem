@@ -219,7 +219,8 @@ int main(int argc, char *argv[])
    else
    {
       PetscParMatrix A;
-      if (use_nonoverlapping) { a->SetUseNonoverlappingFormat(); }
+      a->SetOperatorTypeID(use_nonoverlapping ?
+                           Operator::PETSC_MATIS : Operator::PETSC_MATAIJ);
       a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
 
       if (myid == 0)

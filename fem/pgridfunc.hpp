@@ -128,11 +128,6 @@ public:
    /// Returns the vector restricted to the true dofs.
    void ParallelProject(HypreParVector &tv) const;
 
-#ifdef MFEM_USE_PETSC
-   /// Returns the vector restricted to the true dofs.
-   void ParallelProject(PetscParVector &tv) const;
-#endif
-
    /// Returns a new vector restricted to the true dofs.
    HypreParVector *ParallelProject() const;
 
