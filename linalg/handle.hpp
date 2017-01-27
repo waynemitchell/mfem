@@ -22,6 +22,18 @@
 namespace mfem
 {
 
+/// Pointer to an Operator of a specified type
+/** This class provides a common interface for global, matrix-type operators to
+    be used in bilinear forms, gradients of nonlinear forms, static condensation,
+    hybridization, etc. The following backends are currently supported:
+      - MFEM serial sparse matrix (MFEM_SPARSEMAT)
+      - HYPRE parallel sparse matrix (HYPRE_PARCSR)
+      - PETSC globally assembled parallel sparse matrix (PETSC_MATAIJ)
+      - PETSC parallel matrix assembled on each processor (PETSC_MATIS)
+      - PETSC action-only (matrix free) (PETSC_MATSHELL)
+      - PETSC block operator (PETSC_MATNEST)
+    See also Operator::Type.
+*/
 class OperatorHandle
 {
 protected:
@@ -142,13 +154,13 @@ public:
 #endif // MFEM_USE_MPI
 
    /// Reset the OperatorHandle to hold the product @a P^t @a A @a P.
-   /** The type id of the result is determied by that of @a A and @a P. The
+   /** The type id of the result is determined by that of @a A and @a P. The
        operator ownership flag is set to true. */
    void MakePtAP(OperatorHandle &A, OperatorHandle &P);
 
    /** @brief Reset the OperatorHandle to hold the product @a R @a A @a P, where
        R = @a Rt^t. */
-   /** The type id of the result is determied by that of @a Rt, @a A, and @a P.
+   /** The type id of the result is determined by that of @a Rt, @a A, and @a P.
        The operator ownership flag is set to true. */
    void MakeRAP(OperatorHandle &Rt, OperatorHandle &A, OperatorHandle &P);
 
