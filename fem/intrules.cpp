@@ -935,7 +935,7 @@ void IntegrationRules::DeleteIntRuleArray(Array<IntegrationRule *> &ir_array)
       if (ir_array[i] != NULL && ir_array[i] != ir)
       {
          ir = ir_array[i];
-         delete (ir_array[i]);
+         delete ir;
       }
    }
 }
@@ -999,11 +999,7 @@ IntegrationRule *IntegrationRules::PointIntegrationRule(int Order)
 IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
 {
    int RealOrder = GetSegmentRealOrder(Order); // RealOrder >= Order
-   if (HaveIntRule(SegmentIntRules, RealOrder))
-   {
-      SegmentIntRules[Order] = SegmentIntRules[RealOrder];
-      return SegmentIntRules[Order];
-   }
+   // Order is one of {RealOrder-1,RealOrder}
    AllocIntRule(SegmentIntRules, RealOrder);
 
    IntegrationRule tmp, *ir;
@@ -1066,7 +1062,7 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
          ir->IntPoint(j+n).weight = tmp.IntPoint(j).weight/2.0;
       }
    }
-   SegmentIntRules[Order] = SegmentIntRules[RealOrder] = ir;
+   SegmentIntRules[RealOrder-1] = SegmentIntRules[RealOrder] = ir;
    return ir;
 }
 
@@ -1459,14 +1455,16 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
 IntegrationRule *IntegrationRules::SquareIntegrationRule(int Order)
 {
    int RealOrder = GetSegmentRealOrder(Order);
-   if (!HaveIntRule(SegmentIntRules, Order))
+   // Order is one of {RealOrder-1,RealOrder}
+   if (!HaveIntRule(SegmentIntRules, RealOrder))
    {
-      SegmentIntegrationRule(Order);
+      SegmentIntegrationRule(RealOrder);
    }
    AllocIntRule(SquareIntRules, RealOrder); // RealOrder >= Order
-   SquareIntRules[Order] =
+   SquareIntRules[RealOrder-1] =
       SquareIntRules[RealOrder] =
-         new IntegrationRule(*SegmentIntRules[Order], *SegmentIntRules[Order]);
+         new IntegrationRule(*SegmentIntRules[RealOrder],
+                             *SegmentIntRules[RealOrder]);
    return SquareIntRules[Order];
 }
 
@@ -1583,15 +1581,16 @@ IntegrationRule *IntegrationRules::TetrahedronIntegrationRule(int Order)
 IntegrationRule *IntegrationRules::CubeIntegrationRule(int Order)
 {
    int RealOrder = GetSegmentRealOrder(Order);
-   if (!HaveIntRule(SegmentIntRules, Order))
+   if (!HaveIntRule(SegmentIntRules, RealOrder))
    {
-      SegmentIntegrationRule(Order);
+      SegmentIntegrationRule(RealOrder);
    }
    AllocIntRule(CubeIntRules, RealOrder);
-   CubeIntRules[Order] =
+   CubeIntRules[RealOrder-1] =
       CubeIntRules[RealOrder] =
-         new IntegrationRule(*SegmentIntRules[Order], *SegmentIntRules[Order],
-                             *SegmentIntRules[Order]);
+         new IntegrationRule(*SegmentIntRules[RealOrder],
+                             *SegmentIntRules[RealOrder],
+                             *SegmentIntRules[RealOrder]);
    return CubeIntRules[Order];
 }
 
