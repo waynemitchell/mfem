@@ -14,6 +14,7 @@ list(APPEND SRCS
   blockoperator.cpp
   blockvector.cpp
   densemat.cpp
+  handle.cpp
   matrix.cpp
   ode.cpp
   operator.cpp
@@ -28,6 +29,7 @@ list(APPEND HDRS
   blockoperator.hpp
   blockvector.hpp
   densemat.hpp
+  handle.hpp
   linalg.hpp
   matrix.hpp
   ode.hpp
