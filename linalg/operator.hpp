@@ -318,15 +318,15 @@ public:
 class RAPOperator : public Operator
 {
 private:
-   Operator & Rt;
-   Operator & A;
-   Operator & P;
+   const Operator & Rt;
+   const Operator & A;
+   const Operator & P;
    mutable Vector Px;
    mutable Vector APx;
 
 public:
    /// Construct the RAP operator given R^T, A and P.
-   RAPOperator(Operator &Rt_, Operator &A_, Operator &P_)
+   RAPOperator(const Operator &Rt_, const Operator &A_, const Operator &P_)
       : Operator(Rt_.Width(), P_.Width()), Rt(Rt_), A(A_), P(P_),
         Px(P.Height()), APx(A.Height()) { }
 

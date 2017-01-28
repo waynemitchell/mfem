@@ -34,7 +34,7 @@ void Operator::FormLinearSystem(const Array<int> &ess_tdof_list,
       P->MultTranspose(b, B);
       X.SetSize(R->Height());
       R->Mult(x, X);
-      rap = new RAPOperator((Operator&)*P, *this, (Operator&)*P);
+      rap = new RAPOperator(*P, *this, *P);
    }
    else
    {
@@ -100,15 +100,12 @@ ConstrainedOperator::ConstrainedOperator(Operator *A, const Array<int> &list,
    : Operator(A->Height(), A->Width()), A(A), own_A(_own_A)
 {
    constraint_list.MakeRef(list);
-   int aux_size = (constraint_list.Size() > 0) ? height : 0;
-   z.SetSize(aux_size);
-   w.SetSize(aux_size);
+   z.SetSize(height);
+   w.SetSize(height);
 }
 
 void ConstrainedOperator::EliminateRHS(const Vector &x, Vector &b) const
 {
-   if (constraint_list.Size() == 0) { return; }
-
    w = 0.0;
 
    for (int i = 0; i < constraint_list.Size(); i++)
