@@ -25,6 +25,7 @@
 #include "densemat.hpp"
 #include "ode.hpp"
 #include "solvers.hpp"
+#include "handle.hpp"
 
 #ifdef MFEM_USE_SUNDIALS
 #include "sundials.hpp"
@@ -34,10 +35,14 @@
 #include "hypre_parcsr.hpp"
 #include "hypre.hpp"
 
+#ifdef MFEM_USE_PETSC
+#include "petsc.hpp"
+#endif
+
 #ifdef MFEM_USE_SUPERLU
 #include "superlu.hpp"
 #endif
 
-#endif
+#endif // MFEM_USE_MPI
 
 #endif

@@ -82,3 +82,5 @@ endforeach()
 
 # Include the examples/sundials directory.
 add_subdirectory(sundials)
+# Include the examples/petsc directory.
+add_subdirectory(petsc)

@@ -36,6 +36,34 @@ Matrix-free preconditioning and low-order-refined spaces
   miniapp, which now supports Gauss-Lobatto refinement and uniform refinement,
   both for any factor > 1.
 
+Comprehensive PETSc and SUNDIALS interfaces
+-------------------------------------------
+- Added support for many linear and nonlinear solvers, preconditioners, time
+  integrators and other features from the PETSc suite (version 3.8 or higher of
+  the PETSc dev branch is required). The new features include:
+  * support for PETSc matrices in MATAIJ, MATIS, MATSHELL and MATNEST formats.
+  * PETSc linear solvers can take any mfem Operator and support user-defined
+    monitoring routines (see examples/petsc/ex1p).
+  * BDDC preconditioners for H1, H(curl) and H(div), including with static
+    condensation/hybridization, FieldSplit preconditioner for BlockOperators.
+  * PETSc non-linear solvers can take any mfem Operator that implements the
+    GetGradient() method.
+  * PETSc ODE solvers are supported for mfem's TimeDependentOperators.
+  The use of these features is illustrated in the new examples/petsc directory.
+
+- Added a new class, OperarorHandle, that provides a common interface for
+  global, matrix-type operators to be used in bilinear forms, gradients of
+  nonlinear forms, static condensation, hybridization, etc.
+  The following backends are currently supported:
+  * HYPRE parallel sparse matrix (HYPRE_PARCSR)
+  * PETSC globally assembled parallel sparse matrix (PETSC_MATAIJ)
+  * PETSC parallel matrix assembled on each processor (PETSC_MATIS)
+
+- Added support for the time integrators and non-linear solvers from the CVODE,
+  ARKODE and KINSOL libraries of the SUNDIALS suite (version 2.7 or higher of
+  SUNDIALS is required). The use of these features is illustrated in the new
+  examples/sundials directory.
+
 Scalable parallel mesh support
 ------------------------------
 - Introduced a new mesh format (v1.2) that can describe/recover MFEM parallel
@@ -86,13 +114,6 @@ New integrators for common families of operators
 - In classes BilinearForm and LinearForm, added support for boundary face
   integrators applied to a subset of the boundary, see AddBdrFaceIntegrator.
 
-Support for SUNDIALS
---------------------
-- Added support for the time integrators and non-linear solvers from the CVODE,
-  ARKODE and KINSOL libraries of the SUNDIALS suite (version 2.7 or higher of
-  SUNDIALS is required). Their use is illustrated in the new examples/sundials
-  directory.
-
 Improved building options
 -------------------------
 - Added a new CMake build system, that can be used as an alternative to the GNU
@@ -115,9 +136,11 @@ Improved file output
 
 New and updated examples and miniapps
 -------------------------------------
-- Eight new serial and parallel example codes that demonstrate:
+- Sixteen new serial and parallel example codes that demonstrate:
   * solution of a time-dependent nonlinear heat equation (Example 16/16p)
   * DG formulations of static linear elasticity (Example 17/17p)
+  * the use of PETSc solvers and preconditioners (Examples 1p, 2p, 3p, 4p, 5p,
+    6p, 9p and 10p in examples/petsc)
   * the use of SUNDIALS time integrators and nonlinear solvers (Examples 9/9p
     and 10/10p in examples/sundials)
 
@@ -158,6 +181,8 @@ Miscellaneous
 - GMRESSolver and MINRESSolver now support the same print levels as CGSolver.
 
 - Added method MemoryUsage to the classes Stack and MemAlloc.
+
+- Improved Doxygen formatting of code comments.
 
 - Various other simplifications, extensions, and bugfixes in the code.
 

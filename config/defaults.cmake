@@ -33,6 +33,7 @@ option(MFEM_USE_SUPERLU "Enable SuperLU_DIST usage" OFF)
 option(MFEM_USE_GECKO "Enable GECKO usage" OFF)
 option(MFEM_USE_GNUTLS "Enable GNUTLS usage" OFF)
 option(MFEM_USE_NETCDF "Enable NETCDF usage" OFF)
+option(MFEM_USE_PETSC "Enable PETSc support." OFF)
 option(MFEM_USE_MPFR "Enable MPFR usage." OFF)
 option(MFEM_USE_SIDRE "Enable ATK/Sidre usage" OFF)
 
@@ -67,6 +68,9 @@ set(LIBUNWIND_DIR "" CACHE PATH "Path to Libunwind.")
 
 set(SUNDIALS_DIR "${MFEM_DIR}/../sundials-2.7.0" CACHE PATH
     "Path to the SUNDIALS library.")
+# The following may be necessary, if SUNDIALS was built with KLU:
+# set(SUNDIALS_REQUIRED_PACKAGES "SuiteSparse/KLU/AMD/BTF/COLAMD/config"
+#     CACHE STRING "Additional packages required by SUNDIALS.")
 
 set(MESQUITE_DIR "${MFEM_DIR}/../mesquite-2.99" CACHE PATH
     "Path to the Mesquite library.")
@@ -95,6 +99,10 @@ set(NETCDF_DIR "" CACHE PATH "Path to the NetCDF library.")
 # May need to add "HDF5" as requirement.
 set(NetCDF_REQUIRED_PACKAGES "" CACHE STRING
     "Additional packages required by NetCDF.")
+
+set(PETSC_DIR "${MFEM_DIR}/../petsc" CACHE PATH
+    "Path to the PETSc main directory.")
+set(PETSC_ARCH "arch-linux2-c-debug" CACHE PATH "PETSc build architecture.")
 
 set(MPFR_DIR "" CACHE PATH "Path to the MPFR library.")
 

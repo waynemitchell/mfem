@@ -14,6 +14,7 @@ list(APPEND SRCS
   blockoperator.cpp
   blockvector.cpp
   densemat.cpp
+  handle.cpp
   matrix.cpp
   ode.cpp
   operator.cpp
@@ -28,6 +29,7 @@ list(APPEND HDRS
   blockoperator.hpp
   blockvector.hpp
   densemat.hpp
+  handle.hpp
   linalg.hpp
   matrix.hpp
   ode.hpp
@@ -50,6 +52,12 @@ if (MFEM_USE_MPI)
   list(APPEND HDRS
     hypre.hpp
     hypre_parcsr.hpp)
+  if (MFEM_USE_PETSC)
+    list(APPEND SRCS
+      petsc.cpp)
+    list(APPEND HDRS
+      petsc.hpp)
+  endif()
 endif()
 
 if (MFEM_USE_SUNDIALS)

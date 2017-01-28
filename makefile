@@ -75,7 +75,7 @@ $(if $(MFEM_REAL_DIR),,$(error Source directory "$(MFEM_DIR)" is not valid))
 SRC := $(if $(MFEM_REAL_DIR:$(CURDIR)=),$(MFEM_DIR)/,)
 $(if $(word 2,$(SRC)),$(error Spaces in SRC = "$(SRC)" are not supported))
 
-EXAMPLE_SUBDIRS = sundials
+EXAMPLE_SUBDIRS = sundials petsc
 EXAMPLE_DIRS := examples $(addprefix examples/,$(EXAMPLE_SUBDIRS))
 EXAMPLE_TEST_DIRS := examples
 
@@ -153,6 +153,9 @@ CXXFLAGS ?= $(OPTIM_FLAGS)
 # MPI configuration
 ifneq ($(MFEM_USE_MPI),YES)
    MFEM_CXX ?= $(CXX)
+   $(foreach mpidep,SUPERLU PETSC,$(if $(MFEM_USE_$(mpidep):NO=),\
+     $(warning *** [MPI is OFF] setting MFEM_USE_$(mpidep) = NO)\
+     $(eval override MFEM_USE_$(mpidep)=NO),))
 else
    MFEM_CXX ?= $(MPICXX)
    INCFLAGS += $(METIS_OPT) $(HYPRE_OPT)
@@ -171,7 +174,7 @@ endif
 
 # List of MFEM dependencies, processed below
 MFEM_DEPENDENCIES = LIBUNWIND SIDRE LAPACK OPENMP SUNDIALS MESQUITE SUITESPARSE\
- SUPERLU GECKO GNUTLS NETCDF MPFR
+ SUPERLU GECKO GNUTLS NETCDF PETSC MPFR
 
 # Macro for adding dependencies
 define mfem_add_dependency
@@ -197,9 +200,9 @@ endif
 # List of all defines that may be enabled in config.hpp and config.mk:
 MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_USE_GZSTREAM\
  MFEM_USE_LIBUNWIND MFEM_USE_LAPACK MFEM_THREAD_SAFE MFEM_USE_OPENMP\
- MFEM_USE_MEMALLOC MFEM_TIMER_TYPE MFEM_USE_SUNDIALS  MFEM_USE_MESQUITE\
+ MFEM_USE_MEMALLOC MFEM_TIMER_TYPE MFEM_USE_SUNDIALS MFEM_USE_MESQUITE\
  MFEM_USE_SUITESPARSE MFEM_USE_GECKO MFEM_USE_SUPERLU MFEM_USE_GNUTLS\
- MFEM_USE_NETCDF MFEM_USE_MPFR MFEM_USE_SIDRE
+ MFEM_USE_NETCDF MFEM_USE_PETSC MFEM_USE_MPFR MFEM_USE_SIDRE
 
 # List of makefile variables that will be written to config.mk:
 MFEM_CONFIG_VARS = MFEM_CXX MFEM_CPPFLAGS MFEM_CXXFLAGS MFEM_INC_DIR\
@@ -403,6 +406,7 @@ status info:
 	$(info MFEM_USE_GECKO       = $(MFEM_USE_GECKO))
 	$(info MFEM_USE_GNUTLS      = $(MFEM_USE_GNUTLS))
 	$(info MFEM_USE_NETCDF      = $(MFEM_USE_NETCDF))
+	$(info MFEM_USE_PETSC       = $(MFEM_USE_PETSC))
 	$(info MFEM_USE_MPFR        = $(MFEM_USE_MPFR))
 	$(info MFEM_USE_SIDRE       = $(MFEM_USE_SIDRE))
 	$(info MFEM_CXX             = $(value MFEM_CXX))

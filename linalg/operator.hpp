@@ -21,7 +21,8 @@ namespace mfem
 class Operator
 {
 protected:
-   int height, width;
+   int height; ///< Dimension of the output / number of rows in the matrix.
+   int width;  ///< Dimension of the input / number of columns in the matrix.
 
 public:
    /// Construct a square Operator with given size s (default 0).
@@ -73,8 +74,8 @@ public:
        necessary transformations such as: parallel assembly, conforming
        constraints for non-conforming AMR and eliminating boundary conditions.
        @note Static condensation and hybridization are not supported for general
-       operators (cf. the analogous methods BilinearForm::FormLinearSystem and
-       ParBilinearForm::FormLinearSystem).
+       operators (cf. the analogous methods BilinearForm::FormLinearSystem() and
+       ParBilinearForm::FormLinearSystem()).
 
        The constraints are specified through the prolongation P from
        GetProlongation(), and restriction R from GetRestriction() methods, which
@@ -90,7 +91,7 @@ public:
        copied from @a x (@a copy_interior != 0).
 
        After solving the system `A(X)=B`, the (finite element) solution @a x can
-       be recovered by calling Operator::RecoverFEMSolution with the same
+       be recovered by calling Operator::RecoverFEMSolution() with the same
        vectors @a X, @a b, and @a x.
 
        @note The caller is responsible for destroying the output operator @a A!
@@ -103,39 +104,64 @@ public:
 
    /** @brief Reconstruct a solution vector @a x (e.g. a GridFunction) from the
        solution @a X of a constrained linear system obtained from
-       Operator::FormLinearSystem.
+       Operator::FormLinearSystem().
 
        Call this method after solving a linear system constructed using
-       Operator::FormLinearSystem to recover the solution as an input vector, @a
-       x, for this Operator (presumably a finite element grid function). This
+       Operator::FormLinearSystem() to recover the solution as an input vector,
+       @a x, for this Operator (presumably a finite element grid function). This
        method has identical signature to the analogous method for bilinear
        forms, though currently @a b is not used in the implementation. */
    virtual void RecoverFEMSolution(const Vector &X, const Vector &b, Vector &x);
 
-   /// Prints operator with input size n and output size m in matlab format.
+   /// Prints operator with input size n and output size m in Matlab format.
    void PrintMatlab(std::ostream & out, int n = 0, int m = 0) const;
 
    /// Virtual destructor.
    virtual ~Operator() { }
+
+   /// Enumeration defining IDs for some classes derived from Operator.
+   enum Type
+   {
+      MFEM_SPARSEMAT,
+      HYPRE_PARCSR,
+      PETSC_MATAIJ,
+      PETSC_MATIS,
+      PETSC_MATSHELL,
+      PETSC_MATNEST
+   };
 };
 
 
-/// Base abstract class for time dependent operators: (x,t) -> f(x,t)
+/// Base abstract class for time dependent operators.
+/** Operator of the form: (x,t) -> f(x,t), where k = f(x,t) generally solves the
+    algebraic equation F(x,k,t) = G(x,t). The functions F and G represent the
+    _implicit_ and _explicit_ parts of the operator, respectively. For explicit
+    operators, F(x,k,t) = k, so f(x,t) = G(x,t).*/
 class TimeDependentOperator : public Operator
 {
+public:
+   enum Type
+   {
+      EXPLICIT,   ///< This type assumes F(x,k,t) = k, i.e. k = f(x,t) = G(x,t).
+      IMPLICIT,   ///< This is the most general type, no assumptions on F and G.
+      HOMOGENEOUS ///< This type assumes that G(x,t) = 0.
+   };
+
 protected:
-   double t;
+   double t;  ///< Current time.
+   Type type; ///< Describes the form of the TimeDependentOperator.
 
 public:
-   /** @brief Construct a "square" time dependent Operator `y=f(x,t)`, where `x`
-       and `y` have the same dimension @a n. */
-   explicit TimeDependentOperator(int n = 0, double _t = 0.0)
-      : Operator(n) { t = _t; }
+   /** @brief Construct a "square" TimeDependentOperator y = f(x,t), where x and
+       y have the same dimension @a n. */
+   explicit TimeDependentOperator(int n = 0, double t_ = 0.0,
+                                  Type type_ = EXPLICIT)
+      : Operator(n) { t = t_; type = type_; }
 
-   /** @brief Construct a time dependent Operator `y=f(x,t)`, where `x` and `y`
-       have dimensions @a w and @a h, respectively. */
-   TimeDependentOperator(int h, int w, double _t = 0.0)
-      : Operator(h, w) { t = _t; }
+   /** @brief Construct a TimeDependentOperator y = f(x,t), where x and y have
+       dimensions @a w and @a h, respectively. */
+   TimeDependentOperator(int h, int w, double t_ = 0.0, Type type_ = EXPLICIT)
+      : Operator(h, w) { t = t_; type = type_; }
 
    /// Read the currently set time.
    virtual double GetTime() const { return t; }
@@ -143,8 +169,51 @@ public:
    /// Set the current time.
    virtual void SetTime(const double _t) { t = _t; }
 
+   /// True if #type is #EXPLICIT.
+   bool isExplicit() const { return (type == EXPLICIT); }
+   /// True if #type is #IMPLICIT or #HOMOGENEOUS.
+   bool isImplicit() const { return !isExplicit(); }
+   /// True if #type is #HOMOGENEOUS.
+   bool isHomogeneous() const { return (type == HOMOGENEOUS); }
+
+   /** @brief Perform the action of the explicit part of the operator, G:
+       @a y = G(@a x, t) where t is the current time.
+
+       Presently, this method is used by some PETSc ODE solvers, for more
+       details, see the PETSc Manual. */
+   virtual void ExplicitMult(const Vector &x, Vector &y) const
+   {
+      mfem_error("TimeDependentOperator::ExplicitMult() is not overridden!");
+   }
+
+   /** @brief Perform the action of the implicit part of the operator, F:
+       @a y = F(@a x, @a k, t) where t is the current time.
+
+       Presently, this method is used by some PETSc ODE solvers, for more
+       details, see the PETSc Manual.*/
+   virtual void ImplicitMult(const Vector &x, const Vector &k, Vector &y) const
+   {
+      mfem_error("TimeDependentOperator::ImplicitMult() is not overridden!");
+   }
+
+   /** @brief Perform the action of the operator: @a y = k = f(@a x, t), where
+       k solves the algebraic equation F(@a x, k, t) = G(@a x, t) and t is the
+       current time. */
+   virtual void Mult(const Vector &x, Vector &y) const
+   {
+      mfem_error("TimeDependentOperator::Mult() is not overridden!");
+   }
+
    /** @brief Solve the equation: @a k = f(@a x + @a dt @a k, t), for the
        unknown @a k at the current time t.
+
+       For general F and G, the equation for @a k becomes:
+       F(@a x + @a dt @a k, @a k, t) = G(@a x + @a dt @a k, t).
+
+       The input vector @a x corresponds to time index (or cycle) n, while the
+       currently set time, #t, and the result vector @a k correspond to time
+       index n+1. The time step @a dt corresponds to the time interval between
+       cycles n and n+1.
 
        This method allows for the abstract implementation of some time
        integration methods, including diagonal implicit Runge-Kutta (DIRK)
@@ -153,10 +222,36 @@ public:
        If not re-implemented, this method simply generates an error. */
    virtual void ImplicitSolve(const double dt, const Vector &x, Vector &k)
    {
-      mfem_error("TimeDependentOperator::ImplicitSolve() is not overloaded!");
+      mfem_error("TimeDependentOperator::ImplicitSolve() is not overridden!");
    }
-};
 
+   /** @brief Return an Operator representing (dF/dk @a shift + dF/dx) at the
+       given @a x, @a k, and the currently set time.
+
+       Presently, this method is used by some PETSc ODE solvers, for more
+       details, see the PETSc Manual. */
+   virtual Operator& GetImplicitGradient(const Vector &x, const Vector &k,
+                                         double shift) const
+   {
+      mfem_error("TimeDependentOperator::GetImplicitGradient() is "
+                 "not overridden!");
+      return const_cast<Operator &>(dynamic_cast<const Operator &>(*this));
+   }
+
+   /** @brief Return an Operator representing dG/dx at the given point @a x and
+       the currently set time.
+
+       Presently, this method is used by some PETSc ODE solvers, for more
+       details, see the PETSc Manual. */
+   virtual Operator& GetExplicitGradient(const Vector &x) const
+   {
+      mfem_error("TimeDependentOperator::GetExplicitGradient() is "
+                 "not overridden!");
+      return const_cast<Operator &>(dynamic_cast<const Operator &>(*this));
+   }
+
+   virtual ~TimeDependentOperator() { }
+};
 
 /// Base class for solvers
 class Solver : public Operator
@@ -167,7 +262,7 @@ public:
 
    /** @brief Initialize a square Solver with size @a s.
 
-       @warning Use a boolean expression for the second parameter (not an int)
+       @warning Use a Boolean expression for the second parameter (not an int)
        to distinguish this call from the general rectangular constructor. */
    explicit Solver(int s = 0, bool iter_mode = false)
       : Operator(s) { iterative_mode = iter_mode; }

@@ -930,14 +930,17 @@ void KinSolver::Mult(const Vector &b, Vector &x) const
 
       // Note that KINSOL uses infinity norms.
       double norm;
+#ifdef MFEM_USE_MPI
       if (Parallel())
       {
-#ifdef MFEM_USE_MPI
          double lnorm = r.Normlinf();
          MPI_Allreduce(&lnorm, &norm, 1, MPI_DOUBLE, MPI_MAX, NV_COMM_P(y));
-#endif
       }
-      else { norm = r.Normlinf(); }
+      else
+#endif
+      {
+         norm = r.Normlinf();
+      }
 
       if (abs_tol > rel_tol * norm)
       {

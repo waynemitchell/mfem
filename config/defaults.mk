@@ -70,6 +70,7 @@ MFEM_USE_SUPERLU     = NO
 MFEM_USE_GECKO       = NO
 MFEM_USE_GNUTLS      = NO
 MFEM_USE_NETCDF      = NO
+MFEM_USE_PETSC       = NO
 MFEM_USE_MPFR        = NO
 MFEM_USE_SIDRE       = NO
 
@@ -115,12 +116,14 @@ POSIX_CLOCKS_LIB = -lrt
 # SUNDIALS library configuration
 SUNDIALS_DIR = @MFEM_DIR@/../sundials-2.7.0
 SUNDIALS_OPT = -I$(SUNDIALS_DIR)/include
-SUNDIALS_LIB = -L$(SUNDIALS_DIR)/lib -lsundials_arkode -lsundials_cvode\
-  -lsundials_nvecserial -lsundials_kinsol
+SUNDIALS_LIB = -Wl,-rpath,$(SUNDIALS_DIR)/lib -L$(SUNDIALS_DIR)/lib\
+  -lsundials_arkode -lsundials_cvode -lsundials_nvecserial -lsundials_kinsol
 
 ifeq ($(MFEM_USE_MPI),YES)
    SUNDIALS_LIB += -lsundials_nvecparhyp -lsundials_nvecparallel
 endif
+# If SUNDIALS was built with KLU:
+# MFEM_USE_SUITESPARSE = YES
 
 # MESQUITE library configuration
 MESQUITE_DIR = @MFEM_DIR@/../mesquite-2.99
@@ -156,6 +159,16 @@ ZLIB_DIR    = $(HOME)/local
 NETCDF_OPT  = -I$(NETCDF_DIR)/include
 NETCDF_LIB  = -L$(NETCDF_DIR)/lib -lnetcdf -L$(HDF5_DIR)/lib -lhdf5_hl -lhdf5\
  -L$(ZLIB_DIR)/lib -lz
+
+# PETSc library configuration (version greater or equal to 3.8 or the dev branch)
+ifeq ($(MFEM_USE_PETSC),YES)
+   PETSC_DIR := $(MFEM_DIR)/../petsc/arch-linux2-c-debug
+   PETSC_PC  := $(PETSC_DIR)/lib/pkgconfig/PETSc.pc
+   $(if $(wildcard $(PETSC_PC)),,$(error PETSc config not found - $(PETSC_PC)))
+   PETSC_OPT := $(shell sed -n "s/Cflags: *//p" $(PETSC_PC))
+   PETSC_LIB := $(shell sed -n "s/Libs.*: *//p" $(PETSC_PC))
+   PETSC_LIB := -Wl,-rpath -Wl,$(abspath $(PETSC_DIR))/lib $(PETSC_LIB)
+endif
 
 # MPFR library configuration
 MPFR_OPT =

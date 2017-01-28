@@ -1236,6 +1236,7 @@ void VectorFECurlIntegrator::AssembleElementMatrix2(
 {
    int trial_nd = trial_fe.GetDof(), test_nd = test_fe.GetDof(), i;
    int dim = trial_fe.GetDim();
+   int dimc = (dim == 3) ? 3 : 1;
 
    MFEM_ASSERT(trial_fe.GetMapType() == mfem::FiniteElement::H_CURL ||
                test_fe.GetMapType() == mfem::FiniteElement::H_CURL,
@@ -1254,14 +1255,15 @@ void VectorFECurlIntegrator::AssembleElementMatrix2(
    }
 
 #ifdef MFEM_THREAD_SAFE
-   DenseMatrix curlshapeTrial(curl_nd, dim);
-   DenseMatrix curlshapeTrial_dFT(curl_nd, dim);
-   DenseMatrix vshapeTest(vec_nd, dim);
+   DenseMatrix curlshapeTrial(curl_nd, dimc);
+   DenseMatrix curlshapeTrial_dFT(curl_nd, dimc);
+   DenseMatrix vshapeTest(vec_nd, dimc);
 #else
-   curlshapeTrial.SetSize(curl_nd, dim);
-   curlshapeTrial_dFT.SetSize(curl_nd, dim);
-   vshapeTest.SetSize(vec_nd, dim);
+   curlshapeTrial.SetSize(curl_nd, dimc);
+   curlshapeTrial_dFT.SetSize(curl_nd, dimc);
+   vshapeTest.SetSize(vec_nd, dimc);
 #endif
+   Vector shapeTest(vshapeTest.GetData(), vec_nd);
 
    elmat.SetSize(test_nd, trial_nd);
 
@@ -1278,23 +1280,41 @@ void VectorFECurlIntegrator::AssembleElementMatrix2(
       const IntegrationPoint &ip = ir->IntPoint(i);
 
       Trans.SetIntPoint(&ip);
-      if ( trial_fe.GetMapType() == mfem::FiniteElement::H_CURL )
+      if (dim == 3)
       {
-         trial_fe.CalcCurlShape(ip, curlshapeTrial);
-         test_fe.CalcVShape(Trans, vshapeTest);
+         if ( trial_fe.GetMapType() == mfem::FiniteElement::H_CURL )
+         {
+            trial_fe.CalcCurlShape(ip, curlshapeTrial);
+            test_fe.CalcVShape(Trans, vshapeTest);
+         }
+         else
+         {
+            test_fe.CalcCurlShape(ip, curlshapeTrial);
+            trial_fe.CalcVShape(Trans, vshapeTest);
+         }
+         MultABt(curlshapeTrial, Trans.Jacobian(), curlshapeTrial_dFT);
       }
       else
       {
-         test_fe.CalcCurlShape(ip, curlshapeTrial);
-         trial_fe.CalcVShape(Trans, vshapeTest);
+         if ( trial_fe.GetMapType() == mfem::FiniteElement::H_CURL )
+         {
+            trial_fe.CalcCurlShape(ip, curlshapeTrial_dFT);
+            test_fe.CalcShape(ip, shapeTest);
+         }
+         else
+         {
+            test_fe.CalcCurlShape(ip, curlshapeTrial_dFT);
+            trial_fe.CalcShape(ip, shapeTest);
+         }
       }
-      MultABt(curlshapeTrial, Trans.Jacobian(), curlshapeTrial_dFT);
+
       double w = ip.weight;
 
       if (Q)
       {
          w *= Q->Eval(Trans, ip);
       }
+      // Note: shapeTest points to the same data as vshapeTest
       vshapeTest *= w;
       if ( trial_fe.GetMapType() == mfem::FiniteElement::H_CURL )
       {

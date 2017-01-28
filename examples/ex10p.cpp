@@ -74,8 +74,10 @@ protected:
    /// Newton solver for the reduced backward Euler equation
    NewtonSolver newton_solver;
 
-   /// Solver and preconditioner for the Jacobian solve in the Newton method.
-   Solver *J_solver, *J_prec;
+   /// Solver for the Jacobian solve in the Newton method
+   Solver *J_solver;
+   /// Preconditioner for the Jacobian solve in the Newton method
+   Solver *J_prec;
 
    mutable Vector z; // auxiliary vector
 
@@ -230,9 +232,9 @@ int main(int argc, char *argv[])
    switch (ode_solver_type)
    {
       // Implicit L-stable methods
-      case 1: ode_solver = new BackwardEulerSolver; break;
-      case 2: ode_solver = new SDIRK23Solver(2); break;
-      case 3: ode_solver = new SDIRK33Solver; break;
+      case 1:  ode_solver = new BackwardEulerSolver; break;
+      case 2:  ode_solver = new SDIRK23Solver(2); break;
+      case 3:  ode_solver = new SDIRK33Solver; break;
       // Explicit methods
       case 11: ode_solver = new ForwardEulerSolver; break;
       case 12: ode_solver = new RK2Solver(0.5); break; // midpoint method
@@ -373,7 +375,6 @@ int main(int argc, char *argv[])
          {
             cout << "step " << ti << ", t = " << t << ", EE = " << ee
                  << ", KE = " << ke << ", ΔTE = " << (ee+ke)-(ee0+ke0) << endl;
-
          }
 
          if (visualization)

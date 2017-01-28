@@ -46,14 +46,25 @@ class HypreParMatrix;
 namespace internal
 {
 
-// Convert a HYPRE_Int to int
-inline int to_int(HYPRE_Int i)
+template <typename int_type>
+inline int to_int(int_type i)
 {
-#ifdef HYPRE_BIGINT
-   MFEM_ASSERT(HYPRE_Int(int(i)) == i, "overflow converting HYPRE_Int to int");
-#endif
+   MFEM_ASSERT(int_type(int(i)) == i, "overflow converting int_type to int");
    return int(i);
 }
+
+// Specialization for to_int(int)
+template <> inline int to_int(int i) { return i; }
+
+// Convert a HYPRE_Int to int
+#ifdef HYPRE_BIGINT
+template <>
+inline int to_int(HYPRE_Int i)
+{
+   MFEM_ASSERT(HYPRE_Int(int(i)) == i, "overflow converting HYPRE_Int to int");
+   return int(i);
+}
+#endif
 
 }
 
@@ -284,7 +295,7 @@ public:
    MPI_Comm GetComm() const { return A->comm; }
 
    /// Typecasting to hypre's hypre_ParCSRMatrix*
-   operator hypre_ParCSRMatrix*() { return A; }
+   operator hypre_ParCSRMatrix*() const { return A; }
 #ifndef HYPRE_PAR_CSR_MATRIX_STRUCT
    /// Typecasting to hypre's HYPRE_ParCSRMatrix, a.k.a. void *
    operator HYPRE_ParCSRMatrix() { return (HYPRE_ParCSRMatrix) A; }
@@ -313,15 +324,19 @@ public:
    void CopyColStarts();
 
    /// Returns the global number of nonzeros
-   inline HYPRE_Int NNZ() { return A->num_nonzeros; }
+   inline HYPRE_Int NNZ() const { return A->num_nonzeros; }
    /// Returns the row partitioning
    inline HYPRE_Int *RowPart() { return A->row_starts; }
    /// Returns the column partitioning
    inline HYPRE_Int *ColPart() { return A->col_starts; }
+   /// Returns the row partitioning (const version)
+   inline const HYPRE_Int *RowPart() const { return A->row_starts; }
+   /// Returns the column partitioning (const version)
+   inline const HYPRE_Int *ColPart() const { return A->col_starts; }
    /// Returns the global number of rows
-   inline HYPRE_Int M() { return A->global_num_rows; }
+   inline HYPRE_Int M() const { return A->global_num_rows; }
    /// Returns the global number of columns
-   inline HYPRE_Int N() { return A->global_num_cols; }
+   inline HYPRE_Int N() const { return A->global_num_cols; }
 
    /// Get the local diagonal of the matrix.
    void GetDiag(Vector &diag) const;
@@ -447,6 +462,8 @@ public:
 
    /// Calls hypre's destroy function
    virtual ~HypreParMatrix() { Destroy(); }
+
+   Type GetType() const { return HYPRE_PARCSR; }
 };
 
 /** @brief Return a new matrix `C = alpha*A + beta*B`, assuming that both `A`

@@ -73,8 +73,10 @@ protected:
    /// Newton solver for the reduced backward Euler equation
    NewtonSolver newton_solver;
 
-   /// Solver and preconditioner for the Jacobian solve in the Newton method.
-   Solver *J_solver, *J_prec;
+   /// Solver for the Jacobian solve in the Newton method
+   Solver *J_solver;
+   /// Preconditioner for the Jacobian solve in the Newton method
+   Solver *J_prec;
 
    mutable Vector z; // auxiliary vector
 

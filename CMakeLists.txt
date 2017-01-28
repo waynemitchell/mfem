@@ -79,6 +79,22 @@ if (MFEM_USE_MPI)
   include_directories(${HYPRE_INCLUDE_DIRS})
   find_package(METIS REQUIRED)
   include_directories(${METIS_INCLUDE_DIRS})
+  if (MFEM_USE_PETSC)
+    find_package(PETSc REQUIRED)
+    message(STATUS "Found PETSc version ${PETSC_VERSION}")
+    if (PETSC_VERSION AND (PETSC_VERSION VERSION_LESS 3.7.5.99))
+      message(FATAL_ERROR "PETSc version >= 3.7.5.99 is required")
+    endif()
+    include_directories(${PETSC_INCLUDES})
+  endif()
+else()
+  set(PKGS_NEED_MPI SUPERLU PETSC)
+  foreach(PKG IN LISTS PKGS_NEED_MPI)
+    if (MFEM_USE_${PKG})
+      message(STATUS "Disabling package ${PKG} - requires MPI")
+      set(MFEM_USE_${PKG} OFF CACHE BOOL "Disabled - requires MPI" FORCE)
+    endif()
+  endforeach()
 endif()
 
 # GZSTREAM -> zlib
@@ -109,6 +125,13 @@ if (MFEM_USE_OPENMP)
   endif()
 endif()
 
+# SuiteSparse (before SUNDIALS which may depend on KLU)
+if (MFEM_USE_SUITESPARSE)
+  find_package(SuiteSparse REQUIRED
+    UMFPACK KLU AMD BTF CHOLMOD COLAMD CAMD CCOLAMD config)
+  include_directories(${SuiteSparse_INCLUDE_DIRS})
+endif()
+
 # SUNDIALS
 if (MFEM_USE_SUNDIALS)
   if (NOT MFEM_USE_MPI)
@@ -124,13 +147,6 @@ endif()
 if (MFEM_USE_MESQUITE)
   find_package(Mesquite REQUIRED)
   include_directories(${MESQUITE_INCLUDE_DIRS})
-endif()
-
-# SuiteSparse
-if (MFEM_USE_SUITESPARSE)
-  find_package(SuiteSparse REQUIRED
-    UMFPACK KLU AMD BTF CHOLMOD COLAMD CAMD CCOLAMD config)
-  include_directories(${SuiteSparse_INCLUDE_DIRS})
 endif()
 
 # SuperLU_DIST can only be enabled if parallel
@@ -195,8 +211,8 @@ endif()
 
 # List all possible libraries in order of dependencies.
 set(MFEM_TPLS HYPRE OPENMP SUNDIALS MESQUITE SuiteSparse SuperLUDist
-  ParMETIS METIS LAPACK BLAS GECKO GNUTLS NETCDF MPFR ATK POSIXCLOCKS
-  MFEMBacktrace ZLIB)
+    ParMETIS METIS LAPACK BLAS GECKO GNUTLS NETCDF PETSC MPFR ATK POSIXCLOCKS
+    MFEMBacktrace ZLIB)
 # Add all *_FOUND libraries in the variable TPL_LIBRARIES.
 set(TPL_LIBRARIES "")
 foreach(TPL IN LISTS MFEM_TPLS)
