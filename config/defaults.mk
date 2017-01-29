@@ -9,9 +9,10 @@
 # terms of the GNU Lesser General Public License (as published by the Free
 # Software Foundation) version 2.1 dated February 1999.
 
-# See the file INSTALL for description of the configuration options.
-
-# Default options. To replace these, copy this file to user.mk and modify it.
+# This file describes the default MFEM build options.
+#
+# See the file INSTALL for description of these options.  You can
+# customize them below, or copy this file to user.mk and modify it.
 
 
 # Some choices below are based on the OS type:

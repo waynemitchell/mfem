@@ -165,7 +165,7 @@ int main(int argc, char *argv[])
    if (mesh->MeshGenerator() & 1) // simplex mesh
    {
       MFEM_VERIFY(pc_choice != LOR, "triangle and tet meshes do not support"
-                                    " the LOR preconditioner yet");
+                  " the LOR preconditioner yet");
    }
 
    // 5. Define a finite element space on the mesh. Here we use continuous

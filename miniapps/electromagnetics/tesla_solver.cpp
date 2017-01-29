@@ -328,7 +328,7 @@ TeslaSolver::Solve()
    {
       jr_->ProjectCoefficient(*jCoef_);
 
-      // Compute the discretly divergence-free portion of jr_
+      // Compute the discretely divergence-free portion of jr_
       DivFreeProj_->Mult(*jr_, *j_);
 
       // Compute the dual of j_

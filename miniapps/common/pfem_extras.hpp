@@ -128,7 +128,7 @@ public:
 
    // Given a GridFunction 'x' of Nedelec DoFs for an arbitrary vector field,
    // compute the Nedelec DoFs of the irrotational portion, 'y', of
-   // this vector field.  The resulting GridFuncction will satisfy Curl y = 0
+   // this vector field.  The resulting GridFunction will satisfy Curl y = 0
    // to machine precision.
    virtual void Mult(const Vector &x, Vector &y) const;
 

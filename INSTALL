@@ -19,12 +19,12 @@ requires an MPI C++ compiler, as well as the following external libraries:
   http://glaros.dtc.umn.edu/gkhome/metis/metis/overview
 
 The library supports two build systems: one based on GNU make, and a second one
-based on CMake. Both build systems are described below. For hints how to build
-without GNU make or CMake, see the end of this file.
+based on CMake. Both build systems are described below. Some hints for building
+without GNU make or CMake can be found at the end of this file.
 
-In addition, MFEM packages are available in the Homebrew/Science and Spack
-package managers, see respectively https://github.com/Homebrew/homebrew-science
-and https://github.com/LLNL/spack.
+In addition to the native build systems, MFEM packages are also available in
+the Homebrew/Science, https://github.com/Homebrew/homebrew-science, and the
+Spack, https://github.com/LLNL/spack, package managers.
 
 
 Quick start with GNU make
@@ -102,7 +102,7 @@ out-of-source build. There are two ways to do that: the first one is
    mkdir <mfem-build-dir> ; cd <mfem-build-dir>
    make -f <mfem-source-dir>/makefile config [OPTIONS] ...
 
-and the second one is
+The second one is
 
    cd <mfem-source-dir>
    make BUILD_DIR=<mfem-build-dir> config [OPTIONS] ...
@@ -136,9 +136,9 @@ check the results from all the serial/parallel MFEM examples and miniapps use:
 
    make test
 
-Note that running all the tests may take a while. Implementation details about
-the check and test targets can be found in the top-level makefile and the
-config/test.mk file.
+Running all the tests may take a while. Implementation details about the check
+and test targets can be found in the top-level makefile and the config/test.mk
+file.
 
 An optional installation of the library and the headers can be performed with
 
@@ -287,7 +287,7 @@ MFEM_USE_MPFR = YES/NO
    see below.
 
 MFEM_USE_SIDRE = YES/NO
-   Sidre is a componenf of LLNL's ASC toolkit, http://goo.gl/cZyJdn, that
+   Sidre is a component of LLNL's ASC toolkit, http://goo.gl/cZyJdn, that
    provides an HDF5-based file format for visualization or restart capability
    following the Conduit (https://github.com/LLNL/conduit) mesh blueprint
    specification. When enabled, this option requires installation of HDF5 (see
@@ -433,9 +433,9 @@ former takes precedence over the latter) and its path/name can be changed with
 
    cmake <mfem-source-dir> -DUSER_CONFIG=<user_config_file>
 
-Note that debug and optimization options are controlled through the CMake
-variable CMAKE_BUILD_TYPE which can be set to standard values like "Debug", and
-"Release" (default).
+Debug and optimization options are controlled through the CMake variable
+CMAKE_BUILD_TYPE which can be set to standard values like "Debug", and "Release"
+(default).
 
 With CMake it is possible to build MFEM as a shared library using the standard
 CMake option -DBUILD_SHARED_LIBS=1.

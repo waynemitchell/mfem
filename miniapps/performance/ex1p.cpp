@@ -218,7 +218,7 @@ int main(int argc, char *argv[])
    if (pmesh->MeshGenerator() & 1) // simplex mesh
    {
       MFEM_VERIFY(pc_choice != LOR, "triangle and tet meshes do not support"
-                                    " the LOR preconditioner yet");
+                  " the LOR preconditioner yet");
    }
 
    // 7. Define a parallel finite element space on the parallel mesh. Here we

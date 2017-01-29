@@ -264,7 +264,7 @@ int main(int argc, char *argv[])
          {
             cout <<
                  "4) Tetrahedron\n"
-                 "5) Hexhedron\n";
+                 "5) Hexahedron\n";
          }
          cout << "enter new element type --> " << flush;
          cin >> eInt;
