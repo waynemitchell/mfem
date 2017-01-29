@@ -2,26 +2,17 @@
 //
 // Compile with: make ex1p
 //
-// Sample runs:  mpirun -np 4 ex1p -perf -m ../../data/fichera.mesh
-//               mpirun -np 4 ex1p -perf -m ../../data/amr-hex.mesh -sc
-//               mpirun -np 4 ex1p -perf -m ../../data/ball-nurbs.mesh -sc
-//               mpirun -np 4 ex1p -perf -m ../../data/pipe-nurbs.mesh
-//               mpirun -np 4 ex1p -std -m ../../data/square-disc.mesh
-//               mpirun -np 4 ex1p -std -m ../../data/star.mesh
-//               mpirun -np 4 ex1p -std -m ../../data/escher.mesh
-//               mpirun -np 4 ex1p -std -m ../../data/square-disc-p2.vtk -o 2
-//               mpirun -np 4 ex1p -std -m ../../data/square-disc-p3.mesh -o 3
-//               mpirun -np 4 ex1p -std -m ../../data/square-disc-nurbs.mesh -o -1
-//               mpirun -np 4 ex1p -std -m ../../data/disc-nurbs.mesh -o -1
-//               mpirun -np 4 ex1p -std -m ../../data/pipe-nurbs.mesh -o -1
-//               mpirun -np 4 ex1p -std -m ../../data/star-surf.mesh
-//               mpirun -np 4 ex1p -std -m ../../data/square-disc-surf.mesh
-//               mpirun -np 4 ex1p -std -m ../../data/inline-segment.mesh
-//               mpirun -np 4 ex1p -std -m ../../data/amr-quad.mesh
-//               mpirun -np 4 ex1p -std -m ../../data/amr-hex.mesh
-//               mpirun -np 4 ex1p -std -m ../../data/fichera-amr.mesh
-//               mpirun -np 4 ex1p -std -m ../../data/mobius-strip.mesh
-//               mpirun -np 4 ex1p -std -m ../../data/mobius-strip.mesh -o -1 -sc
+// Sample runs:  mpirun -np 4 ex1p -m ../../data/fichera.mesh -perf -mf  -pc lor
+//               mpirun -np 4 ex1p -m ../../data/fichera.mesh -perf -asm -pc ho
+//               mpirun -np 4 ex1p -m ../../data/fichera.mesh -perf -asm -pc ho -sc
+//               mpirun -np 4 ex1p -m ../../data/fichera.mesh -std  -asm -pc ho
+//               mpirun -np 4 ex1p -m ../../data/fichera.mesh -std  -asm -pc ho -sc
+//               mpirun -np 4 ex1p -m ../../data/amr-hex.mesh -perf -asm -pc ho -sc
+//               mpirun -np 4 ex1p -m ../../data/amr-hex.mesh -std  -asm -pc ho -sc
+//               mpirun -np 4 ex1p -m ../../data/ball-nurbs.mesh -perf -asm -pc ho  -sc
+//               mpirun -np 4 ex1p -m ../../data/ball-nurbs.mesh -std  -asm -pc ho  -sc
+//               mpirun -np 4 ex1p -m ../../data/pipe-nurbs.mesh -perf -mf  -pc lor
+//               mpirun -np 4 ex1p -m ../../data/pipe-nurbs.mesh -std  -asm -pc ho  -sc
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               simple finite element discretization of the Laplace problem
@@ -128,7 +119,8 @@ int main(int argc, char *argv[])
       MPI_Finalize();
       return 2;
    }
-   if (!perf) { matrix_free = false; }
+   MFEM_VERIFY(perf || !matrix_free,
+               "--standard-version is not compatible with --matrix-free");
    if (myid == 0)
    {
       args.PrintOptions(cout);
@@ -200,6 +192,16 @@ int main(int argc, char *argv[])
          mesh->UniformRefinement();
       }
    }
+   if (!perf && mesh->NURBSext)
+   {
+      const int new_mesh_p = std::min(sol_p, mesh_p);
+      if (myid == 0)
+      {
+         cout << "NURBS mesh: switching the mesh curvature to be "
+              << "min(sol_p, mesh_p) = " << new_mesh_p << " ..." << endl;
+      }
+      mesh->SetCurvature(new_mesh_p, false, -1, Ordering::byNODES);
+   }
 
    // 6. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
@@ -212,6 +214,11 @@ int main(int argc, char *argv[])
       {
          pmesh->UniformRefinement();
       }
+   }
+   if (pmesh->MeshGenerator() & 1) // simplex mesh
+   {
+      MFEM_VERIFY(pc_choice != LOR, "triangle and tet meshes do not support"
+                                    " the LOR preconditioner yet");
    }
 
    // 7. Define a parallel finite element space on the parallel mesh. Here we
@@ -305,7 +312,12 @@ int main(int argc, char *argv[])
    //     system, applying any necessary transformations such as: parallel
    //     assembly, eliminating boundary conditions, applying conforming
    //     constraints for non-conforming AMR, static condensation, etc.
-   if (static_cond) { a->EnableStaticCondensation(); }
+   if (static_cond)
+   {
+      a->EnableStaticCondensation();
+      MFEM_VERIFY(pc_choice != LOR,
+                  "cannot use LOR preconditioner with static condensation");
+   }
 
    if (myid == 0)
    {
@@ -362,9 +374,10 @@ int main(int argc, char *argv[])
    else
    {
       a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
+      HYPRE_Int glob_size = A.GetGlobalNumRows();
       if (myid == 0)
       {
-         cout << "Size of linear system: " << A.GetGlobalNumRows() << endl;
+         cout << "Size of linear system: " << glob_size << endl;
       }
       a_oper = &A;
    }
@@ -378,26 +391,25 @@ int main(int argc, char *argv[])
    tic_toc.Start();
 
    HypreParMatrix A_pc;
-   if (pc_choice != NONE)
+   if (pc_choice == LOR)
    {
-      Vector X_pc, B_pc; // only for FormLinearSystem()
-      if (pc_choice == LOR)
+      // TODO: assemble the LOR matrix using the performance code
+      a_pc->AddDomainIntegrator(new DiffusionIntegrator(one));
+      a_pc->UsePrecomputedSparsity();
+      a_pc->Assemble();
+      a_pc->FormSystemMatrix(ess_tdof_list, A_pc);
+   }
+   else if (pc_choice == HO)
+   {
+      if (!matrix_free)
       {
-         a_pc->AddDomainIntegrator(new DiffusionIntegrator(one));
-         a_pc->Assemble();
-         a_pc->FormLinearSystem(ess_tdof_list, x, *b, A_pc, X_pc, B_pc);
+         A_pc.MakeRef(A); // matrix already assembled, reuse it
       }
-      else if (pc_choice == HO)
+      else
       {
-         if (!perf)
-         {
-            A_pc.MakeRef(A); // matrix already assembled, reuse it
-         }
-         else
-         {
-            a_hpc->AssembleBilinearForm(*a_pc);
-            a_pc->FormLinearSystem(ess_tdof_list, x, *b, A_pc, X_pc, B_pc);
-         }
+         a_pc->UsePrecomputedSparsity();
+         a_hpc->AssembleBilinearForm(*a_pc);
+         a_pc->FormSystemMatrix(ess_tdof_list, A_pc);
       }
    }
    tic_toc.Stop();
@@ -414,8 +426,6 @@ int main(int argc, char *argv[])
    pcg->SetPrintLevel(1);
 
    HypreSolver *amg = NULL;
-   tic_toc.Clear();
-   tic_toc.Start();
 
    pcg->SetOperator(*a_oper);
    if (pc_choice != NONE)
@@ -423,6 +433,10 @@ int main(int argc, char *argv[])
       amg = new HypreBoomerAMG(A_pc);
       pcg->SetPreconditioner(*amg);
    }
+
+   tic_toc.Clear();
+   tic_toc.Start();
+
    pcg->Mult(B, X);
 
    tic_toc.Stop();
@@ -430,8 +444,10 @@ int main(int argc, char *argv[])
 
    if (myid == 0)
    {
-      cout << "Time per CG step: " << tic_toc.RealTime() / pcg->GetNumIterations() <<
-           "s." << endl;
+      // Note: In the pcg algorithm, the number of operator Mult() calls is
+      //       N_iter and the number of preconditioner Mult() calls is N_iter+1.
+      cout << "Time per CG step: "
+           << tic_toc.RealTime() / pcg->GetNumIterations() << "s." << endl;
    }
 
    // 15. Recover the parallel grid function corresponding to X. This is the

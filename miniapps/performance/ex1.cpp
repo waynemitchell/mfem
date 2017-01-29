@@ -2,17 +2,17 @@
 //
 // Compile with: make ex1
 //
-// Sample runs:  ex1 -m ../../data/fichera.mesh -perf
-//               ex1 -m ../../data/fichera.mesh -perf -asm
-//               ex1 -m ../../data/fichera.mesh -perf -asm -sc
-//               ex1 -m ../../data/fichera.mesh -std
-//               ex1 -m ../../data/fichera.mesh -std -sc
-//               ex1 -m ../../data/amr-hex.mesh -perf -asm -sc
-//               ex1 -m ../../data/amr-hex.mesh -std -sc
-//               ex1 -m ../../data/ball-nurbs.mesh -perf -asm -sc
-//               ex1 -m ../../data/ball-nurbs.mesh -std -sc
-//               ex1 -m ../../data/pipe-nurbs.mesh -perf
-//               ex1 -m ../../data/pipe-nurbs.mesh -std
+// Sample runs:  ex1 -m ../../data/fichera.mesh -perf -mf  -pc lor
+//               ex1 -m ../../data/fichera.mesh -perf -asm -pc ho
+//               ex1 -m ../../data/fichera.mesh -perf -asm -pc ho -sc
+//               ex1 -m ../../data/fichera.mesh -std  -asm -pc ho
+//               ex1 -m ../../data/fichera.mesh -std  -asm -pc ho -sc
+//               ex1 -m ../../data/amr-hex.mesh -perf -asm -pc ho -sc
+//               ex1 -m ../../data/amr-hex.mesh -std  -asm -pc ho -sc
+//               ex1 -m ../../data/ball-nurbs.mesh -perf -asm -pc ho  -sc
+//               ex1 -m ../../data/ball-nurbs.mesh -std  -asm -pc ho  -sc
+//               ex1 -m ../../data/pipe-nurbs.mesh -perf -mf  -pc lor
+//               ex1 -m ../../data/pipe-nurbs.mesh -std  -asm -pc ho  -sc
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               simple finite element discretization of the Laplace problem
@@ -105,7 +105,8 @@ int main(int argc, char *argv[])
            " evaluation!\n" << endl;
       return 2;
    }
-   if (!perf) { matrix_free = false; }
+   MFEM_VERIFY(perf || !matrix_free,
+               "--standard-version is not compatible with --matrix-free");
    args.PrintOptions(cout);
 
    enum PCType { NONE, LOR, HO };
@@ -160,6 +161,11 @@ int main(int argc, char *argv[])
       {
          mesh->UniformRefinement();
       }
+   }
+   if (mesh->MeshGenerator() & 1) // simplex mesh
+   {
+      MFEM_VERIFY(pc_choice != LOR, "triangle and tet meshes do not support"
+                                    " the LOR preconditioner yet");
    }
 
    // 5. Define a finite element space on the mesh. Here we use continuous
@@ -246,7 +252,12 @@ int main(int argc, char *argv[])
    //     applying any necessary transformations such as: eliminating boundary
    //     conditions, applying conforming constraints for non-conforming AMR,
    //     static condensation, etc.
-   if (static_cond) { a->EnableStaticCondensation(); }
+   if (static_cond)
+   {
+      a->EnableStaticCondensation();
+      MFEM_VERIFY(pc_choice != LOR,
+                  "cannot use LOR preconditioner with static condensation");
+   }
 
    cout << "Assembling the bilinear form ..." << flush;
    tic_toc.Clear();
@@ -303,26 +314,25 @@ int main(int argc, char *argv[])
    tic_toc.Start();
 
    SparseMatrix A_pc;
-   if (pc_choice != NONE)
+   if (pc_choice == LOR)
    {
-      Vector X_pc, B_pc; // only for FormLinearSystem()
-      if (pc_choice == LOR)
+      // TODO: assemble the LOR matrix using the performance code
+      a_pc->AddDomainIntegrator(new DiffusionIntegrator(one));
+      a_pc->UsePrecomputedSparsity();
+      a_pc->Assemble();
+      a_pc->FormSystemMatrix(ess_tdof_list, A_pc);
+   }
+   else if (pc_choice == HO)
+   {
+      if (!matrix_free)
       {
-         a_pc->AddDomainIntegrator(new DiffusionIntegrator(one));
-         a_pc->Assemble();
-         a_pc->FormLinearSystem(ess_tdof_list, x, *b, A_pc, X_pc, B_pc);
+         A_pc.MakeRef(A); // matrix already assembled, reuse it
       }
-      else if (pc_choice == HO)
+      else
       {
-         if (!perf)
-         {
-            A_pc.MakeRef(A); // matrix already assembled, reuse it
-         }
-         else
-         {
-            a_hpc->AssembleBilinearForm(*a_pc);
-            a_pc->FormLinearSystem(ess_tdof_list, x, *b, A_pc, X_pc, B_pc);
-         }
+         a_pc->UsePrecomputedSparsity();
+         a_hpc->AssembleBilinearForm(*a_pc);
+         a_pc->FormSystemMatrix(ess_tdof_list, A_pc);
       }
    }
 
