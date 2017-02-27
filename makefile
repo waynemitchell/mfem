@@ -465,3 +465,19 @@ style:
 # Print the contents of a makefile variable, e.g.: 'make print-MFEM_LIBS'.
 print-%: ; @printf "%s:\n" $*
 	@printf "%s\n" $($*)
+
+#---[ OCCA ]----------------------------
+OCCA_CACHE_DIR     ?= ${HOME}/.occa
+OCCA_LIB_CACHE_DIR := $(OCCA_CACHE_DIR)/libraries
+
+OKL_KERNELS        := $(realpath $(shell find $(MFEM_REAL_DIR) -type f -name '*.okl'))
+OKL_CACHED_KERNELS := $(subst kernels/,,$(subst $(MFEM_REAL_DIR)/,$(OCCA_LIB_CACHE_DIR)/mfem/,$(OKL_KERNELS)))
+
+# Cache kernels in the OCCA cache directory
+.PHONY: cache-kernels
+cache-kernels: $(OKL_CACHED_KERNELS)
+
+$(OCCA_LIB_CACHE_DIR)/mfem/fem/%.okl: $(MFEM_REAL_DIR)/fem/kernels/%.okl
+	@echo "Caching: $(subst $(MFEM_REAL_DIR)/,,$<)"
+	@occa cache -l mfem/$(subst $(OCCA_LIB_CACHE_DIR)/mfem/,,$(dir $@)) $<
+#=======================================
