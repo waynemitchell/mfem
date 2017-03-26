@@ -219,6 +219,9 @@ private:
    static void CopyCSR_J(hypre_CSRMatrix *hypre_csr, int *J);
 
 public:
+   using Operator::Mult;
+   using Operator::MultTranspose;
+
    /// An empty matrix to be used as a reference to an existing matrix
    HypreParMatrix();
 
@@ -547,6 +550,7 @@ protected:
    double* fir_coeffs;
 
 public:
+   using Operator::Mult;
    /** Hypre smoother types:
        0    = Jacobi
        1    = l1-scaled Jacobi
@@ -615,6 +619,8 @@ protected:
    mutable int setup_called;
 
 public:
+   using Operator::Mult;
+
    HypreSolver();
 
    HypreSolver(HypreParMatrix *_A);
@@ -644,6 +650,8 @@ private:
    HYPRE_Solver pcg_solver;
 
 public:
+   using HypreSolver::Mult;
+
    HyprePCG(HypreParMatrix &_A);
 
    void SetTol(double tol);
@@ -681,7 +689,6 @@ public:
 
    /// Solve Ax=b with hypre's PCG
    virtual void Mult(const HypreParVector &b, HypreParVector &x) const;
-   using HypreSolver::Mult;
 
    virtual ~HyprePCG();
 };
@@ -693,6 +700,8 @@ private:
    HYPRE_Solver gmres_solver;
 
 public:
+   using HypreSolver::Mult;
+
    HypreGMRES(HypreParMatrix &_A);
 
    void SetTol(double tol);
@@ -719,7 +728,6 @@ public:
 
    /// Solve Ax=b with hypre's GMRES
    virtual void Mult (const HypreParVector &b, HypreParVector &x) const;
-   using HypreSolver::Mult;
 
    virtual ~HypreGMRES();
 };
