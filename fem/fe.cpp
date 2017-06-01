@@ -6556,6 +6556,10 @@ const double *Poly_1D::GetPoints(const int p, const int type, const int btype)
 {
    BasisType::Check(btype);
 
+   if (BasisType::GetQuadrature1D(btype) == Quadrature1D::Invalid) {
+     return NULL;
+   }
+
    PointsMap &container = points_container[type];
 
    if (container.find(type) == container.end())
@@ -6593,7 +6597,7 @@ Poly_1D::Basis &Poly_1D::GetBasis(const int p, const int type, const int btype)
    }
    if (bases[p] == NULL)
    {
-      bases[p] = new Basis(p, GetPoints(p, type));
+     bases[p] = new Basis(p, GetPoints(p, type, btype), btype);
    }
    return *bases[p];
 }
