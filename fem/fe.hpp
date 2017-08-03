@@ -357,13 +357,15 @@ public:
    static bool IsClosedType(int pt_type)
    {
       const int q_type = BasisType::GetQuadrature1D(pt_type);
-      return (Quadrature1D::CheckClosed(q_type) != Quadrature1D::Invalid);
+      return ((q_type != Quadrature1D::Invalid) &&
+              (Quadrature1D::CheckClosed(q_type) != Quadrature1D::Invalid));
    }
 
    static bool IsOpenType(int pt_type)
    {
       const int q_type = BasisType::GetQuadrature1D(pt_type);
-      return (Quadrature1D::CheckOpen(q_type) != Quadrature1D::Invalid);
+      return ((q_type != Quadrature1D::Invalid) &&
+              (Quadrature1D::CheckOpen(q_type) != Quadrature1D::Invalid));
    }
 
    static int VerifyClosed(int pt_type)
@@ -1658,7 +1660,6 @@ private:
    // thread private thing.  Brunner, Jan 2014
    mutable Vector shape_x, dshape_x;
 #endif
-   Array<int> dof_map;
 
 public:
    H1Pos_SegmentElement(const int p);
@@ -1666,7 +1667,6 @@ public:
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
-   const Array<int> &GetDofMap() const { return dof_map; }
 };
 
 
@@ -1677,7 +1677,6 @@ private:
    // See comment in H1Pos_SegmentElement
    mutable Vector shape_x, shape_y, dshape_x, dshape_y;
 #endif
-   Array<int> dof_map;
 
 public:
    H1Pos_QuadrilateralElement(const int p);
@@ -1685,7 +1684,6 @@ public:
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
-   const Array<int> &GetDofMap() const { return dof_map; }
 };
 
 
@@ -1696,7 +1694,6 @@ private:
    // See comment in H1Pos_SegementElement.
    mutable Vector shape_x, shape_y, shape_z, dshape_x, dshape_y, dshape_z;
 #endif
-   Array<int> dof_map;
 
 public:
    H1Pos_HexahedronElement(const int p);
@@ -1704,7 +1701,6 @@ public:
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
-   const Array<int> &GetDofMap() const { return dof_map; }
 };
 
 
