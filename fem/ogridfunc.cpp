@@ -134,28 +134,20 @@ namespace mfem {
     return ofespace->GetFESpace();
   }
 
-  void OccaGridFunction::ToQuad(OccaIntegrator &integ,
-                                OccaVector &quadValues) {
-    ToQuad(integ.GetDevice(),
-           integ.GetTrialOccaFESpace(),
-           integ.GetIntegrationRule(),
-           quadValues);
-  }
-
-  void OccaGridFunction::ToQuad(occa::device device,
-                                OccaFiniteElementSpace &fespace,
-                                const IntegrationRule &ir,
+  void OccaGridFunction::ToQuad(const IntegrationRule &ir,
                                 OccaVector &quadValues) {
 
-    const FiniteElement &fe = *(fespace.GetFE(0));
-    OccaDofQuadMaps &maps = OccaDofQuadMaps::Get(device, fespace, ir);
+    occa::device device = GetDevice();
 
-    const int elements = fespace.GetNE();
+    const FiniteElement &fe = *(ofespace->GetFE(0));
+    OccaDofQuadMaps &maps = OccaDofQuadMaps::Get(device, *ofespace, ir);
+
+    const int elements = ofespace->GetNE();
     const int numQuad  = ir.GetNPoints();
     quadValues.SetSize(device,
                        numQuad * elements);
 
-    occa::kernel g2qKernel = GetGridFunctionKernel(device, fespace, ir);
+    occa::kernel g2qKernel = GetGridFunctionKernel(device, *ofespace, ir);
     g2qKernel(elements,
               maps.dofToQuad,
               ofespace->GetLocalToGlobalMap(),

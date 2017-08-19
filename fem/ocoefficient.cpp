@@ -128,7 +128,7 @@ namespace mfem {
      args += name;
      args += " @dim(NUM_QUAD, numElements),\n";
 
-     gf.ToQuad(integ, gfQuad);
+     gf.ToQuad(integ.GetIntegrationRule(), gfQuad);
   }
 
   occa::kernelArg OccaGridFunctionParameter::KernelArgs() {

@@ -65,12 +65,7 @@ namespace mfem {
     FiniteElementSpace* GetFESpace();
     const FiniteElementSpace* GetFESpace() const;
 
-    void ToQuad(OccaIntegrator &integ,
-                OccaVector &quadValues);
-
-    void ToQuad(occa::device device,
-                OccaFiniteElementSpace &fespace,
-                const IntegrationRule &ir,
+    void ToQuad(const IntegrationRule &ir,
                 OccaVector &quadValues);
 
     void Distribute(const OccaVector &v);
