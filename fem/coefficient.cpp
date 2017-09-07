@@ -246,7 +246,10 @@ MatrixArrayCoefficient::MatrixArrayCoefficient (int dim)
    : MatrixCoefficient (dim)
 {
    Coeff.SetSize(height*width);
-   Coeff = NULL;
+   for (int i = 0; i < (height*width); i++)
+   {
+      Coeff[i] = NULL;
+   }
 }
 
 MatrixArrayCoefficient::~MatrixArrayCoefficient ()
