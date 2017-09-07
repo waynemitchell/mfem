@@ -11,6 +11,8 @@
 Development version 3.3.1, not released
 =======================================
 
+- Added an option for building in parallel without METIS dependency.
+
 - Modified the installation layout: all headers, except the master headers
   (mfem.hpp and mfem-performance.hpp), are installed in <PREFIX>/include/mfem;
   the master headers are installed in both <PREFIX>/include/mfem and in
