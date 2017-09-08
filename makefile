@@ -352,7 +352,7 @@ $(ALL_CLEAN_SUBDIRS):
 clean: $(addsuffix /clean,$(EM_DIRS))
 	rm -f $(addprefix $(BLD),*/*.o */*~ *~ libmfem.a deps.mk)
 
-distclean: clean config/clean doc/clean
+distclean: clean config/clean doc/clean clear-kernels
 	rm -rf mfem/
 
 install: $(BLD)libmfem.a
@@ -483,12 +483,11 @@ OKL_CACHED_KERNELS := $(subst kernels/,,$(subst $(MFEM_REAL_DIR)/,$(OCCA_LIB_CAC
 .PHONY: cache-kernels
 cache-kernels: $(OKL_CACHED_KERNELS)
 
-.PHONY: clear-cache
+.PHONY: clear-kernels
 clear-kernels: clear-mfem-kernels
 
-.PHONY: clear-cache
 clear-mfem-kernels:
-	@echo y | occa clear -l mfem
+	@occa clear -y -l mfem
 
 $(OCCA_LIB_CACHE_DIR)/mfem/fem/%.okl: $(MFEM_REAL_DIR)/fem/kernels/%.okl
 	@echo "Caching: $(subst $(MFEM_REAL_DIR)/,,$<)"
