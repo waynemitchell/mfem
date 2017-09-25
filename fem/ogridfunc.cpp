@@ -158,6 +158,8 @@ namespace mfem {
   void OccaGridFunction::Distribute(const OccaVector &v) {
     if (ofespace->isDistributed()) {
       ofespace->GetProlongationOperator()->Mult(v, *this);
+    } else {
+      *this = v;
     }
   }
 }

@@ -105,8 +105,8 @@ kernel void MultAdd2D(const int numElements,
 
         for (int dx = 0; dx < NUM_DOFS_1D; ++dx) {
           const double s = solIn(dx, dy, e);
-          for (int qy = 0; qy < NUM_QUAD_1D; ++qy) {
-            sol_x[qy] += dofToQuad(qy, dx) * s;
+          for (int qx = 0; qx < NUM_QUAD_1D; ++qx) {
+            sol_x[qx] += dofToQuad(qx, dx) * s;
           }
         }
 
