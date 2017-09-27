@@ -90,25 +90,25 @@ LIBUNWIND_OPT = -g
 LIBUNWIND_LIB = $(if $(NOTMAC),-lunwind -ldl,)
 
 # HYPRE library configuration (needed to build the parallel version)
-HYPRE_DIR = @MFEM_DIR@/../hypre/src/hypre
+HYPRE_DIR = @MFEM_DIR@/../hypre-2.10.0b/src/hypre
 HYPRE_OPT = -I$(HYPRE_DIR)/include
 HYPRE_LIB = -L$(HYPRE_DIR)/lib -lHYPRE
 
 # METIS library configuration
 ifeq ($(MFEM_USE_SUPERLU)$(MFEM_USE_STRUMPACK),NONO)
    ifeq ($(MFEM_USE_METIS_5),NO)
-     METIS_DIR = @MFEM_DIR@/../metis
+     METIS_DIR = @MFEM_DIR@/../metis-4.0
      METIS_OPT =
      METIS_LIB = -L$(METIS_DIR) -lmetis
    else
-     METIS_DIR = @MFEM_DIR@/../metis
+     METIS_DIR = @MFEM_DIR@/../metis-5.0
      METIS_OPT = -I$(METIS_DIR)/include
      METIS_LIB = -L$(METIS_DIR)/lib -lmetis
    endif
 else
    # ParMETIS: currently needed by SuperLU or STRUMPACK. We assume that METIS 5
    # (included with ParMETIS) is installed in the same location.
-   METIS_DIR = @MFEM_DIR@/../parmetis
+   METIS_DIR = @MFEM_DIR@/../parmetis-4.0.3
    METIS_OPT = -I$(METIS_DIR)/include
    METIS_LIB = -L$(METIS_DIR)/lib -lparmetis -lmetis
    MFEM_USE_METIS_5 = YES
