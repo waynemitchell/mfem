@@ -1269,13 +1269,13 @@ void NewtonSolver::Mult(const Vector &b, Vector &x) const
       MFEM_ASSERT(IsFinite(norm), "norm = " << norm);
       if (print_level >= 0)
       {
-         cout << "Newton iteration " << setw(2) << it
-              << " : ||r|| = " << norm;
+         mfem::out << "Newton iteration " << setw(2) << it
+                   << " : ||r|| = " << norm;
          if (it > 0)
          {
-            cout << ", ||r||/||r_0|| = " << norm/norm0;
+            mfem::out << ", ||r||/||r_0|| = " << norm/norm0;
          }
-         cout << '\n';
+         mfem::out << '\n';
       }
 
       if (norm <= norm_goal)

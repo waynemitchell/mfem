@@ -53,9 +53,6 @@ if (${PROJECT_SOURCE_DIR} STREQUAL ${PROJECT_BINARY_DIR})
     "MFEM does not support in-source CMake builds at this time.")
 endif (${PROJECT_SOURCE_DIR} STREQUAL ${PROJECT_BINARY_DIR})
 
-# Suppress warnings about MACOSX_RPATH
-set(CMAKE_MACOSX_RPATH OFF CACHE BOOL "")
-
 # Set xSDK defaults.
 set(USE_XSDK_DEFAULTS_DEFAULT OFF)
 set(XSDK_ENABLE_CXX ON)
@@ -87,6 +84,9 @@ endif()
 if (XSDK_ENABLE_Fortran)
    enable_language(Fortran)
 endif()
+
+# Suppress warnings about MACOSX_RPATH
+set(CMAKE_MACOSX_RPATH OFF CACHE BOOL "")
 
 # CMake needs to know where to find things
 set(MFEM_CMAKE_PATH ${PROJECT_SOURCE_DIR}/config)
