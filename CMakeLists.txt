@@ -45,7 +45,7 @@ project(mfem NONE)
 # Current version of MFEM, see also `makefile`.
 #   mfem_VERSION = (string)
 #   MFEM_VERSION = (int)   [automatically derived from mfem_VERSION]
-set(${PROJECT_NAME}_VERSION 3.3.2)
+set(${PROJECT_NAME}_VERSION 3.3.3)
 
 # Prohibit in-source build
 if (${PROJECT_SOURCE_DIR} STREQUAL ${PROJECT_BINARY_DIR})
@@ -236,11 +236,7 @@ endif()
 
 # Axom/Sidre
 if (MFEM_USE_SIDRE)
-  if (NOT MFEM_USE_MPI)
-    find_package(Axom REQUIRED Sidre SLIC axom_utils)
-  else()
-    find_package(Axom REQUIRED Sidre SPIO SLIC axom_utils)
-  endif()
+  find_package(Axom REQUIRED Sidre SLIC axom_utils)
 endif()
 
 # MFEM_TIMER_TYPE

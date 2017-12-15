@@ -166,13 +166,14 @@ void Mesh::GetCharacteristics(double &h_min, double &h_max,
 
    dim = Dimension();
    sdim = SpaceDimension();
-   J.SetSize(sdim, dim);
 
    if (Vh) { Vh->SetSize(NumOfElements); }
    if (Vk) { Vk->SetSize(NumOfElements); }
 
    h_min = kappa_min = numeric_limits<double>::infinity();
    h_max = kappa_max = -h_min;
+   if (dim == 0) { if (Vh) { *Vh = 1.0; } if (Vk) {*Vk = 1.0; } return; }
+   J.SetSize(sdim, dim);
    for (i = 0; i < NumOfElements; i++)
    {
       GetElementJacobian(i, J);
@@ -197,7 +198,17 @@ void Mesh::PrintCharacteristics(Vector *Vh, Vector *Vk, std::ostream &out)
 
    this->GetCharacteristics(h_min, h_max, kappa_min, kappa_max, Vh, Vk);
 
-   if (Dim == 1)
+   out << '\n'
+       << "Dimension          : " << Dimension() << '\n'
+       << "Space dimension    : " << SpaceDimension();
+   if (Dim == 0)
+   {
+      out << '\n'
+          << "Number of vertices : " << GetNV() << '\n'
+          << "Number of elements : " << GetNE() << '\n'
+          << "Number of bdr elem : " << GetNBE() << '\n';
+   }
+   else if (Dim == 1)
    {
       out << '\n'
           << "Number of vertices : " << GetNV() << '\n'
@@ -1844,7 +1855,7 @@ void Mesh::Finalize(bool refine, bool fix_orientation)
    }
 
    // Requirements:
-   //  1) FinilizeTopology() or equivalent was called
+   //  1) FinalizeTopology() or equivalent was called
    //  2) if (Nodes == NULL), vertices must be defined
    //  3) if (Nodes != NULL), Nodes must be defined
 
@@ -2514,6 +2525,7 @@ Element *Mesh::ReadElementWithoutAttr(std::istream &input)
 
    input >> geom;
    el = NewElement(geom);
+   MFEM_VERIFY(el, "Unsupported element type: " << geom);
    nv = el->GetNVertices();
    v  = el->GetVertices();
    for (int i = 0; i < nv; i++)
@@ -2561,6 +2573,7 @@ void Mesh::SetMeshGen()
    {
       switch (elements[i]->GetType())
       {
+         case Element::POINT:
          case Element::SEGMENT:
          case Element::TRIANGLE:
          case Element::TETRAHEDRON:
@@ -7852,12 +7865,9 @@ void Mesh::PrintElementsWithPartitioning(int *partitioning,
             }
             out << '\n';
          }
-      out << flush;
-      return;
    }
-
    //  Dim is 3
-   if (meshgen == 1)
+   else if (meshgen == 1)
    {
       out << "NETGEN_Neutral_Format\n";
       // print the vertices
@@ -7952,12 +7962,8 @@ void Mesh::PrintElementsWithPartitioning(int *partitioning,
                   }
             out << '\n';
          }
-
-      for (i = 0; i < NumOfVertices; i++)
-      {
-         delete [] vown[i];
-      }
    }
+   //  Dim is 3
    else if (meshgen == 2) // TrueGrid
    {
       // count the number of the boundary elements.
@@ -8055,6 +8061,11 @@ void Mesh::PrintElementsWithPartitioning(int *partitioning,
    }
 
    out << flush;
+
+   for (i = 0; i < NumOfVertices; i++)
+   {
+      delete [] vown[i];
+   }
 
    delete [] vcount;
    delete [] voff;
