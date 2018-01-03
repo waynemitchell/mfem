@@ -10,6 +10,9 @@
 
 Version 3.3.3 (development)
 ===========================
+- Inherit finite element classes from the new base class TensorBasisElement,
+  whenever the basis can be represented by a tensor product of 1D bases.
+
 - Added support for elimination of boundary conditions in block matrices.
 
 - Added a new developer tool, config/sample-runs.sh, that extracts the sample
@@ -28,6 +31,7 @@ Miscellaneous
 - Upgraded MFEM to support Axom 0.2.8. Prior versions are no longer supported.
 
 - Add support for building a shared version of the MFEM library with GNU make.
+>>>>>>> master
 
 
 Version 3.3.2, released on Nov 10, 2017
