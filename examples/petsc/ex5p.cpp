@@ -63,6 +63,7 @@ int main(int argc, char *argv[])
    bool visualization = 1;
    bool use_petsc = true;
    bool use_nonoverlapping = false;
+   bool localbdr = false;
    const char *petscrc_file = "";
 
    OptionsParser args(argc, argv);
@@ -82,6 +83,10 @@ int main(int argc, char *argv[])
                   "-no-nonoverlapping", "--no-nonoverlapping",
                   "Use or not the block diagonal PETSc's matrix format "
                   "for non-overlapping domain decomposition.");
+   args.AddOption(&localbdr, "-localbdr", "--localbdr",
+                  "-no-localbdr", "--no-localbdr",
+                  "Use or not local Vdofs ordering for boundary dofs "
+                  "in non-overlapping domain decomposition.");
    args.Parse();
    if (!args.Good())
    {
@@ -272,6 +277,8 @@ int main(int argc, char *argv[])
    //
    //     Here we use Symmetric Gauss-Seidel to approximate the inverse of the
    //     pressure Schur Complement.
+   //     We can also consider a monolithic BDDC solver from PETSc in the
+   //     non-overlapping case.
    PetscPreconditioner *pdarcyPr = NULL;
    BlockDiagonalPreconditioner *darcyPr = NULL;
    HypreSolver *invM = NULL, *invS = NULL;
@@ -308,19 +315,21 @@ int main(int argc, char *argv[])
          // is ordered first then W_space, we don't need any local offset when
          // specifying the dofs.
          Array<int> bdr_tdof_list;
-         bool local = false;
          if (pmesh->bdr_attributes.Size())
          {
             Array<int> bdr(pmesh->bdr_attributes.Max());
             bdr = 1;
-
-            R_space->GetEssentialTrueDofs(bdr, bdr_tdof_list);
-            local = false;
-            // Alternatively, you can also provide the list of dofs in local
-            // ordering:
-            // R_space->GetEssentialVDofs(bdr, bdr_tdof_list);
-            // bdr_tdof_list.SetSize(R_space->GetVSize()+W_space->GetVSize(),0);
-            // local = true;
+            if (!localbdr)
+            {
+               R_space->GetEssentialTrueDofs(bdr, bdr_tdof_list);
+            }
+            else
+            {
+               // Alternatively, you can also provide the list of dofs in local
+               // ordering:
+               R_space->GetEssentialVDofs(bdr, bdr_tdof_list);
+               bdr_tdof_list.SetSize(R_space->GetVSize()+W_space->GetVSize(),0);
+            }
          }
          else
          {
@@ -328,7 +337,7 @@ int main(int argc, char *argv[])
          }
 
          PetscBDDCSolverParams opts;
-         opts.SetNatBdrDofs(&bdr_tdof_list,local);
+         opts.SetNatBdrDofs(&bdr_tdof_list,localbdr);
          // See also command line options rc_ex5p_bddc
          pdarcyPr = new PetscBDDCSolver(MPI_COMM_WORLD,*darcyOp,opts,"prec_");
       }
