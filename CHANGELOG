@@ -50,12 +50,19 @@ New and improved solvers and preconditioners
 
 New and updated examples and miniapps
 -------------------------------------
+- Added a set of miniapps specifically focused on Isogeometric Analysis (IGA) on
+  NURBS meshes in the miniapps/nurbs directory. Currently the directory contains
+  variable order NURBS versions of examples 1, 1p and 11p.
+
 - Added a new electromagnetics miniapp, Maxwell, for simulating time-domain
   electromagnetics phenomena as a coupled first order system of equations.
 
 - Added a set of miniapps specifically focused on Isogeometric Analysis (IGA) on
   NURBS meshes in the miniapps/nurbs directory. Currently the directory contains
   variable order NURBS versions of examples 1, 1p and 11p.
+
+- Added a new miniapp: miniapps/tools/load-dc.cpp, that can be used to visualize
+  fields saved via DataCollection classes.
 
 Miscellaneous
 -------------
