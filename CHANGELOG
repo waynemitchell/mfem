@@ -87,7 +87,13 @@ Miscellaneous
 
 - Upgraded MFEM to support Axom 0.2.8. Prior versions are no longer supported.
 
+- Add support for building a shared version of the MFEM library with GNU make.
+
+- Documented project workflow and provided contribution guidelines in the new
+  top-level file, CONTRIBUTING.md.
+
 API changes
+=======
 -----------
 - Introduced a new enum, Matrix::DiagonalPolicy, that replaces the integer
   parameters in many methods that perform elimination of rows and/or columns in
