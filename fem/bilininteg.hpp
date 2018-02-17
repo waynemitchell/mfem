@@ -80,6 +80,14 @@ public:
                                     Vector &flux, Vector *d_energy = NULL)
    { return 0.0; }
 
+    virtual bool PAIsEnabled() const {return false;}
+    virtual void BatchedPartialAssemble()
+    { mfem_error("Integrator does not support BatchedPartialAssemble()");}
+    virtual void BatchedAssembleMatrix()
+    { mfem_error("Integrator does not support BatchedAssembleMatrix()");}
+    virtual void PAMult(const Vector &x, Vector &y)
+    { mfem_error("Integrator does not support PAMult()");}
+    
    virtual ~BilinearFormIntegrator() { }
 };
 

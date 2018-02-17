@@ -11,6 +11,8 @@
 
 #include "vector.hpp"
 #include "operator.hpp"
+#include "../fem/pabilininteg.hpp"
+#include "../fem/bilinearform.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -144,6 +146,42 @@ void ConstrainedOperator::Mult(const Vector &x, Vector &y) const
    {
       y(constraint_list[i]) = x(constraint_list[i]);
    }
+}
+
+
+
+
+PAIOperator::PAIOperator(Array<BilinearFormIntegrator*> &PAI, int h, int w) : Operator(h,w)
+{
+   A.SetSize(PAI.Size());
+   PAIntegrator *ainteg;
+   for (int i = 0; i < A.Size(); ++i)
+   {
+      ainteg = dynamic_cast<PAIntegrator*>(PAI[i]);
+      MFEM_ASSERT(ainteg != NULL, "PAI operators require partial assembly integrators.");
+      A[i] = ainteg;
+   }
+}
+
+
+void PAIOperator::Mult(const Vector &x, Vector &y) const
+{
+   Vector exp_x, exp_y;
+   A[0]->GetFES()->ToLocalVector(x, exp_x);
+   exp_y.SetSize(exp_x.Size());
+
+
+   Vector temp(exp_x);
+   A[0]->PAMult(exp_x, exp_y);
+   for (int i = 0; i < A.Size(); ++i)
+   {
+      temp = exp_y;
+      A[i]->PAMult(temp,exp_y);
+   }
+
+   //Gather the expanded y vector into the compact form
+   A[0]->GetFES()->ToGlobalVector(exp_y, y);
+
 }
 
 }

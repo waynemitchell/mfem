@@ -17,6 +17,9 @@
 namespace mfem
 {
 
+class BilinearFormIntegrator;
+class PAIntegrator;
+
 /// Abstract operator
 class Operator
 {
@@ -423,6 +426,24 @@ public:
    /// Destructor: destroys the unconstrained Operator @a A if @a own_A is true.
    virtual ~ConstrainedOperator() { if (own_A) { delete A; } }
 };
+
+
+/** @brief Operator for a list of Partial Assembly Integrators */
+class PAIOperator : public Operator
+{
+protected:
+   Array<PAIntegrator*> A;        //The chain of integrators
+   
+public:
+
+   PAIOperator(Array<BilinearFormIntegrator*> &PAI, int h, int w);
+
+   virtual void Mult(const Vector &x, Vector &y) const;
+
+   /// Destructor: destroys the PAI Operator.
+   virtual ~PAIOperator() { }
+};
+
 
 }
 

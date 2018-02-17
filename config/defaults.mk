@@ -105,6 +105,7 @@ MFEM_USE_PETSC       = NO
 MFEM_USE_MPFR        = NO
 MFEM_USE_SIDRE       = NO
 MFEM_USE_CUDAUM      = NO
+MFEM_USE_ACROTENSOR  = NO
 
 LIBUNWIND_OPT = -g
 LIBUNWIND_LIB = $(if $(NOTMAC),-lunwind -ldl,)
@@ -259,6 +260,11 @@ endif
 CUDA_DIR = /usr/local/cuda
 CUDAUM_OPT = -I$(CUDA_DIR)/include
 CUDAUM_LIB = -L$(CUDA_DIR)/lib -lcudart
+
+#Acrotensor library configs
+ACROTENSOR_DIR = @MFEM_DIR@/../acrotensor
+ACROTENSOR_OPT = -I$(ACROTENSOR_DIR)/inc -I$(CUDA_DIR)/include -std=c++11 -DACRO_HAVE_CUDA
+ACROTENSOR_LIB = -L$(ACROTENSOR_DIR)/lib -L$(CUDA_DIR)/lib64 -lacrotensor -lcuda -lcudart -lnvrtc
 
 # If YES, enable some informational messages
 VERBOSE = NO

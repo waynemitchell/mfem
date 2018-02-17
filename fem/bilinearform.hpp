@@ -32,6 +32,9 @@ protected:
    /// Sparse matrix to be associated with the form.
    SparseMatrix *mat;
 
+   /// The partially assembled operator
+   PAIOperator *paioper;
+
    /// Matrix used to eliminate b.c.
    SparseMatrix *mat_e;
 
@@ -98,6 +101,8 @@ public:
    /** Check if static condensation was actually enabled by a previous call to
        EnableStaticCondensation(). */
    bool StaticCondensationIsEnabled() const { return static_cond; }
+
+   bool PAIsEnabled() const;
 
    /// Return the trace FE space associated with static condensation.
    FiniteElementSpace *SCFESpace() const
@@ -232,6 +237,12 @@ public:
    /// Assembles the form i.e. sums over all domain/bdr integrators.
    void Assemble(int skip_zeros = 1);
 
+   /// Partial Assembly for all integrators creating an operator
+   void PartialAssemble();
+
+   /// Get the partially assembled operator
+   virtual Operator *GetPAOperator() const { return paioper;}   
+
    /// Get the finite element space prolongation matrix
    virtual const Operator *GetProlongation() const
    { return fes->GetConformingProlongation(); }
@@ -267,6 +278,11 @@ public:
    void FormLinearSystem(const Array<int> &ess_tdof_list, Vector &x, Vector &b,
                          SparseMatrix &A, Vector &X, Vector &B,
                          int copy_interior = 0);
+
+   /// Form the linear system in the case of a Partially assembled bilinear form
+   void FormPALinearSystem(const Array<int> &ess_tdof_list, Vector &x, Vector &b,
+                           Operator* &Aout, Vector &X, Vector &B,
+                           int copy_interior = 0);
 
    /// Form the linear system matrix A, see FormLinearSystem() for details.
    void FormSystemMatrix(const Array<int> &ess_tdof_list, SparseMatrix &A);

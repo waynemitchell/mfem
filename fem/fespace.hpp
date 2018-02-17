@@ -76,13 +76,14 @@ protected:
    /// Number of degrees of freedom. Number of unknowns are ndofs*vdim.
    int ndofs;
 
-   int nvdofs, nedofs, nfdofs, nbdofs;
+   int nvdofs, nedofs, nfdofs, nbdofs, nldofs;
    int *fdofs, *bdofs;
 
    mutable Table *elem_dof;
    Table *bdrElem_dof;
 
    Array<int> dof_elem_array, dof_ldof_array;
+   Array<int> *tensor_offsets, *tensor_indices;
 
    NURBSExtension *NURBSext;
    int own_ext;
@@ -164,6 +165,9 @@ public:
 
    /// Return the number of vector true (conforming) dofs.
    virtual int GetTrueVSize() const { return GetConformingVSize(); }
+
+   /// Return the number of DOFs on all elements unrolled.
+   inline int GetLocalVSize() const { return vdim * nldofs; }
 
    /// Returns the number of conforming ("true") degrees of freedom
    /// (if the space is on a nonconforming mesh with hanging nodes).
@@ -376,6 +380,10 @@ public:
    long GetSequence() const { return sequence; }
 
    void Save(std::ostream &out) const;
+
+   /// Make a vector corresponding to a grid function on the finite element space
+   void ToLocalVector(const Vector &v, Vector &V);
+   void ToGlobalVector(const Vector &V, Vector &v);   
 
    virtual ~FiniteElementSpace();
 };

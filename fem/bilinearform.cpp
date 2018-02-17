@@ -17,6 +17,43 @@
 namespace mfem
 {
 
+bool BilinearForm::PAIsEnabled() const
+{
+   bool enabled = true;
+   for (int i; i < dbfi.Size(); ++i)
+   {
+      if (!dbfi[i]->PAIsEnabled())
+      {
+         enabled = false;
+      }
+   }
+
+   for (int i; i < bbfi.Size(); ++i)
+   {
+      if (!bbfi[i]->PAIsEnabled())
+      {
+         enabled = false;
+      }
+   }
+
+   for (int i; i < fbfi.Size(); ++i)
+   {
+      if (!fbfi[i]->PAIsEnabled())
+      {
+         enabled = false;
+      }
+   }
+
+   for (int i; i < bfbfi.Size(); ++i)
+   {
+      if (!bfbfi[i]->PAIsEnabled())
+      {
+         enabled = false;
+      }
+   }
+   return enabled;
+}
+
 void BilinearForm::AllocMat()
 {
    if (static_cond) { return; }
@@ -84,6 +121,7 @@ BilinearForm::BilinearForm (FiniteElementSpace * f, BilinearForm * bf, int ps)
    fes = f;
    sequence = f->GetSequence();
    mat_e = NULL;
+   paioper = NULL;
    extern_bfs = 1;
    element_matrices = NULL;
    static_cond = NULL;
@@ -468,6 +506,23 @@ void BilinearForm::Assemble (int skip_zeros)
 #endif
 }
 
+
+void BilinearForm::PartialAssemble()
+{
+   for (int i = 0; i < dbfi.Size(); ++i)
+   {
+      dbfi[i]->BatchedPartialAssemble();
+   }
+
+
+   if (paioper != NULL)
+   {
+      delete paioper;
+   }
+   paioper = new PAIOperator(dbfi, height, width);
+}
+
+
 void BilinearForm::ConformingAssemble()
 {
    // Do not remove zero entries to preserve the symmetric structure of the
@@ -568,6 +623,47 @@ void BilinearForm::FormLinearSystem(const Array<int> &ess_tdof_list,
       }
    }
 }
+
+
+void BilinearForm::FormPALinearSystem(const Array<int> &ess_tdof_list,
+                                       Vector &x, Vector &b,
+                                       Operator* &Aout, Vector &X, Vector &B,
+                                       int copy_interior)
+{
+   MFEM_ASSERT(PAIsEnabled(), "Can't FormPALinearSystem if there are non-PA integrators.");
+
+   Operator *A = GetPAOperator();
+   const Operator *P = A->GetProlongation();
+   const Operator *R = A->GetRestriction();
+   Operator *rap;
+
+   if (P)
+   {
+      // Variational restriction with P
+      B.SetSize(P->Width());
+      P->MultTranspose(b, B);
+      X.SetSize(R->Height());
+      R->Mult(x, X);
+      rap = new RAPOperator(*P, *A, *P);
+   }
+   else
+   {
+      // rap, X and B point to the same data as A, x and b
+      X.NewDataAndSize(x.GetData(), x.Size());
+      B.NewDataAndSize(b.GetData(), b.Size());
+      rap = A;
+   }
+
+   if (!copy_interior) { X.SetSubVectorComplement(ess_tdof_list, 0.0); }
+
+   // Impose the boundary conditions through a ConstrainedOperator, which owns
+   // the rap operator when P and R are non-trivial
+   ConstrainedOperator *Acon = new ConstrainedOperator(rap, ess_tdof_list,
+                                                       rap != A);
+   Acon->EliminateRHS(X, B);
+   Aout = Acon;
+}
+
 
 void BilinearForm::FormSystemMatrix(const Array<int> &ess_tdof_list,
                                     SparseMatrix &A)

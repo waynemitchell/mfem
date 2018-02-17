@@ -48,6 +48,8 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
    bool static_cond = false;
+   bool acrotensor = false;
+   bool gpu = false;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
@@ -56,6 +58,10 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
+   args.AddOption(&acrotensor, "-a", "--acro", "-no-a", "--no-acro",
+                  "Use Acrotensor for integrator.");
+   args.AddOption(&gpu, "-g", "--gpu", "-no-g", "--no-gpu",
+                  "Use GPU for integrator.");     
    args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
                   "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
@@ -139,33 +145,45 @@ int main(int argc, char *argv[])
    //    corresponding to the Laplacian operator -Delta, by adding the Diffusion
    //    domain integrator.
    BilinearForm *a = new BilinearForm(fespace);
-   a->AddDomainIntegrator(new DiffusionIntegrator(one));
+   if (!acrotensor)
+   {
+      a->AddDomainIntegrator(new DiffusionIntegrator(one));
+      if (static_cond) { a->EnableStaticCondensation(); }
+      a->Assemble();
+   }
+   else
+   {
+      a->AddDomainIntegrator(new AcroDiffusionIntegrator(one, *fespace, gpu));
 
-   // 9. Assemble the bilinear form and the corresponding linear system,
-   //    applying any necessary transformations such as: eliminating boundary
-   //    conditions, applying conforming constraints for non-conforming AMR,
-   //    static condensation, etc.
-   if (static_cond) { a->EnableStaticCondensation(); }
-   a->Assemble();
+   }
 
-   SparseMatrix A;
+   Operator *A;
+   SparseMatrix Amat;
    Vector B, X;
-   a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
+   if (!acrotensor)
+   {
+      a->FormLinearSystem(ess_tdof_list, x, *b, Amat, X, B);
+      cout << "Size of linear system: " << Amat.Height() << endl;
+   }
+   else
+   {
+      a->FormPALinearSystem(ess_tdof_list, x, *b, A, X, B);
+      cout << "Size of linear system: " << A->Height() << endl;
+   }
+   
 
-   cout << "Size of linear system: " << A.Height() << endl;
-
-#ifndef MFEM_USE_SUITESPARSE
    // 10. Define a simple symmetric Gauss-Seidel preconditioner and use it to
    //     solve the system A X = B with PCG.
-   GSSmoother M(A);
-   PCG(A, M, B, X, 1, 200, 1e-12, 0.0);
-#else
-   // 10. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
-   UMFPackSolver umf_solver;
-   umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
-   umf_solver.SetOperator(A);
-   umf_solver.Mult(B, X);
-#endif
+   if (!acrotensor)
+   {
+      GSSmoother M(Amat);
+      PCG(Amat, M, B, X, 1, 200, 1e-12, 0.0);
+   }
+   else
+   {
+      CG(*A, B, X, 1, 200, 1e-12, 0.0);
+   }
+
 
    // 11. Recover the solution as a finite element grid function.
    a->RecoverFEMSolution(X, *b, x);

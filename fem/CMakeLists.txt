@@ -27,6 +27,7 @@ set(SRCS
   lininteg.cpp
   nonlinearform.cpp
   nonlininteg.cpp
+  pabilininteg.cpp
   staticcond.cpp
   tmop.cpp
   )
@@ -50,6 +51,7 @@ set(HDRS
   lininteg.hpp
   nonlinearform.hpp
   nonlininteg.hpp
+  pabilininteg.hpp
   staticcond.hpp
   tbilinearform.hpp
   tbilininteg.hpp
@@ -61,6 +63,11 @@ set(HDRS
   tintrules.hpp
   tmop.hpp
   )
+
+if (MFEM_USE_ACROTENSOR)
+  list(APPEND SRCS adiffusioninteg.cpp amassinteg.cpp)
+  list(APPEND HDRS  adiffusioninteg.hpp amassinteg.hpp)
+endif()
 
 if (MFEM_USE_SIDRE)
   list(APPEND SRCS sidredatacollection.cpp)

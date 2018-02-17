@@ -21,6 +21,7 @@
 #include "lininteg.hpp"
 #include "nonlininteg.hpp"
 #include "bilininteg.hpp"
+#include "pabilininteg.hpp"
 #include "fespace.hpp"
 #include "gridfunc.hpp"
 #include "linearform.hpp"
@@ -42,6 +43,11 @@
 
 #ifdef MFEM_USE_SIDRE
 #include "sidredatacollection.hpp"
+#endif
+
+#ifdef MFEM_USE_ACROTENSOR
+#include "amassinteg.hpp"
+#include "adiffusioninteg.hpp"
 #endif
 
 #endif
