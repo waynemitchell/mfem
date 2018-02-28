@@ -739,6 +739,71 @@ void TargetConstructor::ComputeElementTargets(int e_id, const FiniteElement &fe,
          }
          break;
       }
+      case IDEAL_SHAPE_ADAPTIVE_SIZE:
+      {
+#ifdef MFEM_USE_MPI
+         MFEM_ABORT("IDEAL_SHAPE_ADAPTIVE_SIZE doesn't work in parallel yet.");
+#endif
+         MFEM_VERIFY(mesh0 != NULL && indicator0 != NULL,
+                     "Initial mesh and indicator function are not set.");
+
+         if (avg_volume == 0.0) { ComputeAvgVolume(); }
+
+         const int nqp = ir.GetNPoints(), dim = mesh0->Dimension();
+
+         // Create a matrix with the quad point positions.
+         ElementTransformation *T =
+               nodes->FESpace()->GetMesh()->GetElementTransformation(e_id);
+         DenseMatrix quad_point_mat(dim, nqp);
+         T->Transform(ir, quad_point_mat);
+         Array<int> zone_ids(nqp);
+         Array<IntegrationPoint> quads0(nqp);
+
+         // Get the corresponding points on mesh0.
+         mesh0->FindPoints(quad_point_mat, zone_ids, quads0);
+
+         // Evaluate indicator0 at the quadrature points.
+         Vector ind_vals(nqp);
+         double avg_found = 0.0;
+         int found_cnt = 0;
+         for (int q = 0; q < nqp; q++)
+         {
+            if (zone_ids[q] != -1)
+            {
+               ind_vals[q] = indicator0->GetValue(zone_ids[q], quads0[q]);
+               avg_found += ind_vals[q];
+               found_cnt++;
+            }
+         }
+         if (found_cnt == 0) { MFEM_ABORT("No points found for a zone."); }
+         avg_found /= found_cnt;
+         for (int q = 0; q < nqp; q++)
+         {
+            if (zone_ids[q] == -1) { ind_vals[q] = avg_found; }
+         }
+
+         // Form the targets, depending on the indicator values.
+         const int dof = nfe->GetDof();
+         MFEM_ASSERT(dim == nodes->FESpace()->GetVDim(), "");
+         DenseMatrix dshape(dof, dim), pos(dof, dim), T1(dim), T2(dim);
+         Array<int> xdofs(dof * dim);
+         Vector posV(pos.Data(), dof * dim);
+         double detW = Wideal.Det();
+
+         nodes->FESpace()->GetElementVDofs(e_id, xdofs);
+         nodes->GetSubVector(xdofs, posV);
+         for (int q = 0; q < nqp; q++)
+         {
+            nfe->CalcDShape(ir.IntPoint(q), dshape);
+            MultAtB(pos, dshape, T1);
+            const double det = T1.Det();
+            T1.Set(std::pow(det / detW, 1./dim), Wideal);
+
+            T2.Set(std::pow(0.1 * avg_volume / detW, 1./dim), Wideal);
+            Add(ind_vals[q], T2, 1.0 - ind_vals[q], T1, Jtr(q));
+         }
+         break;
+      }
       default:
          MFEM_ABORT("invalid target type!");
    }

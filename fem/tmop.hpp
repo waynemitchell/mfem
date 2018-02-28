@@ -422,9 +422,12 @@ public:
       IDEAL_SHAPE_GIVEN_SIZE, /**<
          Ideal shape, given size/volume; the given nodes define the target
          volume at all quadrature points. */
-      GIVEN_SHAPE_AND_SIZE /**<
+      GIVEN_SHAPE_AND_SIZE, /**<
          Given shape, given size/volume; the given nodes define the exact target
          Jacobian matrix at all quadrature points. */
+      IDEAL_SHAPE_ADAPTIVE_SIZE /**<
+         Ideal shape, adaptive size/volume; the given mesh and indicator
+         function define the target volume at all quadrature points. */
    };
 
 protected:
@@ -433,6 +436,11 @@ protected:
    mutable double avg_volume;
    double volume_scale;
    const TargetType target_type;
+
+   // Used for adaptive targets, i.e., targets that depend on a
+   // function (indicator0) that is defined on a different mesh (mesh0).
+   Mesh *mesh0; // not owned
+   const GridFunction *indicator0; // not owned
 
 #ifdef MFEM_USE_MPI
    MPI_Comm comm;
@@ -448,7 +456,8 @@ protected:
 public:
    /// Constructor for use in serial
    TargetConstructor(TargetType ttype)
-      : nodes(NULL), avg_volume(), volume_scale(1.0), target_type(ttype)
+      : nodes(NULL), avg_volume(), volume_scale(1.0), target_type(ttype),
+        mesh0(NULL), indicator0(NULL)
    {
 #ifdef MFEM_USE_MPI
       comm = MPI_COMM_NULL;
@@ -468,6 +477,11 @@ public:
        externally and recomputation of the target average volume is needed. The
        nodes are used by all target types except IDEAL_SHAPE_UNIT_SIZE. */
    void SetNodes(const GridFunction &n) { nodes = &n; avg_volume = 0.0; }
+   void SetMeshAndIndicator(Mesh &m, const GridFunction &ind)
+   {
+      mesh0 = &m;
+      indicator0 = &ind;
+   }
 
    /// Used by target type IDEAL_SHAPE_EQUAL_SIZE. The default volume scale is 1.
    void SetVolumeScale(double vol_scale) { volume_scale = vol_scale; }

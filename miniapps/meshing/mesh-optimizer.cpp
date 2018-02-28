@@ -78,6 +78,16 @@ void vis_metric(int order, TMOP_QualityMetric &qm, const TargetConstructor &tc,
         << "keys jRmclA" << endl;
 }
 
+double ind_values(const Vector &x)
+{
+   //if (x(0) <= 0.5 && x(1) <= 0.5) { return 1.0; }
+
+   const double r = sqrt(x(0)*x(0) + x(1)*x(1));
+   if (r > 0.5 && r < 0.6) { return 1.0; }
+
+   return 0.0;
+}
+
 class RelaxedNewtonSolver : public NewtonSolver
 {
 private:
@@ -463,12 +473,21 @@ int main (int argc, char *argv[])
       case 1: target_t = TargetConstructor::IDEAL_SHAPE_UNIT_SIZE; break;
       case 2: target_t = TargetConstructor::IDEAL_SHAPE_EQUAL_SIZE; break;
       case 3: target_t = TargetConstructor::IDEAL_SHAPE_GIVEN_SIZE; break;
+      case 4: target_t = TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE; break;
       default: cout << "Unknown target_id: " << target_id << endl;
          delete metric; return 3;
    }
    TargetConstructor *target_c = new TargetConstructor(target_t);
    target_c->SetNodes(x0);
    TMOP_Integrator *he_nlf_integ = new TMOP_Integrator(metric, target_c);
+   // Indicator function.
+   FunctionCoefficient ind_coeff(ind_values);
+   GridFunction ind_gf(fespace);
+   ind_gf.ProjectCoefficient(ind_coeff);
+   // Copy of the initial mesh.
+   Mesh mesh0(*mesh);
+   target_c->SetMeshAndIndicator(mesh0, ind_gf);
+   target_c->SetNodes(*x);
 
    // 12. Setup the quadrature rule for the non-linear form integrator.
    const IntegrationRule *ir = NULL;
