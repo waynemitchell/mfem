@@ -149,8 +149,6 @@ void ConstrainedOperator::Mult(const Vector &x, Vector &y) const
 }
 
 
-
-
 PAIOperator::PAIOperator(Array<BilinearFormIntegrator*> &PAI, int h, int w) : Operator(h,w)
 {
    A.SetSize(PAI.Size());
@@ -166,22 +164,22 @@ PAIOperator::PAIOperator(Array<BilinearFormIntegrator*> &PAI, int h, int w) : Op
 
 void PAIOperator::Mult(const Vector &x, Vector &y) const
 {
+   //Scatter the x,y vectors into the element by element representation
+   //with the degrees of freedom in lexographical order
    Vector exp_x, exp_y;
    A[0]->GetFES()->ToLocalVector(x, exp_x);
    exp_y.SetSize(exp_x.Size());
 
-
    Vector temp(exp_x);
    A[0]->PAMult(exp_x, exp_y);
-   for (int i = 0; i < A.Size(); ++i)
+   for (int i = 1; i < A.Size(); ++i)
    {
       temp = exp_y;
       A[i]->PAMult(temp,exp_y);
    }
 
-   //Gather the expanded y vector into the compact form
+   //Gather the expanded y vector into the compact assembled form
    A[0]->GetFES()->ToGlobalVector(exp_y, y);
-
 }
 
 }

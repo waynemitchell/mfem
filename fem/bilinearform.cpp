@@ -105,6 +105,7 @@ BilinearForm::BilinearForm (FiniteElementSpace * f)
    fes = f;
    sequence = f->GetSequence();
    mat = mat_e = NULL;
+   paioper = NULL;
    extern_bfs = 0;
    element_matrices = NULL;
    static_cond = NULL;
@@ -633,8 +634,8 @@ void BilinearForm::FormPALinearSystem(const Array<int> &ess_tdof_list,
    MFEM_ASSERT(PAIsEnabled(), "Can't FormPALinearSystem if there are non-PA integrators.");
 
    Operator *A = GetPAOperator();
-   const Operator *P = A->GetProlongation();
-   const Operator *R = A->GetRestriction();
+   const Operator *P = GetProlongation();
+   const Operator *R = GetRestriction();
    Operator *rap;
 
    if (P)

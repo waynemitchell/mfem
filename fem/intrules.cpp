@@ -41,7 +41,7 @@ IntegrationRule::IntegrationRule(IntegrationRule &irx, IntegrationRule &iry)
       for (i = 0; i < nx; i++)
       {
          IntegrationPoint &ipx = irx.IntPoint(i);
-         IntegrationPoint &ip  = IntPoint(j*nx+i);
+         IntegrationPoint &ip  = IntPoint(i*ny+j);
 
          ip.x = ipx.x;
          ip.y = ipy.x;
@@ -67,7 +67,7 @@ IntegrationRule::IntegrationRule(IntegrationRule &irx, IntegrationRule &iry,
          for (int ix = 0; ix < nx; ++ix)
          {
             IntegrationPoint &ipx = irx.IntPoint(ix);
-            IntegrationPoint &ip  = IntPoint(iz*nx*ny + iy*nx + ix);
+            IntegrationPoint &ip  = IntPoint(ix*ny*nz + iy*nz + iz);
 
             ip.x = ipx.x;
             ip.y = ipy.x;

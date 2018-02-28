@@ -8,8 +8,8 @@
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
-#if defined(MFEM_USE_ACROTENSOR)
 #include "../config/config.hpp"
+#ifdef MFEM_USE_ACROTENSOR
 #include "adiffusioninteg.hpp"
 
 namespace mfem 
@@ -20,8 +20,8 @@ AcroDiffusionIntegrator::AcroDiffusionIntegrator(Coefficient &q, FiniteElementSp
 {
     if (onGPU) 
     {
-        TE.SetExecutorType("SMChunkPerBlock");
-        //acro::setCudaContext(occa::cuda::getContext(device));
+        TE.SetExecutorType("OneOutPerThread");
+        //TODO:  Set to an existing cuda context if one exists
     } 
     else 
     {
@@ -32,7 +32,8 @@ AcroDiffusionIntegrator::AcroDiffusionIntegrator(Coefficient &q, FiniteElementSp
     nDof1D = FEOrder + 1;
     nQuad1D = ir1D->GetNPoints();
 
-    if (hasTensorBasis) {
+    if (hasTensorBasis) 
+    {
         H1_FECollection fec(FEOrder,1);
         const FiniteElement *fe = fec.FiniteElementForGeometry(Geometry::SEGMENT);
         Vector eval(nDof1D);
@@ -50,29 +51,29 @@ AcroDiffusionIntegrator::AcroDiffusionIntegrator(Coefficient &q, FiniteElementSp
             fe->CalcDShape(ip, deval);
 
             B(k,0) = eval(0);
-            B(k,nQuad1D-1) = eval(1);
+            B(k,nDof1D-1) = eval(1);
             G(k,0) = deval(0,0);
-            G(k,nQuad1D-1) = deval(1,0);            
-            for (int i = 2; i < nDof1D-1; ++i)
+            G(k,nDof1D-1) = deval(1,0);            
+            for (int i = 1; i < nDof1D-1; ++i)
             {
-                B(k,i-1) = eval(i);
-                G(k,i-1) = deval(i,0);
+                B(k,i) = eval(i+1);
+                G(k,i) = deval(i+1,0);
             }
             w(k) = ip.weight;
         }
 
         if (nDim == 1)
         {
-            for (int k1 = 0; k1 < nQuad1D; ++ k1)
+            for (int k1 = 0; k1 < nQuad1D; ++k1)
             {
                 W(k1) = w(k1);
             }
         }
         else if (nDim == 2)
         {
-            for (int k1 = 0; k1 < nQuad1D; ++ k1)
+            for (int k1 = 0; k1 < nQuad1D; ++k1)
             {
-                for (int k2 = 0; k2 < nQuad1D; ++ k2)
+                for (int k2 = 0; k2 < nQuad1D; ++k2)
                 {
                     W(k1,k2) = w(k1)*w(k2);
                 }
@@ -80,20 +81,21 @@ AcroDiffusionIntegrator::AcroDiffusionIntegrator(Coefficient &q, FiniteElementSp
         }
         else if (nDim == 3)
         {
-            for (int k1 = 0; k1 < nQuad1D; ++ k1)
+            for (int k1 = 0; k1 < nQuad1D; + k1)
             {
-                for (int k2 = 0; k2 < nQuad1D; ++ k2)
+                for (int k2 = 0; k2 < nQuad1D; ++k2)
                 {
-                    for (int k3 = 0; k3 < nQuad1D; ++ k3)
+                    for (int k3 = 0; k3 < nQuad1D; ++k3)
                     {
                         W(k1,k2,k3) = w(k1)*w(k2)*w(k3);
                     }                       
                 }
             }
         }        
-    } else {
-        H1_FECollection fec(FEOrder,1);
-        const FiniteElement *fe = fec.FiniteElementForGeometry(Geometry::SEGMENT);
+    } 
+    else 
+    {
+        const FiniteElement *fe = fes->GetFE(0);
         Vector eval(nDof);
         DenseMatrix deval(nDof,nDim);
         G.Init(nQuad, nDof,nDim);
@@ -122,12 +124,14 @@ AcroDiffusionIntegrator::AcroDiffusionIntegrator(Coefficient &q, FiniteElementSp
 }
 
 
-AcroDiffusionIntegrator::~AcroDiffusionIntegrator() {
+AcroDiffusionIntegrator::~AcroDiffusionIntegrator() 
+{
 
 }
 
 
-void AcroDiffusionIntegrator::ComputeBTilde() {
+void AcroDiffusionIntegrator::ComputeBTilde() 
+{
     Btil.SetSize(nDim);
     for (int d = 0; d < nDim; ++d) 
     {
@@ -182,10 +186,6 @@ void AcroDiffusionIntegrator::BatchedPartialAssemble()
             Jdet.Init(nElem, nQuad1D, nQuad1D, nQuad1D);
             q.Init(nElem, nQuad1D, nQuad1D,nQuad1D);
         }
-        else
-        {
-            mfem_error("AcroDiffusionIntegrator tensor computations don't support dim > 3.");
-        }
     }
     else
     {
@@ -214,7 +214,7 @@ void AcroDiffusionIntegrator::BatchedPartialAssemble()
                     J[idx] = JMat(m,n);
                     idx ++;
                 }
-            }
+            }     
         }
     }
     TE.BatchMatrixInvDet(Jinv, Jdet, J);
@@ -305,119 +305,122 @@ void AcroDiffusionIntegrator::BatchedAssembleMatrix() {
 
 void AcroDiffusionIntegrator::PAMult(const Vector &x, Vector &y) 
 {
-    //TODO:  shuffle the vectors to and from the tensor product ordering
-
-
-  if (!U.IsInitialized() && hasTensorBasis) {
-    if (nDim == 1) {
-      U.Init(nDim, nElem, nQuad1D);
-      Z.Init(nDim, nElem, nQuad1D);
-      if (onGPU) {
-        U.SwitchToGPU();
-        Z.SwitchToGPU();
-      }
-    } else if (nDim == 2) {
-      U.Init(nDim, nElem, nQuad1D, nQuad1D);
-      Z.Init(nDim, nElem, nQuad1D, nQuad1D);
-      T1.Init(nElem,nDof1D,nQuad1D);
-      if (onGPU) {
-        U.SwitchToGPU();
-        Z.SwitchToGPU();
-        T1.SwitchToGPU();
-      }
-    } else if (nDim == 3) {
-      U.Init(nDim, nElem, nQuad1D, nQuad1D, nQuad1D);
-      Z.Init(nDim, nElem, nQuad1D, nQuad1D, nQuad1D);
-      T1.Init(nElem,nDof1D,nQuad1D,nQuad1D);
-      T2.Init(nElem,nDof1D,nDof1D,nQuad1D);
-      if (onGPU) {
-        U.SwitchToGPU();
-        Z.SwitchToGPU();
-        T1.SwitchToGPU();
-        T2.SwitchToGPU();
-      }
+    MFEM_ASSERT(hasTensorBasis,"AcroDiffusionIntegrator PAMult on simplices not supported");
+    if (!U.IsInitialized())
+    {
+        if (nDim == 1) {
+            U.Init(nDim, nElem, nQuad1D);
+            Z.Init(nDim, nElem, nQuad1D);
+            if (onGPU) 
+            {
+                U.SwitchToGPU();
+                Z.SwitchToGPU();
+            }
+        } 
+        else if (nDim == 2) 
+        {
+            U.Init(nDim, nElem, nQuad1D, nQuad1D);
+            Z.Init(nDim, nElem, nQuad1D, nQuad1D);
+            T1.Init(nElem,nDof1D,nQuad1D);
+            if (onGPU) 
+            {
+                U.SwitchToGPU();
+                Z.SwitchToGPU();
+                T1.SwitchToGPU();
+            }
+        } 
+        else if (nDim == 3) 
+        {
+            U.Init(nDim, nElem, nQuad1D, nQuad1D, nQuad1D);
+            Z.Init(nDim, nElem, nQuad1D, nQuad1D, nQuad1D);
+            T1.Init(nElem, nDof1D, nQuad1D, nQuad1D);
+            T2.Init(nElem, nDof1D, nDof1D, nQuad1D);
+            if (onGPU) 
+            {
+                U.SwitchToGPU();
+                Z.SwitchToGPU();
+                T1.SwitchToGPU();
+                T2.SwitchToGPU();
+            }
+        }
     }
-  }
 
-  double *x_ptr = const_cast<double*>(x.GetData());
-  double *y_ptr = y.GetData();
-  if (hasTensorBasis) {
-    if (nDim == 1) {
-      acro::Tensor X(nElem, nDof1D,
-                     x_ptr, x_ptr, onGPU);
-      acro::Tensor Y(nElem, nDof1D,
-                     y_ptr, y_ptr, onGPU);
-      TE["U_n_e_k1 = G_k1_i1 X_e_i1"](U, G, X);
-      TE["Z_m_e_k1 = D_e_m_n_k1 U_n_e_k1"](Z, D, U);
-      TE["Y_e_i1 += G_k1_i1 Z_m_e_k1"](Y, G, Z);
-    } else if (nDim == 2) {
-      acro::Tensor X(nElem, nDof1D, nDof1D,
-                     x_ptr, x_ptr, onGPU);
-      acro::Tensor Y(nElem, nDof1D, nDof1D,
-                     y_ptr, y_ptr, onGPU);
-      acro::SliceTensor U1(U, 0), U2(U, 1);
-      acro::SliceTensor Z1(Z, 0), Z2(Z, 1);
 
-      //U1_e_k1_k2 = G_k1_i1 B_k2_i2 X_e_i1_i2
-      TE["BX_e_i1_k2 = B_k2_i2 X_e_i1_i2"](T1, B, X);
-      TE["U1_e_k1_k2 = G_k1_i1 BX_e_i1_k2"](U1, G, T1);
+    double *x_ptr = const_cast<double*>(x.GetData());
+    double *y_ptr = y.GetData();
+    acro::Tensor X,Y;
+    acro::SliceTensor U1,U2,U3,Z1,Z2,Z3;
+    if (nDim == 1) 
+    {
+        X.Init(nElem, nDof1D, x_ptr, x_ptr, onGPU);
+        Y.Init(nElem, nDof1D, y_ptr, y_ptr, onGPU);
+        TE["U_n_e_k1 = G_k1_i1 X_e_i1"](U, G, X);
+        TE["Z_m_e_k1 = D_e_m_n_k1 U_n_e_k1"](Z, D, U);
+        TE["Y_e_i1 = G_k1_i1 Z_m_e_k1"](Y, G, Z);
+    } 
+    else if (nDim == 2) 
+    {
+        X.Init(nElem, nDof1D, nDof1D, x_ptr, x_ptr, onGPU);
+        Y.Init(nElem, nDof1D, nDof1D, y_ptr, y_ptr, onGPU);
+        U1.SliceInit(U, 0); U2.SliceInit(U, 1);
+        Z1.SliceInit(Z, 0); Z2.SliceInit(Z, 1);
 
-      //U2_e_k1_k2 = B_k1_i1 G_k2_i2 X_e_i1_i2
-      TE["GX_e_i1_k2 = G_k2_i2 X_e_i1_i2"](T1, G, X);
-      TE["U2_e_k1_k2 = B_k1_i1 GX_e_i1_k2"](U2, B, T1);
+        //U1_e_k1_k2 = G_k1_i1 B_k2_i2 X_e_i1_i2
+        TE["BX_e_i1_k2 = B_k2_i2 X_e_i1_i2"](T1, B, X);
+        TE["U1_e_k1_k2 = G_k1_i1 BX_e_i1_k2"](U1, G, T1);
 
-      TE["Z_m_e_k1_k2 = D_e_m_n_k1_k2 U_n_e_k1_k2"](Z, D, U);
+        //U2_e_k1_k2 = B_k1_i1 G_k2_i2 X_e_i1_i2
+        TE["GX_e_i1_k2 = G_k2_i2 X_e_i1_i2"](T1, G, X);
+        TE["U2_e_k1_k2 = B_k1_i1 GX_e_i1_k2"](U2, B, T1);
 
-      //Y_e_i1_i2 += G_k1_i1 B_k2_i2 Z1_e_k1_k2
-      TE["BZ1_e_i2_k1 = B_k2_i2 Z1_e_k1_k2"](T1, B, Z1);
-      TE["Y_e_i1_i2 += G_k1_i1 BZ1_e_i2_k1"](Y, G, T1);
+        TE["Z_m_e_k1_k2 = D_e_m_n_k1_k2 U_n_e_k1_k2"](Z, D, U);
 
-      //Y_e_i1_i2 += B_k1_i1 G_k2_i2 Z2_e_k1_k2
-      TE["GZ2_e_i2_k1 = G_k2_i2 Z2_e_k1_k2"](T1, G, Z2);
-      TE["Y_e_i1_i2 += B_k1_i1 GZ2_e_i2_k1"](Y, B, T1);
-    } else if (nDim == 3) {
-      acro::Tensor X(nElem, nDof1D, nDof1D, nDof1D,
-                     x_ptr, x_ptr, onGPU);
-      acro::Tensor Y(nElem, nDof1D, nDof1D, nDof1D,
-                     y_ptr, y_ptr, onGPU);
-      acro::SliceTensor U1(U, 0), U2(U, 1), U3(U, 2);
-      acro::SliceTensor Z1(Z, 0), Z2(Z, 1), Z3(Z, 2);
+        //Y_e_i1_i2 = G_k1_i1 B_k2_i2 Z1_e_k1_k2
+        TE["BZ1_e_i2_k1 = B_k2_i2 Z1_e_k1_k2"](T1, B, Z1);
+        TE["Y_e_i1_i2 = G_k1_i1 BZ1_e_i2_k1"](Y, G, T1);
 
-      //U1_e_k1_k2_k3 = G_k1_i1 B_k2_i2 B_k3_i3 X_e_i1_i2_i3
-      TE["BX_e_i1_i2_k3 = B_k3_i3 X_e_i1_i2_i3"](T2, B, X);
-      TE["BBX_e_i1_k2_k3 = B_k2_i2 BX_e_i1_i2_k3"](T1, B, T2);
-      TE["U1_e_k1_k2_k3 = G_k1_i1 BBX_e_i1_k2_k3"](U1, G, T1);
+        //Y_e_i1_i2 += B_k1_i1 G_k2_i2 Z2_e_k1_k2
+        TE["GZ2_e_i2_k1 = G_k2_i2 Z2_e_k1_k2"](T1, G, Z2);
+        TE["Y_e_i1_i2 += B_k1_i1 GZ2_e_i2_k1"](Y, B, T1);
+    } 
+    else if (nDim == 3) 
+    {
+        X.Init(nElem, nDof1D, nDof1D, nDof1D, x_ptr, x_ptr, onGPU);
+        Y.Init(nElem, nDof1D, nDof1D, nDof1D, y_ptr, y_ptr, onGPU);
+        U1.SliceInit(U, 0); U2.SliceInit(U, 1); U3.SliceInit(U, 2);
+        Z1.SliceInit(Z, 0); Z2.SliceInit(Z, 1); Z3.SliceInit(Z, 2);
 
-      //U2_e_k1_k2_k3 = B_k1_i1 G_k2_i2 B_k3_i3 X_e_i1_i2_i3
-      TE["GBX_e_i1_k2_k3 = G_k2_i2 BX_e_i1_i2_k3"](T1, G, T2);
-      TE["U2_e_k1_k2_k3 = B_k1_i1 GBX_e_i1_k2_k3"](U2, B, T1);
+        //U1_e_k1_k2_k3 = G_k1_i1 B_k2_i2 B_k3_i3 X_e_i1_i2_i3
+        TE["BX_e_i1_i2_k3 = B_k3_i3 X_e_i1_i2_i3"](T2, B, X);
+        TE["BBX_e_i1_k2_k3 = B_k2_i2 BX_e_i1_i2_k3"](T1, B, T2);
+        TE["U1_e_k1_k2_k3 = G_k1_i1 BBX_e_i1_k2_k3"](U1, G, T1);
 
-      //U3_e_k1_k2_k3 = B_k1_i1 B_k2_i2 G_k3_i3 X_e_i1_i2_i3
-      TE["GX_e_i1_i2_k3 = G_k3_i3 X_e_i1_i2_i3"](T2, G, X);
-      TE["BGX_e_i1_k2_k3 = B_k2_i2 GX_e_i1_i2_k3"](T1, B, T2);
-      TE["U3_e_k1_k2_k3 = B_k1_i1 BGX_e_i1_k2_k3"](U3, B, T1);
+        //U2_e_k1_k2_k3 = B_k1_i1 G_k2_i2 B_k3_i3 X_e_i1_i2_i3
+        TE["GBX_e_i1_k2_k3 = G_k2_i2 BX_e_i1_i2_k3"](T1, G, T2);
+        TE["U2_e_k1_k2_k3 = B_k1_i1 GBX_e_i1_k2_k3"](U2, B, T1);
 
-      TE["Z_m_e_k1_k2_k3 = D_e_m_n_k1_k2_k3 U_n_e_k1_k2_k3"](Z, D, U);
+        //U3_e_k1_k2_k3 = B_k1_i1 B_k2_i2 G_k3_i3 X_e_i1_i2_i3
+        TE["GX_e_i1_i2_k3 = G_k3_i3 X_e_i1_i2_i3"](T2, G, X);
+        TE["BGX_e_i1_k2_k3 = B_k2_i2 GX_e_i1_i2_k3"](T1, B, T2);
+        TE["U3_e_k1_k2_k3 = B_k1_i1 BGX_e_i1_k2_k3"](U3, B, T1);
 
-      //Y_e_i1_i2_i3 =  G_k1_i1 B_k2_i2 B_k3_i3 Z1_e_k1_k2_k3
-      TE["BZ1_e_i3_k1_k2 = B_k3_i3 Z1_e_k1_k2_k3"](T1, B, Z1);
-      TE["BBZ1_e_i2_i3_k1 = B_k2_i2 BZ1_e_i3_k1_k2"](T2, B, T1);
-      TE["Y_e_i1_i2_i3 += G_k1_i1 BBZ1_e_i2_i3_k1"](Y, G, T2);
+        TE["Z_m_e_k1_k2_k3 = D_e_m_n_k1_k2_k3 U_n_e_k1_k2_k3"](Z, D, U);
 
-      //Y_e_i1_i2_i3 =  B_k1_i1 G_k2_i2 B_k3_i3 Z2_e_k1_k2_k3
-      TE["BZ2_e_i3_k1_k2 = B_k3_i3 Z2_e_k1_k2_k3"](T1, B, Z2);
-      TE["GBZ2_e_i2_i3_k1 = G_k2_i2 BZ2_e_i3_k1_k2"](T2, G, T1);
-      TE["Y_e_i1_i2_i3 += B_k1_i1 GBZ2_e_i2_i3_k1"](Y, B, T2);
+        //Y_e_i1_i2_i3 =  G_k1_i1 B_k2_i2 B_k3_i3 Z1_e_k1_k2_k3
+        TE["BZ1_e_i3_k1_k2 = B_k3_i3 Z1_e_k1_k2_k3"](T1, B, Z1);
+        TE["BBZ1_e_i2_i3_k1 = B_k2_i2 BZ1_e_i3_k1_k2"](T2, B, T1);
+        TE["Y_e_i1_i2_i3 = G_k1_i1 BBZ1_e_i2_i3_k1"](Y, G, T2);
 
-      //Y_e_i1_i2_i3 =  B_k1_i1 B_k2_i2 G_k3_i3 Z3_e_k1_k2_k3
-      TE["GZ3_e_i3_k1_k2 = G_k3_i3 Z3_e_k1_k2_k3"](T1, G, Z3);
-      TE["BGZ3_e_i2_i3_k1 = B_k2_i2 GZ3_e_i3_k1_k2"](T2, B, T1);
-      TE["Y_e_i1_i2_i3 += B_k1_i1 BGZ3_e_i2_i3_k1"](Y, B, T2);
+        //Y_e_i1_i2_i3 +=  B_k1_i1 G_k2_i2 B_k3_i3 Z2_e_k1_k2_k3
+        TE["BZ2_e_i3_k1_k2 = B_k3_i3 Z2_e_k1_k2_k3"](T1, B, Z2);
+        TE["GBZ2_e_i2_i3_k1 = G_k2_i2 BZ2_e_i3_k1_k2"](T2, G, T1);
+        TE["Y_e_i1_i2_i3 += B_k1_i1 GBZ2_e_i2_i3_k1"](Y, B, T2);
+
+        //Y_e_i1_i2_i3 +=  B_k1_i1 B_k2_i2 G_k3_i3 Z3_e_k1_k2_k3
+        TE["GZ3_e_i3_k1_k2 = G_k3_i3 Z3_e_k1_k2_k3"](T1, G, Z3);
+        TE["BGZ3_e_i2_i3_k1 = B_k2_i2 GZ3_e_i3_k1_k2"](T2, B, T1);
+        TE["Y_e_i1_i2_i3 += B_k1_i1 BGZ3_e_i2_i3_k1"](Y, B, T2);
     }
-  } else {
-    mfem_error("AcroDiffusionIntegrator MultAdd on simplices not supported");
-  }
-
 }
 
 }

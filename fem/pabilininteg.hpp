@@ -12,7 +12,6 @@
 #ifndef MFEM_PA_BILINEARINTEG
 #define MFEM_PA_BILINEARINTEG
 
-#include "AcroTensor.hpp"
 #include "bilininteg.hpp"
 #include "fespace.hpp"
 

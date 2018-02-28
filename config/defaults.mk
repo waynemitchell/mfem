@@ -259,12 +259,12 @@ endif
 # CUDA library (allocates array-like objects with unified memory)
 CUDA_DIR = /usr/local/cuda
 CUDAUM_OPT = -I$(CUDA_DIR)/include
-CUDAUM_LIB = -L$(CUDA_DIR)/lib -lcudart
+CUDAUM_LIB = -L$(CUDA_DIR)/lib64 -lcudart
 
 #Acrotensor library configs
 ACROTENSOR_DIR = @MFEM_DIR@/../acrotensor
-ACROTENSOR_OPT = -I$(ACROTENSOR_DIR)/inc -I$(CUDA_DIR)/include -std=c++11 -DACRO_HAVE_CUDA
-ACROTENSOR_LIB = -L$(ACROTENSOR_DIR)/lib -L$(CUDA_DIR)/lib64 -lacrotensor -lcuda -lcudart -lnvrtc
+ACROTENSOR_OPT = -I$(ACROTENSOR_DIR)/inc -std=c++11 -DACRO_HAVE_CUDA
+ACROTENSOR_LIB = -L$(ACROTENSOR_DIR)/lib -lacrotensor -lcuda -lnvrtc
 
 # If YES, enable some informational messages
 VERBOSE = NO

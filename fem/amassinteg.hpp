@@ -9,11 +9,12 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#if defined(MFEM_USE_ACROTENSOR)
-#ifndef MFEM_ACROTENSOR_MASSINTEG
-#define MFEM_ACROTENSOR_MASSINTEG
+#ifdef MFEM_USE_ACROTENSOR
+#ifndef MFEM_ACROMASSINTEG
+#define MFEM_ACROMASSINTEG
 
 #include "pabilininteg.hpp"
+#include "AcroTensor.hpp"
 
 namespace mfem {
 

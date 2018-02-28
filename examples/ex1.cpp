@@ -154,6 +154,7 @@ int main(int argc, char *argv[])
    else
    {
       a->AddDomainIntegrator(new AcroDiffusionIntegrator(one, *fespace, gpu));
+      a->PartialAssemble();
 
    }
 
@@ -176,8 +177,9 @@ int main(int argc, char *argv[])
    //     solve the system A X = B with PCG.
    if (!acrotensor)
    {
-      GSSmoother M(Amat);
-      PCG(Amat, M, B, X, 1, 200, 1e-12, 0.0);
+      //GSSmoother M(Amat);
+      //PCG(Amat, M, B, X, 1, 200, 1e-12, 0.0);
+      CG(Amat, B, X, 1, 200, 1e-12, 0.0);
    }
    else
    {

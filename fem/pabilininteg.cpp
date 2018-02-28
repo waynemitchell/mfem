@@ -32,11 +32,21 @@ PAIntegrator::PAIntegrator(Coefficient &q, FiniteElementSpace &f, bool gpu)
     ir = &IntRules.Get(GeomType, irorder);
     nQuad = ir->GetNPoints();
 
+    if (GeomType == Geometry::SEGMENT ||
+        GeomType == Geometry::SQUARE ||
+        GeomType == Geometry::CUBE)
+    {
+        hasTensorBasis = true;
+    }
+    else
+    {
+        hasTensorBasis = false;
+    } 
+
     if (nDim > 3) 
     {
         mfem_error("AcroIntegrator tensor computations don't support dim > 3.");
     }
-
 }
 
 PAIntegrator::~PAIntegrator()

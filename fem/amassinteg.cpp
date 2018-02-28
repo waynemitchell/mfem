@@ -8,10 +8,8 @@
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
-
 #include "../config/config.hpp"
-
-#if defined(MFEM_USE_ACROTENSOR)
+#ifdef MFEM_USE_ACROTENSOR
 
 #include "amassinteg.hpp"
 
@@ -50,10 +48,10 @@ AcroMassIntegrator::AcroMassIntegrator(Coefficient &q, FiniteElementSpace &f, bo
             fe->CalcShape(ip, eval);
 
             B(k,0) = eval(0);
-            B(k,nQuad1D-1) = eval(1);        
-            for (int i = 2; i < nDof1D-1; ++i)
+            B(k,nDof1D-1) = eval(1);        
+            for (int i = 1; i < nDof1D-1; ++i)
             {
-                B(k,i-1) = eval(i);
+                B(k,i) = eval(i+1);
             }
             w(k) = ip.weight;
         }
@@ -302,14 +300,14 @@ void AcroMassIntegrator::PAMult(const Vector &x, Vector &y) {
       acro::Tensor X(nElem, nDof1D, x_ptr, x_ptr, onGPU);
       acro::Tensor Y(nElem, nDof1D, y_ptr, y_ptr, onGPU);
       TE["T1_e_k1 = D_e_k1 B_k1_j1 X_e_j1"](T1, D, B, X);
-      TE["Y_e_i1 += B_k1_i1 T1_e_k1"](Y, B, T1);
+      TE["Y_e_i1 = B_k1_i1 T1_e_k1"](Y, B, T1);
     } else if (nDim == 2) {
       acro::Tensor X(nElem, nDof1D, nDof1D, x_ptr, x_ptr, onGPU);
       acro::Tensor Y(nElem, nDof1D, nDof1D, y_ptr, y_ptr, onGPU);
       TE["T1_e_k2_j1 = B_k2_j2 X_e_j1_j2"](T1, B, X);
       TE["T2_e_k1_k2 = D_e_k1_k2 B_k1_j1 T1_e_k2_j1"](T2, D, B, T1);
       TE["T1_e_k1_i2 = B_k2_i2 T2_e_k1_k2"](T1, B, T2);
-      TE["Y_e_i1_i2 += B_k1_i1 T1_e_k1_i2"](Y, B, T1);
+      TE["Y_e_i1_i2 = B_k1_i1 T1_e_k1_i2"](Y, B, T1);
     } else if (nDim == 3) {
       acro::Tensor X(nElem, nDof1D, nDof1D, nDof1D, x_ptr, x_ptr, onGPU);
       acro::Tensor Y(nElem, nDof1D, nDof1D, nDof1D, y_ptr, y_ptr, onGPU);
@@ -318,10 +316,10 @@ void AcroMassIntegrator::PAMult(const Vector &x, Vector &y) {
       TE["T3_e_k1_k2_k3 = D_e_k1_k2_k3 B_k1_j1 T2_e_k2_k3_j1"](T3, D, B, T2);
       TE["T2_e_k1_k2_i3 = B_k3_i3 T3_e_k1_k2_k3"](T2, B, T3);
       TE["T1_e_k1_i2_i3 = B_k2_i2 T2_e_k1_k2_i3"](T1, B, T2);
-      TE["Y_e_i1_i2_i3 += B_k1_i1 T1_e_k1_i2_i3"](Y, B, T1);
+      TE["Y_e_i1_i2_i3 = B_k1_i1 T1_e_k1_i2_i3"](Y, B, T1);
     }
   } else {
-    mfem_error("AcroMassIntegrator partial assembly on simplices not supported");
+    mfem_error("AcroMassIntegrator PAMult on simplices not supported");
   }
 
 }
