@@ -147,67 +147,6 @@ void DataCollection::SetMesh(MPI_Comm comm, Mesh *new_mesh)
 }
 #endif
 
-void DataCollection::RegisterField(const std::string& name, GridFunction *gf)
-{
-   GridFunction *&ref = field_map[name];
-   if (own_data)
-   {
-      delete ref; // if newly allocated -> ref is null -> OK
-   }
-   ref = gf;
-}
-
-void DataCollection::DeregisterField(const std::string& name)
-{
-   FieldMapIterator it = field_map.find(name);
-   if (it != field_map.end())
-   {
-      if (own_data)
-      {
-         delete it->second;
-      }
-      field_map.erase(it);
-   }
-}
-
-void DataCollection::RegisterQField(const std::string& q_field_name,
-                                    QuadratureFunction *qf)
-{
-   QuadratureFunction *&ref = q_field_map[q_field_name];
-   if (own_data)
-   {
-      delete ref; // if newly allocated -> ref is null -> OK
-   }
-   ref = qf;
-}
-
-void DataCollection::DeregisterQField(const std::string& name)
-{
-   QFieldMapIterator it = q_field_map.find(name);
-   if (it != q_field_map.end())
-   {
-      if (own_data)
-      {
-         delete it->second;
-      }
-      q_field_map.erase(it);
-   }
-}
-
-GridFunction *DataCollection::GetField(const std::string& field_name)
-{
-   FieldMapConstIterator it = field_map.find(field_name);
-
-   return (it != field_map.end()) ? it->second : NULL;
-}
-
-QuadratureFunction *DataCollection::GetQField(const std::string& q_field_name)
-{
-   QFieldMapConstIterator it = q_field_map.find(q_field_name);
-
-   return (it != q_field_map.end()) ? it->second : NULL;
-}
-
 void DataCollection::SetFormat(int fmt)
 {
    switch (fmt)
