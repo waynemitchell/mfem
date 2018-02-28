@@ -372,17 +372,8 @@ void DataCollection::DeleteData()
    if (own_data) { delete mesh; }
    mesh = NULL;
 
-   for (FieldMapIterator it = field_map.begin(); it != field_map.end(); ++it)
-   {
-      if (own_data) { delete it->second; }
-      it->second = NULL;
-   }
-   for (QFieldMapIterator it = q_field_map.begin();
-        it != q_field_map.end(); ++it)
-   {
-      if (own_data) { delete it->second; }
-      it->second = NULL;
-   }
+   field_map.DeleteData(own_data);
+   q_field_map.DeleteData(own_data);
    own_data = false;
 }
 
@@ -527,7 +518,7 @@ void VisItDataCollection::Load(int cycle_)
          MPI_Comm_size(m_comm, &comm_size);
          if (comm_size != num_procs)
          {
-            MFEM_WARNING("Processor number missmatch: VisIt root file: "
+            MFEM_WARNING("Processor number mismatch: VisIt root file: "
                          << num_procs << ", MPI_comm: " << comm_size);
             error = READ_ERROR;
          }
@@ -623,13 +614,14 @@ void VisItDataCollection::LoadFields()
       // TODO: 1) load parallel GridFunction on one processor
       if (serial)
       {
-         field_map[it->first] = new GridFunction(mesh, file);
+         field_map.Register(it->first, new GridFunction(mesh, file), own_data);
       }
       else
       {
 #ifdef MFEM_USE_MPI
-         field_map[it->first] =
-            new ParGridFunction(dynamic_cast<ParMesh*>(mesh), file);
+         field_map.Register(
+            it->first,
+            new ParGridFunction(dynamic_cast<ParMesh*>(mesh), file), own_data);
 #else
          error = READ_ERROR;
          MFEM_WARNING("Reading parallel format in serial is not supported");
