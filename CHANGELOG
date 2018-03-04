@@ -30,6 +30,15 @@ Discretization improvements
   through the equivalent 2x2 real formulation. Both symmetric and antisymmetric
   block structures are supported.
 
+- Added support for a general "high-order"-to-"low-order refined" transfer of
+  GridFunction and true-dof data from a "high-order" finite element space
+  defined on a coarse mesh, to a "low-order refined" space defined on a refined
+  mesh. The new methods, GetTransferOperator and GetTrueTransferOperator in the
+  FiniteElementSpace classes, work in both serial and parallel and support
+  matrix-based as well as matrix-free transfer operator representations. They
+  use a version of GetLocalInterpolation in the FiniteElement class that allows
+  the coarse FiniteElement to be different from the fine FiniteElement.
+
 - Added classes for general block nonlinear finite element operators (deriving
   from BlockNonlinearForm and ParBlockNonlinearForm) enabling solution of
   nonlinear systems with multiple unknowns in different function spaces. Such
@@ -40,6 +49,9 @@ Discretization improvements
   have a different order. The order information is now part of the finite
   element space header in the NURBS mesh output, so NURBS meshes in the old
   format need to be updated.
+
+- In the classes NonlinearForm and ParNonlinearForm, added support for
+  non-conforming AMR meshes; see also the "API changes" section.
 
 - Added symplectic integrators of orders 1-4 for systems of first order ODEs
   derived from a Hamiltonian, see class SIASolver in linalg/ode.hpp.
@@ -76,9 +88,9 @@ New and updated examples and miniapps
 
 - Example 10p with its SUNDIALS and PETSc versions have been updated to reflect
   the change in the behavior of the method ParNonlinearForm::GetLocalGradient()
-  (see the "API changes" section) and now should work correctly on
-  non-conforming AMR meshes. Example 10 and its SUNDIALS version have also been
-  updated to support non-conforming ARM meshes.
+  (see the "API changes" section) and now works correctly on non-conforming AMR
+  meshes. Example 10 and its SUNDIALS version have also been updated to support
+  non-conforming ARM meshes.
 
 - A simple local refinement option has been added to the mesh-explorer miniapp
   (menu option 'r', sub-option 'l') that selects elements for refinement based
