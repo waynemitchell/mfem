@@ -26,10 +26,6 @@ More efficient non-conforming adaptive mesh refinement
 
 Discretization improvements
 ---------------------------
-- Added class ComplexOperator, that implements the action of a complex operator
-  through the equivalent 2x2 real formulation. Both symmetric and antisymmetric
-  block structures are supported.
-
 - Added support for a general "high-order"-to-"low-order refined" transfer of
   GridFunction and true-dof data from a "high-order" finite element space
   defined on a coarse mesh, to a "low-order refined" space defined on a refined
@@ -38,6 +34,10 @@ Discretization improvements
   matrix-based as well as matrix-free transfer operator representations. They
   use a version of GetLocalInterpolation in the FiniteElement class that allows
   the coarse FiniteElement to be different from the fine FiniteElement.
+
+- Added class ComplexOperator, that implements the action of a complex operator
+  through the equivalent 2x2 real formulation. Both symmetric and antisymmetric
+  block structures are supported.
 
 - Added classes for general block nonlinear finite element operators (deriving
   from BlockNonlinearForm and ParBlockNonlinearForm) enabling solution of
