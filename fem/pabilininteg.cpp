@@ -20,28 +20,20 @@ PAIntegrator::PAIntegrator(Coefficient &q, FiniteElementSpace &f, bool gpu)
     Q = &q;
     fes = &f;
     onGPU = gpu;
-    const FiniteElement &fe = *(fes->GetFE(0));
-    GeomType = fe.GetGeomType();
-    FEOrder = fe.GetOrder();
-    nDim    = fe.GetDim();
+    fe = fes->GetFE(0);
+    tfe = dynamic_cast<const TensorBasisElement*>(fe);
+
     nElem  = fes->GetNE();
-    nDof   = fe.GetDof();
+    GeomType = fe->GetGeomType();
+    FEOrder = fe->GetOrder();
+    nDim    = fe->GetDim();
+    nDof   = fe->GetDof();
 
     ElementTransformation *Trans = fes->GetElementTransformation(0);
-    int irorder = 2*fe.GetOrder() + Trans->OrderW();
+    int irorder = 2*fe->GetOrder() + Trans->OrderW();
     ir = &IntRules.Get(GeomType, irorder);
     nQuad = ir->GetNPoints();
-
-    if (GeomType == Geometry::SEGMENT ||
-        GeomType == Geometry::SQUARE ||
-        GeomType == Geometry::CUBE)
-    {
-        hasTensorBasis = true;
-    }
-    else
-    {
-        hasTensorBasis = false;
-    } 
+    hasTensorBasis = tfe ? true : false;
 
     if (nDim > 3) 
     {

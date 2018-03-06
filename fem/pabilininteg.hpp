@@ -22,6 +22,8 @@ class PAIntegrator : public BilinearFormIntegrator
     protected:
     Coefficient *Q;
     FiniteElementSpace *fes;
+    const FiniteElement *fe;
+    const TensorBasisElement *tfe;
     const IntegrationRule *ir;
     int GeomType;
     int FEOrder;

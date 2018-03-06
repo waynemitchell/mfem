@@ -6982,10 +6982,12 @@ void H1_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
    basis1d.Eval(ip.y, shape_y);
 
    for (int o = 0, j = 0; j <= p; j++)
+   {
       for (int i = 0; i <= p; i++)
       {
          shape(dof_map[o++]) = shape_x(i)*shape_y(j);
       }
+   }
 }
 
 void H1_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,

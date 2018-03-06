@@ -158,17 +158,19 @@ int main(int argc, char *argv[])
 
    }
 
-   Operator *A;
+   Operator *A, *PAI;
    SparseMatrix Amat;
    Vector B, X;
    if (!acrotensor)
    {
-      a->FormLinearSystem(ess_tdof_list, x, *b, Amat, X, B);
+      Operator *oper_a = a;
+      oper_a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
       cout << "Size of linear system: " << Amat.Height() << endl;
    }
    else
    {
-      a->FormPALinearSystem(ess_tdof_list, x, *b, A, X, B);
+      PAI = a->GetPAOperator();
+      PAI->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
       cout << "Size of linear system: " << A->Height() << endl;
    }
    
@@ -179,7 +181,7 @@ int main(int argc, char *argv[])
    {
       //GSSmoother M(Amat);
       //PCG(Amat, M, B, X, 1, 200, 1e-12, 0.0);
-      CG(Amat, B, X, 1, 200, 1e-12, 0.0);
+      CG(*A, B, X, 1, 200, 1e-12, 0.0);
    }
    else
    {

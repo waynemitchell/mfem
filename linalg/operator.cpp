@@ -166,11 +166,11 @@ void PAIOperator::Mult(const Vector &x, Vector &y) const
 {
    //Scatter the x,y vectors into the element by element representation
    //with the degrees of freedom in lexographical order
-   Vector exp_x, exp_y;
+   Vector exp_x, exp_y, temp;
    A[0]->GetFES()->ToLocalVector(x, exp_x);
    exp_y.SetSize(exp_x.Size());
+   temp.SetSize(exp_x.Size());
 
-   Vector temp(exp_x);
    A[0]->PAMult(exp_x, exp_y);
    for (int i = 1; i < A.Size(); ++i)
    {
