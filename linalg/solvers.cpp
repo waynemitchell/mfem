@@ -327,13 +327,13 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
    }
 
    r0 = std::max(nom*rel_tol*rel_tol, abs_tol*abs_tol);
-   if (nom <= r0)
-   {
-      converged = 1;
-      final_iter = 0;
-      final_norm = sqrt(nom);
-      return;
-   }
+   // if (nom <= r0)
+   // {
+   //    converged = 1;
+   //    final_iter = 0;
+   //    final_norm = sqrt(nom);
+   //    return;
+   // }
 
    oper->Mult(d, z);  // z = A d
    den = Dot(z, d);
@@ -344,13 +344,13 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
       mfem::out << "Negative denominator in step 0 of PCG: " << den << '\n';
    }
 
-   if (den == 0.0)
-   {
-      converged = 0;
-      final_iter = 0;
-      final_norm = sqrt(nom);
-      return;
-   }
+   // if (den == 0.0)
+   // {
+   //    converged = 0;
+   //    final_iter = 0;
+   //    final_norm = sqrt(nom);
+   //    return;
+   // }
 
    // start iteration
    converged = 0;
@@ -389,7 +389,7 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
             mfem::out << "   Iteration : " << setw(3) << i << "  (B r, r) = "
                       << betanom << '\n';
          }
-         converged = 1;
+         //converged = 1;
          final_iter = i;
          break;
       }

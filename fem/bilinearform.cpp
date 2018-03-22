@@ -20,7 +20,7 @@ namespace mfem
 bool BilinearForm::PAIsEnabled() const
 {
    bool enabled = true;
-   for (int i; i < dbfi.Size(); ++i)
+   for (int i = 0; i < dbfi.Size(); ++i)
    {
       if (!dbfi[i]->PAIsEnabled())
       {
@@ -28,7 +28,7 @@ bool BilinearForm::PAIsEnabled() const
       }
    }
 
-   for (int i; i < bbfi.Size(); ++i)
+   for (int i = 0; i < bbfi.Size(); ++i)
    {
       if (!bbfi[i]->PAIsEnabled())
       {
@@ -36,7 +36,7 @@ bool BilinearForm::PAIsEnabled() const
       }
    }
 
-   for (int i; i < fbfi.Size(); ++i)
+   for (int i = 0; i < fbfi.Size(); ++i)
    {
       if (!fbfi[i]->PAIsEnabled())
       {
@@ -44,7 +44,7 @@ bool BilinearForm::PAIsEnabled() const
       }
    }
 
-   for (int i; i < bfbfi.Size(); ++i)
+   for (int i = 0; i < bfbfi.Size(); ++i)
    {
       if (!bfbfi[i]->PAIsEnabled())
       {

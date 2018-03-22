@@ -31,6 +31,7 @@ class AcroDiffusionIntegrator : public PAIntegrator
   acro::Tensor D;            //Product of integration weight, physical consts, and element shape info
   acro::Tensor S;            //The assembled local stiffness matrices
   acro::Tensor U, Z, T1, T2; //Intermediate computations for tensor product partial assembly
+  // acro::Tensor X, Y;
 
   void ComputeBTilde();
 

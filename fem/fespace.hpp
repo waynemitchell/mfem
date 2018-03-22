@@ -18,6 +18,11 @@
 #include "fe_coll.hpp"
 #include <iostream>
 
+#ifdef MFEM_USE_CUDAUM
+#include "cuda.h"
+#include "cuda_runtime.h"
+#endif
+
 namespace mfem
 {
 
@@ -429,6 +434,11 @@ public:
    /// Write the QuadratureSpace to the stream @a out.
    void Save(std::ostream &out) const;
 };
+
+#ifdef MFEM_USE_CUDAUM
+__global__ void cuda_to_local_vector(const double *v, double *V, const int *offsets, const int *indices, int size);
+__global__ void cuda_to_global_vector(const double *V, double *v, const int *offsets, const int *indices, int size);
+#endif
 
 }
 

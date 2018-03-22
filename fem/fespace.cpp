@@ -935,6 +935,8 @@ FiniteElementSpace::FiniteElementSpace(Mesh *mesh,
    this->fec = fec;
    this->vdim = vdim;
    this->ordering = (Ordering::Type) ordering;
+   tensor_indices = NULL;
+   tensor_offsets = NULL;
 
    elem_dof = NULL;
    sequence = mesh->GetSequence();
@@ -1711,15 +1713,19 @@ void FiniteElementSpace::ToLocalVector(const Vector &v, Vector &V)
    if ((tensor_indices == NULL) || (tensor_offsets == NULL))
    {
       BuildDofMaps(this, tensor_offsets, tensor_indices);
+      std::cout << "Building maps!" << std::endl;
    }
 
-   V.SetSize(tensor_indices->Size());
+   if (V.Size() != tensor_indices->Size())
+   {
+      V.SetSize(tensor_indices->Size());
+   }
 
-   const int size = v.Size();
+   const int vsize = v.Size();
    const int *offsets = tensor_offsets->GetData();
    const int *indices = tensor_indices->GetData();
-
-   for (int i = 0; i < size; i++)
+#ifndef MFEM_USE_CUDAUM
+   for (int i = 0; i < vsize; i++)
    {
       const int offset = offsets[i];
       const int next_offset = offsets[i + 1];
@@ -1729,6 +1735,11 @@ void FiniteElementSpace::ToLocalVector(const Vector &v, Vector &V)
          V(indices[j]) = dof_value;
       }
    }
+#else
+   const double *v_ptr = v.GetData();
+   double *V_ptr = V.GetData();
+   cuda_to_local_vector<<<(vsize+255)/256, 256>>>(v_ptr, V_ptr, offsets, indices, vsize);
+#endif
 }
 
 void FiniteElementSpace::ToGlobalVector(const Vector &V, Vector &v)
@@ -1736,15 +1747,21 @@ void FiniteElementSpace::ToGlobalVector(const Vector &V, Vector &v)
    if ((tensor_indices == NULL) || (tensor_offsets == NULL))
    {
       BuildDofMaps(this, tensor_offsets, tensor_indices);
+#ifdef MFEM_USE_CUDAUM
+      std::cout << "Using CUDAUM" << std::endl;
+#endif
    }
 
-   v.SetSize(GetVSize());
+   int vsize = GetVSize();
+   if (v.Size() != vsize)
+   {
+      v.SetSize(vsize);
+   }
 
-   const int size = v.Size();
    const int *offsets = tensor_offsets->GetData();
    const int *indices = tensor_indices->GetData();
-
-   for (int i = 0; i < size; i++)
+#ifndef MFEM_USE_CUDAUM
+   for (int i = 0; i < vsize; i++)
    {
       const int offset = offsets[i];
       const int next_offset = offsets[i + 1];
@@ -1755,6 +1772,45 @@ void FiniteElementSpace::ToGlobalVector(const Vector &V, Vector &v)
       }
       v(i) = dof_value;
    }
+#else
+   const double *V_ptr = V.GetData();
+   double *v_ptr = v.GetData();
+   cuda_to_global_vector<<<(vsize+255)/256, 256>>>(V_ptr, v_ptr, offsets, indices, vsize);
+#endif
 }
+
+#ifdef MFEM_USE_CUDAUM
+__global__ void cuda_to_local_vector(const double *v, double *V, const int *offsets, const int *indices, int size)
+{
+   int i = blockIdx.x*blockDim.x + threadIdx.x;
+   if (i < size)
+   {
+      const int offset = offsets[i];
+      const int next_offset = offsets[i + 1];
+      const double dof_value = v[i];
+      for (int j = offset; j < next_offset; j++)
+      {
+         V[indices[j]] = dof_value;
+      }
+   }
+}
+
+__global__ void cuda_to_global_vector(const double *V, double *v, const int *offsets, const int *indices, int size)
+{
+   int i = blockIdx.x*blockDim.x + threadIdx.x;
+   if (i < size)
+   {
+      const int offset = offsets[i];
+      const int next_offset = offsets[i + 1];
+      double dof_value = 0.0;
+      for (int j = offset; j < next_offset; j++)
+      {
+         dof_value += V[indices[j]];
+      }
+      v[i] = dof_value;
+   }
+}
+#endif
+
 
 } // namespace mfem

@@ -81,7 +81,7 @@ AcroDiffusionIntegrator::AcroDiffusionIntegrator(Coefficient &q, FiniteElementSp
         }
         else if (nDim == 3)
         {
-            for (int k1 = 0; k1 < nQuad1D; + k1)
+            for (int k1 = 0; k1 < nQuad1D; ++k1)
             {
                 for (int k2 = 0; k2 < nQuad1D; ++k2)
                 {
@@ -308,10 +308,14 @@ void AcroDiffusionIntegrator::PAMult(const Vector &x, Vector &y)
         if (nDim == 1) {
             U.Init(nDim, nElem, nQuad1D);
             Z.Init(nDim, nElem, nQuad1D);
+            // X.Init(nElem,nDof1D);
+            // Y.Init(nElem,nDof1D);
             if (onGPU) 
             {
                 U.SwitchToGPU();
                 Z.SwitchToGPU();
+                // X.MapToGPU();
+                // Y.MapToGPU();
             }
         } 
         else if (nDim == 2) 
@@ -319,11 +323,15 @@ void AcroDiffusionIntegrator::PAMult(const Vector &x, Vector &y)
             U.Init(nDim, nElem, nQuad1D, nQuad1D);
             Z.Init(nDim, nElem, nQuad1D, nQuad1D);
             T1.Init(nElem,nDof1D,nQuad1D);
+            // X.Init(nElem,nDof1D,nDof1D);
+            // Y.Init(nElem,nDof1D,nDof1D);
             if (onGPU) 
             {
                 U.SwitchToGPU();
                 Z.SwitchToGPU();
                 T1.SwitchToGPU();
+                // X.MapToGPU();
+                // Y.MapToGPU();
             }
         }
         else if (nDim == 3) 
@@ -332,32 +340,47 @@ void AcroDiffusionIntegrator::PAMult(const Vector &x, Vector &y)
             Z.Init(nDim, nElem, nQuad1D, nQuad1D, nQuad1D);
             T1.Init(nElem, nDof1D, nQuad1D, nQuad1D);
             T2.Init(nElem, nDof1D, nDof1D, nQuad1D);
+            // X.Init(nElem,nDof1D,nDof1D,nDof1D);
+            // Y.Init(nElem,nDof1D,nDof1D,nDof1D);
             if (onGPU) 
             {
                 U.SwitchToGPU();
                 Z.SwitchToGPU();
                 T1.SwitchToGPU();
                 T2.SwitchToGPU();
+                // X.MapToGPU();
+                // Y.MapToGPU();
             }
         }
     }
 
     double *x_ptr = const_cast<double*>(x.GetData());
     double *y_ptr = y.GetData();
-    acro::Tensor X,Y;
+    acro::Tensor X(nElem,nDof1D,nDof1D,nDof1D, x_ptr, x_ptr,onGPU);
+    acro::Tensor Y(nElem,nDof1D,nDof1D,nDof1D, y_ptr, y_ptr,onGPU);
+
+    // if (onGPU) 
+    // {
+    //     if (X.IsOnGPU())
+    //     {
+    //         X.SwitchFromGPU();
+    //     }
+    //     for (int idx = 0; idx < x.Size(); ++idx)
+    //     {
+    //         X[idx] = x_ptr[idx];
+    //     }
+    //     X.MoveToGPU();
+    // }
+
     acro::SliceTensor U1,U2,U3,Z1,Z2,Z3;
     if (nDim == 1) 
     {
-        X.Init(nElem, nDof1D, x_ptr, x_ptr, onGPU);
-        Y.Init(nElem, nDof1D, y_ptr, y_ptr, onGPU);
         TE["U_n_e_k1 = G_k1_i1 X_e_i1"](U, G, X);
         TE["Z_m_e_k1 = D_e_m_n_k1 U_n_e_k1"](Z, D, U);
         TE["Y_e_i1 = G_k1_i1 Z_m_e_k1"](Y, G, Z);
     } 
     else if (nDim == 2) 
     {
-        X.Init(nElem, nDof1D, nDof1D, x_ptr, x_ptr, onGPU);
-        Y.Init(nElem, nDof1D, nDof1D, y_ptr, y_ptr, onGPU);
         U1.SliceInit(U, 0); U2.SliceInit(U, 1);
         Z1.SliceInit(Z, 0); Z2.SliceInit(Z, 1);
 
@@ -381,8 +404,6 @@ void AcroDiffusionIntegrator::PAMult(const Vector &x, Vector &y)
     } 
     else if (nDim == 3) 
     {
-        X.Init(nElem, nDof1D, nDof1D, nDof1D, x_ptr, x_ptr, onGPU);
-        Y.Init(nElem, nDof1D, nDof1D, nDof1D, y_ptr, y_ptr, onGPU);
         U1.SliceInit(U, 0); U2.SliceInit(U, 1); U3.SliceInit(U, 2);
         Z1.SliceInit(Z, 0); Z2.SliceInit(Z, 1); Z3.SliceInit(Z, 2);
 
@@ -417,6 +438,16 @@ void AcroDiffusionIntegrator::PAMult(const Vector &x, Vector &y)
         TE["BGZ3_e_i2_i3_k1 = B_k2_i2 GZ3_e_i3_k1_k2"](T2, B, T1);
         TE["Y_e_i1_i2_i3 += B_k1_i1 BGZ3_e_i2_i3_k1"](Y, B, T2);
     }
+
+    // if (onGPU)
+    // {
+    //     if (!Y.IsOnGPU()) Y.SwitchToGPU();    //FOR testing
+    //     Y.MoveFromGPU();
+    //     for (int idx = 0; idx < y.Size(); ++idx)
+    //     {
+    //         y_ptr[idx] = Y[idx];
+    //     }
+    // }
 }
 
 }

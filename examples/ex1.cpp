@@ -38,12 +38,18 @@
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
+#include <cuda.h>
 
 using namespace std;
 using namespace mfem;
 
 int main(int argc, char *argv[])
 {
+   cuInit(0);
+   CUcontext ctx;
+   cuCtxCreate(&ctx, CU_CTX_SCHED_SPIN, 0);
+   acro::setCudaContext(ctx);
+
    // 1. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
@@ -51,6 +57,8 @@ int main(int argc, char *argv[])
    bool acrotensor = false;
    bool gpu = false;
    bool visualization = 1;
+   int refine = 0;
+
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -67,6 +75,8 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
+   args.AddOption(&refine, "-r", "--refine", "Extra refinements.");
+
    args.Parse();
    if (!args.Good())
    {
@@ -86,8 +96,8 @@ int main(int argc, char *argv[])
    //    largest number that gives a final mesh with no more than 50,000
    //    elements.
    {
-      int ref_levels =
-         (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
+      int ref_levels = refine + 
+         (int)floor(log(1000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
@@ -145,6 +155,8 @@ int main(int argc, char *argv[])
    //    corresponding to the Laplacian operator -Delta, by adding the Diffusion
    //    domain integrator.
    BilinearForm *a = new BilinearForm(fespace);
+   tic_toc.Clear();
+   tic_toc.Start();
    if (!acrotensor)
    {
       a->AddDomainIntegrator(new DiffusionIntegrator(one));
@@ -157,10 +169,13 @@ int main(int argc, char *argv[])
       a->PartialAssemble();
 
    }
-
+   tic_toc.Stop();
+   double asm_time = tic_toc.RealTime();
+   
    Operator *A, *PAI;
    SparseMatrix Amat;
    Vector B, X;
+   int ndof;
    if (!acrotensor)
    {
       Operator *oper_a = a;
@@ -177,17 +192,26 @@ int main(int argc, char *argv[])
 
    // 10. Define a simple symmetric Gauss-Seidel preconditioner and use it to
    //     solve the system A X = B with PCG.
+   CG(*A, B, X, 1, 2, 0, 0);
+   tic_toc.Clear();
+   tic_toc.Start();
    if (!acrotensor)
    {
       //GSSmoother M(Amat);
       //PCG(Amat, M, B, X, 1, 200, 1e-12, 0.0);
-      CG(*A, B, X, 1, 200, 1e-12, 0.0);
+      CG(*A, B, X, 1, 200, 0, 0);
    }
    else
    {
-      CG(*A, B, X, 1, 200, 1e-12, 0.0);
+      CG(*A, B, X, 1, 200, 0, 0);
    }
-
+   tic_toc.Stop();
+   double solve_time = tic_toc.RealTime();
+   double mdof = double(fespace->GetTrueVSize())*200.0 / (1e6*solve_time);
+   cout << "#dof asmtime solvetime mdof" << endl;
+   cout << fespace->GetTrueVSize() << "  " << asm_time << "  " << solve_time << "  " << mdof << endl;  
+   cout << "order AT GPU" << endl;
+   cout << order << " " << acrotensor << " " << gpu << endl;
 
    // 11. Recover the solution as a finite element grid function.
    a->RecoverFEMSolution(X, *b, x);
