@@ -760,7 +760,11 @@ void TargetConstructor::ComputeElementTargets(int e_id, const FiniteElement &fe,
          Array<IntegrationPoint> quads0(nqp);
 
          // Get the corresponding points on mesh0.
-         mesh0->FindPoints(quad_point_mat, zone_ids, quads0);
+         InverseElementTransformation invT;
+         invT.SetPhysicalRelTol(1e-8);
+         invT.SetReferenceTol(1e-8);
+         invT.SetSolverType(InverseElementTransformation::NewtonSegmentProject);
+         mesh0->FindPoints(quad_point_mat, zone_ids, quads0, &invT);
 
          // Evaluate indicator0 at the quadrature points.
          Vector ind_vals(nqp);
@@ -785,7 +789,7 @@ void TargetConstructor::ComputeElementTargets(int e_id, const FiniteElement &fe,
          // Form the targets, depending on the indicator values.
          const int dof = nfe->GetDof();
          MFEM_ASSERT(dim == nodes->FESpace()->GetVDim(), "");
-         DenseMatrix dshape(dof, dim), pos(dof, dim), T1(dim), T2(dim);
+         DenseMatrix dshape(dof, dim), pos(dof, dim);
          Array<int> xdofs(dof * dim);
          Vector posV(pos.Data(), dof * dim);
          double detW = Wideal.Det();
@@ -795,12 +799,10 @@ void TargetConstructor::ComputeElementTargets(int e_id, const FiniteElement &fe,
          for (int q = 0; q < nqp; q++)
          {
             nfe->CalcDShape(ir.IntPoint(q), dshape);
-            MultAtB(pos, dshape, T1);
-            const double det = T1.Det();
-            T1.Set(std::pow(det / detW, 1./dim), Wideal);
-
-            T2.Set(std::pow(0.1 * avg_volume / detW, 1./dim), Wideal);
-            Add(ind_vals[q], T2, 1.0 - ind_vals[q], T1, Jtr(q));
+            MultAtB(pos, dshape, Jtr(q));
+            const double target_det = ind_vals[q] * (0.1 * avg_volume) +
+                                      (1.0 - ind_vals[q]) * Jtr(q).Det();
+            Jtr(q).Set(std::pow(target_det / detW, 1./dim), Wideal);
          }
          break;
       }
