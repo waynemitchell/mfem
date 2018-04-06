@@ -801,7 +801,7 @@ void TargetConstructor::ComputeElementTargets(int e_id, const FiniteElement &fe,
             nfe->CalcDShape(ir.IntPoint(q), dshape);
             MultAtB(pos, dshape, Jtr(q));
             const double target_det = ind_vals[q] * (0.1 * avg_volume) +
-                                      (1.0 - ind_vals[q]) * Jtr(q).Det();
+                                      (1.0 - ind_vals[q]) * avg_volume;
             Jtr(q).Set(std::pow(target_det / detW, 1./dim), Wideal);
          }
          break;

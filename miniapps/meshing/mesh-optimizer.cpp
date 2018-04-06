@@ -80,10 +80,21 @@ void vis_metric(int order, TMOP_QualityMetric &qm, const TargetConstructor &tc,
 
 double ind_values(const Vector &x)
 {
+   // Sub-square.
    //if (x(0) <= 0.5 && x(1) <= 0.5) { return 1.0; }
 
-   const double r = sqrt(x(0)*x(0) + x(1)*x(1));
-   if (r > 0.5 && r < 0.6) { return 1.0; }
+   // Circle from origin.
+   //const double r = sqrt(x(0)*x(0) + x(1)*x(1));
+   //if (r > 0.5 && r < 0.6) { return 1.0; }
+
+   // 3point.
+   //if (x(0) >= 0.1 && x(0) <= 0.2) { return 1.0; }
+   //if (x(1) >= 0.45 && x(1) <= 0.55 && x(0) >= 0.1 ) { return 1.0; }
+
+   // Circle in the middle.
+   const double xc = x(0) - 0.5, yc = x(1) - 0.5;
+   const double r = sqrt(xc*xc + yc*yc);
+   if (r > 0.2 && r < 0.3) { return 1.0; }
 
    return 0.0;
 }
@@ -482,7 +493,9 @@ int main (int argc, char *argv[])
    TMOP_Integrator *he_nlf_integ = new TMOP_Integrator(metric, target_c);
    // Indicator function.
    FunctionCoefficient ind_coeff(ind_values);
-   GridFunction ind_gf(fespace);
+   L2_FECollection ind_fec(0, dim);
+   FiniteElementSpace ind_fes(mesh, &ind_fec);
+   GridFunction ind_gf(&ind_fes);
    ind_gf.ProjectCoefficient(ind_coeff);
    // Copy of the initial mesh.
    Mesh mesh0(*mesh);
@@ -706,8 +719,8 @@ int main (int argc, char *argv[])
       x0 -= *x;
       osockstream sock(19916, "localhost");
       sock << "solution\n";
-      mesh->Print(sock);
-      x0.Save(sock);
+      mesh0.Print(sock);
+      ind_gf.Save(sock);
       sock.send();
       sock << "window_title 'Displacements'\n"
            << "window_geometry "
