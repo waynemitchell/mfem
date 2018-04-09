@@ -715,7 +715,7 @@ void TargetConstructor::UpdateAdaptiveTargetSizes()
    {
       double volumes[4];
       volumes[0] = volume; volumes[1] = volume_ind;
-      MPI_Allreduce(volume, volume + 2, 2, MPI_DOUBLE, MPI_SUM, comm);
+      MPI_Allreduce(volumes, volumes + 2, 2, MPI_DOUBLE, MPI_SUM, comm);
       adapt_scale = (volumes[3] +
                      (volumes[2] - volumes[3]) / adapt_size_factor) /volumes[2];
    }
