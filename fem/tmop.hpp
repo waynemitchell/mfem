@@ -441,6 +441,8 @@ protected:
    // function (indicator0) that is defined on a different mesh (mesh0).
    Mesh *mesh0; // not owned
    const GridFunction *indicator0; // not owned
+   double adapt_size_factor;
+   double adapt_scale;
 
 #ifdef MFEM_USE_MPI
    MPI_Comm comm;
@@ -449,8 +451,8 @@ protected:
    bool Parallel() const { return false; }
 #endif
 
-   // should be called only if avg_volume == 0.0, i.e. avg_volume is not
-   // computed yet
+   // Should be called only if avg_volume == 0.0, i.e. avg_volume is not
+   // computed yet.
    void ComputeAvgVolume() const;
 
 public:
@@ -477,11 +479,17 @@ public:
        externally and recomputation of the target average volume is needed. The
        nodes are used by all target types except IDEAL_SHAPE_UNIT_SIZE. */
    void SetNodes(const GridFunction &n) { nodes = &n; avg_volume = 0.0; }
-   void SetMeshAndIndicator(Mesh &m, const GridFunction &ind)
+
+   void SetMeshAndIndicator(Mesh &m, const GridFunction &ind, double ratio)
    {
       mesh0 = &m;
       indicator0 = &ind;
+      adapt_size_factor = ratio;
+      UpdateAdaptiveTargetSizes();
    }
+   /// Must be called when mesh0 or indicator0 has changed after the call to
+   /// SetMeshAndIndicator.
+   void UpdateAdaptiveTargetSizes();
 
    /// Used by target type IDEAL_SHAPE_EQUAL_SIZE. The default volume scale is 1.
    void SetVolumeScale(double vol_scale) { volume_scale = vol_scale; }

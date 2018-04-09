@@ -682,6 +682,46 @@ void TargetConstructor::ComputeAvgVolume() const
 #endif
 }
 
+void TargetConstructor::UpdateAdaptiveTargetSizes()
+{
+   MFEM_VERIFY(mesh0, "Adaptivity mesh is not given!");
+   MFEM_VERIFY(indicator0, "Adaptivity function is not given!");
+
+   Vector ind_vals;
+   const int NE = mesh0->GetNE();
+   double volume = 0.0, volume_ind = 0.0;
+
+   for (int i = 0; i < NE; i++)
+   {
+      ElementTransformation *Tr = mesh0->GetElementTransformation(i);
+      const IntegrationRule &ir =
+         IntRules.Get(mesh0->GetElementBaseGeometry(i), Tr->OrderJ());
+      indicator0->GetValues(i, ir, ind_vals);
+      for (int j = 0; j < ir.GetNPoints(); j++)
+      {
+         const IntegrationPoint &ip = ir.IntPoint(j);
+         Tr->SetIntPoint(&ip);
+         volume     += ip.weight * Tr->Weight();
+         volume_ind += ind_vals(j) * ip.weight * Tr->Weight();
+      }
+   }
+   if (!Parallel())
+   {
+      adapt_scale = (volume_ind +
+                     (volume - volume_ind) / adapt_size_factor) / volume;
+   }
+#ifdef MFEM_USE_MPI
+   else
+   {
+      double volumes[4];
+      volumes[0] = volume; volumes[1] = volume_ind;
+      MPI_Allreduce(volume, volume + 2, 2, MPI_DOUBLE, MPI_SUM, comm);
+      adapt_scale = (volumes[3] +
+                     (volumes[2] - volumes[3]) / adapt_size_factor) /volumes[2];
+   }
+#endif
+}
+
 // virtual method
 void TargetConstructor::ComputeElementTargets(int e_id, const FiniteElement &fe,
                                               const IntegrationRule &ir,
@@ -751,6 +791,9 @@ void TargetConstructor::ComputeElementTargets(int e_id, const FiniteElement &fe,
 
          const int nqp = ir.GetNPoints(), dim = mesh0->Dimension();
 
+         const double small_zone_size = adapt_scale * avg_volume;
+         const double big_zone_size   = adapt_size_factor * small_zone_size;
+
          // Create a matrix with the quad point positions.
          ElementTransformation *T =
                nodes->FESpace()->GetMesh()->GetElementTransformation(e_id);
@@ -800,8 +843,8 @@ void TargetConstructor::ComputeElementTargets(int e_id, const FiniteElement &fe,
          {
             nfe->CalcDShape(ir.IntPoint(q), dshape);
             MultAtB(pos, dshape, Jtr(q));
-            const double target_det = ind_vals[q] * (0.1 * avg_volume) +
-                                      (1.0 - ind_vals[q]) * avg_volume;
+            const double target_det = ind_vals[q] * small_zone_size +
+                                      (1.0 - ind_vals[q]) * big_zone_size;
             Jtr(q).Set(std::pow(target_det / detW, 1./dim), Wideal);
          }
          break;

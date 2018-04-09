@@ -499,7 +499,7 @@ int main (int argc, char *argv[])
    ind_gf.ProjectCoefficient(ind_coeff);
    // Copy of the initial mesh.
    Mesh mesh0(*mesh);
-   target_c->SetMeshAndIndicator(mesh0, ind_gf);
+   target_c->SetMeshAndIndicator(mesh0, ind_gf, 10.0);
    target_c->SetNodes(*x);
 
    // 12. Setup the quadrature rule for the non-linear form integrator.
