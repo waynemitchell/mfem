@@ -439,8 +439,10 @@ protected:
 
    // Used for adaptive targets, i.e., targets that depend on a
    // function (indicator0) that is defined on a different mesh (mesh0).
-   Mesh *mesh0; // not owned
-   const GridFunction *indicator0; // not owned
+   // All pointers are not owned.
+   Mesh *mesh0;
+   const GridFunction *indicator0;
+   const GridFunction *current_mesh_nodes;
    double adapt_size_factor;
    double adapt_scale;
 
@@ -480,6 +482,7 @@ public:
        nodes are used by all target types except IDEAL_SHAPE_UNIT_SIZE. */
    void SetNodes(const GridFunction &n) { nodes = &n; avg_volume = 0.0; }
 
+   /// Used by target type IDEAL_SHAPE_ADAPTIVE_SIZE.
    void SetMeshAndIndicator(Mesh &m, const GridFunction &ind, double ratio)
    {
       mesh0 = &m;
@@ -487,9 +490,10 @@ public:
       adapt_size_factor = ratio;
       UpdateAdaptiveTargetSizes();
    }
-   /// Must be called when mesh0 or indicator0 has changed after the call to
+   /// Must be called when mesh0 or indicator0 have changed after the call to
    /// SetMeshAndIndicator.
    void UpdateAdaptiveTargetSizes();
+   void SetMeshNodes(const GridFunction &mn) { current_mesh_nodes = &mn; }
 
    /// Used by target type IDEAL_SHAPE_EQUAL_SIZE. The default volume scale is 1.
    void SetVolumeScale(double vol_scale) { volume_scale = vol_scale; }

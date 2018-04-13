@@ -84,6 +84,27 @@ void vis_metric(int order, TMOP_QualityMetric &qm, const TargetConstructor &tc,
    }
 }
 
+double ind_values(const Vector &x)
+{
+   // Sub-square.
+   //if (x(0) > 0.3 && x(0) < 0.5 && x(1) > 0.5 && x(1) < 0.7) { return 1.0; }
+
+   // Circle from origin.
+   // const double r = sqrt(x(0)*x(0) + x(1)*x(1));
+   // if (r > 0.5 && r < 0.6) { return 1.0; }
+
+   // 3point.
+   //if (x(0) >= 0.1 && x(0) <= 0.2) { return 1.0; }
+   //if (x(1) >= 0.45 && x(1) <= 0.55 && x(0) >= 0.1 ) { return 1.0; }
+
+   // Circle in the middle.
+   const double xc = x(0) - 0.5, yc = x(1) - 0.5;
+   const double r = sqrt(xc*xc + yc*yc);
+   if (r > 0.2 && r < 0.3) { return 1.0; }
+
+   return 0.0;
+}
+
 class RelaxedNewtonSolver : public NewtonSolver
 {
 private:
@@ -92,11 +113,19 @@ private:
    ParFiniteElementSpace *pfes;
    mutable ParGridFunction x_gf;
 
+   // GridFunction that has the latest mesh positions.
+   ParGridFunction &mesh_nodes;
+
 public:
-   RelaxedNewtonSolver(const IntegrationRule &irule, ParFiniteElementSpace *pf)
-      : NewtonSolver(pf->GetComm()), ir(irule), pfes(pf) { }
+   RelaxedNewtonSolver(const IntegrationRule &irule,
+                       ParFiniteElementSpace *pf, ParGridFunction &mn)
+      : NewtonSolver(pf->GetComm()), ir(irule), pfes(pf), mesh_nodes(mn)  { }
 
    virtual double ComputeScalingFactor(const Vector &x, const Vector &b) const;
+   virtual void ProcessNewState(const Vector &x) const
+   {
+      mesh_nodes.Distribute(x);
+   }
 };
 
 double RelaxedNewtonSolver::ComputeScalingFactor(const Vector &x,
@@ -503,6 +532,7 @@ int main (int argc, char *argv[])
       case 1: target_t = TargetConstructor::IDEAL_SHAPE_UNIT_SIZE; break;
       case 2: target_t = TargetConstructor::IDEAL_SHAPE_EQUAL_SIZE; break;
       case 3: target_t = TargetConstructor::IDEAL_SHAPE_GIVEN_SIZE; break;
+   case 4: target_t = TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE; break;
       default:
          if (myid == 0) { cout << "Unknown target_id: " << target_id << endl; }
          return 3;
@@ -512,6 +542,29 @@ int main (int argc, char *argv[])
    target_c->SetNodes(x0);
    TMOP_Integrator *he_nlf_integ;
    he_nlf_integ = new TMOP_Integrator(metric, target_c);
+   // Indicator function.
+   // Copy of the initial mesh.
+   ParMesh mesh0(*pmesh);
+   FunctionCoefficient ind_coeff(ind_values);
+   L2_FECollection ind_fec(0, dim);
+   ParFiniteElementSpace ind_fes(&mesh0, &ind_fec);
+   ParGridFunction ind_gf(&ind_fes);
+   ind_gf.ProjectCoefficient(ind_coeff);
+   target_c->SetMeshAndIndicator(mesh0, ind_gf, 10.0);
+   target_c->SetMeshNodes(x);
+
+   if (visualization)
+   {
+      osockstream sock(19916, "localhost");
+      sock << "solution\n";
+      mesh0.PrintAsOne(sock);
+      ind_gf.SaveAsOne(sock);
+      sock.send();
+      sock << "window_title 'Displacements'\n"
+           << "window_geometry "
+           << 1200 << " " << 0 << " " << 600 << " " << 600 << "\n"
+           << "keys jRmclA" << endl;
+   }
 
    // 13. Setup the quadrature rule for the non-linear form integrator.
    const IntegrationRule *ir = NULL;
@@ -634,6 +687,7 @@ int main (int argc, char *argv[])
    // 18. As we use the Newton method to solve the resulting nonlinear system,
    //     here we setup the linear solver for the system's Jacobian.
    Solver *S = NULL;
+   HypreSmoother *prec = NULL;
    const double linsol_rtol = 1e-12;
    if (lin_solver == 0)
    {
@@ -655,6 +709,11 @@ int main (int argc, char *argv[])
       minres->SetRelTol(linsol_rtol);
       minres->SetAbsTol(0.0);
       minres->SetPrintLevel(verbosity_level >= 2 ? 3 : -1);
+
+      prec = new HypreSmoother;
+      prec->SetType(HypreSmoother::l1Jacobi, 1);
+      minres->SetPreconditioner(*prec);
+
       S = minres;
    }
 
@@ -681,7 +740,7 @@ int main (int argc, char *argv[])
    if (tauval > 0.0)
    {
       tauval = 0.0;
-      newton = new RelaxedNewtonSolver(*ir, pfespace);
+      newton = new RelaxedNewtonSolver(*ir, pfespace, x);
       if (myid == 0)
       { cout << "RelaxedNewtonSolver is used (as all det(J) > 0)." << endl; }
    }
@@ -752,8 +811,8 @@ int main (int argc, char *argv[])
          sock.open("localhost", 19916);
          sock << "solution\n";
       }
-      pmesh->PrintAsOne(sock);
-      x0.SaveAsOne(sock);
+      mesh0.PrintAsOne(sock);
+      ind_gf.SaveAsOne(sock);
       if (myid == 0)
       {
          sock << "window_title 'Displacements'\n"
@@ -764,6 +823,7 @@ int main (int argc, char *argv[])
    }
 
    // 24. Free the used memory.
+   delete prec;
    delete S;
    delete target_c2;
    delete metric2;

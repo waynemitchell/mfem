@@ -1,4 +1,4 @@
-// Copyright (c) 2010, Lawrence Livermore National Security, LLC. Produced at
+﻿// Copyright (c) 2010, Lawrence Livermore National Security, LLC. Produced at
 // the Lawrence Livermore National Laboratory. LLNL-CODE-443211. All Rights
 // reserved. See file COPYRIGHT for details.
 //
@@ -81,11 +81,11 @@ void vis_metric(int order, TMOP_QualityMetric &qm, const TargetConstructor &tc,
 double ind_values(const Vector &x)
 {
    // Sub-square.
-   //if (x(0) <= 0.5 && x(1) <= 0.5) { return 1.0; }
+   //if (x(0) > 0.3 && x(0) < 0.5 && x(1) > 0.5 && x(1) < 0.7) { return 1.0; }
 
    // Circle from origin.
-   //const double r = sqrt(x(0)*x(0) + x(1)*x(1));
-   //if (r > 0.5 && r < 0.6) { return 1.0; }
+   // const double r = sqrt(x(0)*x(0) + x(1)*x(1));
+   // if (r > 0.5 && r < 0.6) { return 1.0; }
 
    // 3point.
    //if (x(0) >= 0.1 && x(0) <= 0.2) { return 1.0; }
@@ -437,9 +437,6 @@ int main (int argc, char *argv[])
       for (int j = 0; j < vdofs.Size(); j++) { rdm(vdofs[j]) = 0.0; }
    }
    *x -= rdm;
-   // Set the perturbation of all nodes from the true nodes.
-   x->SetTrueVector();
-   x->SetFromTrueVector();
 
    // 9. Save the starting (prior to the optimization) mesh to a file. This
    //    output can be viewed later using GLVis: "glvis -m perturbed.mesh".
@@ -492,15 +489,28 @@ int main (int argc, char *argv[])
    target_c->SetNodes(x0);
    TMOP_Integrator *he_nlf_integ = new TMOP_Integrator(metric, target_c);
    // Indicator function.
-   FunctionCoefficient ind_coeff(ind_values);
-   L2_FECollection ind_fec(0, dim);
-   FiniteElementSpace ind_fes(mesh, &ind_fec);
-   GridFunction ind_gf(&ind_fes);
-   ind_gf.ProjectCoefficient(ind_coeff);
    // Copy of the initial mesh.
    Mesh mesh0(*mesh);
+   FunctionCoefficient ind_coeff(ind_values);
+   L2_FECollection ind_fec(0, dim);
+   FiniteElementSpace ind_fes(&mesh0, &ind_fec);
+   GridFunction ind_gf(&ind_fes);
+   ind_gf.ProjectCoefficient(ind_coeff);
    target_c->SetMeshAndIndicator(mesh0, ind_gf, 10.0);
-   target_c->SetNodes(*x);
+   target_c->SetMeshNodes(*x);
+
+   if (visualization)
+   {
+      osockstream sock(19916, "localhost");
+      sock << "solution\n";
+      mesh0.Print(sock);
+      ind_gf.Save(sock);
+      sock.send();
+      sock << "window_title 'Displacements'\n"
+           << "window_geometry "
+           << 1200 << " " << 0 << " " << 600 << " " << 600 << "\n"
+           << "keys jRmclA" << endl;
+   }
 
    // 12. Setup the quadrature rule for the non-linear form integrator.
    const IntegrationRule *ir = NULL;
@@ -619,6 +629,7 @@ int main (int argc, char *argv[])
    // 17. As we use the Newton method to solve the resulting nonlinear system,
    //     here we setup the linear solver for the system's Jacobian.
    Solver *S = NULL;
+   DSmoother *prec = NULL;
    const double linsol_rtol = 1e-12;
    if (lin_solver == 0)
    {
@@ -640,6 +651,10 @@ int main (int argc, char *argv[])
       minres->SetRelTol(linsol_rtol);
       minres->SetAbsTol(0.0);
       minres->SetPrintLevel(verbosity_level >= 2 ? 3 : -1);
+
+      prec = new DSmoother(1);
+      minres->SetPreconditioner(*prec);
+
       S = minres;
    }
 
@@ -677,14 +692,14 @@ int main (int argc, char *argv[])
       newton = new DescentNewtonSolver(*ir, fespace);
       cout << "The DescentNewtonSolver is used (as some det(J)<0)." << endl;
    }
+
    newton->SetPreconditioner(*S);
    newton->SetMaxIter(newton_iter);
    newton->SetRelTol(newton_rtol);
    newton->SetAbsTol(0.0);
    newton->SetPrintLevel(verbosity_level >= 1 ? 1 : -1);
    newton->SetOperator(a);
-   newton->Mult(b, x->GetTrueVector());
-   x->SetFromTrueVector();
+   newton->Mult(b, *x);
    if (newton->GetConverged() == false)
    {
       cout << "NewtonIteration: rtol = " << newton_rtol << " not achieved."
@@ -729,6 +744,7 @@ int main (int argc, char *argv[])
    }
 
    // 24. Free the used memory.
+   delete prec;
    delete S;
    delete target_c2;
    delete metric2;

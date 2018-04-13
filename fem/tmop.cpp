@@ -782,10 +782,12 @@ void TargetConstructor::ComputeElementTargets(int e_id, const FiniteElement &fe,
       case IDEAL_SHAPE_ADAPTIVE_SIZE:
       {
 #ifdef MFEM_USE_MPI
-         MFEM_ABORT("IDEAL_SHAPE_ADAPTIVE_SIZE doesn't work in parallel yet.");
+         //MFEM_ABORT("IDEAL_SHAPE_ADAPTIVE_SIZE doesn't work in parallel yet.");
 #endif
          MFEM_VERIFY(mesh0 != NULL && indicator0 != NULL,
                      "Initial mesh and indicator function are not set.");
+         MFEM_VERIFY(current_mesh_nodes != NULL,
+                     "The current mesh nodes are not set");
 
          if (avg_volume == 0.0) { ComputeAvgVolume(); }
 
@@ -796,9 +798,9 @@ void TargetConstructor::ComputeElementTargets(int e_id, const FiniteElement &fe,
 
          // Create a matrix with the quad point positions.
          ElementTransformation *T =
-               nodes->FESpace()->GetMesh()->GetElementTransformation(e_id);
+               current_mesh_nodes->FESpace()->GetElementTransformation(e_id);
          DenseMatrix quad_point_mat(dim, nqp);
-         T->Transform(ir, quad_point_mat);
+         current_mesh_nodes->GetVectorValues(*T, ir, quad_point_mat);
          Array<int> zone_ids(nqp);
          Array<IntegrationPoint> quads0(nqp);
 
@@ -806,8 +808,9 @@ void TargetConstructor::ComputeElementTargets(int e_id, const FiniteElement &fe,
          InverseElementTransformation invT;
          invT.SetPhysicalRelTol(1e-8);
          invT.SetReferenceTol(1e-8);
-         invT.SetSolverType(InverseElementTransformation::NewtonSegmentProject);
-         mesh0->FindPoints(quad_point_mat, zone_ids, quads0, &invT);
+         invT.SetInitialGuessType(InverseElementTransformation::ClosestRefNode);
+         invT.SetSolverType(InverseElementTransformation::NewtonElementProject);
+         mesh0->FindPoints(quad_point_mat, zone_ids, quads0, false, &invT);
 
          // Evaluate indicator0 at the quadrature points.
          Vector ind_vals(nqp);
@@ -829,20 +832,9 @@ void TargetConstructor::ComputeElementTargets(int e_id, const FiniteElement &fe,
             if (zone_ids[q] == -1) { ind_vals[q] = avg_found; }
          }
 
-         // Form the targets, depending on the indicator values.
-         const int dof = nfe->GetDof();
-         MFEM_ASSERT(dim == nodes->FESpace()->GetVDim(), "");
-         DenseMatrix dshape(dof, dim), pos(dof, dim);
-         Array<int> xdofs(dof * dim);
-         Vector posV(pos.Data(), dof * dim);
-         double detW = Wideal.Det();
-
-         nodes->FESpace()->GetElementVDofs(e_id, xdofs);
-         nodes->GetSubVector(xdofs, posV);
+         const double detW = Wideal.Det();
          for (int q = 0; q < nqp; q++)
          {
-            nfe->CalcDShape(ir.IntPoint(q), dshape);
-            MultAtB(pos, dshape, Jtr(q));
             const double target_det = ind_vals[q] * small_zone_size +
                                       (1.0 - ind_vals[q]) * big_zone_size;
             Jtr(q).Set(std::pow(target_det / detW, 1./dim), Wideal);
