@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
    acro::setCudaContext(ctx);
 
    // 1. Parse command-line options.
-   const char *mesh_file = "../data/star.mesh";
+   const char *mesh_file = "../data/beam-hex.mesh";
    int order = 1;
    bool static_cond = false;
    bool acrotensor = false;
@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
    //    elements.
    {
       int ref_levels = refine + 
-         (int)floor(log(1000./mesh->GetNE())/log(2.)/dim);
+         (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();

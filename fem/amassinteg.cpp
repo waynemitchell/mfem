@@ -20,7 +20,7 @@ AcroMassIntegrator::AcroMassIntegrator(Coefficient &q, FiniteElementSpace &f, bo
 {
     if (onGPU) 
     {
-        TE.SetExecutorType("SMChunkPerBlock");
+        TE.SetExecutorType("OneOutPerThread");
         //acro::setCudaContext(occa::cuda::getContext(device));
     } 
     else 
@@ -189,18 +189,18 @@ void AcroMassIntegrator::BatchedPartialAssemble()
     if (hasTensorBasis) 
     {
         if (nDim == 1) {
-            TE["D_e_k = W_k Q_e_k Jdet_e_k"]
-              (D, W, q, Jdet);
+            TE("D_e_k = W_k Q_e_k Jdet_e_k",
+                D, W, q, Jdet);
         } 
         else if (nDim == 2) 
         {
-            TE["D_e_k1_k2 = W_k1_k2 Q_e_k1_k2 Jdet_e_k1_k2"]
-              (D, W, q, Jdet);
+            TE("D_e_k1_k2 = W_k1_k2 Q_e_k1_k2 Jdet_e_k1_k2",
+                D, W, q, Jdet);
         } 
         else if (nDim == 3)
         {
-            TE["D_e_k1_k2_k3 = W_k1_k2_k3 Q_e_k1_k2_k3 Jdet_e_k1_k2_k3"]
-              (D, W, q, Jdet);
+            TE("D_e_k1_k2_k3 = W_k1_k2_k3 Q_e_k1_k2_k3 Jdet_e_k1_k2_k3",
+                D, W, q, Jdet);
         } 
         else 
         {
@@ -209,8 +209,8 @@ void AcroMassIntegrator::BatchedPartialAssemble()
     } 
     else 
     {
-        TE["D_e_k = W_k Q_e_k Jdet_e_k"]
-          (D, W, q, Jdet);
+        TE("D_e_k = W_k Q_e_k Jdet_e_k",
+            D, W, q, Jdet);
     }
 }
 
@@ -246,23 +246,23 @@ void AcroMassIntegrator::BatchedAssembleMatrix() {
 
     if (hasTensorBasis) {
         if (nDim == 1) {
-            TE["M_e_i1_j1 = B_k1_i1 B_k1_j1 D_e_k1"]
-                (M, B, B, D);
+            TE("M_e_i1_j1 = B_k1_i1 B_k1_j1 D_e_k1",
+                M, B, B, D);
         } 
         else if (nDim == 2) 
         {
-            TE["M_e_i1_i2_j1_j2 = B_k1_i1 B_k1_j1 B_k2_i2 B_k2_j2 D_e_k1_k2"]
-                (M, B, B, B, B, D);
+            TE("M_e_i1_i2_j1_j2 = B_k1_i1 B_k1_j1 B_k2_i2 B_k2_j2 D_e_k1_k2",
+                M, B, B, B, B, D);
         } 
         else if (nDim == 3) 
         {
-            TE["M_e_i1_i2_i3_j1_j2_j3 = B_k1_i1 B_k1_j1 B_k2_i2 B_k2_j2 B_k3_i3 B_k3_j3 D_e_k1_k2_k3"]
-                (M, B, B, B, B, B, B, D);
+            TE("M_e_i1_i2_i3_j1_j2_j3 = B_k1_i1 B_k1_j1 B_k2_i2 B_k2_j2 B_k3_i3 B_k3_j3 D_e_k1_k2_k3",
+                M, B, B, B, B, B, B, D);
         }
     } 
     else 
     {
-        TE["M_e_i_j = B_k_i B_k_j D_e_k"](M, B, B, D);
+        TE("M_e_i_j = B_k_i B_k_j D_e_k", M, B, B, D);
     }
 }
 
@@ -299,24 +299,24 @@ void AcroMassIntegrator::PAMult(const Vector &x, Vector &y) {
     if (nDim == 1) {
       acro::Tensor X(nElem, nDof1D, x_ptr, x_ptr, onGPU);
       acro::Tensor Y(nElem, nDof1D, y_ptr, y_ptr, onGPU);
-      TE["T1_e_k1 = D_e_k1 B_k1_j1 X_e_j1"](T1, D, B, X);
-      TE["Y_e_i1 = B_k1_i1 T1_e_k1"](Y, B, T1);
+      TE("T1_e_k1 = D_e_k1 B_k1_j1 X_e_j1", T1, D, B, X);
+      TE("Y_e_i1 = B_k1_i1 T1_e_k1", Y, B, T1);
     } else if (nDim == 2) {
       acro::Tensor X(nElem, nDof1D, nDof1D, x_ptr, x_ptr, onGPU);
       acro::Tensor Y(nElem, nDof1D, nDof1D, y_ptr, y_ptr, onGPU);
-      TE["T1_e_k2_j1 = B_k2_j2 X_e_j1_j2"](T1, B, X);
-      TE["T2_e_k1_k2 = D_e_k1_k2 B_k1_j1 T1_e_k2_j1"](T2, D, B, T1);
-      TE["T1_e_k1_i2 = B_k2_i2 T2_e_k1_k2"](T1, B, T2);
-      TE["Y_e_i1_i2 = B_k1_i1 T1_e_k1_i2"](Y, B, T1);
+      TE("T1_e_k2_j1 = B_k2_j2 X_e_j1_j2", T1, B, X);
+      TE("T2_e_k1_k2 = D_e_k1_k2 B_k1_j1 T1_e_k2_j1", T2, D, B, T1);
+      TE("T1_e_k1_i2 = B_k2_i2 T2_e_k1_k2", T1, B, T2);
+      TE("Y_e_i1_i2 = B_k1_i1 T1_e_k1_i2", Y, B, T1);
     } else if (nDim == 3) {
       acro::Tensor X(nElem, nDof1D, nDof1D, nDof1D, x_ptr, x_ptr, onGPU);
       acro::Tensor Y(nElem, nDof1D, nDof1D, nDof1D, y_ptr, y_ptr, onGPU);
-      TE["T1_e_k3_j1_j2 = B_k3_j3 X_e_j1_j2_j3"](T1, B, X);
-      TE["T2_e_k2_k3_j1 = B_k2_j2 T1_e_k3_j1_j2"](T2, B, T1);
-      TE["T3_e_k1_k2_k3 = D_e_k1_k2_k3 B_k1_j1 T2_e_k2_k3_j1"](T3, D, B, T2);
-      TE["T2_e_k1_k2_i3 = B_k3_i3 T3_e_k1_k2_k3"](T2, B, T3);
-      TE["T1_e_k1_i2_i3 = B_k2_i2 T2_e_k1_k2_i3"](T1, B, T2);
-      TE["Y_e_i1_i2_i3 = B_k1_i1 T1_e_k1_i2_i3"](Y, B, T1);
+      TE("T1_e_k3_j1_j2 = B_k3_j3 X_e_j1_j2_j3", T1, B, X);
+      TE("T2_e_k2_k3_j1 = B_k2_j2 T1_e_k3_j1_j2", T2, B, T1);
+      TE("T3_e_k1_k2_k3 = D_e_k1_k2_k3 B_k1_j1 T2_e_k2_k3_j1", T3, D, B, T2);
+      TE("T2_e_k1_k2_i3 = B_k3_i3 T3_e_k1_k2_k3", T2, B, T3);
+      TE("T1_e_k1_i2_i3 = B_k2_i2 T2_e_k1_k2_i3", T1, B, T2);
+      TE("Y_e_i1_i2_i3 = B_k1_i1 T1_e_k1_i2_i3", Y, B, T1);
     }
   } else {
     mfem_error("AcroMassIntegrator PAMult on simplices not supported");
