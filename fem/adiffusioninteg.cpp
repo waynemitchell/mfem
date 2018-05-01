@@ -220,23 +220,23 @@ void AcroDiffusionIntegrator::BatchedPartialAssemble()
     {
         if (nDim == 1) 
         {
-            TE("D_e_m_n_k = W_k C_e_k Jdet_e_k Jinv_e_k_m_n Jinv_e_k_n_m",
+            TE("D_e_m_n_k = W_k C_e_k Jdet_e_k Jinv_e_k_m_j Jinv_e_k_n_j",
                 D, W, C, Jdet, Jinv, Jinv);
         } 
         else if (nDim == 2) 
         {
-            TE("D_e_m_n_k1_k2 = W_k1_k2 C_e_k1_k2 Jdet_e_k1_k2 Jinv_e_k1_k2_m_n Jinv_e_k1_k2_n_m",
+            TE("D_e_m_n_k1_k2 = W_k1_k2 C_e_k1_k2 Jdet_e_k1_k2 Jinv_e_k1_k2_m_j Jinv_e_k1_k2_n_j",
                   D, W, C, Jdet, Jinv, Jinv);
         } 
         else if (nDim == 3)
         {
-            TE("D_e_m_n_k1_k2_k3 = W_k1_k2_k3 C_e_k1_k2_k3 Jdet_e_k1_k2_k3 Jinv_e_k1_k2_k3_m_n Jinv_e_k1_k2_k3_n_m",
+            TE("D_e_m_n_k1_k2_k3 = W_k1_k2_k3 C_e_k1_k2_k3 Jdet_e_k1_k2_k3 Jinv_e_k1_k2_k3_n_j Jinv_e_k1_k2_k3_m_j",
                   D, W, C, Jdet, Jinv, Jinv);
         } 
     } 
     else 
     {
-        TE("D_e_m_n_k = W_k C_e_k Jdet_e_k Jinv_e_k_m_n Jinv_e_k_n_m",
+        TE("D_e_m_n_k = W_k C_e_k Jdet_e_k Jinv_e_k_m_j Jinv_e_k_n_j",
             D, W, C, Jdet, Jinv, Jinv);
     }
 }
@@ -396,36 +396,38 @@ void AcroDiffusionIntegrator::PAMult(const Vector &x, Vector &y)
         U1.SliceInit(U, 0); U2.SliceInit(U, 1); U3.SliceInit(U, 2);
         Z1.SliceInit(Z, 0); Z2.SliceInit(Z, 1); Z3.SliceInit(Z, 2);
 
+        TE.BeginMultiKernelLaunch();
         //U1_e_k1_k2_k3 = G_k1_i1 B_k2_i2 B_k3_i3 X_e_i1_i2_i3
-        TE("BX_e_i1_i2_k3 = B_k3_i3 X_e_i1_i2_i3", T2, B, X);
-        TE("BBX_e_i1_k2_k3 = B_k2_i2 BX_e_i1_i2_k3", T1, B, T2);
-        TE("U1_e_k1_k2_k3 = G_k1_i1 BBX_e_i1_k2_k3", U1, G, T1);
+        TE("T2_e_i1_i2_k3 = B_k3_i3 X_e_i1_i2_i3", T2, B, X);
+        TE("T1_e_i1_k2_k3 = B_k2_i2 T2_e_i1_i2_k3", T1, B, T2);
+        TE("U1_e_k1_k2_k3 = G_k1_i1 T1_e_i1_k2_k3", U1, G, T1);
 
         //U2_e_k1_k2_k3 = B_k1_i1 G_k2_i2 B_k3_i3 X_e_i1_i2_i3
-        TE("GBX_e_i1_k2_k3 = G_k2_i2 BX_e_i1_i2_k3", T1, G, T2);
-        TE("U2_e_k1_k2_k3 = B_k1_i1 GBX_e_i1_k2_k3", U2, B, T1);
+        TE("T1_e_i1_k2_k3 = G_k2_i2 T2_e_i1_i2_k3", T1, G, T2);
+        TE("U2_e_k1_k2_k3 = B_k1_i1 T1_e_i1_k2_k3", U2, B, T1);
 
         //U3_e_k1_k2_k3 = B_k1_i1 B_k2_i2 G_k3_i3 X_e_i1_i2_i3
-        TE("GX_e_i1_i2_k3 = G_k3_i3 X_e_i1_i2_i3", T2, G, X);
-        TE("BGX_e_i1_k2_k3 = B_k2_i2 GX_e_i1_i2_k3", T1, B, T2);
-        TE("U3_e_k1_k2_k3 = B_k1_i1 BGX_e_i1_k2_k3", U3, B, T1);
+        TE("T2_e_i1_i2_k3 = G_k3_i3 X_e_i1_i2_i3", T2, G, X);
+        TE("T1_e_i1_k2_k3 = B_k2_i2 T2_e_i1_i2_k3", T1, B, T2);
+        TE("U3_e_k1_k2_k3 = B_k1_i1 T1_e_i1_k2_k3", U3, B, T1);
 
         TE("Z_m_e_k1_k2_k3 = D_e_m_n_k1_k2_k3 U_n_e_k1_k2_k3", Z, D, U);
 
         //Y_e_i1_i2_i3 =  G_k1_i1 B_k2_i2 B_k3_i3 Z1_e_k1_k2_k3
-        TE("BZ1_e_i3_k1_k2 = B_k3_i3 Z1_e_k1_k2_k3", T1, B, Z1);
-        TE("BBZ1_e_i2_i3_k1 = B_k2_i2 BZ1_e_i3_k1_k2", T2, B, T1);
-        TE("Y_e_i1_i2_i3 = G_k1_i1 BBZ1_e_i2_i3_k1", Y, G, T2);
+        TE("T1_e_i3_k1_k2 = B_k3_i3 Z1_e_k1_k2_k3", T1, B, Z1);
+        TE("T2_e_i2_i3_k1 = B_k2_i2 T1_e_i3_k1_k2", T2, B, T1);
+        TE("Y_e_i1_i2_i3 = G_k1_i1 T2_e_i2_i3_k1", Y, G, T2);
 
         //Y_e_i1_i2_i3 +=  B_k1_i1 G_k2_i2 B_k3_i3 Z2_e_k1_k2_k3
-        TE("BZ2_e_i3_k1_k2 = B_k3_i3 Z2_e_k1_k2_k3", T1, B, Z2);
-        TE("GBZ2_e_i2_i3_k1 = G_k2_i2 BZ2_e_i3_k1_k2", T2, G, T1);
-        TE("Y_e_i1_i2_i3 += B_k1_i1 GBZ2_e_i2_i3_k1", Y, B, T2);
+        TE("T1_e_i3_k1_k2 = B_k3_i3 Z2_e_k1_k2_k3", T1, B, Z2);
+        TE("T2_e_i2_i3_k1 = G_k2_i2 T1_e_i3_k1_k2", T2, G, T1);
+        TE("Y_e_i1_i2_i3 += B_k1_i1 T2_e_i2_i3_k1", Y, B, T2);
 
         //Y_e_i1_i2_i3 +=  B_k1_i1 B_k2_i2 G_k3_i3 Z3_e_k1_k2_k3
-        TE("GZ3_e_i3_k1_k2 = G_k3_i3 Z3_e_k1_k2_k3", T1, G, Z3);
-        TE("BGZ3_e_i2_i3_k1 = B_k2_i2 GZ3_e_i3_k1_k2", T2, B, T1);
-        TE("Y_e_i1_i2_i3 += B_k1_i1 BGZ3_e_i2_i3_k1", Y, B, T2);
+        TE("T1_e_i3_k1_k2 = G_k3_i3 Z3_e_k1_k2_k3", T1, G, Z3);
+        TE("T2_e_i2_i3_k1 = B_k2_i2 T1_e_i3_k1_k2", T2, B, T1);
+        TE("Y_e_i1_i2_i3 += B_k1_i1 T2_e_i2_i3_k1", Y, B, T2);
+        TE.EndMultiKernelLaunch();
     }
 }
 

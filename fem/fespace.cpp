@@ -1782,12 +1782,14 @@ void FiniteElementSpace::ToGlobalVector(const Vector &V, Vector &v)
 #ifdef MFEM_USE_CUDAUM
 __global__ void cuda_to_local_vector(const double *v, double *V, const int *offsets, const int *indices, int size)
 {
-   int i = blockIdx.x*blockDim.x + threadIdx.x;
-   if (i < size)
+   const int idx_t0 = blockIdx.x*blockDim.x;
+   const int idx = idx_t0 + threadIdx.x;
+
+   if (idx < size)
    {
-      const int offset = offsets[i];
-      const int next_offset = offsets[i + 1];
-      const double dof_value = v[i];
+      const int offset = offsets[idx];
+      const int next_offset = offsets[idx+1];
+      const double dof_value = v[idx];
       for (int j = offset; j < next_offset; j++)
       {
          V[indices[j]] = dof_value;
@@ -1797,17 +1799,19 @@ __global__ void cuda_to_local_vector(const double *v, double *V, const int *offs
 
 __global__ void cuda_to_global_vector(const double *V, double *v, const int *offsets, const int *indices, int size)
 {
-   int i = blockIdx.x*blockDim.x + threadIdx.x;
-   if (i < size)
+   const int idx_t0 = blockIdx.x*blockDim.x;
+   const int idx = idx_t0 + threadIdx.x;
+   
+   if (idx < size)
    {
-      const int offset = offsets[i];
-      const int next_offset = offsets[i + 1];
+      const int offset = offsets[idx];
+      const int next_offset = offsets[idx+1];
       double dof_value = 0.0;
       for (int j = offset; j < next_offset; j++)
       {
          dof_value += V[indices[j]];
       }
-      v[i] = dof_value;
+      v[idx] = dof_value;
    }
 }
 #endif
