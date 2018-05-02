@@ -114,7 +114,6 @@ AcroDiffusionIntegrator::AcroDiffusionIntegrator(Coefficient &q, FiniteElementSp
         }
     }
 
-
     if (onGPU)
     {
         B.MapToGPU();
@@ -162,6 +161,8 @@ void AcroDiffusionIntegrator::BatchedPartialAssemble()
     acro::Tensor J,Jinv,Jdet,C;
     if (hasTensorBasis)
     {
+        const IntegrationRule *ir1D = &IntRules.Get(Geometry::SEGMENT, ir->GetOrder());
+        IntegrationPoint ip;
         if (nDim == 1)
         {
             D.Init(nElem, nDim, nDim, nQuad1D);
@@ -169,6 +170,27 @@ void AcroDiffusionIntegrator::BatchedPartialAssemble()
             Jinv.Init(nElem, nQuad1D, nDim, nDim);            
             Jdet.Init(nElem, nQuad1D);
             C.Init(nElem, nQuad1D);
+
+            for (int e = 0; e < nElem; ++e)
+            {
+                ElementTransformation *Trans = fes->GetElementTransformation(e);
+                for (int k1 = 0; k1 < nQuad1D; ++k1)
+                {
+                    ip.x = ir1D->IntPoint(k1).x;
+                    ip.y = 0.0;
+                    ip.z = 0.0;
+                    Trans->SetIntPoint(&ip);
+                    C(e,k1) = Q->Eval(*Trans, ip);
+                    const DenseMatrix &JMat = Trans->Jacobian();
+                    for (int m = 0; m < nDim; ++m)
+                    {
+                        for (int n = 0; n < nDim; ++n)
+                        {                                
+                            J(e,k1,m,n) = JMat.Elem(m,n);
+                        }
+                    }
+                }
+            }
         }
         else if (nDim == 2)
         {
@@ -177,6 +199,30 @@ void AcroDiffusionIntegrator::BatchedPartialAssemble()
             Jinv.Init(nElem, nQuad1D, nQuad1D, nDim, nDim);
             Jdet.Init(nElem, nQuad1D, nQuad1D);
             C.Init(nElem, nQuad1D, nQuad1D);
+
+            for (int e = 0; e < nElem; ++e)
+            {
+                ElementTransformation *Trans = fes->GetElementTransformation(e);
+                for (int k1 = 0; k1 < nQuad1D; ++k1)
+                {
+                    for (int k2 = 0; k2 < nQuad1D; ++k2)
+                    {
+                        ip.x = ir1D->IntPoint(k1).x;
+                        ip.y = ir1D->IntPoint(k2).y;
+                        ip.z = 0.0;
+                        Trans->SetIntPoint(&ip);
+                        C(e,k1,k2) = Q->Eval(*Trans, ip);
+                        const DenseMatrix &JMat = Trans->Jacobian();
+                        for (int m = 0; m < nDim; ++m)
+                        {
+                            for (int n = 0; n < nDim; ++n)
+                            {                                
+                                J(e,k1,k2,m,n) = JMat.Elem(m,n);
+                            }
+                        }
+                    }
+                }
+            }
         }
         else if (nDim == 3)
         {
@@ -185,6 +231,33 @@ void AcroDiffusionIntegrator::BatchedPartialAssemble()
             Jinv.Init(nElem, nQuad1D, nQuad1D, nQuad1D, nDim, nDim);
             Jdet.Init(nElem, nQuad1D, nQuad1D, nQuad1D);
             C.Init(nElem, nQuad1D, nQuad1D, nQuad1D);
+
+            for (int e = 0; e < nElem; ++e)
+            {
+                ElementTransformation *Trans = fes->GetElementTransformation(e);
+                for (int k1 = 0; k1 < nQuad1D; ++k1)
+                {
+                    for (int k2 = 0; k2 < nQuad1D; ++k2)
+                    {
+                        for (int k3 = 0; k3 < nQuad1D; ++k3)
+                        {
+                            ip.x = ir1D->IntPoint(k1).x;
+                            ip.y = ir1D->IntPoint(k2).y;
+                            ip.z = ir1D->IntPoint(k3).z;
+                            Trans->SetIntPoint(&ip);
+                            C(e,k1,k2,k3) = Q->Eval(*Trans, ip);
+                            const DenseMatrix &JMat = Trans->Jacobian();
+                            for (int m = 0; m < nDim; ++m)
+                            {
+                                for (int n = 0; n < nDim; ++n)
+                                {                                
+                                    J(e,k1,k2,k3,m,n) = JMat.Elem(m,n);
+                                }
+                            }
+                        }
+                    }   
+                }
+            }
         }
     }
     else
@@ -194,26 +267,27 @@ void AcroDiffusionIntegrator::BatchedPartialAssemble()
         Jinv.Init(nElem, nQuad, nDim, nDim);
         Jdet.Init(nElem, nQuad);
         C.Init(nElem, nQuad);
-    }
 
-    //Fill the jacobians and coefficients
-    int idx = 0;
-    for (int e = 0; e < nElem; ++e)
-    {
-        ElementTransformation *Trans = fes->GetElementTransformation(e);
-        for (int k = 0; k < nQuad; ++k)
+        for (int e = 0; e < nElem; ++e)
         {
-            const IntegrationPoint &ip = ir->IntPoint(k);
-            Trans->SetIntPoint(&ip);
-            C[e*nQuad+k] = Q->Eval(*Trans, ip);
-            const DenseMatrix &JMat = Trans->Jacobian();
-            for (int mn = 0; mn < nDim*nDim; ++mn)
+            ElementTransformation *Trans = fes->GetElementTransformation(e);
+            for (int k = 0; k < nQuad; ++k)
             {
-                J[idx] = JMat.GetData()[mn];
-                idx ++;
-            }     
+                const IntegrationPoint &ip = ir->IntPoint(k);
+                Trans->SetIntPoint(&ip);
+                C(e,k) = Q->Eval(*Trans, ip);
+                const DenseMatrix &JMat = Trans->Jacobian();
+                for (int m = 0; m < nDim; ++m)
+                {
+                    for (int n = 0; n < nDim; ++n)
+                    {                                
+                        J(e,k,m,n) = JMat.Elem(m,n);
+                    }
+                }    
+            }
         }
     }
+
     TE.BatchMatrixInvDet(Jinv, Jdet, J);
 
     if (hasTensorBasis) 

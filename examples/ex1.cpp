@@ -235,6 +235,10 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *mesh << x << flush;
    }
 
+   VisItDataCollection visit_dc("Example1", mesh);
+   visit_dc.RegisterField("solution", &x);
+   visit_dc.Save();
+
    // 14. Free the used memory.
    delete a;
    delete b;
