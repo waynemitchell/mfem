@@ -20,7 +20,7 @@ AcroMassIntegrator::AcroMassIntegrator(Coefficient &q, FiniteElementSpace &f, bo
 {
     if (onGPU) 
     {
-        TE.SetExecutorType("OneOutPerThread");
+        TE.SetExecutorType("Cuda");
         //acro::setCudaContext(occa::cuda::getContext(device));
     } 
     else 

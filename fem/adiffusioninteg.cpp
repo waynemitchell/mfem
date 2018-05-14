@@ -20,7 +20,8 @@ AcroDiffusionIntegrator::AcroDiffusionIntegrator(Coefficient &q, FiniteElementSp
 {
     if (onGPU) 
     {
-        TE.SetExecutorType("OneOutPerThread");
+        //TE.SetExecutorType("OneOutPerThread");
+        TE.SetExecutorType("Cuda");
         //TODO:  Set to an existing cuda context if one exists
     } 
     else 
