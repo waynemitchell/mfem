@@ -38,7 +38,9 @@ protected:
     */
    const int *blockOffsets;
    //! array of Vector objects used to extract blocks without allocating memory.
-   Array<Vector *> tmp_block;
+   Vector *blocks;
+
+   void SetBlocks();
 
 public:
    //! empty constructor
@@ -72,9 +74,9 @@ public:
    ~BlockVector();
 
    //! Get the i-th vector in the block.
-   Vector & GetBlock(int i);
+   Vector & GetBlock(int i) { return blocks[i]; }
    //! Get the i-th vector in the block (const version).
-   const Vector & GetBlock(int i) const;
+   const Vector & GetBlock(int i) const { return blocks[i]; }
 
    //! Get the i-th vector in the block
    void GetBlockView(int i, Vector & blockView);
@@ -88,6 +90,7 @@ public:
     * integers (length nBlocks+1) that tells the offsets of each block start.
     * nBlocks is the number of blocks.
     */
+   void Update(const Array<int> & bOffsets);
    void Update(double *data, const Array<int> & bOffsets);
    void Update(const double *data, const Array<int> & bOffsets);
 };

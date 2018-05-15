@@ -52,6 +52,7 @@ protected:
 
    /// Set of Boundary Integrators to be applied.
    Array<BilinearFormIntegrator*> bbfi;
+   Array<Array<int>*>             bbfi_marker;
 
    /// Set of interior face Integrators to be applied.
    Array<BilinearFormIntegrator*> fbfi;
@@ -68,6 +69,13 @@ protected:
    StaticCondensation *static_cond;
    Hybridization *hybridization;
 
+   /**
+    * This member allows one to specify what should be done
+    * to the diagonal matrix entries and corresponding RHS
+    * values upon elimination of the constrained DoFs.
+    */
+   DiagonalPolicy diag_policy;
+
    int precompute_sparsity;
    // Allocate appropriate SparseMatrix and assign it to mat
    void AllocMat();
@@ -81,6 +89,7 @@ protected:
       mat = mat_e = NULL; extern_bfs = 0; element_matrices = NULL;
       static_cond = NULL; hybridization = NULL;
       precompute_sparsity = 0;
+      diag_policy = DIAG_KEEP;
    }
 
 public:
@@ -216,6 +225,11 @@ public:
 
    /// Adds new Boundary Integrator.
    void AddBoundaryIntegrator(BilinearFormIntegrator *bfi);
+
+   /** @brief Adds new Boundary Integrator, restricted to specific boundary
+       attributes. */
+   void AddBoundaryIntegrator(BilinearFormIntegrator * bfi,
+                              Array<int> &bdr_marker);
 
    /// Adds new interior Face Integrator.
    void AddInteriorFaceIntegrator(BilinearFormIntegrator *bfi);
@@ -369,6 +383,9 @@ public:
    FiniteElementSpace *FESpace() { return fes; }
    /// Read-only access to the associated FiniteElementSpace.
    const FiniteElementSpace *FESpace() const { return fes; }
+
+   /// Sets diagonal policy used upon construction of the linear system
+   void SetDiagonalPolicy(DiagonalPolicy policy);
 
    /// Destroys bilinear form.
    virtual ~BilinearForm();

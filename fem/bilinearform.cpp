@@ -111,6 +111,7 @@ BilinearForm::BilinearForm (FiniteElementSpace * f)
    static_cond = NULL;
    hybridization = NULL;
    precompute_sparsity = 0;
+   diag_policy = DIAG_KEEP;
 }
 
 BilinearForm::BilinearForm (FiniteElementSpace * f, BilinearForm * bf, int ps)
@@ -128,6 +129,7 @@ BilinearForm::BilinearForm (FiniteElementSpace * f, BilinearForm * bf, int ps)
    static_cond = NULL;
    hybridization = NULL;
    precompute_sparsity = ps;
+   diag_policy = DIAG_KEEP;
 
    bfi = bf->GetDBFI();
    dbfi.SetSize (bfi->Size());
@@ -244,6 +246,14 @@ void BilinearForm::AddDomainIntegrator (BilinearFormIntegrator * bfi)
 void BilinearForm::AddBoundaryIntegrator (BilinearFormIntegrator * bfi)
 {
    bbfi.Append (bfi);
+   bbfi_marker.Append(NULL); // NULL marker means apply everywhere
+}
+
+void BilinearForm::AddBoundaryIntegrator (BilinearFormIntegrator * bfi,
+                                          Array<int> &bdr_marker)
+{
+   bbfi.Append (bfi);
+   bbfi_marker.Append(&bdr_marker);
 }
 
 void BilinearForm::AddInteriorFaceIntegrator (BilinearFormIntegrator * bfi)
@@ -396,14 +406,41 @@ void BilinearForm::Assemble (int skip_zeros)
 
    if (bbfi.Size())
    {
+      // Which boundary attributes need to be processed?
+      Array<int> bdr_attr_marker(mesh->bdr_attributes.Size() ?
+                                 mesh->bdr_attributes.Max() : 0);
+      bdr_attr_marker = 0;
+      for (int k = 0; k < bbfi.Size(); k++)
+      {
+         if (bbfi_marker[k] == NULL)
+         {
+            bdr_attr_marker = 1;
+            break;
+         }
+         Array<int> &bdr_marker = *bbfi_marker[k];
+         MFEM_ASSERT(bdr_marker.Size() == bdr_attr_marker.Size(),
+                     "invalid boundary marker for boundary integrator #"
+                     << k << ", counting from zero");
+         for (int i = 0; i < bdr_attr_marker.Size(); i++)
+         {
+            bdr_attr_marker[i] |= bdr_marker[i];
+         }
+      }
+
       for (i = 0; i < fes -> GetNBE(); i++)
       {
+         const int bdr_attr = mesh->GetBdrAttribute(i);
+         if (bdr_attr_marker[bdr_attr-1] == 0) { continue; }
+
          const FiniteElement &be = *fes->GetBE(i);
          fes -> GetBdrElementVDofs (i, vdofs);
          eltrans = fes -> GetBdrElementTransformation (i);
          bbfi[0]->AssembleElementMatrix(be, *eltrans, elmat);
          for (int k = 1; k < bbfi.Size(); k++)
          {
+            if (bbfi_marker[k] &&
+                (*bbfi_marker[k])[bdr_attr-1] == 0) { continue; }
+
             bbfi[k]->AssembleElementMatrix(be, *eltrans, elemmat);
             elmat += elemmat;
          }
@@ -671,14 +708,13 @@ void BilinearForm::FormSystemMatrix(const Array<int> &ess_tdof_list,
 {
    // Finish the matrix assembly and perform BC elimination, storing the
    // eliminated part of the matrix.
-   const DiagonalPolicy keep_diag = DIAG_KEEP;
    if (static_cond)
    {
       if (!static_cond->HasEliminatedBC())
       {
          static_cond->SetEssentialTrueDofs(ess_tdof_list);
          static_cond->Finalize(); // finalize Schur complement (to true dofs)
-         static_cond->EliminateReducedTrueDofs(keep_diag);
+         static_cond->EliminateReducedTrueDofs(diag_policy);
          static_cond->Finalize(); // finalize eliminated part
       }
       A.MakeRef(static_cond->GetMatrix());
@@ -689,7 +725,7 @@ void BilinearForm::FormSystemMatrix(const Array<int> &ess_tdof_list,
       {
          const SparseMatrix *P = fes->GetConformingProlongation();
          if (P) { ConformingAssemble(); }
-         EliminateVDofs(ess_tdof_list, keep_diag);
+         EliminateVDofs(ess_tdof_list, diag_policy);
          const int remove_zeros = 0;
          Finalize(remove_zeros);
       }
@@ -968,6 +1004,11 @@ void BilinearForm::Update(FiniteElementSpace *nfes)
    }
 
    height = width = fes->GetVSize();
+}
+
+void BilinearForm::SetDiagonalPolicy(DiagonalPolicy policy)
+{
+   diag_policy = policy;
 }
 
 BilinearForm::~BilinearForm()
