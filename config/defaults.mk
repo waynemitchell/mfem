@@ -111,9 +111,12 @@ LIBUNWIND_OPT = -g
 LIBUNWIND_LIB = $(if $(NOTMAC),-lunwind -ldl,)
 
 # HYPRE library configuration (needed to build the parallel version)
-HYPRE_DIR = @MFEM_DIR@/../hypre-2.10.0b/src/hypre
+HYPRE_DIR = @MFEM_DIR@/../hypre-2.14.0/src/hypre
 HYPRE_OPT = -I$(HYPRE_DIR)/include
 HYPRE_LIB = -L$(HYPRE_DIR)/lib -lHYPRE
+ifeq ($(MFEM_USE_CUDAUM),YES)
+   HYPRE_LIB += -lcusparse -lcudart -lcublas -lnvToolsExt -Xcompiler -fopenmp
+endif
 
 # METIS library configuration
 ifeq ($(MFEM_USE_SUPERLU)$(MFEM_USE_STRUMPACK),NONO)
