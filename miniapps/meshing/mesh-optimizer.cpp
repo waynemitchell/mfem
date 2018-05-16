@@ -31,6 +31,10 @@
 //
 // Compile with: make mesh-optimizer
 //
+//  r-adapt WIP:
+//  mesh-optimizer -m TG_Q3_3R.mesh -rs 0 -o 3 -mid 9 -tid 5 -ls 2 -bnd -vl 2 -ni 200 -li 100 -qo 4 -qt 2
+//
+//
 // Sample runs:
 //   Blade shape:
 //     mesh-optimizer -m blade.mesh -o 4 -rs 0 -mid 2 -tid 1 -ni 200 -ls 2 -li 100 -bnd -qt 1 -qo 8
@@ -99,6 +103,128 @@ double ind_values(const Vector &x)
    return 0.0;
 }
 
+double remap_values(const Vector &x)
+{
+   // 3point.
+   if (x(0) >= 0.1 && x(0) <= 0.2) { return 1.0; }
+   if (x(1) >= 0.45 && x(1) <= 0.55 && x(0) >= 0.1 ) { return 1.0; }
+
+   return 0.0;
+}
+
+// Performs an advection step.
+class AdvectorCGOperator : public TimeDependentOperator
+{
+private:
+   GridFunction &x0, &u, &x_now;
+
+   VectorGridFunctionCoefficient u_coeff;
+   mutable BilinearForm M, K;
+
+public:
+   // Note: fes must be the FiniteElementSpace of the current mesh.
+   //       xn  must be the Nodes GridFunction of the current mesh.
+   AdvectorCGOperator(GridFunction &x_start, GridFunction &vel,
+                      GridFunction &xn, FiniteElementSpace &fes)
+      : TimeDependentOperator(fes.GetVSize()),
+        x0(x_start), u(vel), x_now(xn), u_coeff(&u), M(&fes), K(&fes)
+   {
+      ConvectionIntegrator *Kinteg = new ConvectionIntegrator(u_coeff);
+      K.AddDomainIntegrator(Kinteg);
+      K.Assemble(0);
+      K.Finalize(0);
+
+      MassIntegrator *Minteg = new MassIntegrator;
+      M.AddDomainIntegrator(Minteg);
+      M.Assemble();
+      M.Finalize();
+   }
+
+   virtual void Mult(const Vector &ind, Vector &di_dt) const
+   {
+      const double t = GetTime();
+
+      // Move the mesh.
+      add(x0, t, u, x_now);
+
+      // Assemble on the new mesh.
+      K.BilinearForm::operator=(0.0);
+      K.Assemble();
+      Vector rhs(ind);
+      K.Mult(ind, rhs);
+      M.BilinearForm::operator=(0.0);
+      M.Assemble();
+
+      // Solve.
+      GSSmoother M_prec(M.SpMat());
+      PCG(M, M_prec, rhs, di_dt);
+   }
+};
+
+// Performs the whole advection loop.
+class AdvectorCG
+{
+private:
+   Mesh mesh;
+   FiniteElementSpace fes;
+   RK4Solver ode_solver;
+
+public:
+   AdvectorCG(Mesh &m, const FiniteElementCollection &field_fec)
+      : mesh(m, true), fes(&mesh, &field_fec), ode_solver() { }
+
+   // Advects ind from x_start to x_end.
+   void Advect(GridFunction &x_start, GridFunction &x_end,
+               GridFunction &ind)
+   {
+      GridFunction *mesh_nodes = mesh.GetNodes();
+      *mesh_nodes = x_start;
+
+      GridFunction u(x_start.FESpace());
+      subtract(x_end, x_start, u);
+
+      // This must be the fes of the ind, associated with the object's mesh.
+      AdvectorCGOperator oper(x_start, u, *mesh_nodes, fes);
+      ode_solver.Init(oper);
+
+      // Compute some time step [mesh_size / speed].
+      double min_h = numeric_limits<double>::infinity();
+      for (int i = 0; i < mesh.GetNE(); i++)
+      {
+         min_h = std::min(min_h, mesh.GetElementSize(1));
+      }
+      double v_max = 0.0;
+      int s = u.FESpace()->GetVSize() / 2;
+      for (int i = 0; i < s; i++)
+      {
+         double vel = std::sqrt( u(i) * u(i) + u(i+s) * u(i+s) + 1e-14);
+         v_max = std::max(v_max, vel);
+      }
+      double dt = 0.5 * min_h / v_max;
+
+      double t = 0.0;
+      bool last_step = false;
+      for (int ti = 1; !last_step; ti++)
+      {
+         if (t + dt >= 1.0)
+         {
+            std::cout << "Remap with dt = " << dt
+                      << " took " << ti << " steps." << std::endl;
+            dt = 1.0 - t;
+            last_step = true;
+         }
+         ode_solver.Step(ind, t, dt);
+      }
+
+      // Trim to put it in [0, 1].
+      for (int i = 0; i < ind.Size(); i++)
+      {
+         if (ind(i) < 0.0) { ind(i) = 0.0; }
+         if (ind(i) > 1.0) { ind(i) = 1.0; }
+      }
+   }
+};
+
 class RelaxedNewtonSolver : public NewtonSolver
 {
 private:
@@ -107,11 +233,18 @@ private:
    FiniteElementSpace *fes;
    mutable GridFunction x_gf;
 
+   GridFunction *x0, *ind0, *ind;
+   AdvectorCG *advector;
+
 public:
-   RelaxedNewtonSolver(const IntegrationRule &irule, FiniteElementSpace *f)
-      : ir(irule), fes(f) { }
+   RelaxedNewtonSolver(const IntegrationRule &irule, FiniteElementSpace *f,
+                       GridFunction *x0_, GridFunction *ind0_,
+                       GridFunction *ind_, AdvectorCG *adv)
+      : ir(irule), fes(f), x_gf(),
+        x0(x0_), ind0(ind0_), ind(ind_), advector(adv) { }
 
    virtual double ComputeScalingFactor(const Vector &x, const Vector &b) const;
+   virtual void ProcessNewState(const Vector &x) const;
 };
 
 double RelaxedNewtonSolver::ComputeScalingFactor(const Vector &x,
@@ -191,6 +324,22 @@ double RelaxedNewtonSolver::ComputeScalingFactor(const Vector &x,
    if (x_out_ok == false) { scale = 0.0; }
 
    return scale;
+}
+
+void RelaxedNewtonSolver::ProcessNewState(const Vector &x) const
+{
+   if (x0 && ind0 && ind && advector)
+   {
+      // GridFunction with the current positions.
+      Vector x_copy(x);
+      x_gf.MakeTRef(fes, x_copy, 0);
+
+      // Reset the indicator to its values on the initial positions.
+      *ind = *ind0;
+
+      // Advect the indicator from the original to the new posiions.
+      advector->Advect(*x0, x_gf, *ind);
+   }
 }
 
 // Allows negative Jacobians. Used in untangling metrics.
@@ -482,6 +631,7 @@ int main (int argc, char *argv[])
       case 2: target_t = TargetConstructor::IDEAL_SHAPE_EQUAL_SIZE; break;
       case 3: target_t = TargetConstructor::IDEAL_SHAPE_GIVEN_SIZE; break;
       case 4: target_t = TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE; break;
+      case 5: target_t = TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE_7; break;
       default: cout << "Unknown target_id: " << target_id << endl;
          delete metric; return 3;
    }
@@ -496,17 +646,49 @@ int main (int argc, char *argv[])
    FiniteElementSpace ind_fes(&mesh0, &ind_fec);
    GridFunction ind_gf(&ind_fes);
    ind_gf.ProjectCoefficient(ind_coeff);
-   target_c->SetMeshAndIndicator(mesh0, ind_gf, 10.0);
-   target_c->SetMeshNodes(*x);
 
-   if (visualization)
+   H1_FECollection remap_fec(1, dim);
+   FiniteElementSpace remap_fes(&mesh0, &remap_fec);
+   GridFunction remap_gf(&remap_fes);
+   remap_gf.ProjectCoefficient(ind_coeff);
+   GridFunction remap_gf_init(remap_gf);
+
+   // Adaptivity tests.
+   if (target_t == TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE)
+   {
+      target_c->SetMeshAndIndicator(mesh0, ind_gf, 10.0);
+      target_c->SetMeshNodes(*x);
+   }
+   if (target_t == TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE_7)
+   {
+      target_c->SetIndicator(remap_gf, 10.0);
+   }
+
+   AdvectorCG advector(mesh0, *remap_gf.FESpace()->FEColl());
+
+   if (visualization &&
+       target_t == TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE_7)
+   {
+      osockstream sock(19916, "localhost");
+      sock << "solution\n";
+      mesh0.Print(sock);
+      remap_gf.Save(sock);
+      sock.send();
+      sock << "window_title 'Adaptivity Indicator'\n"
+           << "window_geometry "
+           << 1200 << " " << 0 << " " << 600 << " " << 600 << "\n"
+           << "keys jRmclA" << endl;
+   }
+
+   if (visualization &&
+       target_t == TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE)
    {
       osockstream sock(19916, "localhost");
       sock << "solution\n";
       mesh0.Print(sock);
       ind_gf.Save(sock);
       sock.send();
-      sock << "window_title 'Displacements'\n"
+      sock << "window_title 'Adaptivity Indicator'\n"
            << "window_geometry "
            << 1200 << " " << 0 << " " << 600 << " " << 600 << "\n"
            << "keys jRmclA" << endl;
@@ -677,7 +859,9 @@ int main (int argc, char *argv[])
    if (tauval > 0.0)
    {
       tauval = 0.0;
-      newton = new RelaxedNewtonSolver(*ir, fespace);
+      newton = new RelaxedNewtonSolver(*ir, fespace,
+                                       &x0, &remap_gf_init,
+                                       &remap_gf, &advector);
       cout << "The RelaxedNewtonSolver is used (as all det(J)>0)." << endl;
    }
    else
@@ -728,14 +912,30 @@ int main (int argc, char *argv[])
       vis_metric(mesh_poly_deg, *metric, *target_c, *mesh, title, 600);
    }
 
+   // Remap test.
+   //AdvectorCG advector2(mesh0, *remap_gf.FESpace()->FEColl());
+   //advector2.Advect(x0, *x, remap_gf);
+   if (visualization)
+   {
+      osockstream sock(19916, "localhost");
+      sock << "solution\n";
+      mesh->Print(sock);
+      remap_gf.Save(sock);
+      sock.send();
+      sock << "window_title 'Remapped Final'\n"
+           << "window_geometry "
+           << 700 << " " << 0 << " " << 600 << " " << 600 << "\n"
+           << "keys jRmclA" << endl;
+   }
+
    // 23. Visualize the mesh displacement.
    if (visualization)
    {
       x0 -= *x;
       osockstream sock(19916, "localhost");
       sock << "solution\n";
-      mesh0.Print(sock);
-      ind_gf.Save(sock);
+      mesh->Print(sock);
+      x0.Save(sock);
       sock.send();
       sock << "window_title 'Displacements'\n"
            << "window_geometry "

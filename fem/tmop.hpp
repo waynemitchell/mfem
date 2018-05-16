@@ -425,9 +425,12 @@ public:
       GIVEN_SHAPE_AND_SIZE, /**<
          Given shape, given size/volume; the given nodes define the exact target
          Jacobian matrix at all quadrature points. */
-      IDEAL_SHAPE_ADAPTIVE_SIZE /**<
+      IDEAL_SHAPE_ADAPTIVE_SIZE, /**<
          Ideal shape, adaptive size/volume; the given mesh and indicator
          function define the target volume at all quadrature points. */
+      IDEAL_SHAPE_ADAPTIVE_SIZE_7 /**<
+         Ideal shape, adaptive size/volume; the indicator function defines
+         the target volume at all quadrature points. */
    };
 
 protected:
@@ -441,7 +444,7 @@ protected:
    // function (indicator0) that is defined on a different mesh (mesh0).
    // All pointers are not owned.
    Mesh *mesh0;
-   const GridFunction *indicator0;
+   const GridFunction *indicator0, *indicator;
    const GridFunction *current_mesh_nodes;
    double adapt_size_factor;
    double adapt_scale;
@@ -461,7 +464,7 @@ public:
    /// Constructor for use in serial
    TargetConstructor(TargetType ttype)
       : nodes(NULL), avg_volume(), volume_scale(1.0), target_type(ttype),
-        mesh0(NULL), indicator0(NULL)
+        mesh0(NULL), indicator0(NULL), indicator(NULL)
    {
 #ifdef MFEM_USE_MPI
       comm = MPI_COMM_NULL;
@@ -488,11 +491,14 @@ public:
       mesh0 = &m;
       indicator0 = &ind;
       adapt_size_factor = ratio;
-      UpdateAdaptiveTargetSizes();
+      UpdateAdaptiveTargetSizes(*mesh0, *indicator0);
    }
+   /// Used by target type IDEAL_SHAPE_ADAPTIVE_SIZE_7.
+   void SetIndicator(const GridFunction &ind, double ratio);
+
    /// Must be called when mesh0 or indicator0 have changed after the call to
    /// SetMeshAndIndicator.
-   void UpdateAdaptiveTargetSizes();
+   void UpdateAdaptiveTargetSizes(Mesh &mesh, const GridFunction &ind);
    void SetMeshNodes(const GridFunction &mn) { current_mesh_nodes = &mn; }
 
    /// Used by target type IDEAL_SHAPE_EQUAL_SIZE. The default volume scale is 1.

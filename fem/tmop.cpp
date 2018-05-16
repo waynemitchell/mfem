@@ -682,21 +682,26 @@ void TargetConstructor::ComputeAvgVolume() const
 #endif
 }
 
-void TargetConstructor::UpdateAdaptiveTargetSizes()
+void TargetConstructor::SetIndicator(const GridFunction &ind, double ratio)
 {
-   MFEM_VERIFY(mesh0, "Adaptivity mesh is not given!");
-   MFEM_VERIFY(indicator0, "Adaptivity function is not given!");
+   indicator = &ind;
+   adapt_size_factor = ratio;
+   UpdateAdaptiveTargetSizes(*indicator->FESpace()->GetMesh(), *indicator);
+}
 
+void TargetConstructor::UpdateAdaptiveTargetSizes(Mesh &mesh,
+                                                  const GridFunction &ind)
+{
    Vector ind_vals;
-   const int NE = mesh0->GetNE();
+   const int NE = mesh.GetNE();
    double volume = 0.0, volume_ind = 0.0;
 
    for (int i = 0; i < NE; i++)
    {
-      ElementTransformation *Tr = mesh0->GetElementTransformation(i);
+      ElementTransformation *Tr = mesh.GetElementTransformation(i);
       const IntegrationRule &ir =
-         IntRules.Get(mesh0->GetElementBaseGeometry(i), Tr->OrderJ());
-      indicator0->GetValues(i, ir, ind_vals);
+         IntRules.Get(mesh.GetElementBaseGeometry(i), Tr->OrderJ());
+      ind.GetValues(i, ir, ind_vals);
       for (int j = 0; j < ir.GetNPoints(); j++)
       {
          const IntegrationPoint &ip = ir.IntPoint(j);
@@ -831,6 +836,28 @@ void TargetConstructor::ComputeElementTargets(int e_id, const FiniteElement &fe,
          {
             if (zone_ids[q] == -1) { ind_vals[q] = avg_found; }
          }
+
+         const double detW = Wideal.Det();
+         for (int q = 0; q < nqp; q++)
+         {
+            const double target_det = ind_vals[q] * small_zone_size +
+                                      (1.0 - ind_vals[q]) * big_zone_size;
+            Jtr(q).Set(std::pow(target_det / detW, 1./dim), Wideal);
+         }
+         break;
+      }
+      case IDEAL_SHAPE_ADAPTIVE_SIZE_7:
+      {
+         MFEM_VERIFY(indicator != NULL,
+                     "Indicator function is not set.");
+
+         const int nqp = ir.GetNPoints(), dim = nfe->GetDim();
+         Vector ind_vals(nqp);
+         indicator->GetValues(e_id, ir, ind_vals);
+
+         if (avg_volume == 0.0) { ComputeAvgVolume(); }
+         const double small_zone_size = adapt_scale * avg_volume;
+         const double big_zone_size   = adapt_size_factor * small_zone_size;
 
          const double detW = Wideal.Det();
          for (int q = 0; q < nqp; q++)
