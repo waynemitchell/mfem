@@ -509,6 +509,13 @@ public:
    virtual void ComputeElementTargets(int e_id, const FiniteElement &fe,
                                       const IntegrationRule &ir,
                                       DenseTensor &Jtr) const;
+   /** Computes dW/dx_i for the x_i dofs on the given element.
+       Returns dofxdim matrix at each quad point.
+   */
+   virtual void ComputeTargetDerivatives(int e_id, int ip_id,
+                                         const FiniteElement &fe,
+                                         const IntegrationRule &ir,
+                                         DenseTensor &Jtr_dx) const;
 };
 
 

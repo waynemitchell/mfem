@@ -88,28 +88,31 @@ double ind_values(const Vector &x)
    //if (x(0) > 0.3 && x(0) < 0.5 && x(1) > 0.5 && x(1) < 0.7) { return 1.0; }
 
    // Circle from origin.
-   // const double r = sqrt(x(0)*x(0) + x(1)*x(1));
-   // if (r > 0.5 && r < 0.6) { return 1.0; }
+   //const double r = sqrt(x(0)*x(0) + x(1)*x(1));
+   //if (r > 0.5 && r < 0.6) { return 1.0; }
 
    // 3point.
    //if (x(0) >= 0.1 && x(0) <= 0.2) { return 1.0; }
    //if (x(1) >= 0.45 && x(1) <= 0.55 && x(0) >= 0.1 ) { return 1.0; }
 
+   // Sine wave.
+   const double X = x(0), Y = x(1);
+   return std::tanh((10*(Y-0.5) + std::sin(4.0*M_PI*X)) + 1) -
+          std::tanh((10*(Y-0.5) + std::sin(4.0*M_PI*X)) - 1);
+
+
    // Circle in the middle.
-   const double xc = x(0) - 0.5, yc = x(1) - 0.5;
-   const double r = sqrt(xc*xc + yc*yc);
-   if (r > 0.2 && r < 0.3) { return 1.0; }
+   //const double xc = x(0) - 0.5, yc = x(1) - 0.5;
+   //const double r = sqrt(xc*xc + yc*yc);
+   //if (r > 0.2 && r < 0.3) { return 1.0; }
 
    return 0.0;
 }
 
-double remap_values(const Vector &x)
+void normalize(Vector &v)
 {
-   // 3point.
-   if (x(0) >= 0.1 && x(0) <= 0.2) { return 1.0; }
-   if (x(1) >= 0.45 && x(1) <= 0.55 && x(0) >= 0.1 ) { return 1.0; }
-
-   return 0.0;
+   const double max = v.Max();
+   v /= max;
 }
 
 // Performs an advection step.
@@ -642,26 +645,28 @@ int main (int argc, char *argv[])
    // Copy of the initial mesh.
    Mesh mesh0(*mesh);
    FunctionCoefficient ind_coeff(ind_values);
-   L2_FECollection ind_fec(0, dim);
+   L2_FECollection ind_fec(2, dim);
    FiniteElementSpace ind_fes(&mesh0, &ind_fec);
    GridFunction ind_gf(&ind_fes);
    ind_gf.ProjectCoefficient(ind_coeff);
+   normalize(ind_gf);
 
-   H1_FECollection remap_fec(1, dim);
-   FiniteElementSpace remap_fes(&mesh0, &remap_fec);
+   H1_FECollection remap_fec(2, dim);
+   FiniteElementSpace remap_fes(mesh, &remap_fec);
    GridFunction remap_gf(&remap_fes);
    remap_gf.ProjectCoefficient(ind_coeff);
+   normalize(remap_gf);
    GridFunction remap_gf_init(remap_gf);
 
    // Adaptivity tests.
    if (target_t == TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE)
    {
-      target_c->SetMeshAndIndicator(mesh0, ind_gf, 10.0);
+      target_c->SetMeshAndIndicator(mesh0, ind_gf, 20.0);
       target_c->SetMeshNodes(*x);
    }
    if (target_t == TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE_7)
    {
-      target_c->SetIndicator(remap_gf, 10.0);
+      target_c->SetIndicator(remap_gf, 20.0);
    }
 
    AdvectorCG advector(mesh0, *remap_gf.FESpace()->FEColl());

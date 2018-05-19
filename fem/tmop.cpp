@@ -862,14 +862,78 @@ void TargetConstructor::ComputeElementTargets(int e_id, const FiniteElement &fe,
          const double detW = Wideal.Det();
          for (int q = 0; q < nqp; q++)
          {
-            const double target_det = ind_vals[q] * small_zone_size +
-                                      (1.0 - ind_vals[q]) * big_zone_size;
+            if (ind_vals(q) > 1.0) { ind_vals(q) = 1.0; }
+            if (ind_vals(q) < 0.0) { ind_vals(q) = 0.0; }
+            const double target_det = ind_vals(q) * small_zone_size +
+                                      (1.0 - ind_vals(q)) * big_zone_size;
             Jtr(q).Set(std::pow(target_det / detW, 1./dim), Wideal);
          }
          break;
       }
       default:
          MFEM_ABORT("invalid target type!");
+   }
+}
+
+// virtual method
+void TargetConstructor::ComputeTargetDerivatives(int e_id, int ip_id,
+                                                 const FiniteElement &fe,
+                                                 const IntegrationRule &ir,
+                                                 DenseTensor &Jtr_dx) const
+{
+   const FiniteElement *nfe = (target_type != IDEAL_SHAPE_UNIT_SIZE) ?
+                              nodes->FESpace()->GetFE(e_id) : NULL;
+   const int dim = nfe->GetDim(), dof = nfe->GetDof();
+
+   const DenseMatrix &Wideal =
+      Geometries.GetGeomToPerfGeomJac(fe.GetGeomType());
+
+   switch (target_type)
+   {
+      case IDEAL_SHAPE_ADAPTIVE_SIZE_7:
+      {
+         ElementTransformation *tr =
+               indicator->FESpace()->GetElementTransformation(e_id);
+         const IntegrationPoint &ip = ir.IntPoint(ip_id);
+         tr->SetIntPoint(&ip);
+
+         DenseMatrix W(dim), dW(dim), Winv(dim), R(dim);
+         const double detW = Wideal.Det();
+         Vector ind_vals(ir.GetNPoints());
+         indicator->GetValues(e_id, ir, ind_vals);
+         if (avg_volume == 0.0) { ComputeAvgVolume(); }
+         const double small_zone_size = adapt_scale * avg_volume;
+         const double big_zone_size   = adapt_size_factor * small_zone_size;
+         if (ind_vals(ip_id) > 1.0) { ind_vals(ip_id) = 1.0; }
+         if (ind_vals(ip_id) < 0.0) { ind_vals(ip_id) = 0.0; }
+         const double target_det = ind_vals(ip_id) * small_zone_size +
+                                   (1.0 - ind_vals(ip_id)) * big_zone_size;
+         W.Set(std::pow(target_det / detW, 1.0 / dim), Wideal);
+         const double factor = 1.0 / dim *
+                               std::pow(target_det / detW, (1.0 - dim) / dim) *
+                               (small_zone_size - big_zone_size) / detW;
+         dW.Set(factor, Wideal);
+         CalcInverse(W, Winv);
+
+         Mult(Winv, dW, W);
+         Mult(W, Winv, R);
+
+         Vector grad_ind(dim), shape(dof);
+         indicator->GetGradient(*tr, grad_ind);
+         nfe->CalcShape(ip, shape);
+         for (int d = 0; d < dim; d++)
+         {
+            for (int j = 0; j < dof; j++)
+            {
+               Jtr_dx(dof*d + j).Set(- grad_ind(d) * shape(j), R);
+            }
+         }
+         break;
+      }
+      default:
+      {
+         for (int j = 0; j < dof*dim; j++) { Jtr_dx(j) = 0.0; }
+      }
    }
 }
 
@@ -974,6 +1038,7 @@ void TMOP_Integrator::AssembleElementVector(const FiniteElement &el,
 
    elvect = 0.0;
    DenseTensor Jtr(dim, dim, ir->GetNPoints());
+   DenseTensor Jtr_dx(dim, dim, dim * dof);
    targetC->ComputeElementTargets(T.ElementNo, el, *ir, Jtr);
 
    // Limited case.
@@ -991,16 +1056,13 @@ void TMOP_Integrator::AssembleElementVector(const FiniteElement &el,
       nodes0->GetSubVector(pos_dofs, pos0V);
    }
 
-   // Define ref->physical transformation, when a Coefficient is specified.
-   IsoparametricTransformation *Tpr = NULL;
-   if (coeff1 || coeff0)
-   {
-      Tpr = new IsoparametricTransformation;
-      Tpr->SetFE(&el);
-      Tpr->ElementNo = T.ElementNo;
-      Tpr->Attribute = T.Attribute;
-      Tpr->GetPointMat().Transpose(PMatI); // PointMat = PMatI^T
-   }
+   // Define ref->physical transformation.
+   IsoparametricTransformation *Tpr = new IsoparametricTransformation;
+   Tpr->SetFE(&el);
+   Tpr->ElementNo = T.ElementNo;
+   Tpr->Attribute = T.Attribute;
+   Tpr->GetPointMat().Transpose(PMatI); // PointMat = PMatI^T
+   Tpr->FinalizeTransformation();
 
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
@@ -1021,6 +1083,23 @@ void TMOP_Integrator::AssembleElementVector(const FiniteElement &el,
 
       P *= weight_m;
       AddMultABt(DS, P, PMatO);
+
+      // Derivative of the target matrix.
+      targetC->ComputeTargetDerivatives(T.ElementNo, i, el, *ir, Jtr_dx);
+      Tpr->SetIntPoint(&ip);
+      for (int j = 0; j < dof * dim; j++)
+      {
+         DenseMatrix AdW(dim);
+         Mult(Tpr->Jacobian(), Jtr_dx(j), AdW);
+         // Contract.
+         for (int d1 = 0; d1 < dim; d1++)
+         {
+            for (int d2 = 0; d2 < dim; d2++)
+            {
+               elvect(j) += AdW(d1, d2) * P(d1, d2);
+            }
+         }
+      }
 
       if (coeff0)
       {
