@@ -870,6 +870,30 @@ void TargetConstructor::ComputeElementTargets(int e_id, const FiniteElement &fe,
          }
          break;
       }
+      case ADAPTIVE_SHAPE:
+      {
+         MFEM_VERIFY(indicator != NULL,
+                     "Indicator function is not set.");
+
+         const int nqp = ir.GetNPoints(), dim = nfe->GetDim();
+         Vector ind_vals(nqp);
+         indicator->GetValues(e_id, ir, ind_vals);
+
+         const double small_side = 1.0;
+         const double big_side = adapt_size_factor * small_side;
+
+         for (int q = 0; q < nqp; q++)
+         {
+            if (ind_vals(q) > 1.0) { ind_vals(q) = 1.0; }
+            if (ind_vals(q) < 0.0) { ind_vals(q) = 0.0; }
+            const double target_x = ind_vals(q) * big_side +
+                                    (1.0 - ind_vals(q)) * small_side;
+            Jtr(q) = 0.0;
+            Jtr(q)(0,0) = target_x;
+            Jtr(q)(1,1) = small_side;
+      }
+      break;
+   }
       default:
          MFEM_ABORT("invalid target type!");
    }
@@ -1096,7 +1120,7 @@ void TMOP_Integrator::AssembleElementVector(const FiniteElement &el,
          {
             for (int d2 = 0; d2 < dim; d2++)
             {
-               elvect(j) += AdW(d1, d2) * P(d1, d2);
+               //elvect(j) += AdW(d1, d2) * P(d1, d2);
             }
          }
       }
