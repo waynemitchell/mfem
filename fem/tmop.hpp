@@ -431,8 +431,10 @@ public:
       IDEAL_SHAPE_ADAPTIVE_SIZE_7, /**<
          Ideal shape, adaptive size/volume; the indicator function defines
          the target volume at all quadrature points. */
-      ADAPTIVE_SHAPE /**<
+      ADAPTIVE_SHAPE, /**<
          The indicator function defines the aspect ratio. */
+      ADAPTIVE_SHAPE_AND_SIZE /**<
+         The indicator function defines the aspect ratio and the size. */
    };
 
 protected:

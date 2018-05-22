@@ -33,7 +33,11 @@
 //
 //  r-adapt WIP:
 // ./mesh-optimizer -m TG_Q3_3R.mesh -rs 0 -o 3 -mid 9 -tid 5 -ls 2 -bnd -vl 2 -ni 200 -li 100 -qo 4 -qt 2
+// r-adapt size:
 // ./mesh-optimizer -m square.mesh -rs 2 -o 3 -mid 9 -tid 5 -ls 2 -bnd -vl 2 -ni 200 -li 100 -qo 4 -qt 2
+// r-adapt shape:
+// ./mesh-optimizer -m square.mesh -rs 2 -o 3 -mid 2 -tid 6 -ls 2 -bnd -vl 2 -ni 200 -li 100 -qo 4 -qt 2
+// r-adapt shape+size:
 // ./mesh-optimizer -m square.mesh -rs 2 -o 3 -mid 2 -tid 6 -ls 2 -bnd -vl 2 -ni 200 -li 100 -qo 4 -qt 2
 //
 //
@@ -638,6 +642,7 @@ int main (int argc, char *argv[])
       case 4: target_t = TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE; break;
       case 5: target_t = TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE_7; break;
       case 6: target_t = TargetConstructor::ADAPTIVE_SHAPE; break;
+      case 7: target_t = TargetConstructor::ADAPTIVE_SHAPE_AND_SIZE; break;
       default: cout << "Unknown target_id: " << target_id << endl;
          delete metric; return 3;
    }
@@ -675,11 +680,17 @@ int main (int argc, char *argv[])
    {
       target_c->SetIndicator(remap_gf, 3.0);
    }
+   if (target_t == TargetConstructor::ADAPTIVE_SHAPE_AND_SIZE)
+   {
+      target_c->SetIndicator(remap_gf, 4.0);
+   }
 
    AdvectorCG advector(mesh0, *remap_gf.FESpace()->FEColl());
 
    if (visualization &&
-       target_t == TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE_7)
+       (target_t == TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE_7 ||
+        target_t == TargetConstructor::ADAPTIVE_SHAPE ||
+        target_t == TargetConstructor::ADAPTIVE_SHAPE_AND_SIZE) )
    {
       osockstream sock(19916, "localhost");
       sock << "solution\n";

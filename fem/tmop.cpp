@@ -875,7 +875,7 @@ void TargetConstructor::ComputeElementTargets(int e_id, const FiniteElement &fe,
          MFEM_VERIFY(indicator != NULL,
                      "Indicator function is not set.");
 
-         const int nqp = ir.GetNPoints(), dim = nfe->GetDim();
+         const int nqp = ir.GetNPoints();
          Vector ind_vals(nqp);
          indicator->GetValues(e_id, ir, ind_vals);
 
@@ -891,9 +891,41 @@ void TargetConstructor::ComputeElementTargets(int e_id, const FiniteElement &fe,
             Jtr(q) = 0.0;
             Jtr(q)(0,0) = target_x;
             Jtr(q)(1,1) = small_side;
+         }
+         break;
       }
-      break;
-   }
+      case ADAPTIVE_SHAPE_AND_SIZE:
+      {
+         MFEM_VERIFY(indicator != NULL,
+                     "Indicator function is not set.");
+
+         const int nqp = ir.GetNPoints(), dim = nfe->GetDim();
+         Vector ind_vals(nqp);
+         indicator->GetValues(e_id, ir, ind_vals);
+
+         if (avg_volume == 0.0) { ComputeAvgVolume(); }
+         const double small_side = 1.0;
+         const double big_side   = adapt_size_factor * small_side;
+         const double small_size = adapt_scale * avg_volume;
+         const double big_size   = adapt_size_factor * small_size;
+
+         for (int q = 0; q < nqp; q++)
+         {
+            if (ind_vals(q) > 1.0) { ind_vals(q) = 1.0; }
+            if (ind_vals(q) < 0.0) { ind_vals(q) = 0.0; }
+            const double target_x = ind_vals(q) * big_side +
+                                    (1.0 - ind_vals(q)) * small_side;
+            Jtr(q) = 0.0;
+            Jtr(q)(0,0) = target_x;
+            Jtr(q)(1,1) = small_side;
+
+            const double target_det = ind_vals(q) * small_size +
+                                      (1.0 - ind_vals(q)) * big_size;
+            const double Jtr_det = target_x * small_side;
+            Jtr(q) *= std::pow(target_det / Jtr_det, 1./dim);
+         }
+         break;
+      }
       default:
          MFEM_ABORT("invalid target type!");
    }
