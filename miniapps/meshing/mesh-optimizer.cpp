@@ -38,7 +38,7 @@
 // r-adapt shape:
 // ./mesh-optimizer -m square.mesh -rs 2 -o 3 -mid 2 -tid 6 -ls 2 -bnd -vl 2 -ni 200 -li 100 -qo 4 -qt 2
 // r-adapt shape+size:
-// ./mesh-optimizer -m square.mesh -rs 2 -o 3 -mid 2 -tid 6 -ls 2 -bnd -vl 2 -ni 200 -li 100 -qo 4 -qt 2
+// ./mesh-optimizer -m square.mesh -rs 2 -o 3 -mid 9 -tid 7 -ls 2 -bnd -vl 2 -ni 200 -li 100 -qo 4 -qt 2
 //
 //
 // Sample runs:
@@ -674,7 +674,7 @@ int main (int argc, char *argv[])
    }
    if (target_t == TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE_7)
    {
-      target_c->SetIndicator(remap_gf, 20.0);
+      target_c->SetIndicator(remap_gf, 10.0);
    }
    if (target_t == TargetConstructor::ADAPTIVE_SHAPE)
    {
@@ -682,7 +682,7 @@ int main (int argc, char *argv[])
    }
    if (target_t == TargetConstructor::ADAPTIVE_SHAPE_AND_SIZE)
    {
-      target_c->SetIndicator(remap_gf, 4.0);
+      target_c->SetIndicator(remap_gf, 3.0);
    }
 
    AdvectorCG advector(mesh0, *remap_gf.FESpace()->FEColl());
