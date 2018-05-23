@@ -787,7 +787,7 @@ void TargetConstructor::ComputeElementTargets(int e_id, const FiniteElement &fe,
       case IDEAL_SHAPE_ADAPTIVE_SIZE:
       {
 #ifdef MFEM_USE_MPI
-         //MFEM_ABORT("IDEAL_SHAPE_ADAPTIVE_SIZE doesn't work in parallel yet.");
+         MFEM_ABORT("IDEAL_SHAPE_ADAPTIVE_SIZE doesn't work in parallel yet.");
 #endif
          MFEM_VERIFY(mesh0 != NULL && indicator0 != NULL,
                      "Initial mesh and indicator function are not set.");

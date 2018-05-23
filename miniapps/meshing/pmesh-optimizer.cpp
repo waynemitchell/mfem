@@ -31,6 +31,14 @@
 //
 // Compile with: make pmesh-optimizer
 //
+// r-adapt size:
+// mpirun -np 4 pmesh-optimizer -m square.mesh -rs 2 -o 3 -mid 9 -tid 5 -ls 2 -bnd -vl 2 -ni 200 -li 100 -qo 4 -qt 2
+// r-adapt shape:
+// mpirun -np 4 pmesh-optimizer -m square.mesh -rs 2 -o 3 -mid 2 -tid 6 -ls 2 -bnd -vl 2 -ni 200 -li 100 -qo 4 -qt 2
+// r-adapt shape+size:
+// mpirun -np 4 pmesh-optimizer -m square.mesh -rs 2 -o 3 -mid 9 -tid 7 -ls 2 -bnd -vl 2 -ni 200 -li 100 -qo 4 -qt 2
+//
+//
 // Sample runs:
 //   Blade shape:
 //     mpirun -np 4 pmesh-optimizer -m blade.mesh -o 4 -rs 0 -mid 2 -tid 1 -ni 200 -ls 2 -li 100 -bnd -qt 1 -qo 8
@@ -98,15 +106,15 @@ double ind_values(const Vector &x)
    //if (x(1) >= 0.45 && x(1) <= 0.55 && x(0) >= 0.1 ) { return 1.0; }
 
    // Sine wave.
-   //const double X = x(0), Y = x(1);
-   //return std::tanh((10*(Y-0.5) + std::sin(4.0*M_PI*X)) + 1) -
-   //       std::tanh((10*(Y-0.5) + std::sin(4.0*M_PI*X)) - 1);
+   const double X = x(0), Y = x(1);
+   return std::tanh((10*(Y-0.5) + std::sin(4.0*M_PI*X)) + 1) -
+          std::tanh((10*(Y-0.5) + std::sin(4.0*M_PI*X)) - 1);
 
 
    // Circle in the middle.
-   const double xc = x(0) - 0.5, yc = x(1) - 0.5;
-   const double r = sqrt(xc*xc + yc*yc);
-   if (r > 0.2 && r < 0.3) { return 1.0; }
+   //const double xc = x(0) - 0.5, yc = x(1) - 0.5;
+   //const double r = sqrt(xc*xc + yc*yc);
+   //if (r > 0.2 && r < 0.3) { return 1.0; }
 
    return 0.0;
 }
@@ -263,15 +271,36 @@ private:
    // GridFunction that has the latest mesh positions.
    ParGridFunction &mesh_nodes;
 
+   // Advection related.
+   ParGridFunction *x0, *ind0, *ind;
+   AdvectorCG *advector;
+
 public:
    RelaxedNewtonSolver(const IntegrationRule &irule,
-                       ParFiniteElementSpace *pf, ParGridFunction &mn)
-      : NewtonSolver(pf->GetComm()), ir(irule), pfes(pf), mesh_nodes(mn)  { }
+                       ParFiniteElementSpace *pf, ParGridFunction &mn,
+                       ParGridFunction *x0_, ParGridFunction *ind0_,
+                       ParGridFunction *ind_, AdvectorCG *adv)
+      : NewtonSolver(pf->GetComm()), ir(irule), pfes(pf), mesh_nodes(mn),
+        x0(x0_), ind0(ind0_), ind(ind_), advector(adv) { }
 
    virtual double ComputeScalingFactor(const Vector &x, const Vector &b) const;
+
    virtual void ProcessNewState(const Vector &x) const
    {
       mesh_nodes.Distribute(x);
+
+      if (x0 && ind0 && ind && advector)
+      {
+         // GridFunction with the current positions.
+         Vector x_copy(x);
+         x_gf.MakeTRef(pfes, x_copy, 0);
+
+         // Reset the indicator to its values on the initial positions.
+         *ind = *ind0;
+
+         // Advect the indicator from the original to the new posiions.
+         advector->Advect(*x0, x_gf, *ind);
+      }
    }
 };
 
@@ -676,10 +705,13 @@ int main (int argc, char *argv[])
    TargetConstructor::TargetType target_t;
    switch (target_id)
    {
-      case 1: target_t = TargetConstructor::IDEAL_SHAPE_UNIT_SIZE; break;
-      case 2: target_t = TargetConstructor::IDEAL_SHAPE_EQUAL_SIZE; break;
-      case 3: target_t = TargetConstructor::IDEAL_SHAPE_GIVEN_SIZE; break;
+   case 1: target_t = TargetConstructor::IDEAL_SHAPE_UNIT_SIZE; break;
+   case 2: target_t = TargetConstructor::IDEAL_SHAPE_EQUAL_SIZE; break;
+   case 3: target_t = TargetConstructor::IDEAL_SHAPE_GIVEN_SIZE; break;
    case 4: target_t = TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE; break;
+   case 5: target_t = TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE_7; break;
+   case 6: target_t = TargetConstructor::ADAPTIVE_SHAPE; break;
+   case 7: target_t = TargetConstructor::ADAPTIVE_SHAPE_AND_SIZE; break;
       default:
          if (myid == 0) { cout << "Unknown target_id: " << target_id << endl; }
          return 3;
@@ -699,7 +731,7 @@ int main (int argc, char *argv[])
    ind_gf.ProjectCoefficient(ind_coeff);
    normalize(ind_gf);
 
-   H1_FECollection remap_fec(1, dim);
+   H1_FECollection remap_fec(2, dim);
    ParFiniteElementSpace remap_fes(pmesh, &remap_fec);
    ParGridFunction remap_gf(&remap_fes);
    remap_gf.ProjectCoefficient(ind_coeff);
@@ -725,8 +757,10 @@ int main (int argc, char *argv[])
       target_c->SetIndicator(remap_gf, 3.0);
    }
 
+   AdvectorCG advector(mesh0, *remap_gf.FESpace()->FEColl());
+
    if (visualization &&
-       (1 || target_t == TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE_7 ||
+       (target_t == TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE_7 ||
         target_t == TargetConstructor::ADAPTIVE_SHAPE ||
         target_t == TargetConstructor::ADAPTIVE_SHAPE_AND_SIZE) )
    {
@@ -929,7 +963,9 @@ int main (int argc, char *argv[])
    if (tauval > 0.0)
    {
       tauval = 0.0;
-      newton = new RelaxedNewtonSolver(*ir, pfespace, x);
+      newton = new RelaxedNewtonSolver(*ir, pfespace, x,
+                                       &x0, &remap_gf_init,
+                                       &remap_gf, &advector);
       if (myid == 0)
       { cout << "RelaxedNewtonSolver is used (as all det(J) > 0)." << endl; }
    }
@@ -991,8 +1027,8 @@ int main (int argc, char *argv[])
    }
 
    // Remap test.
-   AdvectorCG advector2(mesh0, *remap_gf.ParFESpace()->FEColl());
-   advector2.Advect(x0, x, remap_gf);
+   //AdvectorCG advector2(mesh0, *remap_gf.ParFESpace()->FEColl());
+   //advector2.Advect(x0, x, remap_gf);
    if (visualization)
    {
       osockstream sock(19916, "localhost");

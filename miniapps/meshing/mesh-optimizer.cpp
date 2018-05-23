@@ -242,6 +242,7 @@ private:
    FiniteElementSpace *fes;
    mutable GridFunction x_gf;
 
+   // Advection related.
    GridFunction *x0, *ind0, *ind;
    AdvectorCG *advector;
 
@@ -253,7 +254,21 @@ public:
         x0(x0_), ind0(ind0_), ind(ind_), advector(adv) { }
 
    virtual double ComputeScalingFactor(const Vector &x, const Vector &b) const;
-   virtual void ProcessNewState(const Vector &x) const;
+   virtual void ProcessNewState(const Vector &x) const
+   {
+      if (x0 && ind0 && ind && advector)
+      {
+         // GridFunction with the current positions.
+         Vector x_copy(x);
+         x_gf.MakeTRef(fes, x_copy, 0);
+
+         // Reset the indicator to its values on the initial positions.
+         *ind = *ind0;
+
+         // Advect the indicator from the original to the new posiions.
+         advector->Advect(*x0, x_gf, *ind);
+      }
+   }
 };
 
 double RelaxedNewtonSolver::ComputeScalingFactor(const Vector &x,
@@ -335,21 +350,7 @@ double RelaxedNewtonSolver::ComputeScalingFactor(const Vector &x,
    return scale;
 }
 
-void RelaxedNewtonSolver::ProcessNewState(const Vector &x) const
-{
-   if (x0 && ind0 && ind && advector)
-   {
-      // GridFunction with the current positions.
-      Vector x_copy(x);
-      x_gf.MakeTRef(fes, x_copy, 0);
 
-      // Reset the indicator to its values on the initial positions.
-      *ind = *ind0;
-
-      // Advect the indicator from the original to the new posiions.
-      advector->Advect(*x0, x_gf, *ind);
-   }
-}
 
 // Allows negative Jacobians. Used in untangling metrics.
 class DescentNewtonSolver : public NewtonSolver
