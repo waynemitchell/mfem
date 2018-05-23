@@ -131,8 +131,8 @@ private:
    mutable BilinearForm M, K;
 
 public:
-   // Note: fes must be the FiniteElementSpace of the current mesh.
-   //       xn  must be the Nodes GridFunction of the current mesh.
+   // Note: fes must be the FiniteElementSpace of the mesh that will be moved.
+   //       xn must be the Nodes GridFunction of the mesh that will be moved.
    AdvectorCGOperator(GridFunction &x_start, GridFunction &vel,
                       GridFunction &xn, FiniteElementSpace &fes)
       : TimeDependentOperator(fes.GetVSize()),

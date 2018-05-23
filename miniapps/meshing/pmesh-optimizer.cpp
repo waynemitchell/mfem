@@ -90,12 +90,18 @@ double ind_values(const Vector &x)
    //if (x(0) > 0.3 && x(0) < 0.5 && x(1) > 0.5 && x(1) < 0.7) { return 1.0; }
 
    // Circle from origin.
-   // const double r = sqrt(x(0)*x(0) + x(1)*x(1));
-   // if (r > 0.5 && r < 0.6) { return 1.0; }
+   //const double r = sqrt(x(0)*x(0) + x(1)*x(1));
+   //if (r > 0.5 && r < 0.6) { return 1.0; }
 
    // 3point.
    //if (x(0) >= 0.1 && x(0) <= 0.2) { return 1.0; }
    //if (x(1) >= 0.45 && x(1) <= 0.55 && x(0) >= 0.1 ) { return 1.0; }
+
+   // Sine wave.
+   //const double X = x(0), Y = x(1);
+   //return std::tanh((10*(Y-0.5) + std::sin(4.0*M_PI*X)) + 1) -
+   //       std::tanh((10*(Y-0.5) + std::sin(4.0*M_PI*X)) - 1);
+
 
    // Circle in the middle.
    const double xc = x(0) - 0.5, yc = x(1) - 0.5;
@@ -104,6 +110,147 @@ double ind_values(const Vector &x)
 
    return 0.0;
 }
+
+void normalize(Vector &v)
+{
+   const double max = v.Max();
+   v /= max;
+}
+
+// Performs an advection step.
+class AdvectorCGOperator : public TimeDependentOperator
+{
+private:
+   ParGridFunction &x0, &u, &x_now;
+
+   VectorGridFunctionCoefficient u_coeff;
+   mutable ParBilinearForm M, K;
+
+public:
+   // Note: pfes must be the ParFESpace of the mesh that will be moved.
+   //       xn must be the Nodes ParGridFunction of the mesh that will be moved.
+   AdvectorCGOperator(ParGridFunction &x_start, ParGridFunction &vel,
+                      ParGridFunction &xn, ParFiniteElementSpace &pfes)
+      : TimeDependentOperator(pfes.GetVSize()),
+        x0(x_start), u(vel), x_now(xn), u_coeff(&u), M(&pfes), K(&pfes)
+   {
+      ConvectionIntegrator *Kinteg = new ConvectionIntegrator(u_coeff);
+      K.AddDomainIntegrator(Kinteg);
+      K.Assemble(0);
+      K.Finalize(0);
+
+      MassIntegrator *Minteg = new MassIntegrator;
+      M.AddDomainIntegrator(Minteg);
+      M.Assemble();
+      M.Finalize();
+   }
+
+   virtual void Mult(const Vector &ind, Vector &di_dt) const
+   {
+      const double t = GetTime();
+
+      // Move the mesh.
+      add(x0, t, u, x_now);
+
+      // Assemble on the new mesh.
+      K.BilinearForm::operator=(0.0);
+      K.Assemble();
+      ParGridFunction rhs(K.ParFESpace());
+      K.Mult(ind, rhs);
+      M.BilinearForm::operator=(0.0);
+      M.Assemble();
+
+      HypreParVector *RHS = rhs.ParallelAssemble();
+      HypreParVector *X   = rhs.ParallelAverage();
+      HypreParMatrix *Mh  = M.ParallelAssemble();
+
+      CGSolver cg(M.ParFESpace()->GetParMesh()->GetComm());
+      HypreSmoother prec;
+      prec.SetType(HypreSmoother::Jacobi, 1);
+      cg.SetPreconditioner(prec);
+      cg.SetOperator(*Mh);
+      cg.SetRelTol(1e-12); cg.SetAbsTol(0.0);
+      cg.SetMaxIter(100);
+      cg.SetPrintLevel(0);
+      cg.Mult(*RHS, *X);
+      K.ParFESpace()->Dof_TrueDof_Matrix()->Mult(*X, di_dt);
+
+      delete Mh;
+      delete X;
+      delete RHS;
+   }
+};
+
+// Performs the whole advection loop.
+class AdvectorCG
+{
+private:
+   ParMesh pmesh;
+   ParFiniteElementSpace pfes;
+   RK4Solver ode_solver;
+
+public:
+   AdvectorCG(ParMesh &m, const FiniteElementCollection &field_fec)
+      : pmesh(m, true), pfes(&pmesh, &field_fec), ode_solver() { }
+
+   // Advects ind from x_start to x_end.
+   void Advect(ParGridFunction &x_start, ParGridFunction &x_end,
+               ParGridFunction &ind)
+   {
+      ParGridFunction mesh_nodes(x_start);
+      pmesh.SetNodalGridFunction(&mesh_nodes);
+
+      ParGridFunction u(x_start.ParFESpace());
+      subtract(x_end, x_start, u);
+
+      // This must be the fes of the ind, associated with the object's mesh.
+      AdvectorCGOperator oper(x_start, u, mesh_nodes, pfes);
+      ode_solver.Init(oper);
+
+      // Compute some time step [mesh_size / speed].
+      double min_h = numeric_limits<double>::infinity();
+      for (int i = 0; i < pmesh.GetNE(); i++)
+      {
+         min_h = std::min(min_h, pmesh.GetElementSize(1));
+      }
+      double v_max = 0.0;
+      int s = u.ParFESpace()->GetVSize() / 2;
+      for (int i = 0; i < s; i++)
+      {
+         double vel = std::sqrt( u(i) * u(i) + u(i+s) * u(i+s) + 1e-14);
+         v_max = std::max(v_max, vel);
+      }
+      double dt = 0.5 * min_h / v_max;
+      double glob_dt;
+      MPI_Allreduce(&dt, &glob_dt, 1, MPI_DOUBLE, MPI_MIN, pfes.GetComm());
+
+      int myid;
+      MPI_Comm_rank(pfes.GetComm(), &myid);
+      double t = 0.0;
+      bool last_step = false;
+      for (int ti = 1; !last_step; ti++)
+      {
+         if (t + glob_dt >= 1.0)
+         {
+            if (myid == 0)
+            {
+               std::cout << "Remap with dt = " << glob_dt
+                         << " took " << ti << " steps." << std::endl;
+            }
+            glob_dt = 1.0 - t;
+            last_step = true;
+         }
+         ode_solver.Step(ind, t, glob_dt);
+      }
+
+      // Trim to put it in [0, 1].
+      for (int i = 0; i < ind.Size(); i++)
+      {
+         if (ind(i) < 0.0) { ind(i) = 0.0; }
+         if (ind(i) > 1.0) { ind(i) = 1.0; }
+      }
+   }
+};
 
 class RelaxedNewtonSolver : public NewtonSolver
 {
@@ -550,17 +697,59 @@ int main (int argc, char *argv[])
    ParFiniteElementSpace ind_fes(&mesh0, &ind_fec);
    ParGridFunction ind_gf(&ind_fes);
    ind_gf.ProjectCoefficient(ind_coeff);
-   target_c->SetMeshAndIndicator(mesh0, ind_gf, 10.0);
-   target_c->SetMeshNodes(x);
+   normalize(ind_gf);
 
-   if (visualization)
+   H1_FECollection remap_fec(1, dim);
+   ParFiniteElementSpace remap_fes(pmesh, &remap_fec);
+   ParGridFunction remap_gf(&remap_fes);
+   remap_gf.ProjectCoefficient(ind_coeff);
+   normalize(remap_gf);
+   ParGridFunction remap_gf_init(remap_gf);
+
+   // Adaptivity tests.
+   if (target_t == TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE)
+   {
+      target_c->SetMeshAndIndicator(mesh0, ind_gf, 20.0);
+      target_c->SetMeshNodes(x);
+   }
+   if (target_t == TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE_7)
+   {
+      target_c->SetIndicator(remap_gf, 10.0);
+   }
+   if (target_t == TargetConstructor::ADAPTIVE_SHAPE)
+   {
+      target_c->SetIndicator(remap_gf, 3.0);
+   }
+   if (target_t == TargetConstructor::ADAPTIVE_SHAPE_AND_SIZE)
+   {
+      target_c->SetIndicator(remap_gf, 3.0);
+   }
+
+   if (visualization &&
+       (1 || target_t == TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE_7 ||
+        target_t == TargetConstructor::ADAPTIVE_SHAPE ||
+        target_t == TargetConstructor::ADAPTIVE_SHAPE_AND_SIZE) )
+   {
+      osockstream sock(19916, "localhost");
+      sock << "solution\n";
+      mesh0.PrintAsOne(sock);
+      remap_gf.SaveAsOne(sock);
+      sock.send();
+      sock << "window_title 'Adaptivity Indicator'\n"
+           << "window_geometry "
+           << 1200 << " " << 0 << " " << 600 << " " << 600 << "\n"
+           << "keys jRmclA" << endl;
+   }
+
+   if (visualization &&
+       target_t == TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE)
    {
       osockstream sock(19916, "localhost");
       sock << "solution\n";
       mesh0.PrintAsOne(sock);
       ind_gf.SaveAsOne(sock);
       sock.send();
-      sock << "window_title 'Displacements'\n"
+      sock << "window_title 'Adaptivity Indicator'\n"
            << "window_geometry "
            << 1200 << " " << 0 << " " << 600 << " " << 600 << "\n"
            << "keys jRmclA" << endl;
@@ -801,6 +990,22 @@ int main (int argc, char *argv[])
       vis_metric(mesh_poly_deg, *metric, *target_c, *pmesh, title, 600);
    }
 
+   // Remap test.
+   AdvectorCG advector2(mesh0, *remap_gf.ParFESpace()->FEColl());
+   advector2.Advect(x0, x, remap_gf);
+   if (visualization)
+   {
+      osockstream sock(19916, "localhost");
+      sock << "solution\n";
+      pmesh->PrintAsOne(sock);
+      remap_gf.SaveAsOne(sock);
+      sock.send();
+      sock << "window_title 'Remapped Final'\n"
+           << "window_geometry "
+           << 700 << " " << 0 << " " << 600 << " " << 600 << "\n"
+           << "keys jRmclA" << endl;
+   }
+
    // 23. Visualize the mesh displacement.
    if (visualization)
    {
@@ -812,7 +1017,7 @@ int main (int argc, char *argv[])
          sock << "solution\n";
       }
       mesh0.PrintAsOne(sock);
-      ind_gf.SaveAsOne(sock);
+      x0.SaveAsOne(sock);
       if (myid == 0)
       {
          sock << "window_title 'Displacements'\n"
