@@ -220,22 +220,16 @@ PAIOperator::PAIOperator(Array<BilinearFormIntegrator*> &PAI, int h, int w) : Op
 
 void PAIOperator::Mult(const Vector &x, Vector &y) const
 {
-   //Scatter the x,y vectors into the element by element representation
-   //with the degrees of freedom in lexographical order
-   Vector exp_x, exp_y, temp;
-   A[0]->GetFES()->ToLocalVector(x, exp_x);
-   exp_y.SetSize(exp_x.Size());
-   temp.SetSize(exp_x.Size());
+   A[0]->PAMult(x, y);
+   if (A.Size() <= 1) {return;}
 
-   A[0]->PAMult(exp_x, exp_y);
+   Vector temp;
+   temp.SetSize(y.Size());
    for (int i = 1; i < A.Size(); ++i)
    {
-      temp = exp_y;
-      A[i]->PAMult(temp,exp_y);
+      A[i]->PAMult(x,temp);
+      y += temp;
    }
-
-   //Gather the expanded y vector into the compact assembled form
-   A[0]->GetFES()->ToGlobalVector(exp_y, y);
 }
 
 }

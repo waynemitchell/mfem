@@ -4378,4 +4378,18 @@ DenseTensor &DenseTensor::operator=(double c)
    return *this;
 }
 
+
+DenseTensor &DenseTensor::operator+=(const DenseTensor &m)
+{
+   MFEM_ASSERT(SizeI() == m.SizeI() && SizeJ() == m.SizeJ() &&
+               SizeK() == m.SizeK(), "incompatible DenseTensor sizes.");
+   const double *mtdata = m.Data();
+   for (int ijk = 0; ijk < SizeI()*SizeJ()*SizeK(); ++ijk)
+   {
+      tdata[ijk] += mtdata[ijk];
+   }
+   return *this;
+}
+
+
 }

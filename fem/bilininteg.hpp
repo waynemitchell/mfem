@@ -83,7 +83,7 @@ public:
     virtual bool PAIsEnabled() const {return false;}
     virtual void BatchedPartialAssemble()
     { mfem_error("Integrator does not support BatchedPartialAssemble()");}
-    virtual void BatchedAssembleMatrix()
+    virtual void BatchedAssembleElementMatrices(DenseTensor &elmats)
     { mfem_error("Integrator does not support BatchedAssembleMatrix()");}
     virtual void PAMult(const Vector &x, Vector &y)
     { mfem_error("Integrator does not support PAMult()");}

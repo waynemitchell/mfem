@@ -16,7 +16,7 @@ namespace mfem
 {
 
 AcroDiffusionIntegrator::AcroDiffusionIntegrator(Coefficient &q, FiniteElementSpace &f, bool gpu) :
-  PAIntegrator(q,f,gpu) 
+  PAIntegrator(q,f,gpu)
 {
     if (onGPU) 
     {
@@ -92,7 +92,7 @@ AcroDiffusionIntegrator::AcroDiffusionIntegrator(Coefficient &q, FiniteElementSp
                     }                       
                 }
             }
-        }        
+        }
     } 
     else 
     {
@@ -136,20 +136,22 @@ void AcroDiffusionIntegrator::ComputeBTilde()
     for (int d = 0; d < nDim; ++d) 
     {
         Btil[d] = new acro::Tensor(nDim, nDim, nQuad1D, nDof1D, nDof1D);
-        if (onGPU) 
+        for (int m = 0; m < nDim; ++m) 
         {
-            Btil[d]->SwitchToGPU();
-        }
-        acro::Tensor Bsub(nQuad1D, nDof1D, nDof1D, Btil[d]->GetCurrentData(), Btil[d]->GetCurrentData(), onGPU);
-        for (int mi = 0; mi < nDim; ++mi) 
-        {
-            for (int ni = 0; ni < nDim; ++ni) 
+            for (int n = 0; n < nDim; ++n) 
             {
-                int offset = (nDim*mi + ni) * nQuad1D*nDof1D*nDof1D;
-                Bsub.Retarget(Btil[d]->GetCurrentData() + offset, Btil[d]->GetCurrentData() + offset);
-                acro::Tensor &BGM = (mi == d) ? G : B;
-                acro::Tensor &BGN = (ni == d) ? G : B;
-                TE("Bsub_k1_i1_j1 = M_k1_i1 N_k1_j1", Bsub, BGM, BGN);
+                acro::Tensor &BGM = (m == d) ? G : B;
+                acro::Tensor &BGN = (n == d) ? G : B;
+                for (int k = 0; k < nQuad1D; ++k)
+                {
+                    for (int i = 0; i < nDof1D; ++i)
+                    {
+                        for (int j = 0; j < nDof1D; ++j)
+                        {
+                            (*Btil[d])(m, n, k, i, j) = BGM(k,i)*BGN(k,j);
+                        }
+                    }
+                }
             }
         }
     }
@@ -317,11 +319,16 @@ void AcroDiffusionIntegrator::BatchedPartialAssemble()
 }
 
 
-void AcroDiffusionIntegrator::BatchedAssembleMatrix() 
+void AcroDiffusionIntegrator::BatchedAssembleElementMatrices(DenseTensor &elmats)
 {
     if (hasTensorBasis && Btil.Size() == 0) 
     {
         ComputeBTilde();
+    }
+
+    if (!D.IsInitialized())
+    {
+        BatchedPartialAssemble();
     }
 
     if (!S.IsInitialized()) 
@@ -331,24 +338,21 @@ void AcroDiffusionIntegrator::BatchedAssembleMatrix()
             if (nDim == 1) 
             {
                 S.Init(nElem, nDof1D, nDof1D);
-                if (onGPU) {S.SwitchToGPU();}
             } 
             else if (nDim == 2) 
             {
                 S.Init(nElem, nDof1D, nDof1D, nDof1D, nDof1D);
-                if (onGPU) {S.SwitchToGPU();}
             } 
             else if (nDim == 3) 
             {
                 S.Init(nElem, nDof1D, nDof1D, nDof1D, nDof1D, nDof1D, nDof1D);
-                if (onGPU) {S.SwitchToGPU();}
             }
         } 
         else 
         {
             S.Init(nElem, nDof, nDof);
-            if (onGPU) {S.SwitchToGPU();}
         }
+        if (onGPU) {S.SwitchToGPU();}
     }
 
 
@@ -373,14 +377,33 @@ void AcroDiffusionIntegrator::BatchedAssembleMatrix()
         TE("S_e_i_j = G_k_i_m G_k_i_n D_e_m_n_k",
             S, G, G, D);
     }
+
+    S.MoveFromGPU();
+    for (int e = 0; e < nElem; ++e)
+    {
+        for (int ei = 0; ei < nDof; ++ei)
+        {
+            for (int ej = 0; ej < nDof; ++ej)
+            {
+                elmats(tDofMap[ei], tDofMap[ej], e) = S[e*nDof*nDof + ei*nDof + ej];
+            }
+        }
+    }
 }
 
 void AcroDiffusionIntegrator::PAMult(const Vector &x, Vector &y) 
 {
     MFEM_ASSERT(hasTensorBasis,"AcroDiffusionIntegrator PAMult on simplices not supported");  
+
     if (!U.IsInitialized())
     {
+        vectorX.SetSize(fes->GetLocalVSize());
+        vectorY.SetSize(fes->GetLocalVSize());
+        double *Xptr = const_cast<double*>(vectorX.GetData());
+        double *Yptr = vectorY.GetData();
         if (nDim == 1) {
+            X.Init(nElem,nDof1D,Xptr,Xptr,onGPU);
+            Y.Init(nElem,nDof1D,Yptr,Yptr,onGPU);            
             U.Init(nDim, nElem, nQuad1D);
             Z.Init(nDim, nElem, nQuad1D);
             if (onGPU) 
@@ -391,6 +414,8 @@ void AcroDiffusionIntegrator::PAMult(const Vector &x, Vector &y)
         } 
         else if (nDim == 2) 
         {
+            X.Init(nElem,nDof1D,nDof1D,Xptr,Xptr,onGPU);
+            Y.Init(nElem,nDof1D,nDof1D,Yptr,Yptr,onGPU);
             U.Init(nDim, nElem, nQuad1D, nQuad1D);
             Z.Init(nDim, nElem, nQuad1D, nQuad1D);
             T1.Init(nElem,nDof1D,nQuad1D);
@@ -403,6 +428,8 @@ void AcroDiffusionIntegrator::PAMult(const Vector &x, Vector &y)
         }
         else if (nDim == 3) 
         {
+            X.Init(nElem,nDof1D,nDof1D,nDof1D,Xptr,Xptr,onGPU);
+            Y.Init(nElem,nDof1D,nDof1D,nDof1D,Yptr,Yptr,onGPU);            
             U.Init(nDim, nElem, nQuad1D, nQuad1D, nQuad1D);
             Z.Init(nDim, nElem, nQuad1D, nQuad1D, nQuad1D);
             T1.Init(nElem, nDof1D, nQuad1D, nQuad1D);
@@ -417,25 +444,7 @@ void AcroDiffusionIntegrator::PAMult(const Vector &x, Vector &y)
         }
     }
 
-    acro::Tensor X, Y;
-    double *x_ptr = const_cast<double*>(x.GetData());
-    double *y_ptr = y.GetData();
-    if (nDim == 1) 
-    {
-        X.Init(nElem,nDof1D,x_ptr,x_ptr,onGPU);
-        Y.Init(nElem,nDof1D,y_ptr,y_ptr,onGPU);
-    } 
-    else if (nDim == 2) 
-    {
-        X.Init(nElem,nDof1D,nDof1D,x_ptr,x_ptr,onGPU);
-        Y.Init(nElem,nDof1D,nDof1D,y_ptr,y_ptr,onGPU);
-    }
-    else if (nDim == 3) 
-    {
-        X.Init(nElem,nDof1D,nDof1D,nDof1D,x_ptr,x_ptr,onGPU);
-        Y.Init(nElem,nDof1D,nDof1D,nDof1D,y_ptr,y_ptr,onGPU);
-    }    
-
+    fes->ToLocalVector(x, vectorX);
     acro::SliceTensor U1,U2,U3,Z1,Z2,Z3;
     if (nDim == 1)
     {
@@ -504,6 +513,7 @@ void AcroDiffusionIntegrator::PAMult(const Vector &x, Vector &y)
         TE("Y_e_i1_i2_i3 += B_k1_i1 T2_e_i2_i3_k1", Y, B, T2);
         TE.EndMultiKernelLaunch();
     }
+    fes->ToGlobalVector(vectorY, y);
 }
 
 }

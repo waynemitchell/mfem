@@ -32,9 +32,10 @@ AcroMassIntegrator::AcroMassIntegrator(Coefficient &q, FiniteElementSpace &f, bo
     nDof1D = FEOrder + 1;
     nQuad1D = ir1D->GetNPoints();
 
-    if (hasTensorBasis) {
+    if (hasTensorBasis) 
+    {
         H1_FECollection fec(FEOrder,1);
-        const FiniteElement *fe = fec.FiniteElementForGeometry(Geometry::SEGMENT);
+        const FiniteElement *fe1D = fec.FiniteElementForGeometry(Geometry::SEGMENT);
         Vector eval(nDof1D);
         DenseMatrix deval(nDof1D,1);
         B.Init(nQuad1D, nDof1D);
@@ -45,10 +46,10 @@ AcroMassIntegrator::AcroMassIntegrator(Coefficient &q, FiniteElementSpace &f, bo
         for (int k = 0; k < nQuad1D; ++k)
         {
             const IntegrationPoint &ip = ir1D->IntPoint(k);
-            fe->CalcShape(ip, eval);
+            fe1D->CalcShape(ip, eval);
 
             B(k,0) = eval(0);
-            B(k,nDof1D-1) = eval(1);        
+            B(k,nDof1D-1) = eval(1);         
             for (int i = 1; i < nDof1D-1; ++i)
             {
                 B(k,i) = eval(i+1);
@@ -58,16 +59,16 @@ AcroMassIntegrator::AcroMassIntegrator(Coefficient &q, FiniteElementSpace &f, bo
 
         if (nDim == 1)
         {
-            for (int k1 = 0; k1 < nQuad1D; ++ k1)
+            for (int k1 = 0; k1 < nQuad1D; ++k1)
             {
                 W(k1) = w(k1);
             }
         }
         else if (nDim == 2)
         {
-            for (int k1 = 0; k1 < nQuad1D; ++ k1)
+            for (int k1 = 0; k1 < nQuad1D; ++k1)
             {
-                for (int k2 = 0; k2 < nQuad1D; ++ k2)
+                for (int k2 = 0; k2 < nQuad1D; ++k2)
                 {
                     W(k1,k2) = w(k1)*w(k2);
                 }
@@ -75,35 +76,26 @@ AcroMassIntegrator::AcroMassIntegrator(Coefficient &q, FiniteElementSpace &f, bo
         }
         else if (nDim == 3)
         {
-            for (int k1 = 0; k1 < nQuad1D; ++ k1)
+            for (int k1 = 0; k1 < nQuad1D; ++k1)
             {
-                for (int k2 = 0; k2 < nQuad1D; ++ k2)
+                for (int k2 = 0; k2 < nQuad1D; ++k2)
                 {
-                    for (int k3 = 0; k3 < nQuad1D; ++ k3)
+                    for (int k3 = 0; k3 < nQuad1D; ++k3)
                     {
                         W(k1,k2,k3) = w(k1)*w(k2)*w(k3);
                     }                       
                 }
             }
-        }        
-    } else {
-        H1_FECollection fec(FEOrder,1);
-        const FiniteElement *fe = fec.FiniteElementForGeometry(Geometry::SEGMENT);
+        }
+    } 
+    else 
+    {
         Vector eval(nDof);
-        DenseMatrix deval(nDof,nDim);
-        B.Init(nQuad, nDof);
         W.Init(nQuad);
         for (int k = 0; k < nQuad; ++k)
         {
             const IntegrationPoint &ip = ir->IntPoint(k);
-            fe->CalcShape(ip, eval);
-            for (int i = 0; i < nDof; ++i)
-            {
-                for (int d = 0; d < nDim; ++d)
-                {
-                    B(k,i) = eval(i);
-                }
-            }
+
             W(k) = ip.weight;
         }
     }
@@ -123,28 +115,36 @@ AcroMassIntegrator::~AcroMassIntegrator()
 
 void AcroMassIntegrator::BatchedPartialAssemble() 
 {
-
     //Initilze the tensors
     acro::Tensor J,Jdet,q;
     if (hasTensorBasis)
     {
         if (nDim == 1)
         {
-            D.Init(nElem, nDim, nDim, nQuad1D);
+            if (!D.IsInitialized())
+            {
+                D.Init(nElem, nQuad1D);
+            }
             J.Init(nElem, nQuad1D, nQuad1D, nDim, nDim);         
             Jdet.Init(nElem, nQuad1D);
             q.Init(nElem, nQuad1D);
         }
         else if (nDim == 2)
         {
-            D.Init(nElem, nDim, nDim, nQuad1D, nQuad1D);
+            if (!D.IsInitialized())
+            {
+                D.Init(nElem, nQuad1D, nQuad1D);
+            }
             J.Init(nElem, nQuad1D, nQuad1D, nDim, nDim);
             Jdet.Init(nElem, nQuad1D, nQuad1D);
             q.Init(nElem, nQuad1D, nQuad1D);
         }
         else if (nDim == 3)
         {
-            D.Init(nElem, nDim, nDim, nQuad1D, nQuad1D, nQuad1D);
+            if (!D.IsInitialized())
+            {
+                D.Init(nElem, nQuad1D, nQuad1D, nQuad1D);
+            }
             J.Init(nElem, nQuad1D, nQuad1D, nQuad1D, nDim, nDim);
             Jdet.Init(nElem, nQuad1D, nQuad1D, nQuad1D);
             q.Init(nElem, nQuad1D, nQuad1D,nQuad1D);
@@ -156,7 +156,10 @@ void AcroMassIntegrator::BatchedPartialAssemble()
     }
     else
     {
-        D.Init(nElem, nDim, nDim, nQuad);
+        if (!D.IsInitialized())
+        {
+            D.Init(nElem, nQuad);
+        }
         J.Init(nElem, nQuad, nDim, nDim);
         Jdet.Init(nElem, nQuad);
         q.Init(nElem, nQuad);
@@ -184,7 +187,6 @@ void AcroMassIntegrator::BatchedPartialAssemble()
         }
     }
     TE.BatchMatrixDet(Jdet, J);
-
 
     if (hasTensorBasis) 
     {
@@ -215,7 +217,12 @@ void AcroMassIntegrator::BatchedPartialAssemble()
 }
 
 
-void AcroMassIntegrator::BatchedAssembleMatrix() {
+void AcroMassIntegrator::BatchedAssembleElementMatrices(DenseTensor &elmats) 
+{
+    if (!D.IsInitialized())
+    {
+        BatchedPartialAssemble();
+    }
 
     if (!M.IsInitialized()) 
     {
@@ -224,24 +231,21 @@ void AcroMassIntegrator::BatchedAssembleMatrix() {
             if (nDim == 1) 
             {
                 M.Init(nElem, nDof1D, nDof1D);
-                if (onGPU) {M.SwitchToGPU();}
             } 
             else if (nDim == 2) 
             {
                 M.Init(nElem, nDof1D, nDof1D, nDof1D, nDof1D);
-                if (onGPU) {M.SwitchToGPU();}
             } 
             else if (nDim == 3) 
             {
                 M.Init(nElem, nDof1D, nDof1D, nDof1D, nDof1D, nDof1D, nDof1D);
-                if (onGPU) {M.SwitchToGPU();}
             }
         } 
         else 
         {
             M.Init(nElem, nDof, nDof);
-            if (onGPU) {M.SwitchToGPU();}
         }
+        if (onGPU) {M.SwitchToGPU();}
     }
 
     if (hasTensorBasis) {
@@ -264,6 +268,19 @@ void AcroMassIntegrator::BatchedAssembleMatrix() {
     {
         TE("M_e_i_j = B_k_i B_k_j D_e_k", M, B, B, D);
     }
+
+    M.MoveFromGPU();
+    for (int e = 0; e < nElem; ++e)
+    {
+        for (int ei = 0; ei < nDof; ++ei)
+        {
+            for (int ej = 0; ej < nDof; ++ej)
+            {
+                elmats(tDofMap[ei], tDofMap[ej], e) = M[e*nDof*nDof + ei*nDof + ej];
+            }
+        }
+    }
+
 }
 
 void AcroMassIntegrator::PAMult(const Vector &x, Vector &y) {

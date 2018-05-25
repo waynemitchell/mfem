@@ -36,7 +36,7 @@ class AcroMassIntegrator : public PAIntegrator
     virtual ~AcroMassIntegrator();
 
     virtual void BatchedPartialAssemble();
-    virtual void BatchedAssembleMatrix();
+    virtual void BatchedAssembleElementMatrices(DenseTensor &elmats);
     virtual void PAMult(const Vector &x, Vector &y);
 };
 

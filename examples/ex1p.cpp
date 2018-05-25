@@ -53,6 +53,8 @@ int main(int argc, char *argv[])
    // 2. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
+   bool acrotensor = false;
+   bool gpu = false;
    bool static_cond = false;
    bool visualization = 1;
 
@@ -62,6 +64,10 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
+   args.AddOption(&acrotensor, "-at", "--acro", "-no-at", "--no-acro",
+                  "Use Acrotensor for integrator.");
+   args.AddOption(&gpu, "-g", "--gpu", "-no-g", "--no-gpu",
+                  "Use GPU for integrator.");   
    args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
                   "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
@@ -171,14 +177,17 @@ int main(int argc, char *argv[])
    //     corresponding to the Laplacian operator -Delta, by adding the Diffusion
    //     domain integrator.
    ParBilinearForm *a = new ParBilinearForm(fespace);
-   a->AddDomainIntegrator(new DiffusionIntegrator(one));
-
-   // 11. Assemble the parallel bilinear form and the corresponding linear
-   //     system, applying any necessary transformations such as: parallel
-   //     assembly, eliminating boundary conditions, applying conforming
-   //     constraints for non-conforming AMR, static condensation, etc.
-   if (static_cond) { a->EnableStaticCondensation(); }
+   if (!acrotensor)
+   {
+      a->AddDomainIntegrator(new DiffusionIntegrator(one));
+      if (static_cond) { a->EnableStaticCondensation(); }
+   }
+   else
+   {
+      a->AddDomainIntegrator(new AcroDiffusionIntegrator(one, *fespace, gpu));
+   }
    a->Assemble();
+
 
    HypreParMatrix A;
    Vector B, X;

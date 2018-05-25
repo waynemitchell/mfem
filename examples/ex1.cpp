@@ -66,10 +66,10 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
-   args.AddOption(&acrotensor, "-a", "--acro", "-no-a", "--no-acro",
+   args.AddOption(&acrotensor, "-at", "--acro", "-no-at", "--no-acro",
                   "Use Acrotensor for integrator.");
    args.AddOption(&gpu, "-g", "--gpu", "-no-g", "--no-gpu",
-                  "Use GPU for integrator.");     
+                  "Use GPU for integrator.");
    args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
                   "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",

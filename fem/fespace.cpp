@@ -265,8 +265,8 @@ void FiniteElementSpace::BuildDofToArrays()
 
    BuildElementToDofTable();
 
-   dof_elem_array.SetSize (ndofs);
-   dof_ldof_array.SetSize (ndofs);
+   dof_elem_array.SetSize(ndofs);
+   dof_ldof_array.SetSize(ndofs);
    dof_elem_array = -1;
    for (int i = 0; i < mesh -> GetNE(); i++)
    {
@@ -282,6 +282,7 @@ void FiniteElementSpace::BuildDofToArrays()
       }
    }
 }
+
 
 static void mark_dofs(const Array<int> &dofs, Array<int> &mark_array)
 {
@@ -2124,9 +2125,6 @@ void FiniteElementSpace::ToGlobalVector(const Vector &V, Vector &v)
    if ((tensor_indices == NULL) || (tensor_offsets == NULL))
    {
       BuildDofMaps(this, tensor_offsets, tensor_indices);
-#ifdef MFEM_USE_CUDAUM
-      std::cout << "Using CUDAUM" << std::endl;
-#endif
    }
 
    int vsize = GetVSize();

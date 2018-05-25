@@ -25,6 +25,7 @@ class PAIntegrator : public BilinearFormIntegrator
     const FiniteElement *fe;
     const TensorBasisElement *tfe;
     const IntegrationRule *ir;
+    Array<int> tDofMap;
     int GeomType;
     int FEOrder;
     bool onGPU;
@@ -41,7 +42,7 @@ class PAIntegrator : public BilinearFormIntegrator
     FiniteElementSpace *GetFES() {return fes;}
     virtual ~PAIntegrator();
     virtual void BatchedPartialAssemble() = 0;
-    virtual void BatchedAssembleMatrix() = 0;
+    virtual void BatchedAssembleElementMatrices(DenseTensor &elmats) = 0;
     virtual void PAMult(const Vector &x, Vector &y) = 0;
 };
 

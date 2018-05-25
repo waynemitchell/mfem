@@ -22,6 +22,18 @@ PAIntegrator::PAIntegrator(Coefficient &q, FiniteElementSpace &f, bool gpu)
     onGPU = gpu;
     fe = fes->GetFE(0);
     tfe = dynamic_cast<const TensorBasisElement*>(fe);
+    if (tfe)
+    {
+        tDofMap = tfe->GetDofMap();
+    }
+    else
+    {
+        tDofMap.SetSize(nDof);
+        for (int i = 0; i < nDof; ++i)
+        {
+            tDofMap[i] = i;
+        }
+    }
 
     nElem  = fes->GetNE();
     GeomType = fe->GetGeomType();

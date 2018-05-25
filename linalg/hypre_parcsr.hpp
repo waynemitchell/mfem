@@ -29,7 +29,6 @@
 
 #define mfem_hypre_TAlloc(type, size) hypre_TAlloc(type, size)
 #define mfem_hypre_CTAlloc(type, size) hypre_CTAlloc(type, size)
-#define mfem_hypre_CTAlloc_host(type, size) hypre_CTAlloc(type, size)  
 #define mfem_hypre_TFree(ptr) hypre_TFree(ptr)
 
 #else // MFEM_HYPRE_VERSION >= 21400
@@ -40,7 +39,7 @@
 #define mfem_hypre_CTAlloc(type, size) \
    hypre_CTAlloc(type, size, HYPRE_MEMORY_SHARED)
 #define mfem_hypre_CTAlloc_host(type, size) \
-   hypre_CTAlloc(type, size, HYPRE_MEMORY_HOST)   
+   hypre_CTAlloc(type, size, HYPRE_MEMORY_HOST)
 #define mfem_hypre_TFree(ptr) hypre_TFree(ptr, HYPRE_MEMORY_SHARED)
 
 #endif // #if MFEM_HYPRE_VERSION < 21400

@@ -67,11 +67,13 @@ protected:
 
    double alpha, kappa;
 
+   bool use_acrotensor, use_gpu;
+
    mutable Vector z; // auxiliary vector
 
 public:
    ConductionOperator(ParFiniteElementSpace &f, double alpha, double kappa,
-                      const Vector &u);
+                      const Vector &u, bool acrotensor, bool gpu);
 
    virtual void Mult(const Vector &u, Vector &du_dt) const;
    /** Solve the Backward-Euler equation: k = f(u + dt*k, t), for the unknown k.
@@ -107,6 +109,8 @@ int main(int argc, char *argv[])
    bool visualization = true;
    bool visit = false;
    int vis_steps = 5;
+   bool acrotensor = false;
+   bool gpu = false;
 
    int precision = 8;
    cout.precision(precision);
@@ -139,6 +143,10 @@ int main(int argc, char *argv[])
                   "Save data files for VisIt (visit.llnl.gov) visualization.");
    args.AddOption(&vis_steps, "-vs", "--visualization-steps",
                   "Visualize every n-th timestep.");
+   args.AddOption(&acrotensor, "-at", "--acro", "-no-at", "--no-acro",
+                  "Use Acrotensor for integrator.");
+   args.AddOption(&gpu, "-g", "--gpu", "-no-g", "--no-gpu",
+                  "Use GPU for integrator.");      
    args.Parse();
    if (!args.Good())
    {
@@ -223,7 +231,7 @@ int main(int argc, char *argv[])
    u_gf.GetTrueDofs(u);
 
    // 9. Initialize the conduction operator and the VisIt visualization.
-   ConductionOperator oper(fespace, alpha, kappa, u);
+   ConductionOperator oper(fespace, alpha, kappa, u, acrotensor, gpu);
 
    u_gf.SetFromTrueDofs(u);
    {
@@ -340,15 +348,25 @@ int main(int argc, char *argv[])
 }
 
 ConductionOperator::ConductionOperator(ParFiniteElementSpace &f, double al,
-                                       double kap, const Vector &u)
+                                       double kap, const Vector &u, bool acrotensor,
+                                       bool gpu)
    : TimeDependentOperator(f.GetTrueVSize(), 0.0), fespace(f), M(NULL), K(NULL),
      T(NULL), current_dt(0.0),
-     M_solver(f.GetComm()), T_solver(f.GetComm()), z(height)
+     M_solver(f.GetComm()), T_solver(f.GetComm()), z(height), use_acrotensor(acrotensor),
+     use_gpu(gpu)
 {
    const double rel_tol = 1e-8;
 
+   ConstantCoefficient one(1.0);
    M = new ParBilinearForm(&fespace);
-   M->AddDomainIntegrator(new MassIntegrator());
+   if (use_acrotensor)
+   {
+      M->AddDomainIntegrator(new AcroMassIntegrator(one, fespace, use_gpu));
+   } 
+   else 
+   {
+      M->AddDomainIntegrator(new MassIntegrator());
+   }
    M->Assemble(0); // keep sparsity pattern of M and K the same
    M->FormSystemMatrix(ess_tdof_list, Mmat);
 
@@ -416,7 +434,15 @@ void ConductionOperator::SetParameters(const Vector &u)
 
    GridFunctionCoefficient u_coeff(&u_alpha_gf);
 
-   K->AddDomainIntegrator(new DiffusionIntegrator(u_coeff));
+   if (use_acrotensor)
+   {
+      K->AddDomainIntegrator(new AcroDiffusionIntegrator(u_coeff, fespace, use_gpu));
+   }
+   else
+   {
+      K->AddDomainIntegrator(new DiffusionIntegrator(u_coeff));
+   }
+   
    K->Assemble(0); // keep sparsity pattern of M and K the same
    K->FormSystemMatrix(ess_tdof_list, Kmat);
    delete T;

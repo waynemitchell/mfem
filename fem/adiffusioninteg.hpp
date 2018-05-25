@@ -15,6 +15,7 @@
 
 #include "pabilininteg.hpp"
 #include "AcroTensor.hpp"
+#include "../linalg/vector.hpp"
 
 namespace mfem {
 
@@ -31,7 +32,8 @@ class AcroDiffusionIntegrator : public PAIntegrator
   acro::Tensor D;            //Product of integration weight, physical consts, and element shape info
   acro::Tensor S;            //The assembled local stiffness matrices
   acro::Tensor U, Z, T1, T2; //Intermediate computations for tensor product partial assembly
-  // acro::Tensor X, Y;
+  Vector vectorX, vectorY;
+  acro::Tensor X, Y;
 
   void ComputeBTilde();
 
@@ -39,7 +41,7 @@ public:
   AcroDiffusionIntegrator(Coefficient &q, FiniteElementSpace &f, bool gpu);
   virtual ~AcroDiffusionIntegrator();
   virtual void BatchedPartialAssemble();
-  virtual void BatchedAssembleMatrix();
+  virtual void BatchedAssembleElementMatrices(DenseTensor &elmats);
   virtual void PAMult(const Vector &x, Vector &y);
 };
 

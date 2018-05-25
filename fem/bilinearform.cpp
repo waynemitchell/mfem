@@ -359,14 +359,20 @@ void BilinearForm::Assemble (int skip_zeros)
       AllocMat();
    }
 
-#ifdef MFEM_USE_OPENMP
    int free_element_matrices = 0;
+#if MFEM_USE_OPENMP
    if (!element_matrices)
    {
       ComputeElementMatrices();
       free_element_matrices = 1;
    }
 #endif
+   if (PAIsEnabled() && !element_matrices)
+   {
+      ComputeElementMatrices();
+      free_element_matrices = 1;
+   }
+
 
    if (dbfi.Size())
    {
@@ -536,12 +542,10 @@ void BilinearForm::Assemble (int skip_zeros)
       }
    }
 
-#ifdef MFEM_USE_OPENMP
    if (free_element_matrices)
    {
       FreeElementMatrices();
    }
-#endif
 }
 
 
@@ -800,6 +804,24 @@ void BilinearForm::ComputeElementMatrices()
 
    element_matrices = new DenseTensor(num_dofs_per_el, num_dofs_per_el,
                                       num_elements);
+
+   if (PAIsEnabled())
+   {
+      PAIntegrator *pai = dynamic_cast<PAIntegrator*>(dbfi[0]);
+      pai->BatchedAssembleElementMatrices(*element_matrices);
+      if (dbfi.Size() <= 1) {return;}
+
+      DenseTensor *temp_matrices = new DenseTensor(num_dofs_per_el, num_dofs_per_el,
+                                                   num_elements);
+      for (int k = 1; k < dbfi.Size(); k++)
+      {
+         pai = dynamic_cast<PAIntegrator*>(dbfi[k]);
+         pai->BatchedAssembleElementMatrices(*temp_matrices);
+         (*element_matrices) += (*temp_matrices);
+      }
+      delete temp_matrices;
+      return;
+   }
 
    DenseMatrix tmp;
    IsoparametricTransformation eltrans;

@@ -710,9 +710,12 @@ public:
    const double &operator()(int i, int j, int k) const
    { return tdata[i+SizeI()*(j+SizeJ()*k)]; }
 
-   double *GetData(int k) { return (double *)tdata + k*Mk.Height()*Mk.Width(); }
+   DenseTensor &operator+=(const DenseTensor &m);
 
-   double *Data() { return tdata; }
+   double *GetData(int k) { return tdata.GetData() + k*Mk.Height()*Mk.Width(); }
+   double *Data() { return tdata.GetData(); }
+   const double *GetData(int k) const { return tdata.GetData() + k*Mk.Height()*Mk.Width(); }
+   const double *Data() const { return tdata.GetData(); }
 
    /** Matrix-vector product from unassembled element matrices, assuming both
        'x' and 'y' use the same elem_dof table. */
