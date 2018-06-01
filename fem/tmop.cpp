@@ -904,8 +904,6 @@ void TargetConstructor::ComputeElementTargets(int e_id, const FiniteElement &fe,
          indicator->GetValues(e_id, ir, ind_vals);
 
          if (avg_volume == 0.0) { ComputeAvgVolume(); }
-         const double small_side = 1.0;
-         const double big_side   = adapt_size_factor * small_side;
          const double small_size = adapt_scale * avg_volume;
          const double big_size   = adapt_size_factor * small_size;
 
@@ -913,16 +911,15 @@ void TargetConstructor::ComputeElementTargets(int e_id, const FiniteElement &fe,
          {
             if (ind_vals(q) > 1.0) { ind_vals(q) = 1.0; }
             if (ind_vals(q) < 0.0) { ind_vals(q) = 0.0; }
-            const double target_x = ind_vals(q) * big_side +
-                                    (1.0 - ind_vals(q)) * small_side;
+            // TODO 3D.
+            const double target_x = sqrt(big_size);
+            const double target_y =
+                  ind_vals(q) * sqrt(big_size) / adapt_size_factor +
+                  (1.0 - ind_vals(q)) * sqrt(big_size);
+
             Jtr(q) = 0.0;
             Jtr(q)(0,0) = target_x;
-            Jtr(q)(1,1) = small_side;
-
-            const double target_det = ind_vals(q) * small_size +
-                                      (1.0 - ind_vals(q)) * big_size;
-            const double Jtr_det = target_x * small_side;
-            Jtr(q) *= std::pow(target_det / Jtr_det, 1./dim);
+            Jtr(q)(1,1) = target_y;
          }
          break;
       }

@@ -32,9 +32,9 @@
 // Compile with: make pmesh-optimizer
 //
 // r-adapt size:
-// mpirun -np 4 pmesh-optimizer -m square.mesh -rs 2 -o 3 -mid 9 -tid 5 -ls 2 -bnd -vl 2 -ni 200 -li 100 -qo 4 -qt 2
+// mpirun -np 4 pmesh-optimizer -m square.mesh -rs 2 -o 3 -mid 7 -tid 5 -ls 2 -bnd -vl 2 -ni 200 -li 100 -qo 4 -qt 2
 // r-adapt shape:
-// mpirun -np 4 pmesh-optimizer -m square.mesh -rs 2 -o 3 -mid 2 -tid 6 -ls 2 -bnd -vl 2 -ni 200 -li 100 -qo 4 -qt 2
+// mpirun -np 4 pmesh-optimizer -m square.mesh -rs 2 -o 3 -mid 58 -tid 6 -ls 2 -bnd -vl 2 -ni 200 -li 100 -qo 4 -qt 2
 // r-adapt shape+size:
 // mpirun -np 4 pmesh-optimizer -m square.mesh -rs 2 -o 3 -mid 9 -tid 7 -ls 2 -bnd -vl 2 -ni 200 -li 100 -qo 4 -qt 2
 //
@@ -731,7 +731,7 @@ int main (int argc, char *argv[])
    ind_gf.ProjectCoefficient(ind_coeff);
    normalize(ind_gf);
 
-   H1_FECollection remap_fec(2, dim);
+   H1_FECollection remap_fec(3, dim);
    ParFiniteElementSpace remap_fes(pmesh, &remap_fec);
    ParGridFunction remap_gf(&remap_fes);
    remap_gf.ProjectCoefficient(ind_coeff);
@@ -746,7 +746,7 @@ int main (int argc, char *argv[])
    }
    if (target_t == TargetConstructor::IDEAL_SHAPE_ADAPTIVE_SIZE_7)
    {
-      target_c->SetIndicator(remap_gf, 10.0);
+      target_c->SetIndicator(remap_gf, 7.0);
    }
    if (target_t == TargetConstructor::ADAPTIVE_SHAPE)
    {
