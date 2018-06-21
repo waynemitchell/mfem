@@ -24,6 +24,9 @@
 namespace mfem
 {
 
+/**
+*  A local CG Solver. Warning: assumes BtDB PADomainInt.
+*/
 template <typename Op>
 class CGSolverDG: public Operator
 {
@@ -70,6 +73,9 @@ protected:
 
 };
 
+/**
+*  A local CG Solver. Warning: assumes BtDB PADomainInt, and an element level Mult for the preconditioner.
+*/
 template <typename Mass, typename Prec>
 class PrecCGSolverDG: public Operator
 {
@@ -114,6 +120,22 @@ protected:
 
 };
 
+// Some sort of factory to hide templates of PrecCGSolverDG and CGSolverDG
+template <typename Mass>
+Operator* getCGSolverDG(FiniteElementSpace& fes, int order, Mass& mass, const double tr = 1e-10)
+{
+   return new CGSolverDG<Mass>(fes,order,mass,tr);
+}
+
+template <typename Mass, typename Prec>
+Operator* getCGSolverDG(FiniteElementSpace& fes, int order, Mass& mass, Prec& prec, const double tr = 1e-10)
+{
+   return new PrecCGSolverDG<Mass,Prec>(fes,order,mass,prec,tr);
+}
+
+/**
+*  A generic CGSolver
+*/
 template <typename Mass>
 class PACGSolver: public Operator
 {
@@ -123,8 +145,8 @@ private:
    const double treshold;
 
 public:
-   PACGSolver(const FiniteElementSpace* fes, Mass& mass, const double tr = 1e-10)
-   : Operator(fes->GetVSize()), dofs(fes->GetNDofs()), mass(mass), treshold(tr)
+   PACGSolver(const FiniteElementSpace& fes, Mass& mass, const double tr = 1e-10)
+   : Operator(fes.GetVSize()), dofs(fes.GetNDofs()), mass(mass), treshold(tr)
    {
 
    }
@@ -174,8 +196,11 @@ public:
    }
 };
 
+/**
+*  A generic CG Solver with preconditioner
+*/
 template <typename Mass, typename Prec>
-class PAPrecCGSolver: public Operator
+class PrecCGSolver: public Operator
 {
 private:
    const int dofs;
@@ -184,8 +209,8 @@ private:
    const double treshold;
 
 public:
-   PAPrecCGSolver(const FiniteElementSpace* fes, Mass& mass, Prec& prec, const double tr = 1e-10)
-   : Operator(fes->GetVSize()), dofs(fes->GetNDofs()), mass(mass), prec(prec), treshold(tr)
+   PrecCGSolver(const FiniteElementSpace& fes, Mass& mass, Prec& prec, const double tr = 1e-10)
+   : Operator(fes.GetVSize()), dofs(fes.GetNDofs()), mass(mass), prec(prec), treshold(tr)
    {
 
    }
@@ -238,8 +263,22 @@ public:
    }
 };
 
+// Some sort of factory to hide templates of PrecCGSolver and CGSolver
+template <typename Mass>
+Operator* getCGSolver(FiniteElementSpace& fes, int order, Mass& mass, const double tr = 1e-10)
+{
+   return new PACGSolver<Mass>(fes,mass,tr);
+}
+
+template <typename Mass, typename Prec>
+Operator* getCGSolver(FiniteElementSpace& fes, int order, Mass& mass, Prec& prec, const double tr = 1e-10)
+{
+   return new PrecCGSolver<Mass,Prec>(fes,mass,prec,tr);
+}
+
 /**
-*  A class that implement the BtDB partial assembly Kernel
+*  A diagonal Solver, can be used as precontioner also.
+*  Warning: The algorithm does not check that the matrix is diagonal if used as a solver.
 */
 class DiagSolverDG: public Operator
 {

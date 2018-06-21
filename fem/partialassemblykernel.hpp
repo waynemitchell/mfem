@@ -41,16 +41,6 @@ namespace mfem
  // Domain Kernel Interface //
 /////////////////////////////
 
-struct ElementInfo
-{
-   int dim;
-   int k;
-   int e;
-   ElementTransformation* tr;
-   IntegrationPoint ip;
-   Tensor<2> J_ek;
-};
-
 /**
 *  A partial assembly Integrator class for domain integrals.
 *  Takes an 'Equation' template parameter, that must contain 'OpName' of
@@ -74,9 +64,9 @@ public:
    *  packed arbitrarily ('evalD' with the corresponding signature must exist).
    */
    template <typename Args>
-   PADomainInt(FiniteElementSpace *fes, const int order, const Args& args)
+   PADomainInt(const FiniteElementSpace *fes, const int order, const Args& args)
    : LinearFESpaceIntegrator(&IntRules.Get(fes->GetFE(0)->GetGeomType(), order)),
-     Op(fes,order,args)
+     Op(fes,order)
    {
       const int nb_elts = fes->GetNE();
       const int quads  = IntRule->GetNPoints();
@@ -95,6 +85,31 @@ public:
             const IntegrationPoint &ip = IntRule->IntPoint(k);
             Tr->SetIntPoint(&ip);
             this->evalEq(dim, k, e, Tr, ip, J_ek, args);
+         }
+      }
+   }
+
+   PADomainInt(const FiniteElementSpace *fes, const int order)
+   : LinearFESpaceIntegrator(&IntRules.Get(fes->GetFE(0)->GetGeomType(), order)),
+     Op(fes,order)
+   {
+      const int nb_elts = fes->GetNE();
+      const int quads  = IntRule->GetNPoints();
+      const FiniteElement* fe = fes->GetFE(0);
+      const int dim = fe->GetDim();
+      this->InitD(dim,quads,nb_elts);
+      Tensor<1> Jac1D(dim*dim*quads*nb_elts);
+      EvalJacobians(dim,fes,order,Jac1D);
+      Tensor<4> Jac(Jac1D.getData(),dim,dim,quads,nb_elts);
+      for (int e = 0; e < nb_elts; ++e)
+      {
+         ElementTransformation *Tr = fes->GetElementTransformation(e);
+         for (int k = 0; k < quads; ++k)
+         {
+            Tensor<2> J_ek(&Jac(0,0,k,e),dim,dim);
+            const IntegrationPoint &ip = IntRule->IntPoint(k);
+            Tr->SetIntPoint(&ip);
+            this->evalEq(dim, k, e, Tr, ip, J_ek);
          }
       }
    }
@@ -125,18 +140,6 @@ public:
  // Face Kernel Interface //
 ///////////////////////////
 
-struct FaceInfo
-{
-   int dim; // The problem dimension
-   int k1, k2; // The indices of 
-   IntegrationPoint eip1, eip2; // The integration points on each element
-   Vector* normal;  // The normal to the face
-   int ind_elt1, ind_elt2; // The indices of the elements
-   int face_id1, face_id2; // The face ID for the face according to each element
-   FaceElementTransformations* face_tr; // The Face transformation
-   Tensor<2> J_e1, J_e2; // The Jacobians for each element at their respective quadrature point
-};
-
 /**
 *  A partial assembly Integrator interface class for face integrals.
 *  The template parameters have the same role as for 'PADomainInt'.
@@ -150,7 +153,7 @@ private:
 
 public:
    template <typename Args>
-   PAFaceInt(FiniteElementSpace* fes, const int order, Args& args)
+   PAFaceInt(const FiniteElementSpace* fes, const int order, Args& args)
    : LinearFESpaceIntegrator(&IntRules.Get(fes->GetFE(0)->GetGeomType(), order)),
      Op(fes, order, args)
    {

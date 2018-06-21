@@ -28,7 +28,11 @@ namespace mfem
 {
 
 /**
-*  The different operators available for the Kernels
+*  The different operators available for the Kernels:
+*   - BtDB corresponds to a mass Kernel (u,v)
+*   - BtDG corresponds to (u,∇v)
+*   - GtDB corresponds to (∇u,v)
+*   - GtDG corresponds to a diffusion Kernel (∇u,∇v)
 */
 enum PAOp { BtDB, BtDG, GtDB, GtDG };
 
@@ -40,12 +44,12 @@ class DGConvectionEquation
 {
 public:
    /**
-   *  Defines the Kernel to apply to the Domain
+   *  Defines the Kernel to apply to the Domain.
    */
    static const PAOp OpName = BtDG;
 
    /**
-   *  Defines the variables needed to build D for the Domain kernel
+   *  Defines the variables needed to build D for the Domain kernel.
    */
    struct Args {
       Args(VectorCoefficient& _q, double _a = 1.0, double _b = -1.0) : q(_q), a(_a), b(_b) {}
@@ -55,28 +59,8 @@ public:
    };
 
    /**
-   *  Returns the values of the D tensor at a given integration Point.
-   */
-   void evalD(Tensor<1>& res, ElementTransformation *Tr, const IntegrationPoint& ip,
-                  const Args& args)
-   {
-      const int dim = res.size(0);
-      Vector qvec(dim);
-      const DenseMatrix& locD = Tr->AdjugateJacobian();
-      args.q.Eval(qvec, *Tr, ip);
-      for (int i = 0; i < dim; ++i)
-      {
-         double val = 0.0;
-         for (int j = 0; j < dim; ++j)
-         {
-            val += locD(i,j) * qvec(j);
-         }
-         res(i) = ip.weight * args.a * val;
-      }
-   }
-
-   /**
-   *  Returns the values of the D tensor at a given integration Point.
+   *  Describes the Convection Equation inside an element.
+   *  Returns the values of the D tensor at a given quadrature Point.
    */
    void evalD(Tensor<1>& res, ElementTransformation *Tr, const IntegrationPoint& ip,
                   const Tensor<2>& Jac, const Args& args)
@@ -98,32 +82,15 @@ public:
    }
 
    /**
-   *  Defines the Kernel to apply to the Faces
+   *  Defines the Kernel to apply to the Faces.
    */
    static const PAOp FaceOpName = BtDB;
 
-   /**
-   *  Returns the values of the Dint and Dext tensors at a given integration Point for
-   *  each element over a face.
-   */
-   void evalFaceD(double& res11, double& res21, double& res22, double& res12,
-      const FaceElementTransformations* face_tr, const Vector& normal,
-      const IntegrationPoint& ip1, const IntegrationPoint& ip2,
-      const Args& args)
-   {
-      const int dim = normal.Size();
-      Vector qvec(dim);
-      // FIXME: qvec might be discontinuous if not constant with a periodic mesh
-      // We should then use the evaluation on Elem2 and eip2
-      args.q.Eval( qvec, *(face_tr->Elem1), ip1 );
-      const double res = qvec * normal;
-      const double a = -args.a, b = args.b;
-      res11 = ip1.weight * (   a/2 * res + b * abs(res) );
-      res21 = ip1.weight * (   a/2 * res - b * abs(res) );
-      res22 = ip1.weight * ( - a/2 * res + b * abs(res) );
-      res12 = ip1.weight * ( - a/2 * res - b * abs(res) );
-   }
 
+   /**
+   *  Describes the Convection Equation on the boundary between two elements.
+   *  Returns the values of the D tensor at a given quadrature Point.
+   */
    void evalFaceD(double& res11, double& res21, double& res22, double& res12,
       const FaceElementTransformations* face_tr, const Vector& normal,
       const IntegrationPoint& ip1, const IntegrationPoint& ip2,
@@ -144,30 +111,30 @@ public:
    }  
 };
 
+typedef typename DGConvectionEquation::Args DGConvectionEquationArgs;
+
+/**
+*   A class that decribes a Mass equation for Partial Assembly.
+*/
 class MassEquation
 {
 public:
+   // States that the Kernel to use for partial assembly is the Mass Kernel
    static const PAOp OpName = BtDB;
 
-   struct ArgsEmpty{};
-
    void evalD(double& res, ElementTransformation* Tr, const IntegrationPoint& ip,
-               const Tensor<2>& Jac, ArgsEmpty args = {})
+               const Tensor<2>& Jac)
    {
       res = ip.weight * det(Jac);
    }
 
-   struct ArgsCoeff
-   {
-      Coefficient& coeff;
-   };
-
    void evalD(double& res, ElementTransformation* Tr, const IntegrationPoint& ip,
-               const Tensor<2>& Jac, ArgsCoeff& args)
+               const Tensor<2>& Jac, Coefficient& coeff)
    {
-      res = args.coeff.Eval(*Tr, ip) * ip.weight * det(Jac);
+      res = coeff.Eval(*Tr, ip) * ip.weight * det(Jac);
    }
 };
+
 
 }
 

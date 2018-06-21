@@ -162,7 +162,7 @@ public:
       data = _data;
    }
 
-   // Let's write some uggly code
+   // Let's write some uggly unsafe code, since C++ does not have const constructor
    template <typename... Args>
    Tensor(const Scalar* _data, Args... args)
    : own_data(false)
@@ -173,6 +173,13 @@ public:
       capacity = nb;
       data = const_cast<Scalar*>(_data);
    }
+
+   // Not interesting, assumes that the compiler will optimize the copy...
+   // template <typename... Args>
+   // static const Tensor mapTo(const Scalar* data, Args... args)
+   // {
+   //    return Tensor(const_cast<Scalar*>(data), args);
+   // }
 
    /**
    *  A copy constructor
@@ -230,24 +237,24 @@ public:
    /**
    *  Operator += for Tensors of the same size.
    */
-   Tensor& operator+=(const Tensor& t)
-   {
-      const int nb = t.length();
-      for (int i = 0; i < Dim; ++i)
-      {
-         if(sizes[i] != t.size(i))
-         {
-            cout << sizes[i] << " | " << t.size(i) << endl;
-            mfem_error("The Tensors have different sizes.");
-         }
-         // sizes[i] = t.size(i);
-      }
-      for (int i = 0; i < nb; ++i)
-      {
-         data[i] += t[i];
-      }
-      return *this;
-   }
+   // Tensor& operator+=(const Tensor& t)
+   // {
+   //    const int nb = t.length();
+   //    for (int i = 0; i < Dim; ++i)
+   //    {
+   //       if(sizes[i] != t.size(i))
+   //       {
+   //          cout << sizes[i] << " | " << t.size(i) << endl;
+   //          mfem_error("The Tensors have different sizes.");
+   //       }
+   //       // sizes[i] = t.size(i);
+   //    }
+   //    for (int i = 0; i < nb; ++i)
+   //    {
+   //       data[i] += t[i];
+   //    }
+   //    return *this;
+   // }
 
    /**
    *  Sets the size of the tensor, and allocate memory if necessary
@@ -308,26 +315,6 @@ public:
    {
       return data[i];
    }
-
-   // /**
-   // *  A const accessor for the data
-   // */
-   // template <typename... Args>
-   // const Scalar& operator[](Args... args) const
-   // {
-   //    static_assert(sizeof...(args)==Dim, "Wrong number of arguments");
-   //    return data[ TensorInd<1,Dim,Args...>::result(sizes,args...) ];
-   // }
-
-   // /**
-   // *  A reference accessor to the data
-   // */
-   // template <typename... Args>
-   // Scalar& operator[](Args... args)
-   // {
-   //    static_assert(sizeof...(args)==Dim, "Wrong number of arguments");
-   //    return data[ TensorInd<1,Dim,Args...>::result(sizes,args...) ];
-   // }
 
    void zero()
    {
@@ -414,6 +401,8 @@ public:
       return os;
    }
 };
+
+typedef Tensor<2,int> IntMatrix;
 
 // template <typename Scalar,int N>
 // void zero(Tensor<N,Scalar>& t)
@@ -554,21 +543,6 @@ inline void calcOrtho(const Tensor<2,Scalar>& J, const int& face_id, Tensor<1>& 
          break;
    }
 }
-
-/**
-*  A type trait to obtain the the Scalar type underloying a type.
-*/
-template <typename T>
-struct value_type;
-
-template <int N, typename Scalar>
-struct value_type<Tensor<N,Scalar>>
-{
-   typedef Scalar type;
-};
-
-template <typename T>
-using value_type_t = typename value_type<T>::type;
 
   ///////////////////////////
  // "Volume" contractions //
@@ -1121,216 +1095,6 @@ inline void cWiseMult(const Tensor<4,Scalar>& D,
       }
    }
 }
-
-/**
-* A dummy Matrix implementation that handles any type
-*/
-template <typename Scalar>
-class DummyMatrix
-{
-protected:
-   Scalar* data;
-   int sizes[2];
-
-public:
-   DummyMatrix()
-   {
-      sizes[0] = 0;
-      sizes[1] = 0;
-      data = NULL;
-   }
-
-   DummyMatrix(int rows, int cols)
-   {
-      sizes[0] = rows;
-      sizes[1] = cols;
-      data = new Scalar[rows*cols];//rows*cols*sizeof(Scalar) );
-   }
-
-   ~DummyMatrix()
-   {
-      delete[] data;
-   }
-
-   // Sets all the coefficients to zero
-   void Zero()
-   {
-      for (int i = 0; i < sizes[0]*sizes[1]; ++i)
-      {
-         data[i] = Scalar();
-      }
-   }
-
-   // Accessor for the Matrix
-   const Scalar operator()(int row, int col) const
-   {
-      return data[ row + sizes[0]*col ];
-   }
-
-   // Accessor for the Matrix
-   Scalar& operator()(int row, int col)
-   {
-      return data[ row + sizes[0]*col ];
-   }
-
-   int Height() const
-   {
-      return sizes[0];
-   }
-
-   int Width() const
-   {
-      return sizes[1];
-   }
-
-   friend ostream& operator<<(ostream& os, const DummyMatrix& M){
-      for (int i = 0; i < M.Height(); ++i)
-      {
-         for (int j = 0; j < M.Width(); ++j)
-         {
-            os << M(i,j) << " ";
-         }
-         os << "\n";
-      }
-      return os;
-   }
-
-};
-
-typedef DummyMatrix<double> DMatrix;
-typedef DummyMatrix<int> IntMatrix;
-
-/**
-*  A dummy tensor class
-*/
-class DummyTensor
-{
-protected:
-   double* data;
-   const int dim;
-   bool own_data;
-   vector<int> sizes;
-   vector<int> offsets;
-
-public:
-   DummyTensor(int dim)
-   : data(NULL), dim(dim), own_data(true), sizes(dim,1), offsets(dim,1)
-   {
-   }
-
-   DummyTensor(int dim, double* _data, int* dimensions)
-   : data(_data), dim(dim), own_data(false), sizes(dim,1), offsets(dim,1)
-   {
-      SetSize(dimensions);
-   }
-
-   int GetNumVal()
-   {
-      int result = 1;
-      for (int i = 0; i < dim; ++i)
-      {
-         result *= sizes[i];
-      }
-      return result;
-   }
-
-   void Zero()
-   {
-      for (int i = 0; i < GetNumVal(); ++i)
-      {
-         data[i] = 0.0;
-      }
-   }
-
-   void SetSize(int *_sizes)
-   {
-      sizes[0] = _sizes[0];
-      int dim_ind = 1;
-      offsets[0] = dim_ind;
-      for (int i = 1; i < dim; ++i)
-      {
-         sizes[i] = _sizes[i];
-         dim_ind *= sizes[i-1];
-         offsets[i] = dim_ind;
-      }
-      if (own_data && data==NULL)
-      {
-         data = new double[GetNumVal()]();
-      }
-   }
-
-   // Returns the data pointer, to change container for instance, or access data
-   // in an unsafe way...
-   double* GetData()
-   {
-      return data;
-   }
-
-   // The function that defines the Layout
-   int GetRealInd(int* ind)
-   {
-      int real_ind = 0;
-      for (int i = 0; i < dim; ++i)
-      {
-         real_ind += ind[i]*offsets[i];
-      }
-      return real_ind;
-   }
-
-   // really unsafe!
-   void SetVal(int* ind, double val)
-   {
-      int real_ind = GetRealInd(ind);
-      data[real_ind] = val;
-   }
-
-   double GetVal(int real_ind)
-   {
-      return data[real_ind];
-   }
-
-   double GetVal(int* ind)
-   {
-      int real_ind = GetRealInd(ind);
-      return data[real_ind];
-   }
-
-   double& operator()(int real_ind)
-   {
-      return data[real_ind];
-   }
-
-   double& operator()(int* ind)
-   {
-      int real_ind = GetRealInd(ind);
-      return data[real_ind];
-   }
-
-   // Assumes that elements/faces indice is always the last indice
-   double* GetElmtData(int e){
-      return &data[ e * offsets[dim-1] ];
-   }
-
-   friend ostream& operator<<(ostream& os, const DummyTensor& T){
-      int nb_elts = 1;
-      for (int i = 0; i < T.dim; ++i)
-      {
-         nb_elts *= T.sizes[i];
-      }
-      for (int i = 0; i < nb_elts; ++i)
-      {
-         os << T.data[i] << " ";
-         if ((i+1)%T.sizes[0]==0)
-         {
-            os << "\n";
-         }
-      }
-      os << "\n";
-      return os;
-   }
-
-};
-
 
 }
 

@@ -136,6 +136,9 @@ void ComputeBasis1d(const FiniteElement *fe, int order, Tensor& shape1d, bool ba
    }
 }
 
+/**
+*  This class contains the B matrix that contains the evaluation of basis functions at quadrature points.
+*/
 class TensorBasis
 {
 protected:
@@ -146,7 +149,7 @@ private:
    Tensor2d shape1d;
 
 public:
-   TensorBasis(FiniteElementSpace* fes, const int order)
+   TensorBasis(const FiniteElementSpace* fes, const int order)
    : dim(fes->GetFE(0)->GetDim()),
      shape1d(fes->GetNDofs1d(),fes->GetNQuads1d(order))
    {
@@ -160,6 +163,9 @@ public:
    }
 };
 
+/**
+*  This class contains the matrices that contains the evaluation of basis functions at quadrature points on faces.
+*/
 class FaceTensorBasis: public TensorBasis
 {
 private:
@@ -167,7 +173,7 @@ private:
    Tensor2d shape0d0, shape0d1;
 
 public:
-   FaceTensorBasis(FiniteElementSpace* fes, const int order)
+   FaceTensorBasis(const FiniteElementSpace* fes, const int order)
    : TensorBasis(fes,order),
      shape0d0(fes->GetNDofs1d(),fes->GetNQuads1d(order)),
      shape0d1(fes->GetNDofs1d(),fes->GetNQuads1d(order))
@@ -309,6 +315,9 @@ public:
    }
 };
 
+/**
+*  this function goes from the L-vector to E-vector ordered in Lexicographical order.
+*/
 inline void ScatterDofs(const FiniteElementSpace* mfes, const Table& eldof, const Array<int>& dof_map,
                   const GridFunction* nodes, const int dofs, const int dim, const int e,
                   Tensor<2>& LexPointMat)
@@ -357,6 +366,9 @@ inline void ScatterDofs(const FiniteElementSpace* mfes, const Table& eldof, cons
    }   
 }
 
+/**
+*  This function evaluates the Jacobain in 1D using a partial assembly approach.
+*/
 void EvalJacobians1D(const FiniteElementSpace* fes, const int order, Tensor<1>& J)
 {
    const int dim = 1;
@@ -399,6 +411,9 @@ void EvalJacobians1D(const FiniteElementSpace* fes, const int order, Tensor<1>& 
    }
 }
 
+/**
+*  This function evaluates the Jacobain in 2D using a partial assembly approach.
+*/
 void EvalJacobians2D(const FiniteElementSpace* fes, const int order, Tensor<1>& J)
 {
    const int dim = 2;
@@ -460,6 +475,9 @@ void EvalJacobians2D(const FiniteElementSpace* fes, const int order, Tensor<1>& 
    }
 }
 
+/**
+*  This function evaluates the Jacobain in 3D using a partial assembly approach.
+*/
 void EvalJacobians3D(const FiniteElementSpace* fes, const int order, Tensor<1>& J)
 {
    const int dim = 3;
@@ -543,6 +561,9 @@ void EvalJacobians3D(const FiniteElementSpace* fes, const int order, Tensor<1>& 
    }
 }
 
+/**
+*  This function returns the Jacobain using a partial assembly approach.
+*/
 void EvalJacobians( const int dim, const FiniteElementSpace* fes, const int order,
                      Tensor<1>& J )
 {
@@ -562,6 +583,9 @@ void EvalJacobians( const int dim, const FiniteElementSpace* fes, const int orde
    }
 }
 
+/**
+*  This function returns the diagonal of a matrix represented by a partial assembly operator in 1D.
+*/
 template <int Dim, typename Op>
 void GetDiag1d(const FiniteElementSpace& fes, const int order, const Op& op, Tensor<Dim>& diag)
 {
@@ -587,6 +611,9 @@ void GetDiag1d(const FiniteElementSpace& fes, const int order, const Op& op, Ten
    }
 }
 
+/**
+*  This function returns the diagonal of a matrix represented by a partial assembly operator in 2D.
+*/
 template <int Dim, typename Op>
 void GetDiag2d(const FiniteElementSpace& fes, const int order, const Op& op, Tensor<Dim>& diag)
 {
@@ -628,6 +655,10 @@ void GetDiag2d(const FiniteElementSpace& fes, const int order, const Op& op, Ten
    }
 }
 
+
+/**
+*  This function returns the diagonal of a matrix represented by a partial assembly operator in 3D.
+*/
 template <int Dim, typename Op>
 void GetDiag3d(const FiniteElementSpace& fes, const int order, const Op& op, Tensor<Dim>& diag)
 {
@@ -689,6 +720,9 @@ void GetDiag3d(const FiniteElementSpace& fes, const int order, const Op& op, Ten
    }
 }
 
+/**
+*  This function returns the diagonal of a matrix represented by a partial assembly operator.
+*/
 template <int Dim, typename Op>
 void GetDiag(const FiniteElementSpace& fes, const int order, const Op& op, Tensor<Dim>& diag)
 {

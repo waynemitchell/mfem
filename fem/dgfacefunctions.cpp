@@ -21,37 +21,6 @@ using std::pair;
 namespace mfem
 {
 
-/**
-*	Returns the canonical coordinate vectors e_1 and e_2.
-*/
-void getBaseVector2D(Vector& e1, Vector& e2)
-{
-	e1.SetSize(2);
-	e1(0) = 1;
-	e1(1) = 0;
-	e2.SetSize(2);
-	e2(0) = 0;
-	e2(1) = 1;
-}
-
-/**
-*	Returns the canonical coordinate vectors e_1, e_2 and e_3.
-*/
-void getBaseVector3D(Vector& e1, Vector& e2, Vector& e3)
-{
-	e1.SetSize(3);
-	e1(0) = 1;
-	e1(1) = 0;
-	e1(2) = 0;
-	e2.SetSize(3);
-	e2(0) = 0;
-	e2(1) = 1;
-	e2(2) = 0;
-	e3.SetSize(3);
-	e3(0) = 0;
-	e3(1) = 0;
-	e3(2) = 1;
-}
 
 /** 
 *   A function that initialize the local coordinate base for a face with
@@ -60,41 +29,11 @@ void getBaseVector3D(Vector& e1, Vector& e2, Vector& e3)
 *   element coordinate.
 */
 // Highly dependent of the node ordering from geom.cpp
-void InitFaceCoord2D(const int face_id, IntMatrix& base)
-{
-	//Vector e1,e2;
-	//getBaseVector2D(e1,e2);
-	base.Zero();
-	switch(face_id)
-	{
-		case 0://SOUTH
-			base(0,0)= 1;//base.SetCol(0, e1);
-			base(1,1)=-1;//base.SetCol(1,-e2);
-			break;
-		case 1://EAST
-			base(1,0)= 1;//base.SetCol(0, e2);
-			base(0,1)= 1;//base.SetCol(1, e1);
-			break;
-		case 2://NORTH
-			base(0,0)=-1;//base.SetCol(0,-e1);
-			base(1,1)= 1;//base.SetCol(1, e2);
-			break;
-		case 3://WEST
-			base(1,0)=-1;//base.SetCol(0,-e2);
-			base(0,1)= 1;//base.SetCol(1, e1);
-			break;
-		default:
-			mfem_error("The face_ind exceeds the number of faces in this dimension.");
-			break;
-	}
-}
-
-// Highly dependent of the node ordering from geom.cpp
 void InitFaceCoord3D(const int face_id, IntMatrix& base)
 {
 	//Vector e1,e2,e3;
 	//getBaseVector3D(e1,e2,e3);
-	base.Zero();
+	base.zero();
 	switch(face_id)
 	{
 		case 0://BOTTOM
@@ -138,51 +77,6 @@ void InitFaceCoord3D(const int face_id, IntMatrix& base)
 *   The result map contains pairs of int, where the first int is the cofficient, and the 
 *   second int is the indice of the second face vector.
 */
-// There shouldn't be any rotation in 2D.
-void GetLocalCoordMap2D(vector<pair<int,int> >& map, const int nb_rot)
-{
-	map.resize(2);
-	//First and second coordinate vectors should always be of opposite direction in 2D.
-	//TODO Maybe not
-	map[0] = pair<int,int>(-1,0);
-	map[1] = pair<int,int>(-1,1);
-}
-
-// Default parameter nb_rot=0 should be only use with a structured mesh.
-// Rotations follow the ordering of the nodes.
-/*void GetLocalCoordMap3D(vector<pair<int,int> >& map, const int nb_rot)
-{
-	map.resize(3);
-	// Normal to the face are always of opposite direction
-	map[2] = pair<int,int>(-1,2);
-	// nb_rot determines how local coordinates are oriented from one face to the other.
-	// See case 2 for an example.
-	switch(nb_rot)
-	{
-		case 0:
-			map[0] = pair<int,int>( 1,1);
-			map[1] = pair<int,int>( 1,0);
-			break;
-		case 1:
-			map[0] = pair<int,int>(-1,0);
-			map[1] = pair<int,int>( 1,1);
-			break;
-		case 2:
-			//first vector equals -1 times the second vector of the other face coordinates
-			map[0] = pair<int,int>(-1,1);
-			//second vector equals -1 times the first vector of the other face coordinates
-			map[1] = pair<int,int>(-1,0);
-			break;
-		case 3:
-			map[0] = pair<int,int>( 1,0);
-			map[1] = pair<int,int>(-1,1);
-			break;
-		default:
-			mfem_error("There shouldn't be that many rotations.");
-			break;
-	}
-}*/
-
 void GetLocalCoordMap3D(vector< pair<int,int> >& map, const int orientation)
 {
 	map.resize(3);
@@ -240,41 +134,13 @@ void GetLocalCoordMap3D(vector< pair<int,int> >& map, const int orientation)
 }
 
 /**
-*	Returns the change of matrix P from base_K2 to base_K1 according to the mapping map.
+*	Returns the change of basis matrix P from base_K2 to base_K1 according to the mapping map.
 */
 void GetChangeOfBasis(const IntMatrix& base_K1, IntMatrix& base_K2,
 								const vector<pair<int,int> >& map, IntMatrix& P)
 {
-/*	int dim = map.size();
-	for (int j = 0; j < dim; j++)
-	{
-		int i = 0;
-		//we look if the vector is colinear with e_j
-		// Can be replaced by base_K2(j,i)!=0
-		while (base_K2(j,i)!=0) i++;
-		int coeff = map[i].first;
-		int ind = map[i].second;
-		for (int k = 0; k < dim; ++k)
-		{
-			P(k,j) = coeff * base_K1(k,ind);
-		}
-	}*/
-	//TODO make it valid for 3D!!!
 	int dim = base_K1.Height();
-	// for (int i = 0; i < dim; ++i)
-	// {
-	// 	int coeff = map[i].first;
-	// 	int ind   = map[i].second;
-	// 	for (int j = 0; j < dim; ++j)
-	// 	{
-	// 		int sum = 0;
-	// 		for (int k = 0; k < dim; ++k)
-	// 		{
-	// 			sum += coeff*base_K1(i,k)*base_K2(j,k);
-	// 		}
-	// 		P(ind,j) =  sum;
-	// 	}
-	// }
+
 	int i,j,ind;
 	double coeff;
 	for (int n = 0; n < dim; ++n)
@@ -289,39 +155,12 @@ void GetChangeOfBasis(const IntMatrix& base_K1, IntMatrix& base_K2,
 	}
 }
 
-void GetChangeOfBasis2D(const int face_id1, const int face_id2, IntMatrix& P)
-{
-	// We add 8 because of C++ stupid definition of modulo
-	int nb_rot = (8 + face_id2 - face_id1 - 2)%4;
-	// if (face_id2!=-1)
-	// {
-		// cout << "face_id1=" << face_id1 << ", face_id2=" << face_id2 << ", nb_rot=" << nb_rot << endl;
-	// }
-	P.Zero();
-	switch(nb_rot)
-	{
-	case 0://Id=R^4
-		P(0,0) = 1;
-		P(1,1) = 1;
-		break;
-	case 1://R
-		P(1,0) = 1;
-		P(0,1) =-1;
-		break;
-	case 2://R²
-		P(0,0) =-1;
-		P(1,1) =-1;
-		break;
-	case 3://R³
-		P(1,0) =-1;
-		P(0,1) = 1;
-		break;
-	default:mfem_error("C++ modulo error in GetChangeOfBasis2D");
-	}
-}
-
+/**
+*	Returns a Change a basis matrix, associated to an integer. decrypts the integer encrypted by Permutation3D.
+*/
 void GetChangeOfBasis(const int permutation, IntMatrix& P)
 {
+	// Decrypts the matrix from Permutation3D
 	int code1 = permutation/100;
 	int ind1  = code1/2;
 	int val1  = code1%2==0?-1:1;
@@ -331,7 +170,7 @@ void GetChangeOfBasis(const int permutation, IntMatrix& P)
 	int code3 = permutation%10;
 	int ind3  = code3/2;
 	int val3  = code3%2==0?-1:1;
-	P.Zero();
+	P.zero();
 	P(ind1,0) = val1;
 	P(ind2,1) = val2;
 	P(ind3,2) = val3;
@@ -377,15 +216,15 @@ int Permutation2D(const int face_id_trial, const int face_id_test)
 void Permutation3D(const int face_id1, const int face_id2, const int orientation, int& perm1, int& perm2)
 {
 	IntMatrix K1(3,3);
-	K1.Zero();
+	K1.zero();
 	InitFaceCoord3D(face_id1, K1);
 	IntMatrix K2(3,3);
-	K2.Zero();
+	K2.zero();
 	InitFaceCoord3D(face_id2, K2);
 	vector< pair<int,int> > map;
 	GetLocalCoordMap3D(map, orientation);
 	IntMatrix P(3,3);
-	P.Zero();
+	P.zero();
 	GetChangeOfBasis(K1, K2, map, P);
 	// cout << "orientation=" << orientation << endl;
 	// cout << P(0,0) << ", " << P(0,1) << ", " << P(0,2) << endl;
@@ -427,8 +266,8 @@ void GetPermutation(const int dim, const int face_id1, const int face_id2, const
 /**
 *	Hardcoded permutation due to arbitrary hardcoded orientation in geom.cpp.
 *   Will break if geom.cpp changes.
-*   This function could be improved by returning the 'permutation' parameters once,
-*   instead of recomputing them for every quadrature point...
+*   FIXME: This function could be improved by returning the 'permutation' parameters once,
+*   instead of recomputing them for every quadrature point... not a performance issue for the moment
 */
 int GetFaceQuadIndex3D(const int face_id, const int orientation, const int qind, const int quads, Tensor<1,int>& ind_f)
 {

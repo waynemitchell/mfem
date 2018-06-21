@@ -197,48 +197,21 @@ int main(int argc, char *argv[])
 
    //Creating a partial assembly Kernel
    //Maybe not the right place to initialize tensor size.
+   //The order of the functions to be integrated, needed for the integration rule.
    int ir_order = 2*order;
 
    //Initialization of the Mass operator
-   // BilinearFormOperator m(&fes);
-   // m.AddDomainIntegrator(new PAMassIntegrator(&fes,ir_order));
-   // m.AddDomainIntegrator(new EigenPAMassIntegrator<2>(&fes,ir_order));
-   // m.AddDomainIntegrator(new EigenPAMassIntegrator<2,EigenDomainPAK>(&fes,ir_order));
-   // BilinearForm m(&fes);
-   // m.AddDomainIntegrator(new MassIntegrator());
-   // m.AddIntegrator(new PADomainInt<MassEquation,CGSolverDG>(&fes,ir_order,MassEquation::ArgsEmpty{}));
-   // m.AddIntegrator(new PADomainInt<MassEquation>(&fes,ir_order));
-   PADomainInt<MassEquation> mass(&fes,ir_order,MassEquation::ArgsEmpty{});
-   // DiagSolverDG m(fes,ir_order,mass);
-   // PACGSolver<PADomainInt<MassEquation>> m(&fes,mass);
+   PADomainInt<MassEquation> mass(&fes,ir_order);
    DiagSolverDG prec(fes,ir_order,mass);
-   // PAPrecCGSolver<PADomainInt<MassEquation>,DiagSolverDG> m(&fes,mass,prec);
-   // CGSolverDG<PADomainInt<MassEquation>> m(fes,ir_order,mass);
-   PrecCGSolverDG<PADomainInt<MassEquation>,DiagSolverDG> m(fes,ir_order,mass,prec);
-   Operator* mo = &m;
-
+   Operator* mo = getCGSolverDG(fes,ir_order,mass,prec);
 
    Array<int> ess_tdof_list;
-   // SparseMatrix msp;
-   // BilinearFormOperator mbf;
-   // Operator *mo;
-   // m.AssembleForm(msp);
-   // m.AssembleForm(mbf);
-   // m.FormSystemOperator(ess_tdof_list, mo);
 
    //Initialization of the Stiffness operator
    BilinearForm k(&fes);
-   //k.AddDomainIntegrator(new EigenPAConvectionIntegrator<2>(&fes,ir_order,velocity, -1.0));
-   // k.AddDomainIntegrator(new PAConvectionIntegrator<DummyDomainPAK>(&fes,ir_order,velocity, -1.0));
-   typename DGConvectionEquation::Args argsEq(velocity,-1.0,-0.5);
+   DGConvectionEquationArgs argsEq(velocity,-1.0,-0.5);
    k.AddIntegrator(new PADomainInt<DGConvectionEquation>(&fes,ir_order,argsEq));
-   // k.AddIntegrator(new PADomainInt<DGConvectionEquation>(&fes,ir_order,velocity,-1.0));
-   // k.AddDomainIntegrator(
-   //       new PADGConvectionFaceIntegrator<DummyFacePAK>(&fes,ir_order,velocity, 1.0, -0.5));
-   // k.AddDomainIntegrator(
-   //       new PADGConvectionFaceIntegrator2<FacePAK>(&fes,ir_order,velocity, 1.0, -0.5));
    k.AddIntegrator(new PAFaceInt<DGConvectionEquation>(&fes,ir_order,argsEq));
-   // k.AddIntegrator(new PAFaceInt<DGConvectionEquation>(&fes,ir_order,velocity, 1.0, -0.5));
 
    BilinearFormOperator kbf;
    Operator *ko;
