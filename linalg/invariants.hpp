@@ -96,8 +96,7 @@ protected:
    {
       eval_state |= HAVE_I2b;
       const scalar_t det = J[0]*J[3] - J[1]*J[2];
-      sign_detJ = scalar_ops::sign(det);
-      I2b = sign_detJ*det;
+      I2b = det;
    }
    void Eval_dI1()
    {
@@ -136,10 +135,10 @@ protected:
       // I2b = det(J)
       // dI2b = adj(J)^T
       Get_I2b();
-      dI2b[0] =  sign_detJ*J[3];
-      dI2b[1] = -sign_detJ*J[2];
-      dI2b[2] = -sign_detJ*J[1];
-      dI2b[3] =  sign_detJ*J[0];
+      dI2b[0] =  J[3];
+      dI2b[1] = -J[2];
+      dI2b[2] = -J[1];
+      dI2b[3] =  J[0];
    }
    void Eval_DaJ() // D adj(J) = D dI2b^t
    {
