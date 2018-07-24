@@ -584,15 +584,13 @@ protected:
       eval_state |= HAVE_I3b;
       I3b = J[0]*(J[4]*J[8] - J[7]*J[5]) - J[1]*(J[3]*J[8] - J[5]*J[6]) +
             J[2]*(J[3]*J[7] - J[4]*J[6]);
-      sign_detJ = scalar_ops::sign(I3b);
-      I3b = sign_detJ*I3b;
    }
    scalar_t Get_I3b_p()  // I3b^{-2/3}
    {
       if (dont(HAVE_I3b_p))
       {
          eval_state |= HAVE_I3b_p;
-         I3b_p = sign_detJ*scalar_ops::pow(Get_I3b(), -2, 3);
+         I3b_p = scalar_ops::pow(Get_I3b(), -2, 3);
       }
       return I3b_p;
    }
@@ -678,15 +676,15 @@ protected:
       eval_state |= HAVE_dI3b;
       // I3b = det(J)
       // dI3b = adj(J)^T
-      dI3b[0] = sign_detJ*(J[4]*J[8] - J[5]*J[7]);  // 0  3  6
-      dI3b[1] = sign_detJ*(J[5]*J[6] - J[3]*J[8]);  // 1  4  7
-      dI3b[2] = sign_detJ*(J[3]*J[7] - J[4]*J[6]);  // 2  5  8
-      dI3b[3] = sign_detJ*(J[2]*J[7] - J[1]*J[8]);
-      dI3b[4] = sign_detJ*(J[0]*J[8] - J[2]*J[6]);
-      dI3b[5] = sign_detJ*(J[1]*J[6] - J[0]*J[7]);
-      dI3b[6] = sign_detJ*(J[1]*J[5] - J[2]*J[4]);
-      dI3b[7] = sign_detJ*(J[2]*J[3] - J[0]*J[5]);
-      dI3b[8] = sign_detJ*(J[0]*J[4] - J[1]*J[3]);
+      dI3b[0] = (J[4]*J[8] - J[5]*J[7]);  // 0  3  6
+      dI3b[1] = (J[5]*J[6] - J[3]*J[8]);  // 1  4  7
+      dI3b[2] = (J[3]*J[7] - J[4]*J[6]);  // 2  5  8
+      dI3b[3] = (J[2]*J[7] - J[1]*J[8]);
+      dI3b[4] = (J[0]*J[8] - J[2]*J[6]);
+      dI3b[5] = (J[1]*J[6] - J[0]*J[7]);
+      dI3b[6] = (J[1]*J[5] - J[2]*J[4]);
+      dI3b[7] = (J[2]*J[3] - J[0]*J[5]);
+      dI3b[8] = (J[0]*J[4] - J[1]*J[3]);
    }
    void Eval_DZt(const scalar_t *Z, scalar_t **DZt_ptr)
    {

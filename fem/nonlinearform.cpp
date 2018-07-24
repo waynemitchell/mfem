@@ -94,6 +94,54 @@ void NonlinearForm::SetAddEssentialVDofs(const Array<int> &ess_vdofs_list)
    }
 }
 
+void NonlinearForm::SetEssentialElems()
+{
+ const int NE = fes->GetNE(); //Number of elements
+ const int tdofs = fes->GetNDofs(); // Total dofs
+ const int dim = fes->GetVSize()/fes->GetNDofs(); //dimension 
+ Array<int> dofs;
+ fes->GetElementDofs(0, dofs);
+ const int ndofe = dofs.Size()*dim; //total dofs per element
+ const int dofsz = dofs.Size(); //dof per element for each direction
+ ess_el_list.SetSize(0);
+ ess_el_list.SetSize(NE);
+
+ Array<int> doflist(tdofs*dim);
+ doflist = 0;
+ ess_el_list = 0;
+
+ const int ndofl = ess_tdof_list.Size();
+ fes->BuildDofToArrays();
+ for (int i = 0; i < ndofl; i++)
+ {
+  int dofn = ess_tdof_list[i]; //dof number
+  doflist[dofn] = 1;
+ }
+
+ for (int i = 0; i < NE; i++)
+ {
+  fes->GetElementDofs(i, dofs);
+  for (int j = 0; j < dofs.Size(); j++)
+   {
+    int ldof = dofs[j];
+    if (dim==2 && doflist[ldof]==1 && doflist[ldof+tdofs]==1)
+    {
+      ess_el_list[i] += 1;
+    }
+    else if (dim == 3 && doflist[ldof]==1 && doflist[ldof+tdofs]==1 && doflist[ldof+2*tdofs]==1)
+    {
+      ess_el_list[i] += 1;
+    }
+   }
+ } 
+
+ for (int i = 0; i < ess_el_list.Size(); i++)
+  {
+   if (ess_el_list[i]==dofsz) {ess_el_list[i]=1;}
+   else {ess_el_list[i]=0;}
+  }
+}
+
 double NonlinearForm::GetGridFunctionEnergy(const Vector &x) const
 {
    Array<int> vdofs;
@@ -106,6 +154,8 @@ double NonlinearForm::GetGridFunctionEnergy(const Vector &x) const
    {
       for (int i = 0; i < fes->GetNE(); i++)
       {
+       if (ess_el_list[i]==0)
+       {
          fe = fes->GetFE(i);
          fes->GetElementVDofs(i, vdofs);
          T = fes->GetElementTransformation(i);
@@ -114,6 +164,7 @@ double NonlinearForm::GetGridFunctionEnergy(const Vector &x) const
          {
             energy += dnfi[k]->GetElementEnergy(*fe, *T, el_x);
          }
+        }
       }
    }
 
@@ -158,6 +209,8 @@ void NonlinearForm::Mult(const Vector &x, Vector &y) const
    {
       for (int i = 0; i < fes->GetNE(); i++)
       {
+       if (ess_el_list[i]==0)
+       {
          fe = fes->GetFE(i);
          fes->GetElementVDofs(i, vdofs);
          T = fes->GetElementTransformation(i);
@@ -166,7 +219,8 @@ void NonlinearForm::Mult(const Vector &x, Vector &y) const
          {
             dnfi[k]->AssembleElementVector(*fe, *T, el_x, el_y);
             py.AddElementVector(vdofs, el_y);
-         }
+         }    
+        }
       }
    }
 
@@ -181,6 +235,8 @@ void NonlinearForm::Mult(const Vector &x, Vector &y) const
          tr = mesh->GetInteriorFaceTransformations(i);
          if (tr != NULL)
          {
+           if (ess_el_list[tr->Elem1No]==0 && ess_el_list[tr->Elem2No]==0)
+           {
             fes->GetElementVDofs(tr->Elem1No, vdofs);
             fes->GetElementVDofs(tr->Elem2No, vdofs2);
             vdofs.Append (vdofs2);
@@ -195,6 +251,7 @@ void NonlinearForm::Mult(const Vector &x, Vector &y) const
                fnfi[k]->AssembleFaceVector(*fe1, *fe2, *tr, el_x, el_y);
                py.AddElementVector(vdofs, el_y);
             }
+           }
          }
       }
    }
@@ -233,6 +290,8 @@ void NonlinearForm::Mult(const Vector &x, Vector &y) const
          tr = mesh->GetBdrFaceTransformations (i);
          if (tr != NULL)
          {
+           if (ess_el_list[tr->Elem1No]==0)
+           {
             fes->GetElementVDofs(tr->Elem1No, vdofs);
             px.GetSubVector(vdofs, el_x);
 
@@ -249,7 +308,8 @@ void NonlinearForm::Mult(const Vector &x, Vector &y) const
                bfnfi[k]->AssembleFaceVector(*fe1, *fe2, *tr, el_x, el_y);
                py.AddElementVector(vdofs, el_y);
             }
-         }
+           }
+        }
       }
    }
 
@@ -289,6 +349,8 @@ Operator &NonlinearForm::GetGradient(const Vector &x) const
    {
       for (int i = 0; i < fes->GetNE(); i++)
       {
+       if (ess_el_list[i]==0)
+       {
          fe = fes->GetFE(i);
          fes->GetElementVDofs(i, vdofs);
          T = fes->GetElementTransformation(i);
@@ -299,6 +361,7 @@ Operator &NonlinearForm::GetGradient(const Vector &x) const
             Grad->AddSubMatrix(vdofs, vdofs, elmat, skip_zeros);
             // Grad->AddSubMatrix(vdofs, vdofs, elmat, 1);
          }
+        }
       }
    }
 
@@ -313,6 +376,8 @@ Operator &NonlinearForm::GetGradient(const Vector &x) const
          tr = mesh->GetInteriorFaceTransformations(i);
          if (tr != NULL)
          {
+           if (ess_el_list[tr->Elem1No]==0 && ess_el_list[tr->Elem2No]==0)
+           {
             fes->GetElementVDofs(tr->Elem1No, vdofs);
             fes->GetElementVDofs(tr->Elem2No, vdofs2);
             vdofs.Append (vdofs2);
@@ -327,6 +392,7 @@ Operator &NonlinearForm::GetGradient(const Vector &x) const
                fnfi[k]->AssembleFaceGrad(*fe1, *fe2, *tr, el_x, elmat);
                Grad->AddSubMatrix(vdofs, vdofs, elmat, skip_zeros);
             }
+           }
          }
       }
    }
@@ -365,6 +431,8 @@ Operator &NonlinearForm::GetGradient(const Vector &x) const
          tr = mesh->GetBdrFaceTransformations (i);
          if (tr != NULL)
          {
+           if (ess_el_list[tr->Elem1No]==0)
+           {
             fes->GetElementVDofs(tr->Elem1No, vdofs);
             px.GetSubVector(vdofs, el_x);
 
@@ -381,6 +449,7 @@ Operator &NonlinearForm::GetGradient(const Vector &x) const
                bfnfi[k]->AssembleFaceGrad(*fe1, *fe2, *tr, el_x, elmat);
                Grad->AddSubMatrix(vdofs, vdofs, elmat, skip_zeros);
             }
+           }
          }
       }
    }

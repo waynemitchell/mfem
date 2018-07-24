@@ -39,6 +39,7 @@ protected:
 
    /// A list of all essential true dofs
    Array<int> ess_tdof_list;
+   Array<int> ess_el_list;
 
    /// Counter for updates propagated from the FiniteElementSpace.
    long sequence;
@@ -97,6 +98,9 @@ public:
    /** @deprecated Use either SetEssentialBC() or SetEssentialTrueDofs(). */
    void SetEssentialVDofs(const Array<int> &ess_vdofs_list);
    void SetAddEssentialVDofs(const Array<int> &ess_vdofs_list);
+
+   /// Determine elements that have all dofs in ess_tdof_list;
+   void SetEssentialElems();
 
    /// Specify essential boundary conditions.
    void SetEssentialTrueDofs(const Array<int> &ess_tdof_list)

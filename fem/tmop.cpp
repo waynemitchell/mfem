@@ -613,11 +613,61 @@ void TMOP_Metric_321::AssembleH(const DenseMatrix &Jpt,
    ie.Assemble_TProd(-3*c0*c3, ie.Get_dI3b(), A.GetData());
 }
 
+double TMOP_Metric_322::EvalW(const DenseMatrix &Jpt) const
+{
+   // mu_22 = (0.5*|J|^2 - det(J)) / (det(J) - tau0)
+   //       = (0.5*I1 - I2b) / (I2b - tau0)
+   ie.SetJacobian(Jpt.GetData());
+   const double I3b = ie.Get_I3b();
+   if (I3b - tau0 <= 0.) {return 1e+100;}
+   return (0.5*ie.Get_I1() - I3b) / (I3b - tau0);
+}
+
+void TMOP_Metric_322::EvalP(const DenseMatrix &Jpt, DenseMatrix &P) const
+{
+   // mu_22 = (0.5*I1 - I2b) / (I2b - tau0)
+   // P = 1/(I2b - tau0)*(0.5*dI1 - dI2b) - (0.5*I1 - I2b)/(I2b - tau0)^2*dI2b
+   //   = 0.5/(I2b - tau0)*dI1 + (tau0 - 0.5*I1)/(I2b - tau0)^2*dI2b
+   ie.SetJacobian(Jpt.GetData());
+   const double I3b = ie.Get_I3b();
+   const double c1 = 1.0/(ie.Get_I3b() - tau0);
+   Add(c1/2, ie.Get_dI1(), (tau0 - ie.Get_I1()/2)*c1*c1, ie.Get_dI3b(), P);
+}
+
+void TMOP_Metric_322::AssembleH(const DenseMatrix &Jpt,
+                                const DenseMatrix &DS,
+                                const double weight,
+                                DenseMatrix &A) const
+{
+   // P  = 0.5/(I2b - tau0)*dI1 + (tau0 - 0.5*I1)/(I2b - tau0)^2*dI2b
+   // dP = -0.5/(I2b - tau0)^2*(dI1 x dI2b) + 0.5/(I2b - tau0)*ddI1
+   //      + (dI2b x dz) + z*ddI2b
+   //
+   // z  = (tau0 - 0.5*I1)/(I2b - tau0)^2
+   // dz = -0.5/(I2b - tau0)^2*dI1 - 2*(tau0 - 0.5*I1)/(I2b - tau0)^3*dI2b
+   //
+   // dP = -0.5/(I2b - tau0)^2*(dI1 x dI2b + dI2b x dI1)
+   //      -2*z/(I2b - tau0)*(dI2b x dI2b)
+   //      +0.5/(I2b - tau0)*ddI1 + z*ddI2b
+   ie.SetJacobian(Jpt.GetData());
+   ie.SetDerivativeMatrix(DS.Height(), DS.GetData());
+   const double c1 = 1.0/(ie.Get_I3b() - tau0);
+   const double c2 = weight*c1/2;
+   const double c3 = c1*c2;
+   const double c4 = (2*tau0 - ie.Get_I1())*c3; // weight*z
+   ie.Assemble_TProd(-c3, ie.Get_dI1(), ie.Get_dI3b(), A.GetData());
+   ie.Assemble_TProd(-2*c1*c4, ie.Get_dI3b(), A.GetData());
+   ie.Assemble_ddI1(c2, A.GetData());
+   ie.Assemble_ddI3b(c4, A.GetData());
+}
+
+
 double TMOP_Metric_352::EvalW(const DenseMatrix &Jpt) const
 {
    // mu_352 = 0.5*(det(J) - 1)^2 / (det(J) - tau0)
    ie.SetJacobian(Jpt.GetData());
    const double I3b = ie.Get_I3b();
+   if (I3b - tau0 <= 0.) {return 1e+100;}
    return 0.5*(I3b - 1.0)*(I3b - 1.0)/(I3b - tau0);
 }
 
@@ -1421,6 +1471,7 @@ void TargetConstructor::ComputeTargetDerivativesb(int e_id, int ip_id,
                                                  const IntegrationRule &ir,
                                                  DenseTensor &Jtr_dx) const
 {
+// Equation 46, Section 2.1.1. Matrix cookbook
    const FiniteElement *nfe = (target_type != IDEAL_SHAPE_UNIT_SIZE) ?
                               nodes->FESpace()->GetFE(e_id) : NULL;
    const int dim = nfe->GetDim(), dof = nfe->GetDof();
@@ -1453,32 +1504,14 @@ void TargetConstructor::ComputeTargetDerivativesb(int e_id, int ip_id,
                                std::pow(target_det / detW, (1.0 - dim) / dim) *
                                (small_zone_size - big_zone_size) / detW;
          dW.Set(factor, Wideal);
-         CalcInverseTranspose(W, Winv);
+         CalcInverse(W, Winv);
 
          double detv = W.Det();
-         Winv *= detv;
-/* Method 1
-//         Mult(Winv, dW, R);
-*/
-/* Method 2
-         R = 0.0;
-         for (int d1 = 0; d1 < dim; d1++)
-         {
-            for (int d2 = 0; d2 < dim; d2++)
-            {
-             R(0,0) += Winv(d1,d2)*dW(d1,d2);
-            }
-         }
-*/
-/* Method 3
 
-*/
+         DenseMatrix Dum = Winv;
+         Dum = 0.;
+
          Mult(Winv, dW, R);
-         R(0,1) = 0.0;
-         R(1,0) = 0.0;
-         R(0,0) = R(0,0)+R(1,1);
-         R(1,1) = 0.0;
-
  
          Vector grad_ind(dim), shape(dof);
          indicator->GetGradient(*tr, grad_ind);
@@ -1487,7 +1520,13 @@ void TargetConstructor::ComputeTargetDerivativesb(int e_id, int ip_id,
          {
             for (int j = 0; j < dof; j++)
             {
-               Jtr_dx(dof*d + j).Set(grad_ind(d) * shape(j), R);
+               //Jtr_dx(dof*d + j).Set(grad_ind(d) * shape(j), R);
+               Dum.Set(grad_ind(d) * shape(j), R);
+               Dum(0,1) = 0.0;
+               Dum(1,0) = 0.0;
+               Dum(0,0) = Dum(0,0)+Dum(1,1);
+               Dum(1,1) = 0.0;
+               Jtr_dx(dof*d + j).Set(detv,Dum);
             }
          }
          break;
@@ -1515,42 +1554,30 @@ case ADAPTIVE_SHAPE:
          const double factor = big_zone_side-small_zone_side;
          dW.Set(factor, Wideal);
          dW(1,1) = 0.0;
-         CalcInverseTranspose(W, Winv);
+
+         CalcInverse(W, Winv);
 
          double detv = W.Det();
-         Winv *= detv;
-/* Method 1
-//         Mult(Winv, dW, R);
-*/
-/* Method 2
 
-         R = 0.0;
-         for (int d1 = 0; d1 < dim; d1++)
-         {
-            for (int d2 = 0; d2 < dim; d2++)
-            {
-             R(0,0) += Winv(d1,d2)*dW(d1,d2);
-            }
-         }
+         DenseMatrix Dum = Winv;
+         Dum = 0.;
 
-*/
-/* Method 3
-
-*/
          Mult(Winv, dW, R);
-         R(0,1) = 0.0;
-         R(1,0) = 0.0;
-         R(0,0) = R(0,0)+R(1,1);
-         R(1,1) = 0.0;
 
          Vector grad_ind(dim), shape(dof);
          indicator->GetGradient(*tr, grad_ind);
          nfe->CalcShape(ip, shape);
          for (int d = 0; d < dim; d++)
-         { 
+         {
             for (int j = 0; j < dof; j++)
-            { 
-               Jtr_dx(dof*d + j).Set(grad_ind(d) * shape(j), R);
+            {
+               //Jtr_dx(dof*d + j).Set(grad_ind(d) * shape(j), R);
+               Dum.Set(grad_ind(d) * shape(j), R);
+               Dum(0,1) = 0.0;
+               Dum(1,0) = 0.0;
+               Dum(0,0) = Dum(0,0)+Dum(1,1);
+               Dum(1,1) = 0.0;
+               Jtr_dx(dof*d + j).Set(detv,Dum);
             }
          }
          break;
@@ -1583,47 +1610,32 @@ case ADAPTIVE_SHAPE_AND_SIZE:
 	 dW(0,0) = 0.0;
 	 dW(1,1) = sqrt(big_size) / adapt_size_factor -
                    sqrt(big_size);
-	 CalcInverseTranspose(W, Winv);
+         CalcInverse(W, Winv);
 
-	 double detv = W.Det();
-	 Winv *= detv;
+         double detv = W.Det();
 
-//
-/* Method 1
-//         Mult(Winv, dW, R);
-*/
-/* Method 2
+         DenseMatrix Dum = Winv;
+         Dum = 0.;
 
-	 R = 0.0;
-	 for (int d1 = 0; d1 < dim; d1++)
-	 {
-	    for (int d2 = 0; d2 < dim; d2++)
-	    {
-	     R(0,0) += Winv(d1,d2)*dW(d1,d2);
-	    }
-	 }
+         Mult(Winv, dW, R);
 
-*/
-/* Method 3
-
-*/
-	 Mult(Winv, dW, R);
-	 R(0,1) = 0.0;
-	 R(1,0) = 0.0;
-	 R(0,0) = R(0,0)+R(1,1);
-	 R(1,1) = 0.0;
-
-	 Vector grad_ind(dim), shape(dof);
-	 indicator->GetGradient(*tr, grad_ind);
-	 nfe->CalcShape(ip, shape);
-	 for (int d = 0; d < dim; d++)
-	 {
-	    for (int j = 0; j < dof; j++)
-	    {
-	       Jtr_dx(dof*d + j).Set(grad_ind(d) * shape(j), R);
-	    }
-	 }
-	 break;
+         Vector grad_ind(dim), shape(dof);
+         indicator->GetGradient(*tr, grad_ind);
+         nfe->CalcShape(ip, shape);
+         for (int d = 0; d < dim; d++)
+         {
+            for (int j = 0; j < dof; j++)
+            {
+               //Jtr_dx(dof*d + j).Set(grad_ind(d) * shape(j), R);
+               Dum.Set(grad_ind(d) * shape(j), R);
+               Dum(0,1) = 0.0;
+               Dum(1,0) = 0.0;
+               Dum(0,0) = Dum(0,0)+Dum(1,1);
+               Dum(1,1) = 0.0;
+               Jtr_dx(dof*d + j).Set(detv,Dum);
+            }
+         }
+         break;
       }
       default:
       {

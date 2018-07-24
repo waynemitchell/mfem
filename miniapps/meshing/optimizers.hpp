@@ -757,11 +757,11 @@ double RelaxedNewtonSolver::ComputeScalingFactor(const Vector &x,
       x_gf.SetFromTrueVector();
       energy_out = nlf->GetEnergy(x_out);
 
-
       if (energy_out < 1.2*energy_in)
       {
         if (print_level >= 0){cout << "about to process new state" << endl;}
         ProcessNewState(x_out);
+// Dont process it sooner because mesh can be invalid
         if (print_level >= 0){cout << "done process new state" << endl;}
         energy_out = nlf->GetEnergy(x_out);
       } 
@@ -918,7 +918,6 @@ double DescentNewtonSolver::ComputeScalingFactor(const Vector &x,
       energy_out = nlf->GetEnergy(x_out);
       if (energy_out > 1.2*energy_in || isnan(energy_out) != 0)
       {
-        cout << i << " " << scale << " " << energy_in << " " << energy_out <<  " energy did not reduce\n";
          scale *= 0.1;continue;
       }
 
@@ -949,7 +948,7 @@ double DescentNewtonSolver::ComputeScalingFactor(const Vector &x,
 
       if (tauvaln < 1.0*tauvals && gninvn > gninvo)
       { 
-       scale *= 0.1;
+       scale *= 0.5;
       }
       else { x_out_ok = true; break; }
    }
@@ -958,7 +957,7 @@ double DescentNewtonSolver::ComputeScalingFactor(const Vector &x,
    {
       cout << "Energy decrease: "
            << (energy_in - energy_out) / energy_in * 100.0
-           << "% with " << scale << " scaling." << energy_out << endl;
+           << "% with " << scale << " scaling. " << energy_in << " " << energy_out <<  endl;
    }
 
    if (x_out_ok == false) { return 0.0; }
@@ -1264,9 +1263,8 @@ double DLBFGSSolver::ComputeScalingFactor(const Vector &x,
     add(x, -scale, c, x_out);
       
     energy_out = nlf->GetEnergy(x_out);
-    if (energy_out > 1.2*energy_in || isnan(energy_out) != 0)
+    if (energy_out > 1.0*energy_in || isnan(energy_out) != 0)
     { 
-     cout << i << " " << scale << " " << energy_in << " " << energy_out <<  " energy did not reduce\n";
      scale *= 0.1;continue;
     }       
       
@@ -1306,7 +1304,7 @@ double DLBFGSSolver::ComputeScalingFactor(const Vector &x,
    {
       cout << "Energy decrease: "
            << (energy_in - energy_out) / energy_in * 100.0
-           << "% with " << scale << " scaling." << energy_out << endl;
+           << "% with " << scale << " scaling. " << energy_in << " " << energy_out <<  endl;
    }
 
    if (x_out_ok == false) { return 0.0; }

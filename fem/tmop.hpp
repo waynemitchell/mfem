@@ -379,6 +379,25 @@ public:
                           const double weight, DenseMatrix &A) const;
 };
 
+/// Shifted barrier form of metric 2 (shape, ideal barrier metric), 2D
+class TMOP_Metric_322 : public TMOP_QualityMetric
+{
+protected:
+   double &tau0;
+   mutable InvariantsEvaluator3D<double> ie;
+
+public:
+   TMOP_Metric_322(double &t0): tau0(t0) {}
+
+   // W = 0.5(|J|^2 - 2det(J)) / (det(J) - tau0).
+   virtual double EvalW(const DenseMatrix &Jpt) const;
+
+   virtual void EvalP(const DenseMatrix &Jpt, DenseMatrix &P) const;
+
+   virtual void AssembleH(const DenseMatrix &Jpt, const DenseMatrix &DS,
+                          const double weight, DenseMatrix &A) const;
+};
+
 /// Shifted barrier form of 3D metric 16 (volume, ideal barrier metric), 3D
 class TMOP_Metric_352 : public TMOP_QualityMetric
 {

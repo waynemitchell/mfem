@@ -73,6 +73,7 @@
 // L-BFGS has been added - working 
 // ess_dof has been added
 // findpts has been added
+// untangler is working
  
 
 #include "mfem.hpp"
@@ -93,7 +94,7 @@ int spatial_essdof(double xv, double yv)
    double dy = yv-yc;
    const double r = sqrt(dx*dx + dy*dy + 1e-12);
    int idx = 0;
-   if (r < 0.5) idx = 1;
+   if (r < 0.00) idx = 1;
    return idx;
 }
 
@@ -476,7 +477,7 @@ int main (int argc, char *argv[])
    args.AddOption(&quad_order, "-qo", "--quad_order",
                   "Order of the quadrature rule.");
    args.AddOption(&solver_type, "-st", "--solver_type",
-                  "Set the non-linear solver - 0 or 1");
+                  "Set the non-linear solver - 0: Newton, 1: LBFGS, 2: CG");
    args.AddOption(&newton_iter, "-ni", "--newton-iters",
                   "Maximum number of Newton iterations.");
    args.AddOption(&newton_rtol, "-rtol", "--newton-rel-tolerance",
@@ -630,6 +631,7 @@ int main (int argc, char *argv[])
       case 315: metric = new TMOP_Metric_315; break;
       case 316: metric = new TMOP_Metric_316; break;
       case 321: metric = new TMOP_Metric_321; break;
+      case 322: metric = new TMOP_Metric_322(tauval); break;
       case 352: metric = new TMOP_Metric_352(tauval); break;
       default:
          if (myid == 0) { cout << "Unknown metric_id: " << metric_id << endl; }
@@ -779,8 +781,6 @@ int main (int argc, char *argv[])
       a.AddDomainIntegrator(he_nlf_integ2);
    }
    else { a.AddDomainIntegrator(he_nlf_integ); }
-   const double init_en = a.GetParGridFunctionEnergy(x);
-   if (myid == 0) { cout << "Initial strain energy: " << init_en << endl; }
 
    // 16. Visualize the starting mesh and metric values.
    if (visualization)
@@ -845,10 +845,10 @@ int main (int argc, char *argv[])
             { ess_vdofs[n++] = vdofs[j]; }
          }
       }
-      a.SetEssentialVDofs(ess_vdofs);
+     a.SetEssentialVDofs(ess_vdofs);
    }
 
-   // Set essential dofs based on location
+// Set essential dofs based on location - Begin
    ParGridFunction pnodes(pfespace);
    pmesh->GetNodes(pnodes);
    const int nNodes = pnodes.Size() / dim;
@@ -858,23 +858,30 @@ int main (int argc, char *argv[])
      int valchk = spatial_essdof(pnodes(i),pnodes(nNodes+i));
      if (valchk == 1)
      {
-       n += 2;
+       n += dim;
      }
     }
 
    Array<int> spat_ess_vdofs(n);
-   n = 0;
-   for (int i = 0; i < nNodes; ++i)
+   if (n > 0) 
+   {
+    n = 0;
+    for (int i = 0; i < nNodes; ++i)
     {
      int valchk = spatial_essdof(pnodes(i),pnodes(nNodes+i));
      if (valchk == 1)
      {
        spat_ess_vdofs[n] = i;
        spat_ess_vdofs[n+1] = nNodes+i;
-       n += 2;
+       n += dim;
      }
     }
-   a.SetAddEssentialVDofs(spat_ess_vdofs);
+   }
+//    a.SetAddEssentialVDofs(spat_ess_vdofs);
+    a.SetEssentialElems();
+
+   const double init_en = a.GetParGridFunctionEnergy(x);
+   if (myid == 0) { cout << "Initial strain energy: " << init_en << endl; }
 
    // 18. As we use the Newton method to solve the resulting nonlinear system,
    //     here we setup the linear solver for the system's Jacobian.
@@ -904,7 +911,7 @@ int main (int argc, char *argv[])
 
       prec = new HypreSmoother;
       prec->SetType(HypreSmoother::l1Jacobi, 1);
-      minres->SetPreconditioner(*prec);
+//      minres->SetPreconditioner(*prec);
 
       S = minres;
    }
@@ -947,7 +954,7 @@ int main (int argc, char *argv[])
    else
    {
       if ( (dim == 2 && metric_id != 22 && metric_id != 252 && metric_id != 211) ||
-           (dim == 3 && metric_id != 352) )
+           (dim == 3 && metric_id != 352 && metric_id != 322) )
       {
          if (myid == 0)
          { cout << "The mesh is inverted. Use an untangling metric." << endl; }
