@@ -1508,25 +1508,19 @@ void TargetConstructor::ComputeTargetDerivativesb(int e_id, int ip_id,
 
          double detv = W.Det();
 
-         DenseMatrix Dum = Winv;
-         Dum = 0.;
-
          Mult(Winv, dW, R);
- 
+         double trv = R.Trace();
+         R = 0.;
+         R(0,0) = trv*detv;
+
          Vector grad_ind(dim), shape(dof);
          indicator->GetGradient(*tr, grad_ind);
          nfe->CalcShape(ip, shape);
          for (int d = 0; d < dim; d++)
          {
             for (int j = 0; j < dof; j++)
-            {
-               //Jtr_dx(dof*d + j).Set(grad_ind(d) * shape(j), R);
-               Dum.Set(grad_ind(d) * shape(j), R);
-               Dum(0,1) = 0.0;
-               Dum(1,0) = 0.0;
-               Dum(0,0) = Dum(0,0)+Dum(1,1);
-               Dum(1,1) = 0.0;
-               Jtr_dx(dof*d + j).Set(detv,Dum);
+            {  
+               Jtr_dx(dof*d + j).Set(grad_ind(d) * shape(j), R);
             }
          }
          break;
@@ -1559,10 +1553,10 @@ case ADAPTIVE_SHAPE:
 
          double detv = W.Det();
 
-         DenseMatrix Dum = Winv;
-         Dum = 0.;
-
          Mult(Winv, dW, R);
+         double trv = R.Trace();
+         R = 0.;
+         R(0,0) = trv*detv;
 
          Vector grad_ind(dim), shape(dof);
          indicator->GetGradient(*tr, grad_ind);
@@ -1571,13 +1565,7 @@ case ADAPTIVE_SHAPE:
          {
             for (int j = 0; j < dof; j++)
             {
-               //Jtr_dx(dof*d + j).Set(grad_ind(d) * shape(j), R);
-               Dum.Set(grad_ind(d) * shape(j), R);
-               Dum(0,1) = 0.0;
-               Dum(1,0) = 0.0;
-               Dum(0,0) = Dum(0,0)+Dum(1,1);
-               Dum(1,1) = 0.0;
-               Jtr_dx(dof*d + j).Set(detv,Dum);
+               Jtr_dx(dof*d + j).Set(grad_ind(d) * shape(j), R);
             }
          }
          break;
@@ -1614,10 +1602,10 @@ case ADAPTIVE_SHAPE_AND_SIZE:
 
          double detv = W.Det();
 
-         DenseMatrix Dum = Winv;
-         Dum = 0.;
-
          Mult(Winv, dW, R);
+         double trv = R.Trace();
+         R = 0.;
+         R(0,0) = trv*detv;
 
          Vector grad_ind(dim), shape(dof);
          indicator->GetGradient(*tr, grad_ind);
@@ -1625,14 +1613,8 @@ case ADAPTIVE_SHAPE_AND_SIZE:
          for (int d = 0; d < dim; d++)
          {
             for (int j = 0; j < dof; j++)
-            {
-               //Jtr_dx(dof*d + j).Set(grad_ind(d) * shape(j), R);
-               Dum.Set(grad_ind(d) * shape(j), R);
-               Dum(0,1) = 0.0;
-               Dum(1,0) = 0.0;
-               Dum(0,0) = Dum(0,0)+Dum(1,1);
-               Dum(1,1) = 0.0;
-               Jtr_dx(dof*d + j).Set(detv,Dum);
+            {  
+               Jtr_dx(dof*d + j).Set(grad_ind(d) * shape(j), R);
             }
          }
          break;
