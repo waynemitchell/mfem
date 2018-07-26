@@ -89,7 +89,7 @@ int spatial_essdof( const Vector &x);
 
 int spatial_essdof(double xv, double yv)
 {
-   double xc = -0.00, yc = 0.;
+   double xc = 0.80, yc = 0.;
    double dx = xv-xc;
    double dy = yv-yc;
    const double r = sqrt(dx*dx + dy*dy + 1e-12);
@@ -877,7 +877,12 @@ int main (int argc, char *argv[])
      }
     }
    }
-//    a.SetAddEssentialVDofs(spat_ess_vdofs);
+    a.SetAddEssentialVDofs(spat_ess_vdofs); 
+// Set essential dofs based on location - End
+
+// Set essential Elements based on essential nodes
+// Must be called because it sets the array ess_el_list (set to 0 for all elements 
+// in non-linear form constructor)
     a.SetEssentialElems();
 
    const double init_en = a.GetParGridFunctionEnergy(x);
@@ -911,7 +916,8 @@ int main (int argc, char *argv[])
 
       prec = new HypreSmoother;
       prec->SetType(HypreSmoother::l1Jacobi, 1);
-//      minres->SetPreconditioner(*prec);
+//    k10 - I have commented the line below out because it was impacting
+//    convergence of ICF combo test minres->SetPreconditioner(*prec);
 
       S = minres;
    }
@@ -936,11 +942,9 @@ int main (int argc, char *argv[])
 
    // 20. Finally, perform the nonlinear optimization.
    NewtonSolver *newton = NULL;
-   CGOSolver    *cgo    = NULL;
-   LBFGSSolver  *lbfo   = NULL;
-   DLBFGSSolver *dlbfo  = NULL;
+   LBFGSOptimizer  *lbfo   = NULL;
    int start_s=clock();
-   if (solver_type == 0 || solver_type > 2)
+   if (solver_type != 1)
    {
    if (tauval > 0.0)
    {
@@ -984,13 +988,12 @@ int main (int argc, char *argv[])
    }
    else if (solver_type==1) 
    {
-    if (tauval > 0.0)
-    {
-     lbfo = new LBFGSSolver(*ir, pfespace, x,
+     lbfo = new LBFGSOptimizer(*ir, pfespace, x,
                                        &x0, &remap_gf_init,
                                        &remap_gf, advector);
      if (myid == 0)
       {cout << "The L-BFGS Optimizer is used." << endl;}
+     if (tauval < 0) {MFEM_ABORT("LBFGS can't be used for untangling");}
      int start_s=clock();
      lbfo->SetPreconditioner(*S);
      lbfo->SetMaxIter(newton_iter);
@@ -1007,55 +1010,6 @@ int main (int argc, char *argv[])
      }
      delete lbfo;
     }
-    else
-    {
-      dlbfo = new DLBFGSSolver(*ir, pfespace, x,
-                                       &x0, &remap_gf_init,
-                                       &remap_gf, advector, tauval);
-     tauval -= 0.001;
-     if (myid == 0)
-      {cout << "The DL-BFGS Optimizer is used." << endl;}
-     int start_s=clock();
-     dlbfo->SetPreconditioner(*S);
-     dlbfo->SetMaxIter(newton_iter);
-     dlbfo->SetRelTol(newton_rtol);
-     dlbfo->SetAbsTol(0.0);
-     dlbfo->SetPrintLevel(verbosity_level >= 1 ? 1 : -1);
-     dlbfo->SetOperator(a);
-     dlbfo->Mult(b, x.GetTrueVector());
-     x.SetFromTrueVector();
-     if (myid == 0 && dlbfo->GetConverged() == false)
-     {
-        cout << "DLBFGSIteration: rtol = " << newton_rtol << " not achieved."
-            << endl;
-     }
-     delete dlbfo;
-    }
-   }
-   else if (solver_type==2)
-   {
-      cgo = new CGOSolver(*ir, pfespace, x,
-                                       &x0, &remap_gf_init,
-                                       &remap_gf, advector);
-     if (tauval < 0) {MFEM_ABORT("CG can't be used for untangling");}
-     if (myid == 0)
-      {cout << "The CG Optimizer is used." << endl;}
-    int start_s=clock();
-    cgo->SetPreconditioner(*S);
-    cgo->SetMaxIter(newton_iter);
-    cgo->SetRelTol(newton_rtol);
-    cgo->SetAbsTol(0.0);
-    cgo->SetPrintLevel(verbosity_level >= 1 ? 1 : -1);
-    cgo->SetOperator(a);
-    cgo->Mult(b, x.GetTrueVector());
-    x.SetFromTrueVector();
-    if (myid == 0 && cgo->GetConverged() == false)
-    {
-       cout << "CGIteration: rtol = " << newton_rtol << " not achieved."
-            << endl;
-    }
-   delete cgo;
-   }
 
    // 21. Save the optimized mesh to a file. This output can be viewed later
    //     using GLVis: "glvis -m optimized -np num_mpi_tasks".

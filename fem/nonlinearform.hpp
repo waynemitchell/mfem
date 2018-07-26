@@ -63,7 +63,7 @@ public:
       : Operator(f->GetTrueVSize()), fes(f), Grad(NULL), cGrad(NULL),
         sequence(f->GetSequence()), P(f->GetProlongationMatrix()),
         cP(dynamic_cast<const SparseMatrix*>(P))
-   { }
+   { ess_el_list.SetSize(fes->GetNE());ess_el_list = 0;}
 
    FiniteElementSpace *FESpace() { return fes; }
    const FiniteElementSpace *FESpace() const { return fes; }
@@ -97,9 +97,11 @@ public:
    /// (DEPRECATED) Specify essential boundary conditions.
    /** @deprecated Use either SetEssentialBC() or SetEssentialTrueDofs(). */
    void SetEssentialVDofs(const Array<int> &ess_vdofs_list);
+   // method to Add esential vdofs to existing list
    void SetAddEssentialVDofs(const Array<int> &ess_vdofs_list);
 
    /// Determine elements that have all dofs in ess_tdof_list;
+   /// Sets the array ess_el_list
    void SetEssentialElems();
 
    /// Specify essential boundary conditions.

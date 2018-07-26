@@ -540,7 +540,7 @@ public:
                                          const IntegrationRule &ir,
                                          DenseTensor &Jtr_dx) const;
 
-   virtual void ComputeTargetDerivativesb(int e_id, int ip_id,
+   virtual void ComputeTargetDetDerivatives(int e_id, int ip_id,
                                          const FiniteElement &fe,
                                          const IntegrationRule &ir,
                                          DenseTensor &Jtr_dx) const;

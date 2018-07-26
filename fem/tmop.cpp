@@ -1286,7 +1286,7 @@ void TMOP_Integrator::AssembleElementVector(const FiniteElement &el,
       if (coeff1) { weight_m *= coeff1->Eval(*Tpr, ip); }
 
       P *= weight_m;  
-      AddMultABt(DS, P, PMatO); //This is W^-1dA/dx * Dmu/DT 
+      AddMultABt(DS, P, PMatO); //This is ip.weight*det(W)*W^-1dA/dx*Dmu/DT 
   
       // Derivative of the target matrix.
       targetC->ComputeTargetDerivatives(T.ElementNo, i, el, *ir, Jtr_dx);
@@ -1296,7 +1296,7 @@ void TMOP_Integrator::AssembleElementVector(const FiniteElement &el,
          DenseMatrix AdW(dim);
 //         Mult(Tpr->Jacobian(), Jtr_dx(j), AdW); //A *d(W^-1)/dx
          Mult(Jpr, Jtr_dx(j), AdW); //A *d(W^-1)/dx
-         // Contract.
+         // Contract. (A *d(W^-1)/dx):(d mu/dT)
          for (int d1 = 0; d1 < dim; d1++)
          {
             for (int d2 = 0; d2 < dim; d2++)
@@ -1307,7 +1307,7 @@ void TMOP_Integrator::AssembleElementVector(const FiniteElement &el,
       }
 
       // Derivative of Determinant of target matrix
-      targetC->ComputeTargetDerivativesb(T.ElementNo, i, el, *ir, Jtr_dx);
+      targetC->ComputeTargetDetDerivatives(T.ElementNo, i, el, *ir, Jtr_dx);
       Tpr->SetIntPoint(&ip);
       double mu = metric->EvalW(Jpt);
       for (int j = 0; j < dof * dim; j++)
@@ -1316,18 +1316,9 @@ void TMOP_Integrator::AssembleElementVector(const FiniteElement &el,
        AdW = Jtr_dx(j);
        AdW *= mu;
        AdW *= ip.weight;
-         // Contract.
-         // not really a contraction.. AdW is mostly zero's except AdW(0,0)
-         for (int d1 = 0; d1 < dim; d1++)
-         {
-            for (int d2 = 0; d2 < dim; d2++)
-            {
-             elvect(j) += AdW(d1, d2);
-            }
-         }
+       elvect(j) += AdW(0,0);
+//     ip.weight*d(detW)/dx*mu
       }
-
-
 
       if (coeff0)
       {
@@ -1466,7 +1457,7 @@ void InterpolateTMOP_QualityMetric(TMOP_QualityMetric &metric,
 }
 
 // virtual method
-void TargetConstructor::ComputeTargetDerivativesb(int e_id, int ip_id,
+void TargetConstructor::ComputeTargetDetDerivatives(int e_id, int ip_id,
                                                  const FiniteElement &fe,
                                                  const IntegrationRule &ir,
                                                  DenseTensor &Jtr_dx) const

@@ -103,12 +103,9 @@ void NonlinearForm::SetEssentialElems()
  fes->GetElementDofs(0, dofs);
  const int ndofe = dofs.Size()*dim; //total dofs per element
  const int dofsz = dofs.Size(); //dof per element for each direction
- ess_el_list.SetSize(0);
- ess_el_list.SetSize(NE);
 
  Array<int> doflist(tdofs*dim);
  doflist = 0;
- ess_el_list = 0;
 
  const int ndofl = ess_tdof_list.Size();
  fes->BuildDofToArrays();
