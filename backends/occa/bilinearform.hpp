@@ -136,6 +136,8 @@ public:
    // Assembles the form i.e. sums over all domain/bdr integrators.
    virtual void Assemble();
 
+   void AssembleElementMatrices(DenseTensor &element_matrices);
+
    void FormLinearSystem(const mfem::Array<int> &constraintList,
                          mfem::Vector &x, mfem::Vector &b,
                          mfem::Operator *&Aout,

@@ -360,14 +360,26 @@ const double RK8Solver::c[] =
 void BackwardEulerSolver::Init(TimeDependentOperator &_f)
 {
    ODESolver::Init(_f);
-   k.SetSize(f->Width());
+   int n = f->Width();
+#ifdef MFEM_USE_BACKENDS
+   const DLayout& in_layout = f->InLayout();
+   if (in_layout)
+   {
+      k.Resize(in_layout);
+   }
+   else
+#endif
+   {
+      k.SetSize(n);
+   }
 }
 
 void BackwardEulerSolver::Step(Vector &x, double &t, double &dt)
 {
    f->SetTime(t + dt);
    f->ImplicitSolve(dt, x, k); // solve for k: k = f(x + dt*k, t + dt)
-   x.Add(dt, k);
+   x.Axpby(1.0, x, dt, k);
+   // x.Add(dt, k);
    t += dt;
 }
 

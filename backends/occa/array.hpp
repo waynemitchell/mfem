@@ -94,6 +94,9 @@ public:
    inline void OccaAssign(const Array &src);
 
    inline void OccaPush(const void *src);
+
+   virtual void* GetData() { return OccaMem().ptr(); }
+   virtual const void* GetData() const { return OccaMem().ptr(); }
 };
 
 

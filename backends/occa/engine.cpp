@@ -16,6 +16,7 @@
 #include "url_handler.hpp"
 #include "bilinearform.hpp"
 #include "../../general/array.hpp"
+#include "../hypre/vector.hpp"
 
 namespace mfem
 {
@@ -40,6 +41,8 @@ void Engine::Init(const std::string &engine_spec)
    ::occa::properties props(engine_spec);
    device = new ::occa::device[1];
    device[0].setup(props);
+   std::string integ_type(props.get("integrator", std::string("occa")));
+   use_acrotensor = !strcmp(integ_type.c_str(), "acrotensor");
 
    okl_path = "mfem-occa://";
    if (!fileOpenerRegistered)
@@ -127,10 +130,34 @@ DArray Engine::MakeArray(PLayout &layout, std::size_t item_size) const
 DVector Engine::MakeVector(PLayout &layout, int type_id) const
 {
    MFEM_ASSERT(type_id == ScalarId<double>::value, "invalid type_id");
-   MFEM_ASSERT(dynamic_cast<Layout *>(&layout) != NULL,
-               "invalid input layout");
-   Layout *lt = static_cast<Layout *>(&layout);
-   return DVector(new Vector(*lt));
+   // MFEM_ASSERT(dynamic_cast<Layout *>(&layout) != NULL,
+   //             "invalid input layout");
+   if (dynamic_cast<Layout *>(&layout))
+   {
+      Layout *lt = static_cast<Layout *>(&layout);
+      return DVector(new Vector(*lt));
+   }
+   else if (dynamic_cast<mfem::hypre::Layout *>(&layout))
+   {
+      // FIXME There are two ways of doing this:
+      // 1. Have operators carry around hypre layouts and be able to initialize vectors directly from them.
+      // 2. convert all layouts to the occa layouts
+      // Currently using the first option
+      mfem::hypre::Layout &lt = static_cast<mfem::hypre::Layout&>(layout);
+      Layout &occa_lt = static_cast<Layout&>(lt.Base());
+      return DVector(new Vector(occa_lt));
+      // mfem::hypre::Layout *lt = static_cast<mfem::hypre::Layout *>(&layout);
+      // // TODO Clean this up with a trait class...
+      // return DVector(new mfem::hypre::Vector<
+      //                mfem::occa::Array,
+      //                mfem::occa::Vector,
+      //                mfem::occa::Engine,
+      //                mfem::occa::Layout>(*lt));
+   }
+   else
+   {
+      mfem_error("ERROR: [mfem::occa::Engine::MakeVector] cannot interpret layout");
+   }
 }
 
 DFiniteElementSpace Engine::MakeFESpace(mfem::FiniteElementSpace &fespace) const

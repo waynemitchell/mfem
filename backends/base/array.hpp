@@ -202,6 +202,11 @@ public:
    template <typename T>
    void Assign(const PArray &src) { if (Size()) { DoAssign(src, sizeof(T)); } }
 
+   /// Get device data pointer.
+   // TODO Incorporate some location information
+   virtual void* GetData() = 0;
+   virtual const void* GetData() const = 0;
+
    ///@}
    // End: Virtual interface
 };

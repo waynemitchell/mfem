@@ -43,6 +43,7 @@ protected:
    static bool fileOpenerRegistered;
    ::occa::device *device; // An array of OCCA devices
    std::string okl_path;
+   bool use_acrotensor;
 
    void Init(const std::string &engine_spec);
 
@@ -73,6 +74,8 @@ public:
    /// Two mfem::occa::Engine are equal if they use the same OCCA device.
    bool operator==(const Engine &other) const
    { return GetDevice() == other.GetDevice(); }
+
+   bool UseAcrotensorIntegrator() const { return use_acrotensor; }
 
    /// TODO: doxygen
    bool CheckEngine(const mfem::Engine *e) const;

@@ -7565,8 +7565,13 @@ void Mesh::PrintVTK(std::ostream &out, int ref, int field_data)
 
 void Mesh::GetElementColoring(Array<int> &colors, int el0)
 {
-   int delete_el_to_el = (el_to_el) ? (0) : (1);
    const Table &el_el = ElementToElementTable();
+   GetElementColoring(el_el, colors, el0);
+}
+
+void Mesh::GetElementColoring(const Table &el_el, Array<int> &colors, int el0)
+{
+   int delete_el_to_el = (el_to_el) ? (0) : (1);
    int num_el = GetNE(), stack_p, stack_top_p, max_num_col;
    Array<int> el_stack(num_el);
 

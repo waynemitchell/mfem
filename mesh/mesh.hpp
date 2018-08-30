@@ -1062,6 +1062,7 @@ public:
    void PrintVTK(std::ostream &out, int ref, int field_data=0);
 
    void GetElementColoring(Array<int> &colors, int el0 = 0);
+   void GetElementColoring(const Table &table, Array<int> &colors, int el0 = 0);
 
    /** Prints the mesh with bdr elements given by the boundary of
        the subdomains, so that the boundary of subdomain i has bdr

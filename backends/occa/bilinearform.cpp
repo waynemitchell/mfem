@@ -14,7 +14,10 @@
 
 #include "backend.hpp"
 #include "bilininteg.hpp"
+#include "abilininteg.hpp"
 #include "../../fem/bilinearform.hpp"
+#include "../hypre/fespace.hpp"
+#include "../hypre/parmatrix.hpp"
 
 namespace mfem
 {
@@ -239,6 +242,13 @@ void OccaBilinearForm::Assemble()
    }
 }
 
+void OccaBilinearForm::AssembleElementMatrices(DenseTensor &element_matrices)
+{
+   if (integrators.size() > 1) mfem_error("TBD");
+   mfem::acro::PAIntegrator *pai = dynamic_cast<mfem::acro::PAIntegrator*>(integrators[0]);
+   if (pai) pai->BatchedAssembleElementMatrices(element_matrices);
+}
+
 void OccaBilinearForm::FormLinearSystem(const mfem::Array<int> &constraintList,
                                         mfem::Vector &x, mfem::Vector &b,
                                         mfem::Operator *&Aout,
@@ -433,6 +443,8 @@ void BilinearForm::InitOccaBilinearForm()
          dynamic_cast<GridFunctionCoefficient*>(scal_coeff);
       // TODO: other types of coefficients ...
 
+      const bool use_acrotensor = obform->OccaEngine().UseAcrotensorIntegrator();
+
       OccaCoefficient *ocoeff = NULL;
       if (const_coeff)
       {
@@ -460,11 +472,21 @@ void BilinearForm::InitOccaBilinearForm()
       }
       else if (integ_name == "mass")
       {
-         ointeg = new OccaMassIntegrator(*ocoeff);
+         if (!use_acrotensor) {
+            ointeg = new OccaMassIntegrator(*ocoeff);
+         }
+         else {
+            ointeg = new ::mfem::acro::AcroMassIntegrator(obform->OccaEngine());
+         }
       }
       else if (integ_name == "diffusion")
       {
-         ointeg = new OccaDiffusionIntegrator(*ocoeff);
+         if (!use_acrotensor) {
+            ointeg = new OccaDiffusionIntegrator(*ocoeff);
+         }
+         else {
+            ointeg = new ::mfem::acro::AcroDiffusionIntegrator(obform->OccaEngine());
+         }
       }
       else
       {
@@ -497,15 +519,94 @@ bool BilinearForm::Assemble()
 void BilinearForm::FormSystemMatrix(const mfem::Array<int> &ess_tdof_list,
                                     mfem::OperatorHandle &A)
 {
-   if (A.Type() == mfem::Operator::ANY_TYPE)
+   ::occa::properties props(A.GetSpec());
+   std::string repr(props.get("representation", std::string("partial")));
+
+   if (repr == "partial")
    {
+      // ConstrainedOperator . RAP
       mfem::Operator *Aout = NULL;
       obform->FormOperator(ess_tdof_list, Aout);
       A.Reset(Aout);
    }
    else
    {
-      MFEM_ABORT("Operator::Type is not supported, type = " << A.Type());
+      // Assumes HYPRE backend
+
+      // FIXME: serial mode is not supported
+      mfem::ParFiniteElementSpace *pfespace = dynamic_cast<mfem::ParFiniteElementSpace*>(&obform->GetTrialFESpace());
+      if (!pfespace) mfem_error("Not supported for now");
+
+      // FIXME: Face terms are not supported
+      // There doesn't exist a check for this at the moment.
+
+      // Create engine
+      // This performs various checks like whether the memory space that OCCA uses is compatible with HYPRE
+      mfem::hypre::FiniteElementSpace hfes(*engine, *pfespace);
+
+      // Make the E->E "matrix" operator (stored unrolled as a vector)
+      const int num_elements = pfespace->GetNE();
+      const int num_dofs_per_el = pfespace->GetFE(0)->GetDof() * pfespace->GetVDim();
+
+      mfem::DenseTensor element_matrices(num_dofs_per_el, num_dofs_per_el, num_elements);
+      obform->AssembleElementMatrices(element_matrices);
+
+      const Table &elem_dof = pfespace->GetElementToDofTable();
+      Table dof_dof;
+
+      const int height = pfespace->GetVLayout()->Size();
+      // the sparsity pattern is defined from the map: element->dof
+      Table dof_elem;
+      Transpose(elem_dof, dof_elem, height);
+      mfem::Mult(dof_elem, elem_dof, dof_dof);
+
+      dof_dof.SortRows();
+
+      int *I = dof_dof.GetI();
+      int *J = dof_dof.GetJ();
+      double *data = new double[I[height]];
+
+      SparseMatrix A_local(I, J, data, height, height, true, true, true);
+      A_local = 0.0;
+
+      dof_dof.LoseData();
+
+      mfem::Array<int> vdofs;
+      for (int e = 0; e < num_elements; e++)
+      {
+         pfespace->GetElementVDofs(e, vdofs);
+         A_local.AddSubMatrix(vdofs, vdofs, element_matrices(e));
+      }
+
+      if (ess_tdof_list.Size() > 0) mfem_error("TBD");
+      {
+         // EliminateVDofs in A_local (ess_tdof_list, KEEP_DIAG);
+      }
+
+      A_local.Finalize(true);
+
+      // Make the L->L matrix operator
+      mfem::hypre::ParMatrix lmat(hfes.GetLLayout(), A_local);
+
+      // Get the T->L matrix operator
+      const mfem::hypre::ParMatrix &t_to_l = hfes.GetProlongation();
+
+      // RAP it
+      A.Reset(mfem::hypre::MakePtAP(t_to_l, lmat));
+
+      // // TODO: Incorporate this method of using colors to improve the scalability of the serial loop above
+      // // After implementing a sparse matrix on the device.
+      // const mfem::Table &el_to_dof;
+      // mfem::Table dof_to_el, el_to_el;
+      // Transpose(el_to_dof, dof_to_el);
+      // Mult(el_to_dof, dof_to_el, el_to_el);
+
+      // // TODO: Get mesh
+      // mfem::Array<int> el_to_color;
+      // mesh->GetElementColoring(el_to_el, el_to_color);
+
+      // mfem::Table color_to_el;
+      // mfem::Transpose(el_to_color, color_to_el);
    }
 }
 
