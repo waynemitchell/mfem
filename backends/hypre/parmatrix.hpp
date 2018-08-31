@@ -18,7 +18,6 @@
 #include "../../linalg/operator.hpp"
 #include "../../linalg/sparsemat.hpp"
 #include "layout.hpp"
-#include "vector.hpp"
 #include "_hypre_parcsr_mv.h"
 
 #if defined(HYPRE_BIGINT)

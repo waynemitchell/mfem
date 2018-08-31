@@ -177,13 +177,13 @@ ParMatrix::ParMatrix(Layout &in_layout, Layout &out_layout,
    {
       const std::size_t length = out_layout.Size()+1;
       hypre_CSRMatrixI(mat_offd) = hypre_TAlloc(HYPRE_Int, length, HYPRE_MEMORY_SHARED);
-      std::memcpy(hypre_CSRMatrixI(mat_offd), i_diag, length * sizeof(HYPRE_Int));
+      std::memcpy(hypre_CSRMatrixI(mat_offd), i_offd, length * sizeof(HYPRE_Int));
    }
 
    {
       const std::size_t length = offd_nnz;
       hypre_CSRMatrixJ(mat_offd) = hypre_TAlloc(HYPRE_Int, length, HYPRE_MEMORY_SHARED);
-      std::memcpy(hypre_CSRMatrixJ(mat_offd), j_diag, length * sizeof(HYPRE_Int));
+      std::memcpy(hypre_CSRMatrixJ(mat_offd), j_offd, length * sizeof(HYPRE_Int));
    }
 
    {

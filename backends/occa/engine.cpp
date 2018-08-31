@@ -16,7 +16,7 @@
 #include "url_handler.hpp"
 #include "bilinearform.hpp"
 #include "../../general/array.hpp"
-#include "../hypre/vector.hpp"
+#include "../hypre/layout.hpp"
 
 namespace mfem
 {

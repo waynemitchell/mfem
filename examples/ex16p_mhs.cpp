@@ -82,6 +82,7 @@ protected:
    ParGridFunction u_gf;
    GridFunctionCoefficient uc;
    ParLinearForm b;
+   Vector b_vec;
 
    mutable Vector z; // auxiliary vector
 
@@ -137,7 +138,7 @@ int main(int argc, char *argv[])
                   "Mesh file to use.");
    args.AddOption(&ser_ref_levels, "-rs", "--refine-serial",
                   "Number of times to refine the mesh uniformly before parallelizing.");
-   args.AddOption(&par_ref_levels, "-rs", "--refine-parallel",
+   args.AddOption(&par_ref_levels, "-rp", "--refine-parallel",
                   "Number of times to refine the mesh uniformly after parallelizing.");
    args.AddOption(&order, "-o", "--order",
                   "Order (degree) of the finite elements.");
@@ -161,10 +162,10 @@ int main(int argc, char *argv[])
    args.Parse();
    if (!args.Good())
    {
-      args.PrintUsage(cout);
+      if (mpi_session.Root()) args.PrintUsage(cout);
       return 1;
    }
-   args.PrintOptions(cout);
+   if (mpi_session.Root()) args.PrintOptions(cout);
 
    // Examples for OCCA specifications:
    //   - CPU (serial): "mode: 'Serial'"
@@ -358,7 +359,7 @@ ModelOperator::ModelOperator(ParFiniteElementSpace &f,
      M(&fespace), K(&fespace), Mh(Mspec), Kh(Kspec), T(NULL),
      M_solver(fespace.GetComm()), T_solver(fespace.GetComm()),
      alpha(alpha_), u_gf(&fespace), uc(&u_gf),
-     b(&fespace), z(f.GetTrueVLayout()), device(device_)
+     b(&fespace), b_vec(f.GetTrueVLayout()), z(f.GetTrueVLayout()), device(device_)
 {
    const double rel_tol = 1e-8;
 
@@ -373,15 +374,6 @@ ModelOperator::ModelOperator(ParFiniteElementSpace &f,
    K.FormSystemMatrix(ess_tdof_list, Kh); Koper = Kh.Ptr();
    // mfem::hypre::ParMatrix *matK = static_cast<mfem::hypre::ParMatrix*>(Koper);
    // matK->Print("matrix_K.txt");
-   // Vector x(Koper->InLayout());
-   // x.Fill(0.0);
-   // x(2) = 1.0;
-   // x.Push();
-   // Vector y(Koper->OutLayout());
-   // Koper->Mult(x, y);
-   // y.Pull();
-   // y.Print();
-   // mfem_error("stopping here...");
 
    b.AddDomainIntegrator(new DomainLFIntegrator(uc));
 
@@ -406,14 +398,8 @@ void ModelOperator::Mult(const Vector &u, Vector &du_dt) const
    // Compute:
    //    du_dt = -M^{-1}*(K(u) + b(u)) b(u) = u^2
    // for du_dt
-   u.Pull();
-   u.Print();
-   cout << "--------" << endl;
    Koper->Mult(u, z);
-   z.Axpby(-1.0, z, -1.0, b);
-   z.Pull();
-   z.Print();
-   cout << "--------" << endl;
+   z.Axpby(-1.0, z, -1.0, b_vec);
    M_solver.Mult(z, du_dt);
 }
 
@@ -436,7 +422,7 @@ void ModelOperator::ImplicitSolve(const double dt,
    }
 
    Koper->Mult(u, z);  // z = Ku
-   z.Axpby(-1.0, z, -1.0, b); // z = -Ku - b
+   z.Axpby(-1.0, z, -1.0, b_vec); // z = -Ku - b
    T_solver.Mult(z, du_dt);
 }
 
@@ -462,7 +448,8 @@ void ModelOperator::SetParameters(const Vector &u)
    // u changed, so reassemble b
    u_gf.Pull();
    b.Assemble();
-   b.Push();
+   b.ParallelAssemble(b_vec);
+   b_vec.Push();
 }
 
 double InitialCondition(const Vector &x)
