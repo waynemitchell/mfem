@@ -130,7 +130,17 @@ void ParGridFunction::MakeRef(ParFiniteElementSpace *f, Vector &v, int v_offset)
 
 void ParGridFunction::Distribute(const Vector *tv)
 {
-   pfes->GetProlongationMatrix()->Mult(*tv, *this);
+#ifdef MFEM_USE_BACKENDS
+   if (fes->GetMesh()->HasEngine())
+   {
+      Resize(fes->GetVLayout());
+      fes->Get_PFESpace()->GetProlongationOperator()->Mult(*tv, *this);
+   }
+   else
+#endif
+   {
+      pfes->GetProlongationMatrix()->Mult(*tv, *this);
+   }
 }
 
 void ParGridFunction::AddDistribute(double a, const Vector *tv)

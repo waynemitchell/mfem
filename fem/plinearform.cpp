@@ -33,7 +33,17 @@ void ParLinearForm::Update(ParFiniteElementSpace *pf, Vector &v, int v_offset)
 
 void ParLinearForm::ParallelAssemble(Vector &tv)
 {
-   pfes->GetProlongationMatrix()->MultTranspose(*this, tv);
+#ifdef MFEM_USE_BACKENDS
+      if (pfes->GetMesh()->HasEngine())
+      {
+         tv.Resize(pfes->GetTrueVLayout());
+         pfes->Get_PFESpace()->GetProlongationOperator()->MultTranspose(*this, tv);
+      }
+      else
+#endif
+      {
+         pfes->GetProlongationMatrix()->MultTranspose(*this, tv);
+      }
 }
 
 HypreParVector *ParLinearForm::ParallelAssemble()

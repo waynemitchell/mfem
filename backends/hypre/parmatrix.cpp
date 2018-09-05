@@ -3,27 +3,13 @@
 
 #include "parmatrix.hpp"
 #include "_hypre_parcsr_ls.h"
+#include "_hypre_parcsr_mv.h"
 
 namespace mfem
 {
 
 namespace hypre
 {
-
-hypre_ParVector *ParMatrix::InitVector(Layout &layout)
-{
-
-   hypre_ParVector *vec = hypre_ParVectorCreate(layout.GetEngine().GetComm(), layout.GlobalSize(), layout.Offsets());
-   hypre_ParVectorInitialize(vec);
-
-   // Set when used
-   hypre_VectorData(hypre_ParVectorLocalVector(vec)) = NULL;
-
-   hypre_ParVectorOwnsPartitioning(vec) = (HYPRE_Int) false;
-   hypre_ParVectorOwnsData(vec) = (HYPRE_Int) false;
-
-   return vec;
-}
 
    // Make a block-diagonal matrix
 ParMatrix::ParMatrix(Layout &layout, mfem::SparseMatrix &spmat)
@@ -102,8 +88,8 @@ ParMatrix::ParMatrix(Layout &layout, mfem::SparseMatrix &spmat)
 
    hypre_MatvecCommPkgCreate(mat);
 
-   x_vec = InitVector(layout);
-   y_vec = InitVector(layout);
+   x_vec = InitializeVector(layout);
+   y_vec = InitializeVector(layout);
 }
 
 ParMatrix::ParMatrix(Layout &in_layout, Layout &out_layout,
@@ -209,25 +195,40 @@ ParMatrix::ParMatrix(Layout &in_layout, Layout &out_layout,
 
    hypre_MatvecCommPkgCreate(mat);
 
-   x_vec = InitVector(in_layout);
-   y_vec = InitVector(out_layout);
+   x_vec = InitializeVector(in_layout);
+   y_vec = InitializeVector(out_layout);
 }
 
-ParMatrix::ParMatrix(mfem::hypre::Layout &layout, hypre_ParCSRMatrix *mat_)
-   : Operator(layout), mat(mat_)
+ParMatrix::ParMatrix(mfem::hypre::Layout &in_layout, mfem::hypre::Layout &out_layout, hypre_ParCSRMatrix *mat_)
+   : Operator(in_layout, out_layout), mat(mat_)
 {
-   x_vec = InitVector(layout);
-   y_vec = InitVector(layout);
+   x_vec = InitializeVector(in_layout);
+   y_vec = InitializeVector(out_layout);
+}
+
+hypre_ParVector *InitializeVector(Layout &layout)
+{
+
+   hypre_ParVector *vec = hypre_ParVectorCreate(layout.GetEngine().GetComm(), layout.GlobalSize(), layout.Offsets());
+   hypre_ParVectorInitialize(vec);
+
+   // Set when used
+   hypre_VectorData(hypre_ParVectorLocalVector(vec)) = NULL;
+
+   hypre_ParVectorOwnsPartitioning(vec) = (HYPRE_Int) false;
+   hypre_ParVectorOwnsData(vec) = (HYPRE_Int) false;
+
+   return vec;
 }
 
 ParMatrix *MakePtAP(const ParMatrix &P, const ParMatrix &A)
 {
-   bool P_owns_its_col_starts = hypre_ParCSRMatrixOwnsColStarts(P.mat);
+   bool P_owns_its_col_starts = hypre_ParCSRMatrixOwnsColStarts(P.HypreMatrix());
 
    hypre_ParCSRMatrix *rap;
-   hypre_BoomerAMGBuildCoarseOperator(P.mat, A.mat, P.mat, &rap);
+   hypre_BoomerAMGBuildCoarseOperator(P.HypreMatrix(), A.HypreMatrix(), P.HypreMatrix(), &rap);
    hypre_ParCSRMatrixSetNumNonzeros(rap);
-   // hypre_MatvecCommPkgCreate(rap);
+   hypre_MatvecCommPkgCreate(rap);
 
    /* Warning: hypre_BoomerAMGBuildCoarseOperator steals the col_starts
       from P (even if it does not own them)! */
@@ -236,11 +237,19 @@ ParMatrix *MakePtAP(const ParMatrix &P, const ParMatrix &A)
 
    if (P_owns_its_col_starts)
    {
-      hypre_ParCSRMatrixOwnsColStarts(P.mat) = (HYPRE_Int) true;
+      hypre_ParCSRMatrixOwnsColStarts(P.HypreMatrix()) = (HYPRE_Int) true;
    }
 
-   return new ParMatrix(P.InLayout()->As<Layout>(), rap);
+   return new ParMatrix(P.InLayout()->As<Layout>(), P.InLayout()->As<Layout>(), rap);
 }
+
+ParMatrix *Add(const double alpha, const ParMatrix &A, const double beta, const ParMatrix &B)
+{
+   hypre_ParCSRMatrix *mat;
+   hypre_ParcsrAdd(alpha, A.HypreMatrix(), beta, B.HypreMatrix(), &mat);
+   return new ParMatrix(A.InLayout()->As<Layout>(), A.OutLayout()->As<Layout>(), mat);
+}
+
 
 } // namespace mfem::hypre
 

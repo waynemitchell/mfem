@@ -351,7 +351,7 @@ void GridFunction::SetFromTrueDofs(const Vector &tv)
 #ifdef MFEM_USE_BACKENDS
       if (fes->GetMesh()->HasEngine())
       {
-         Resize(fes->GetTrueVLayout());
+         Resize(fes->GetVLayout());
          fes->Get_PFESpace()->GetProlongationOperator()->Mult(tv, *this);
       }
       else

@@ -48,8 +48,6 @@ protected:
    hypre_ParCSRMatrix *mat;
    hypre_ParVector *x_vec, *y_vec;
 
-   hypre_ParVector *InitVector(Layout &layout);
-
 public:
    // Make a block-diagonal matrix
    ParMatrix(Layout &layout, mfem::SparseMatrix &spmat);
@@ -59,7 +57,7 @@ public:
              HYPRE_Int *i_offd, HYPRE_Int *j_offd,
              HYPRE_Int *cmap, HYPRE_Int cmap_size);
 
-   ParMatrix(mfem::hypre::Layout &layout, hypre_ParCSRMatrix *mat_);
+   ParMatrix(mfem::hypre::Layout &in_layout, mfem::hypre::Layout &out_layout, hypre_ParCSRMatrix *mat_);
 
    virtual ~ParMatrix() {
       hypre_ParCSRMatrixDestroy(mat);
@@ -70,21 +68,24 @@ public:
    virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const {
       // Assumes the PVector inside x and y use compatible layouts with x_vec and y_vec
       // y = alpha*A*x + beta*y
-      // HYPRE_Int hypre_ParCSRMatrixMatvec ( HYPRE_Complex alpha , hypre_ParCSRMatrix *A , hypre_ParVector *x , HYPRE_Complex beta , hypre_ParVector *y );
       hypre_VectorData(hypre_ParVectorLocalVector(x_vec)) = (HYPRE_Complex *) x.Get_PVector()->GetData();
       hypre_VectorData(hypre_ParVectorLocalVector(y_vec)) = (HYPRE_Complex *) y.Get_PVector()->GetData();
       hypre_ParCSRMatrixMatvec(1.0, mat, x_vec, 0.0, y_vec);
    }
 
-   friend ParMatrix *MakePtAP(const ParMatrix &A, const ParMatrix &P);
+   hypre_ParCSRMatrix *HypreMatrix() const { return const_cast<hypre_ParCSRMatrix*>(mat); }
 
    void Print(const char *filename) {
-// HYPRE_Int hypre_ParCSRMatrixPrint ( hypre_ParCSRMatrix *matrix , const char *file_name );
       hypre_ParCSRMatrixPrintIJ(mat, 0, 0, filename);
    }
 };
 
+hypre_ParVector *InitializeVector(Layout &layout);
+
 ParMatrix *MakePtAP(const ParMatrix &A, const ParMatrix &P);
+
+// C = alpha * A + beta * B
+ParMatrix *Add(const double alpha, const ParMatrix &A, const double beta, const ParMatrix &B);
 
 } // namespace mfem::hypre
 

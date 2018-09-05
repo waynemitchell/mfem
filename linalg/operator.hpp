@@ -353,6 +353,11 @@ public:
    Solver(int h, int w, bool iter_mode = false)
       : Operator(h, w) { iterative_mode = iter_mode; }
 
+#if defined(MFEM_USE_BACKENDS)
+   Solver(PLayout &in_layout, PLayout &out_layout, bool iter_mode = false)
+      : Operator(in_layout, out_layout) { iterative_mode = iter_mode; }
+#endif
+
    /// Set/update the solver for the given operator.
    virtual void SetOperator(const Operator &op) = 0;
 };

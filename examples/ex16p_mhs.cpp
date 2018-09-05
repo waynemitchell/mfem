@@ -13,6 +13,7 @@
 #include <fstream>
 #include <iostream>
 #include "backends/occa/vector.hpp"
+#include "backends/hypre/solvers.hpp"
 
 #if !defined(MFEM_USE_OCCA) || !defined(MFEM_USE_BACKENDS)
 #error Requires OCCA backend support
@@ -22,21 +23,23 @@ using namespace std;
 using namespace mfem;
 
 
+// The (HO) operator used in the implicit solver inside ModelOperator
 class TimeDerivativeOperator : public Operator
 {
    Operator *Moper;
    Operator *Koper;
    mutable Vector Kdu;
-   const double dt0;
    double dt;
 
 public:
-   TimeDerivativeOperator(Operator *Moper_, const double dt_, Operator *Koper_)
+   TimeDerivativeOperator(Operator *Moper_,
+                          const double dt_,
+                          Operator *Koper_)
       : Operator(*Koper_->InLayout(), *Moper_->OutLayout()),
         Moper(Moper_),
         Koper(Koper_),
         Kdu(Moper_->OutLayout()),
-        dt0(dt_), dt(dt_) { }
+        dt(dt_) { }
 
    void SetTimestep(const double dt_) {
       // update internal dt used in Mult()
@@ -49,6 +52,81 @@ public:
       Koper->Mult(x, Kdu);
 
       y.Axpby(1.0, y, dt, Kdu);
+   }
+
+   double TimeStep() const { return dt; }
+
+   virtual ~TimeDerivativeOperator() {}
+};
+
+/* The (LOR) AMG operator used in the SetPreconditioner call for the
+ * T_solver inside ModelOperator */
+class LORAMGSolver : public Solver
+{
+   const int basis;
+   ParMesh mesh;
+   FiniteElementCollection *fec;
+   ParFiniteElementSpace fespace;
+   ParBilinearForm Mform, Kform;
+
+   OperatorHandle Mh, Kh;
+
+   double dt;
+
+   mfem::hypre::ParMatrix *M, *K, *A;
+   mfem::hypre::AMGSolver *amg_solver;
+
+public:
+   LORAMGSolver(ParFiniteElementSpace &f, const int order, const int fbasis, const double dt_)
+      : Solver(f.GetTrueVLayout(), f.GetTrueVLayout()),
+        basis(fbasis == BasisType::Positive ? BasisType::ClosedUniform : fbasis),
+        mesh(f.GetParMesh(), order, basis),
+        fec(new H1_FECollection(1, mesh.Dimension())),
+        fespace(&mesh, fec),
+        Mform(&fespace), Kform(&fespace),
+        Mh("representation: 'full'"),
+        Kh("representation: 'full'"),
+        dt(dt_),
+        amg_solver(NULL)
+   {
+      mfem::Array<int> ess_tdof_list; // empty for now
+      Mform.AddDomainIntegrator(new DiffusionIntegrator());
+      Mform.Assemble();
+      Mform.FormSystemMatrix(ess_tdof_list, Mh);
+      Mh.Get<mfem::hypre::ParMatrix>(M);
+
+      Kform.AddDomainIntegrator(new MassIntegrator());
+      Kform.Assemble();
+      Kform.FormSystemMatrix(ess_tdof_list, Kh);
+      Kh.Get<mfem::hypre::ParMatrix>(K);
+
+      A = Add(1.0, *M, dt, *K);
+
+      amg_solver = new mfem::hypre::AMGSolver(A);
+   }
+
+   virtual ~LORAMGSolver() {
+      delete amg_solver;
+      delete A;
+   }
+
+   virtual void SetOperator(const Operator &op)
+   {
+      mfem_error("Not supported");
+   }
+
+   void Reassemble(const int dt_)
+   {
+      dt = dt_;
+      delete A;
+      A = Add(1.0, *M, dt, *K);
+
+      amg_solver->SetOperator(*A);
+   }
+
+   virtual void Mult(const Vector &x, Vector &y) const
+   {
+      amg_solver->Mult(x, y);
    }
 };
 
@@ -65,6 +143,7 @@ class ModelOperator : public TimeDependentOperator
 {
 protected:
    ParFiniteElementSpace &fespace;
+   int basis;
    Array<int> ess_tdof_list; // this list remains empty for pure Neumann b.c.
 
    ParBilinearForm M;
@@ -88,11 +167,17 @@ protected:
 
    ::occa::device device;
 
+   LORAMGSolver *lor_amg_solver;
+
+   int precond;
+
 public:
    ModelOperator(ParFiniteElementSpace &f,
+                 const int basis_,
                  const char *Mspec,
                  const char *Kspec,
-                 double alpha_,
+                 const bool precond_,
+                 const double alpha_,
                  const Vector &u,
                  ::occa::device device_);
 
@@ -104,7 +189,19 @@ public:
    /// Update the diffusion BilinearForm K using the given true-dof vector `u`.
    void SetParameters(const Vector &u);
 
-   virtual ~ModelOperator() { delete T; }
+   virtual ~ModelOperator() { delete T; delete lor_amg_solver; }
+};
+
+enum MethodType {
+   METHOD_CPU_PA=1,
+   METHOD_CPU_FA=2,
+   METHOD_GPU_PA=11,
+   METHOD_GPU_FA=12
+};
+
+enum PreconditionerType {
+   PRECOND_NONE,
+   PRECOND_AMG
 };
 
 double InitialCondition(const Vector &x);
@@ -117,6 +214,7 @@ int main(int argc, char *argv[])
 
    // 1. Parse command-line options.
    const char *mesh_file = "../data/star.mesh"; // star.mesh or fichera.mesh are good options
+   const char *basis_type = "G"; // Gauss-Lobatto
    int ser_ref_levels = 1;
    int par_ref_levels = 1;
    int order = 2;
@@ -126,6 +224,8 @@ int main(int argc, char *argv[])
    double alpha = 1.0e-2;
    bool visualization = false;
    int vis_steps = 5;
+   int method = -1;
+   int precond = PRECOND_NONE;
    const char *Mspec = "representation: 'partial'";
    const char *Kspec = "representation: 'partial'";
    const char *occa_spec = "mode: 'Serial', integrator: 'acrotensor'";
@@ -136,6 +236,8 @@ int main(int argc, char *argv[])
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
+   args.AddOption(&basis_type, "-b", "--basis-type",
+                  "Basis: G - Gauss-Lobatto, P - Positive, U - Uniform");
    args.AddOption(&ser_ref_levels, "-rs", "--refine-serial",
                   "Number of times to refine the mesh uniformly before parallelizing.");
    args.AddOption(&par_ref_levels, "-rp", "--refine-parallel",
@@ -159,13 +261,43 @@ int main(int argc, char *argv[])
    args.AddOption(&Mspec, "-ms", "--mass-spec", "Mass operator specification");
    args.AddOption(&Kspec, "-ks", "--laplace-spec", "Laplacian operator specification");
    args.AddOption(&occa_spec, "-os", "--occa-spec", "OCCA engine specification");
+   args.AddOption(&method, "-sm", "--solver-method", "Solver method (see example for enum)");
+   args.AddOption(&precond, "-p", "--preconditioner", "Preconditioner (see example for enum)");
+
    args.Parse();
+   if (method >= 0) {
+      // If method >= 0, then select based on MethodType definition above
+      // These are shortcuts to setting longer command line parameters
+      switch (method)
+      {
+      case METHOD_CPU_PA:
+         occa_spec = "mode: 'Serial'";
+         Mspec = Kspec = "representation: 'partial'";
+         break;
+      case METHOD_CPU_FA:
+         occa_spec = "mode: 'Serial'";
+         Mspec = Kspec = "representation: 'full'";
+         break;
+      case METHOD_GPU_PA:
+         occa_spec = "mode: 'CUDA', device_id: 0";
+         Mspec = Kspec = "representation: 'partial'";
+         break;
+      case METHOD_GPU_FA:
+         occa_spec = "mode: 'CUDA', device_id: 0";
+         Mspec = Kspec = "representation: 'full'";
+         break;
+      default:
+         mfem_error("Not supported");
+         break;
+      };
+   }
    if (!args.Good())
    {
       if (mpi_session.Root()) args.PrintUsage(cout);
       return 1;
    }
    if (mpi_session.Root()) args.PrintOptions(cout);
+
 
    // Examples for OCCA specifications:
    //   - CPU (serial): "mode: 'Serial'"
@@ -180,6 +312,13 @@ int main(int argc, char *argv[])
    Mesh *mesh = new Mesh(mesh_file, 1, 1);
    mesh->SetEngine(*engine);
    int dim = mesh->Dimension();
+
+   // See class BasisType in fem/fe_coll.hpp for available basis types
+   int basis = BasisType::GetType(basis_type[0]);
+   if (mpi_session.Root())
+   {
+      cout << "Using " << BasisType::Name(basis) << " basis ..." << endl;
+   }
 
    // 3. Define the ODE solver used for time integration. Several implicit
    //    singly diagonal implicit Runge-Kutta (SDIRK) methods, as well as
@@ -227,7 +366,7 @@ int main(int argc, char *argv[])
 
    // 5. Define the vector finite element space representing the current and the
    //    initial temperature, u_ref.
-   H1_FECollection fe_coll(order, dim);
+   H1_FECollection fe_coll(order, dim, basis);
    ParFiniteElementSpace fespace(pmesh, &fe_coll);
 
    if (mpi_session.Root())
@@ -248,10 +387,11 @@ int main(int argc, char *argv[])
    u_gf.GetTrueDofs(u);
 
    // 7. Initialize the conduction operator and the visualization.
-   ModelOperator oper(fespace, Mspec, Kspec, alpha, u,
+   ModelOperator oper(fespace, basis, Mspec, Kspec, precond, alpha, u,
                       engine.As<mfem::occa::Engine>()->GetDevice());
 
    u_gf.SetFromTrueDofs(u);
+   if (visualization)
    {
       ostringstream mesh_name, sol_name;
       mesh_name << "ex16-mesh." << setfill('0') << setw(6) << myid;
@@ -334,6 +474,7 @@ int main(int argc, char *argv[])
 
    // 11. Save the final solution in parallel. This output can be viewed later
    //     using GLVis: "glvis -np <np> -m ex16-mesh -g ex16-final".
+   if (visualization)
    {
       ostringstream sol_name;
       sol_name << "ex16-final." << setfill('0') << setw(6) << myid;
@@ -352,17 +493,19 @@ int main(int argc, char *argv[])
 
 // #include "backends/hypre/parmatrix.hpp"
 
-ModelOperator::ModelOperator(ParFiniteElementSpace &f,
-                             const char *Mspec, const char *Kspec, double alpha_,
-                             const Vector &u, ::occa::device device_)
-   : TimeDependentOperator(*f.GetTrueVLayout()), fespace(f),
+ModelOperator::ModelOperator(ParFiniteElementSpace &f, const int basis_,
+                             const char *Mspec, const char *Kspec, const bool precond_,
+                             const double alpha_, const Vector &u, ::occa::device device_)
+   : TimeDependentOperator(*f.GetTrueVLayout()), fespace(f), basis(basis_),
      M(&fespace), K(&fespace), Mh(Mspec), Kh(Kspec), T(NULL),
      M_solver(fespace.GetComm()), T_solver(fespace.GetComm()),
      alpha(alpha_), u_gf(&fespace), uc(&u_gf),
-     b(&fespace), b_vec(f.GetTrueVLayout()), z(f.GetTrueVLayout()), device(device_)
+     b(&fespace), b_vec(f.GetTrueVLayout()), z(f.GetTrueVLayout()),
+     device(device_), precond(precond_)
 {
    const double rel_tol = 1e-8;
 
+   // TODO: Switch to FormLinearSystem as this will not work if there are Dirichlet BCs
    M.AddDomainIntegrator(new MassIntegrator());
    M.Assemble();
    M.FormSystemMatrix(ess_tdof_list, Mh); Moper = Mh.Ptr();
@@ -396,7 +539,7 @@ ModelOperator::ModelOperator(ParFiniteElementSpace &f,
 void ModelOperator::Mult(const Vector &u, Vector &du_dt) const
 {
    // Compute:
-   //    du_dt = -M^{-1}*(K(u) + b(u)) b(u) = u^2
+   //    du_dt = -M^{-1}*(K(u) + b(u))
    // for du_dt
    Koper->Mult(u, z);
    z.Axpby(-1.0, z, -1.0, b_vec);
@@ -415,10 +558,26 @@ void ModelOperator::ImplicitSolve(const double dt,
    {
       T = new TimeDerivativeOperator(Moper, dt, Koper);
       T_solver.SetOperator(*T);
+
+      if (precond == PRECOND_AMG)
+      {
+         lor_amg_solver = new LORAMGSolver(fespace, fespace.GetFE(0)->GetOrder(), basis, dt);
+         T_solver.SetPreconditioner(*lor_amg_solver);
+      }
    }
    else
    {
       T->SetTimestep(dt);
+      if (precond == PRECOND_AMG)
+      {
+         const double last_dt = T->TimeStep();
+         const double factor = 5;
+         if ((dt < (1.0/factor) * last_dt) || (dt > factor * last_dt))
+         {
+            lor_amg_solver->Reassemble(dt);
+         }
+         // preconditioner object set by SetPreconditioner() call above is still valid
+      }
    }
 
    Koper->Mult(u, z);  // z = Ku
@@ -440,16 +599,16 @@ void ModelOperator::SetParameters(const Vector &u)
          "}");
 
    u_gf.SetFromTrueDofs(u);
+   u_gf.Pull(); // after pulling u_gf
 
    ::occa::kernel kernel = rhs_builder.build(device);
    ::occa::memory u_data = u_gf.Get_PVector()->As<mfem::occa::Vector>().OccaMem();
    kernel((int)u_gf.Size(), alpha, u_data);
 
    // u changed, so reassemble b
-   u_gf.Pull();
    b.Assemble();
+   b.Push();
    b.ParallelAssemble(b_vec);
-   b_vec.Push();
 }
 
 double InitialCondition(const Vector &x)
