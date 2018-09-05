@@ -289,7 +289,7 @@ OCCA_LIB = -Wl,-rpath,$(OCCA_DIR)/lib -L$(OCCA_DIR)/lib -locca
 
 CUDA_DIR = /usr/local/cuda
 ACROTENSOR_DIR = @MFEM_DIR@/../acrotensor
-ACROTENSOR_OPT = -std=c++11 -I$(ACROTENSOR_DIR)/inc -I$(CUDA_DIR)/include
+ACROTENSOR_OPT = -std=c++11 -I$(ACROTENSOR_DIR)/inc -I$(CUDA_DIR)/include -DACRO_HAVE_CUDA
 ACROTENSOR_LIB = -L$(ACROTENSOR_DIR)/lib -lacrotensor -L$(CUDA_DIR)/lib64 -qcuda -lcuda -lcudart -lnvrtc -lnvToolsExt -lcusparse -lcublas -fopenmp
 
 # If YES, enable some informational messages

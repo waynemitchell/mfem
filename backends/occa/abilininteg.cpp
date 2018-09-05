@@ -14,6 +14,7 @@
 
 #include "abilininteg.hpp"
 #include "../../fem/fem.hpp"
+#include "occa/mode/cuda.hpp"
 
 namespace mfem
 {
@@ -138,9 +139,7 @@ void AcroMassIntegrator::Setup()
    if (onGPU)
    {
       TE.SetExecutorType("Cuda");
-      // TODO: May need this
-      // ::acro::setCudaContext(::occa::cuda::getContext(device));
-
+      ::acro::setCudaContext(::occa::cuda::getContext(engine->GetDevice(0)));
       B.MapToGPU();
       W.MapToGPU();
    }
@@ -493,6 +492,7 @@ void AcroDiffusionIntegrator::Setup()
    if (onGPU)
    {
       //TE.SetExecutorType("OneOutPerThread");
+      ::acro::setCudaContext(::occa::cuda::getContext(engine->GetDevice(0)));
       TE.SetExecutorType("Cuda");
       //TODO:  Set to an existing cuda context if one exists
       B.MapToGPU();

@@ -117,11 +117,14 @@ public:
 
    void Reassemble(const int dt_)
    {
+      // TODO: Reassemble A in-place and re-use the solver allocations
       dt = dt_;
-      delete A;
-      A = Add(1.0, *M, dt, *K);
 
-      amg_solver->SetOperator(*A);
+      delete A;
+      delete amg_solver;
+
+      A = Add(1.0, *M, dt, *K);
+      amg_solver = new mfem::hypre::AMGSolver(A);
    }
 
    virtual void Mult(const Vector &x, Vector &y) const
@@ -290,6 +293,28 @@ int main(int argc, char *argv[])
          mfem_error("Not supported");
          break;
       };
+      // switch (method)
+      // {
+      // case METHOD_CPU_PA:
+      //    occa_spec = "mode: 'Serial', integrator: 'acrotensor'";
+      //    Mspec = Kspec = "representation: 'partial'";
+      //    break;
+      // case METHOD_CPU_FA:
+      //    occa_spec = "mode: 'Serial', integrator: 'acrotensor'";
+      //    Mspec = Kspec = "representation: 'full'";
+      //    break;
+      // case METHOD_GPU_PA:
+      //    occa_spec = "mode: 'CUDA', device_id: 0, integrator: 'acrotensor'";
+      //    Mspec = Kspec = "representation: 'partial'";
+      //    break;
+      // case METHOD_GPU_FA:
+      //    occa_spec = "mode: 'CUDA', device_id: 0, integrator: 'acrotensor'";
+      //    Mspec = Kspec = "representation: 'full'";
+      //    break;
+      // default:
+      //    mfem_error("Not supported");
+      //    break;
+      // };
    }
    if (!args.Good())
    {
@@ -391,7 +416,6 @@ int main(int argc, char *argv[])
                       engine.As<mfem::occa::Engine>()->GetDevice());
 
    u_gf.SetFromTrueDofs(u);
-   if (visualization)
    {
       ostringstream mesh_name, sol_name;
       mesh_name << "ex16-mesh." << setfill('0') << setw(6) << myid;
@@ -474,7 +498,6 @@ int main(int argc, char *argv[])
 
    // 11. Save the final solution in parallel. This output can be viewed later
    //     using GLVis: "glvis -np <np> -m ex16-mesh -g ex16-final".
-   if (visualization)
    {
       ostringstream sol_name;
       sol_name << "ex16-final." << setfill('0') << setw(6) << myid;
@@ -531,7 +554,7 @@ ModelOperator::ModelOperator(ParFiniteElementSpace &f, const int basis_,
    T_solver.SetRelTol(rel_tol);
    T_solver.SetAbsTol(0.0);
    T_solver.SetMaxIter(200);
-   T_solver.SetPrintLevel(0);
+   T_solver.SetPrintLevel(1);
 
    SetParameters(u);
 }
