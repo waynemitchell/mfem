@@ -60,6 +60,8 @@ void Engine::Init(const std::string &engine_spec)
       fileOpenerRegistered = true;
    }
    // std::cout << "OCCA device properties:\n" << device[0].properties();
+
+   force_cuda_aware_mpi = false;
 }
 
 Engine::Engine(const std::string &engine_spec)
@@ -121,10 +123,7 @@ DLayout Engine::MakeLayout(const mfem::Array<std::size_t> &offsets) const
 
 DArray Engine::MakeArray(PLayout &layout, std::size_t item_size) const
 {
-   MFEM_ASSERT(dynamic_cast<Layout *>(&layout) != NULL,
-               "invalid input layout");
-   Layout *lt = static_cast<Layout *>(&layout);
-   return DArray(new Array(*lt, item_size));
+   return DArray(new Array(layout.As<Layout>(), item_size));
 }
 
 DVector Engine::MakeVector(PLayout &layout, int type_id) const

@@ -12,6 +12,7 @@ int main(int argc, char *argv[])
    const char *spec = "cpu";
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
+   int ref_levels = -1;
    bool static_cond = false;
    bool visualization = 1;
 
@@ -23,6 +24,8 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
+   args.AddOption(&ref_levels, "-r", "--refine-levels",
+                  "Number of uniform refinements to apply to the mesh.");
    args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
                   "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
@@ -39,8 +42,8 @@ int main(int argc, char *argv[])
 #ifdef MFEM_USE_BACKENDS
    /// Engine *engine = EngineDepot.Select(spec);
 
-   string occa_spec("mode: 'Serial'");
-   // string occa_spec("mode: 'CUDA', device_id: 0");
+   // string occa_spec("mode: 'Serial'");
+   string occa_spec("mode: 'CUDA', device_id: 0");
    // string occa_spec("mode: 'OpenMP', threads: 4");
    // string occa_spec("mode: 'OpenCL', device_id: 0, platform_id: 0");
 
@@ -66,7 +69,7 @@ int main(int argc, char *argv[])
    //    largest number that gives a final mesh with no more than 50,000
    //    elements.
    {
-      int ref_levels =
+      ref_levels = ref_levels >= 0 ? ref_levels :
          (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
@@ -141,7 +144,12 @@ int main(int argc, char *argv[])
    cout << "Size of linear system: " << A.Ptr()->Height() << endl;
 
    // 10. Solve the system A X = B with CG.
-   CG(*A.Ptr(), B, X, 3, 1000, 1e-12, 0.0);
+   tic_toc.Clear();
+   tic_toc.Start();
+   const int print_level = 3;
+   CG(*A.Ptr(), B, X, print_level, 1000, 1e-12, 0.0);
+   tic_toc.Stop();
+   cout << "CG time: " << tic_toc.RealTime() << " sec." << endl;
 
    // 11. Recover the solution as a finite element grid function.
    a->RecoverFEMSolution(X, *b, x);
