@@ -287,7 +287,7 @@ OCCA_DIR = @MFEM_DIR@/../occa
 OCCA_OPT = -I$(OCCA_DIR)/include
 OCCA_LIB = -Wl,-rpath,$(OCCA_DIR)/lib -L$(OCCA_DIR)/lib -locca
 
-CUDA_DIR = /usr/local/cuda
+CUDA_DIR = /usr/tce/packages/cuda/cuda-9.2.148
 ACROTENSOR_DIR = @MFEM_DIR@/../acrotensor
 ACROTENSOR_OPT = -std=c++11 -I$(ACROTENSOR_DIR)/inc -I$(CUDA_DIR)/include -DACRO_HAVE_CUDA
 ACROTENSOR_LIB = -L$(ACROTENSOR_DIR)/lib -lacrotensor -L$(CUDA_DIR)/lib64 -qcuda -lcuda -lcudart -lnvrtc -lnvToolsExt -lcusparse -lcublas -fopenmp

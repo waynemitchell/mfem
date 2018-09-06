@@ -96,7 +96,7 @@ ParMatrix::ParMatrix(Layout &in_layout, Layout &out_layout,
                      HYPRE_Int *i_diag, HYPRE_Int *j_diag,
                      HYPRE_Int *i_offd, HYPRE_Int *j_offd,
                      HYPRE_Int *cmap, HYPRE_Int cmap_size)
-   : Operator(in_layout, out_layout)
+   : mfem::Operator(in_layout, out_layout)
 {
    HYPRE_Int diag_nnz, offd_nnz;
 
@@ -200,10 +200,54 @@ ParMatrix::ParMatrix(Layout &in_layout, Layout &out_layout,
 }
 
 ParMatrix::ParMatrix(mfem::hypre::Layout &in_layout, mfem::hypre::Layout &out_layout, hypre_ParCSRMatrix *mat_)
-   : Operator(in_layout, out_layout), mat(mat_)
+   : mfem::Operator(in_layout, out_layout), mat(mat_)
 {
    x_vec = InitializeVector(in_layout);
    y_vec = InitializeVector(out_layout);
+}
+
+ParMatrix::ParMatrix(ParMatrix& other)
+   : mfem::Operator(other.in_layout->As<Layout>(), other.out_layout->As<Layout>())
+{
+   mat = hypre_ParCSRMatrixCompleteClone(other.mat);
+   x_vec = InitializeVector(in_layout->As<Layout>());
+   y_vec = InitializeVector(out_layout->As<Layout>());
+}
+
+void ParMatrix::HypreAxpy(const double alpha, const ParMatrix& A, const double beta, const ParMatrix& B)
+{
+   hypre_CSRMatrix *transpose = hypre_ParCSRMatrixDiagT(A.HypreMatrix());
+   if (transpose != NULL) mfem_error("Does not work with transposed matrices");
+
+   // diag
+   hypre_CSRMatrix *A_diag = hypre_ParCSRMatrixDiag(A.HypreMatrix());
+   hypre_CSRMatrix *B_diag = hypre_ParCSRMatrixDiag(B.HypreMatrix());
+   hypre_CSRMatrix *C_diag = hypre_ParCSRMatrixDiag(mat);
+
+   {
+      double *A_data = hypre_CSRMatrixData(A_diag);
+      double *B_data = hypre_CSRMatrixData(B_diag);
+      double *C_data = hypre_CSRMatrixData(C_diag);
+
+      int nnz = hypre_CSRMatrixNumNonzeros(C_diag);
+      // TODO: Check where this is and prefetch if needed
+      for (int i = 0; i < nnz; i++) C_data[i] = A_data[i] * alpha + B_data[i] * beta;
+   }
+
+   // offd
+   hypre_CSRMatrix *A_offd = hypre_ParCSRMatrixOffd(A.HypreMatrix());
+   hypre_CSRMatrix *B_offd = hypre_ParCSRMatrixOffd(B.HypreMatrix());
+   hypre_CSRMatrix *C_offd = hypre_ParCSRMatrixOffd(mat);
+
+   {
+      double *A_data = hypre_CSRMatrixData(A_offd);
+      double *B_data = hypre_CSRMatrixData(B_offd);
+      double *C_data = hypre_CSRMatrixData(C_offd);
+
+      int nnz = hypre_CSRMatrixNumNonzeros(C_offd);
+      // TODO: Check where this is and prefetch if needed
+      for (int i = 0; i < nnz; i++) C_data[i] = A_data[i] * alpha + B_data[i] * beta;
+   }
 }
 
 hypre_ParVector *InitializeVector(Layout &layout)

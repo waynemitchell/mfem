@@ -59,6 +59,8 @@ public:
 
    ParMatrix(mfem::hypre::Layout &in_layout, mfem::hypre::Layout &out_layout, hypre_ParCSRMatrix *mat_);
 
+   explicit ParMatrix(ParMatrix& other);
+
    virtual ~ParMatrix() {
       hypre_ParCSRMatrixDestroy(mat);
       hypre_ParVectorDestroy(x_vec);
@@ -74,6 +76,10 @@ public:
    }
 
    hypre_ParCSRMatrix *HypreMatrix() const { return const_cast<hypre_ParCSRMatrix*>(mat); }
+
+   // *this = alpha * A + beta * B
+   // ASSUMPTION: the sparsity pattern of *this, A, and B are the same.
+   void HypreAxpy(const double alpha, const ParMatrix& A, const double beta, const ParMatrix& B);
 
    void Print(const char *filename) {
       hypre_ParCSRMatrixPrintIJ(mat, 0, 0, filename);

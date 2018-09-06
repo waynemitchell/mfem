@@ -40,23 +40,27 @@ class AMGSolver : public Solver
    hypre_ParVector *x_vec, *y_vec;
 
 public:
-   AMGSolver(ParMatrix *A_) : Solver(A_->InLayout(), A_->OutLayout()), A(NULL)
+   AMGSolver(ParMatrix *A_)
+      : Solver(A_->InLayout()->As<Layout>(), A_->OutLayout()->As<Layout>()),
+        A(NULL), x_vec(NULL), y_vec(NULL)
    {
       HYPRE_BoomerAMGCreate(&solver);
-      SetOperator(*A);
+      Setup(A_);
+   }
+
+   void Setup(ParMatrix *A_)
+   {
+      A = A_;
+      if (x_vec != NULL) hypre_ParVectorDestroy(x_vec);
+      if (y_vec != NULL) hypre_ParVectorDestroy(y_vec);
+      x_vec = InitializeVector(A->InLayout()->As<Layout>());
+      y_vec = InitializeVector(A->OutLayout()->As<Layout>());
+      HYPRE_BoomerAMGSetup(solver, A->HypreMatrix(), x_vec, y_vec);
    }
 
    virtual void SetOperator(const Operator &op)
    {
-      ParMatrix *A_ = const_cast<MatrixType*>(
-         static_cast<const MatrixType*>(&op)
-         );
-      A = A_;
-      hypre_ParVectorDestroy(x_vec);
-      hypre_ParVectorDestroy(y_vec);
-      x_vec = InitializeVector(A->InLayout()->As<mfem::hypre::Layout>());
-      y_vec = InitializeVector(A->OutLayout()->As<mfem::hypre::Layout>());
-      HYPRE_BoomerAMGSetup(solver, A->HypreMatrix(), x_vec, y_vec);
+      mfem_error("Not supported");
    }
 
    virtual ~AMGSolver()

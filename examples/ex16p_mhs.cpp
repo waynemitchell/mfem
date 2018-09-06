@@ -87,27 +87,37 @@ public:
         Mh("representation: 'full'"),
         Kh("representation: 'full'"),
         dt(dt_),
+        M(NULL), K(NULL), A(NULL),
         amg_solver(NULL)
    {
       mfem::Array<int> ess_tdof_list; // empty for now
-      Mform.AddDomainIntegrator(new DiffusionIntegrator());
+
+      // Build LOR M
+      Mform.AddDomainIntegrator(new MassIntegrator());
       Mform.Assemble();
       Mform.FormSystemMatrix(ess_tdof_list, Mh);
       Mh.Get<mfem::hypre::ParMatrix>(M);
 
-      Kform.AddDomainIntegrator(new MassIntegrator());
+      // Build LOR K
+      Kform.AddDomainIntegrator(new DiffusionIntegrator());
       Kform.Assemble();
       Kform.FormSystemMatrix(ess_tdof_list, Kh);
       Kh.Get<mfem::hypre::ParMatrix>(K);
 
-      A = Add(1.0, *M, dt, *K);
+      // Clone M to a new matrix
+      A = new mfem::hypre::ParMatrix(*K);
 
+      // Do an axpy operation that assumes the same sparsity
+      A->HypreAxpy(1.0, *M, dt, *K);
+
+      // Build an AMG based on A -- calls AMG setup as part of constructor
       amg_solver = new mfem::hypre::AMGSolver(A);
    }
 
    virtual ~LORAMGSolver() {
       delete amg_solver;
       delete A;
+      // M and K are destroyed as part of the handles
    }
 
    virtual void SetOperator(const Operator &op)
@@ -117,14 +127,15 @@ public:
 
    void Reassemble(const int dt_)
    {
-      // TODO: Reassemble A in-place and re-use the solver allocations
       dt = dt_;
 
-      delete A;
-      delete amg_solver;
+      int rank;
+      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+      if (!rank) { std::cout << "Reassembling preconditioner matrix" << std::endl; }
 
-      A = Add(1.0, *M, dt, *K);
-      amg_solver = new mfem::hypre::AMGSolver(A);
+      A->HypreAxpy(1.0, *M, dt, *K);
+
+      // The AMGSolver does not need to be re-setup
    }
 
    virtual void Mult(const Vector &x, Vector &y) const
@@ -269,30 +280,6 @@ int main(int argc, char *argv[])
 
    args.Parse();
    if (method >= 0) {
-      // If method >= 0, then select based on MethodType definition above
-      // These are shortcuts to setting longer command line parameters
-      // switch (method)
-      // {
-      // case METHOD_CPU_PA:
-      //    occa_spec = "mode: 'Serial'";
-      //    Mspec = Kspec = "representation: 'partial'";
-      //    break;
-      // case METHOD_CPU_FA:
-      //    occa_spec = "mode: 'Serial'";
-      //    Mspec = Kspec = "representation: 'full'";
-      //    break;
-      // case METHOD_GPU_PA:
-      //    occa_spec = "mode: 'CUDA', device_id: 0, memory:{unified:true}";
-      //    Mspec = Kspec = "representation: 'partial'";
-      //    break;
-      // case METHOD_GPU_FA:
-      //    occa_spec = "mode: 'CUDA', device_id: 0, memory:{unified:true}";
-      //    Mspec = Kspec = "representation: 'full'";
-      //    break;
-      // default:
-      //    mfem_error("Not supported");
-      //    break;
-      // };
       switch (method)
       {
       case METHOD_CPU_PA:
@@ -526,7 +513,7 @@ ModelOperator::ModelOperator(ParFiniteElementSpace &f, const int basis_,
      b(&fespace), b_vec(f.GetTrueVLayout()), z(f.GetTrueVLayout()),
      device(device_), precond(precond_)
 {
-   const double rel_tol = 1e-8;
+   const double rel_tol = 1e-4;
 
    // TODO: Switch to FormLinearSystem as this will not work if there are Dirichlet BCs
    M.AddDomainIntegrator(new MassIntegrator());
@@ -547,14 +534,14 @@ ModelOperator::ModelOperator(ParFiniteElementSpace &f, const int basis_,
    M_solver.SetRelTol(rel_tol);
    M_solver.SetAbsTol(0.0);
    M_solver.SetMaxIter(200);
-   M_solver.SetPrintLevel(0);
+   M_solver.SetPrintLevel(2);
    M_solver.SetOperator(*Moper);
 
    T_solver.iterative_mode = false;
    T_solver.SetRelTol(rel_tol);
    T_solver.SetAbsTol(0.0);
    T_solver.SetMaxIter(200);
-   T_solver.SetPrintLevel(0);
+   T_solver.SetPrintLevel(2);
 
    SetParameters(u);
 }
@@ -604,8 +591,8 @@ void ModelOperator::ImplicitSolve(const double dt,
    }
 
    Koper->Mult(u, z);  // z = Ku
-   // z.Axpby(-1.0, z, -1.0, b_vec); // z = -Ku - b
-   z.Axpby(-1.0, z, 0.0, z); // z = -Ku
+   z.Axpby(-1.0, z, -1.0, b_vec); // z = -Ku - b
+   // z.Axpby(-1.0, z, 0.0, z); // z = -Ku
    T_solver.Mult(z, du_dt);
 }
 
