@@ -215,6 +215,7 @@ hypre_ParVector *InitializeVector(Layout &layout)
    // Set when used
    hypre_VectorData(hypre_ParVectorLocalVector(vec)) = NULL;
 
+   hypre_VectorSize(hypre_ParVectorLocalVector(vec)) = layout.Size();
    hypre_ParVectorOwnsPartitioning(vec) = (HYPRE_Int) false;
    hypre_ParVectorOwnsData(vec) = (HYPRE_Int) false;
 
@@ -223,12 +224,12 @@ hypre_ParVector *InitializeVector(Layout &layout)
 
 ParMatrix *MakePtAP(const ParMatrix &P, const ParMatrix &A)
 {
-   bool P_owns_its_col_starts = hypre_ParCSRMatrixOwnsColStarts(P.HypreMatrix());
+   const bool P_owns_its_col_starts = hypre_ParCSRMatrixOwnsColStarts(P.HypreMatrix());
 
    hypre_ParCSRMatrix *rap;
    hypre_BoomerAMGBuildCoarseOperator(P.HypreMatrix(), A.HypreMatrix(), P.HypreMatrix(), &rap);
    hypre_ParCSRMatrixSetNumNonzeros(rap);
-   hypre_MatvecCommPkgCreate(rap);
+   // hypre_MatvecCommPkgCreate(rap);
 
    /* Warning: hypre_BoomerAMGBuildCoarseOperator steals the col_starts
       from P (even if it does not own them)! */
