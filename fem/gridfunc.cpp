@@ -1351,6 +1351,7 @@ void GridFunction::ProjectDeltaCoefficient(DeltaCoefficient &delta_coeff,
 
    // find the vertex closest to the center of the delta function
    min_dist = Distance(center, vert, dim);
+   Pull(false);
    for (int i = 0; i < mesh->GetNV(); i++)
    {
       vert = mesh->GetVertex(i);
