@@ -34,9 +34,9 @@ public:
    static const int Jacobian    = (1 << 0);
    static const int JacobianInv = (1 << 1);
    static const int JacobianDet = (1 << 2);
-   static kGeometry* Get(kFiniteElementSpace&,
+   static kGeometry* Get(const kFiniteElementSpace&,
                          const IntegrationRule&);
-   static kGeometry* Get(kFiniteElementSpace&,
+   static kGeometry* Get(const kFiniteElementSpace&,
                          const IntegrationRule&,
                          const kvector&);
    static void ReorderByVDim(GridFunction& nodes);

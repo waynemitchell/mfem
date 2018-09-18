@@ -39,7 +39,7 @@ kGeometry::~kGeometry()
 // *****************************************************************************
 // * kGeometry Get: use this one to fetch nodes from vector Sx
 // *****************************************************************************
-kGeometry* kGeometry::Get(kFiniteElementSpace& fes,
+kGeometry* kGeometry::Get(const kFiniteElementSpace& fes,
                           const IntegrationRule& ir,
                           const kvector& Sx)
 {
@@ -71,7 +71,7 @@ kGeometry* kGeometry::Get(kFiniteElementSpace& fes,
 
 
 // *****************************************************************************
-kGeometry* kGeometry::Get(kFiniteElementSpace& fes,
+kGeometry* kGeometry::Get(const kFiniteElementSpace& fes,
                           const IntegrationRule& ir)
 {
    push();
