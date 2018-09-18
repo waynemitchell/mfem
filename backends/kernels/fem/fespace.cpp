@@ -97,7 +97,8 @@ kFiniteElementSpace(const Engine& e,
 
    dbg("offsets, indices copy");
    offsets = h_offsets;
-   indices = h_indices;   map = h_map;
+   indices = h_indices;
+   map = h_map;
 
    if (kernels::config::Get().IAmAlone())
    {
@@ -191,6 +192,24 @@ void kFiniteElementSpace::GlobalToLocal(const Vector& globalVec,
                   indices,
                   (const double*)globalVec.KernelsMem().ptr(),
                   (double*)localVec.KernelsMem().ptr());
+   pop();
+}
+// **************************************************************************
+void kFiniteElementSpace::GlobalToLocal(const double *globalVec,
+                                        double *localVec) const
+{
+   push(PowderBlue);
+   const int vdim = GetVDim();
+   const int localEntries = localDofs * GetNE();
+   const bool vdim_ordering = ordering == Ordering::byVDIM;
+   rGlobalToLocal(vdim,
+                  vdim_ordering,
+                  globalDofs,
+                  localEntries,
+                  offsets,
+                  indices,
+                  globalVec,
+                  localVec);
    pop();
 }
 

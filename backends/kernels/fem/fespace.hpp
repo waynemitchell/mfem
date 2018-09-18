@@ -117,6 +117,7 @@ public:
    { return map; }
 
    void GlobalToLocal(const kernels::Vector &global, kernels::Vector &local) const;
+   void GlobalToLocal(const double *global, double *local) const;
    void LocalToGlobal(const kernels::Vector &local, kernels::Vector &global) const;
 
 };
