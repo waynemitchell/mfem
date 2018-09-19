@@ -106,7 +106,6 @@ memory memory::slice(const size_t offset,
                      const int bytes) const
 {
    push();
-   assert(bytes>0);
    memory m = memory(bytes,NULL);
    dbg("\n\033[31;1;7m[memory::slice] rDtoD!");
    mfem::kernels::kmemcpy::rDtoD(m.data,data+offset,bytes);
