@@ -91,7 +91,9 @@ protected:
                                 const std::size_t offset,
                                 const std::size_t size,
                                 const std::size_t item_size) = 0;
-
+      /// TODO
+   virtual void *DoGetDeviceData() = 0;
+   
    ///@}
    // End: Virtual interface
 
@@ -215,6 +217,11 @@ public:
                       const std::size_t size)
    {
       DoMakeRefOffset(src, offset, size, sizeof(T));
+   }
+
+   /// TODO
+   void *GetDeviceData() {
+      return DoGetDeviceData();
    }
 
    ///@}

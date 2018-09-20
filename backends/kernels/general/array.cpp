@@ -158,6 +158,11 @@ void Array::DoMakeRefOffset(const PArray &src,
    pop();
 }
 
+// *****************************************************************************
+void *Array::DoGetDeviceData(){
+   return data.ptr();
+}
+
 } // namespace mfem::kernels
 
 } // namespace mfem

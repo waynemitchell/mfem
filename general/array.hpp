@@ -541,6 +541,9 @@ public:
 
    /// TODO: doxygen
    inline void Assign(const DevExtension &src);
+   
+   /// TODO: doxygen
+   inline void* GetDeviceData();
 };
 
 
@@ -1290,6 +1293,17 @@ inline void DevExtension<array_t,dev_ext_t>::Assign(const DevExtension &src)
     (void) array_t::operator=(src));
 #else
    array_t::operator=(src);
+#endif
+}
+   
+template <typename array_t, typename dev_ext_t>
+inline void* DevExtension<array_t,dev_ext_t>::GetDeviceData()
+{
+   AssertDGood();
+#ifdef MFEM_USE_BACKENDS
+   return dev_ext ? dev_ext->GetDeviceData() : array_t::GetData();
+#else
+   return array_t::GetData();
 #endif
 }
 

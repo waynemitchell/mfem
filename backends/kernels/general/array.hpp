@@ -46,6 +46,8 @@ protected:
                                 const std::size_t offset,
                                 const std::size_t size,
                                 const std::size_t item_size);
+   
+   virtual void *DoGetDeviceData();
 
    // Auxiliary methods ********************************************************
 
