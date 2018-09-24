@@ -35,7 +35,10 @@
 #include <nvector/nvector_serial.h>
 #ifdef MFEM_USE_MPI
 #include <nvector/nvector_parallel.h>
+#include <nvector/nvector_parhyp.h>
 #endif
+
+#include "../backends/hypre/layout.hpp"
 
 #include <cvode/cvode_impl.h>
 
@@ -153,17 +156,57 @@ static int arkLinSysFree(ARKodeMem ark_mem)
 const double SundialsSolver::default_rel_tol = 1e-4;
 const double SundialsSolver::default_abs_tol = 1e-9;
 
+static void SetPVectorData(Vector& vec, N_Vector nv) {
+   N_Vector_ID nvid = N_VGetVectorID(nv);
+   switch (nvid)
+   {
+      case SUNDIALS_NVEC_SERIAL:
+         vec.PushData(NV_DATA_S(nv));
+         break;
+#ifdef MFEM_USE_MPI
+      case SUNDIALS_NVEC_PARHYP:
+         vec.PushData(N_VGetVector_ParHyp(nv)->local_vector->data);
+         break;
+      // case SUNDIALS_NVEC_PARHYP:
+      //    vec.PushData(N_VGetVector_ParHyp(nv)->local_vector->data);
+      //    break;
+#endif
+      default:
+         MFEM_ABORT("N_Vector type " << nvid << " is not supported");
+   }
+}
+
 // static method
 int SundialsSolver::ODEMult(realtype t, const N_Vector y,
                             N_Vector ydot, void *td_oper)
 {
-   const Vector mfem_y(y);
-   Vector mfem_ydot(ydot);
-
-   // Compute y' = f(t, y).
    TimeDependentOperator *f = static_cast<TimeDependentOperator *>(td_oper);
-   f->SetTime(t);
-   f->Mult(mfem_y, mfem_ydot);
+
+#ifdef MFEM_USE_BACKENDS
+   if (f->InLayout()->HasEngine())
+   {
+      Vector mfem_y(f->InLayout());
+      SetPVectorData(mfem_y, y);
+      Vector mfem_ydot(f->InLayout());
+      SetPVectorData(mfem_ydot, ydot);
+
+      // Compute y' = f(t, y).
+      f->SetTime(t);
+      f->Mult(mfem_y, mfem_ydot);
+   }
+   else
+#else
+   {
+      const Vector mfem_y(y);
+      Vector mfem_ydot(ydot);
+
+      // Compute y' = f(t, y).
+      TimeDependentOperator *f = static_cast<TimeDependentOperator *>(td_oper);
+      f->SetTime(t);
+      f->Mult(mfem_y, mfem_ydot);
+   }
+#endif
+
    return 0;
 }
 
@@ -196,6 +239,7 @@ CVODESolver::CVODESolver(MPI_Comm comm, int lmm, int iter)
 {
    if (comm == MPI_COMM_NULL)
    {
+      mfem_error("This does not work for the demo. Ensure a serial CUDA vector exists!");
       // Allocate an empty serial N_Vector wrapper in y.
       y = N_VNewEmpty_Serial(0);
       MFEM_ASSERT(y, "error in N_VNewEmpty_Serial()");
@@ -203,8 +247,10 @@ CVODESolver::CVODESolver(MPI_Comm comm, int lmm, int iter)
    else
    {
       // Allocate an empty parallel N_Vector wrapper in y.
-      y = N_VNewEmpty_Parallel(comm, 0, 0); // calls MPI_Allreduce()
-      MFEM_ASSERT(y, "error in N_VNewEmpty_Parallel()");
+      // y = N_VNewEmpty_ParHyp(comm, 0, 0); // calls MPI_Allreduce()
+      y = NULL;
+      comm_ = comm;
+      // MFEM_ASSERT(y, "error in N_VNewEmpty_ParHyp()");
    }
 
    // Create the solver memory.
@@ -296,78 +342,125 @@ void CVODESolver::Init(TimeDependentOperator &f_)
 
    if (mem->cv_MallocDone == SUNTRUE)
    {
-      // TODO: preserve more options.
-      cvCopyInit(mem, &backup);
-      CVodeFree(&sundials_mem);
-      sundials_mem = CVodeCreate(backup.cv_lmm, backup.cv_iter);
-      MFEM_ASSERT(sundials_mem, "error in CVodeCreate()");
-      cvCopyInit(&backup, mem);
+      // // TODO: preserve more options.
+      // cvCopyInit(mem, &backup);
+      // CVodeFree(&sundials_mem);
+      // sundials_mem = CVodeCreate(backup.cv_lmm, backup.cv_iter);
+      // MFEM_ASSERT(sundials_mem, "error in CVodeCreate()");
+      // cvCopyInit(&backup, mem);
+      mfem_error("Bad option");
    }
 
    ODESolver::Init(f_);
 
-   // Set actual size and data in the N_Vector y.
-   int loc_size = f_.Height();
-   if (!Parallel())
-   {
-      NV_LENGTH_S(y) = loc_size;
-      NV_DATA_S(y) = new double[loc_size](); // value-initialize
-   }
-   else
-   {
-#ifdef MFEM_USE_MPI
-      long local_size = loc_size, global_size;
-      MPI_Allreduce(&local_size, &global_size, 1, MPI_LONG, MPI_SUM,
-                    NV_COMM_P(y));
-      NV_LOCLENGTH_P(y) = local_size;
-      NV_GLOBLENGTH_P(y) = global_size;
-      NV_DATA_P(y) = new double[loc_size](); // value-initialize
-#endif
-   }
+//    // Set actual size and data in the N_Vector y.
+//    int loc_size = f_.Height();
+//    if (!Parallel())
+//    {
+//       NV_LENGTH_S(y) = loc_size;
+//       NV_DATA_S(y) = new double[loc_size](); // value-initialize
+//    }
+//    else
+//    {
+// #ifdef MFEM_USE_MPI
+//       long local_size = loc_size, global_size;
 
-   // Call CVodeInit().
-   cvCopyInit(mem, &backup);
-   flag = CVodeInit(mem, ODEMult, f_.GetTime(), y);
-   MFEM_ASSERT(flag >= 0, "CVodeInit() failed!");
-   cvCopyInit(&backup, mem);
+//       // HYPRE_ParVector ypv = N_VGetVector_ParHyp(y);
+//       // hypre_ParVectorComm(ypv) = comm;
 
-   // Delete the allocated data in y.
-   if (!Parallel())
-   {
-      delete [] NV_DATA_S(y);
-      NV_DATA_S(y) = NULL;
-   }
-   else
-   {
-#ifdef MFEM_USE_MPI
-      delete [] NV_DATA_P(y);
-      NV_DATA_P(y) = NULL;
-#endif
-   }
+//       MPI_Allreduce(&local_size, &global_size, 1, MPI_LONG, MPI_SUM, comm_);
 
-   // The TimeDependentOperator pointer, f, will be the user-defined data.
-   flag = CVodeSetUserData(sundials_mem, f);
-   MFEM_ASSERT(flag >= 0, "CVodeSetUserData() failed!");
+//       // y = N_VNewEmpty_ParHyp(comm_, local_size, global_size);
+//       // HYPRE_ParVector ypv = N_VGetVector_ParHyp(y);
+//       // hypre_VectorData(hypre_ParVectorLocalVector(ypv)) = NULL;
+//       // hypre_VectorData(hypre_ParVectorLocalVector(ypv)) = new double[loc_size]();
+//       // N_VSetArrayPointer_ParHyp(new double[loc_size](), y);
+//       // NV_DATA_PH(y) = new double[loc_size](); // value-initialize
+// #endif
+//    }
 
-   flag = CVodeSStolerances(mem, mem->cv_reltol, mem->cv_Sabstol);
-   MFEM_ASSERT(flag >= 0, "CVodeSStolerances() failed!");
+   // // Call CVodeInit().
+   // cvCopyInit(mem, &backup);
+   // flag = CVodeInit(mem, ODEMult, f_.GetTime(), y);
+   // MFEM_ASSERT(flag >= 0, "CVodeInit() failed!");
+   // cvCopyInit(&backup, mem);
+
+//    // Delete the allocated data in y.
+//    if (!Parallel())
+//    {
+//       delete [] NV_DATA_S(y);
+//       NV_DATA_S(y) = NULL;
+//    }
+//    else
+//    {
+// #ifdef MFEM_USE_MPI
+//       HYPRE_ParVector ypv = N_VGetVector_ParHyp(y);
+//       delete [] hypre_VectorData(hypre_ParVectorLocalVector(ypv));
+//       // delete [] NV_DATA_PH(y);
+//       hypre_VectorData(hypre_ParVectorLocalVector(ypv)) = NULL;
+//       // N_VSetArrayPointer_ParHyp(NULL, y);
+//       // NV_DATA_PH(y) = NULL;
+// #endif
+//    }
+
+//    // The TimeDependentOperator pointer, f, will be the user-defined data.
+//    flag = CVodeSetUserData(sundials_mem, f);
+//    MFEM_ASSERT(flag >= 0, "CVodeSetUserData() failed!");
+
+//    flag = CVodeSStolerances(mem, mem->cv_reltol, mem->cv_Sabstol);
+//    MFEM_ASSERT(flag >= 0, "CVodeSStolerances() failed!");
 }
 
 void CVODESolver::Step(Vector &x, double &t, double &dt)
 {
    CVodeMem mem = Mem(this);
 
-   if (!Parallel())
+   if (!y)
    {
-      NV_DATA_S(y) = x.GetData();
-      MFEM_VERIFY(NV_LENGTH_S(y) == x.Size(), "");
+      if (Parallel())
+      {
+         HYPRE_ParVector ypv;
+         // MPI_Scan and use IJVector
+         HYPRE_ParVectorCreate(comm_,
+                               x.Get_PVector()->GetLayout().As<mfem::hypre::Layout>().GlobalSize(),
+                               x.Get_PVector()->GetLayout().As<mfem::hypre::Layout>().Offsets(), &ypv);
+         HYPRE_ParVectorInitialize(ypv);
+
+         y = N_VMake_ParHyp(ypv);
+
+         // Call CVodeInit().
+         // cvCopyInit(mem, &backup);
+         flag = CVodeInit(mem, ODEMult, f->GetTime(), y);
+         MFEM_ASSERT(flag >= 0, "CVodeInit() failed!");
+         // cvCopyInit(&backup, mem);
+
+         flag = CVodeSetUserData(sundials_mem, f);
+         MFEM_ASSERT(flag >= 0, "CVodeSetUserData() failed!");
+
+         flag = CVodeSStolerances(mem, mem->cv_reltol, mem->cv_Sabstol);
+         MFEM_ASSERT(flag >= 0, "CVodeSStolerances() failed!");
+
+         hypre_TFree(hypre_VectorData(hypre_ParVectorLocalVector(ypv)), HYPRE_MEMORY_SHARED);
+      }
+      else
+      {
+         mfem_error("TBD");
+      }
+   }
+
+   if (Parallel())
+   {
+      HYPRE_ParVector ypv = N_VGetVector_ParHyp(y);
+#ifdef MFEM_USE_BACKENDS
+      double *data = (double *) (x.Get_PVector() ? x.Get_PVector()->GetData() : x.GetData());
+#else
+      double *data = x.GetData();
+#endif
+      hypre_VectorData(hypre_ParVectorLocalVector(ypv)) = data;
    }
    else
    {
-#ifdef MFEM_USE_MPI
-      NV_DATA_P(y) = x.GetData();
-      MFEM_VERIFY(NV_LOCLENGTH_P(y) == x.Size(), "");
-#endif
+      mfem_error("TBD");
    }
 
    if (mem->cv_nst == 0)
@@ -457,8 +550,8 @@ ARKODESolver::ARKODESolver(MPI_Comm comm, Type type)
    else
    {
       // Allocate an empty parallel N_Vector wrapper in y.
-      y = N_VNewEmpty_Parallel(comm, 0, 0); // calls MPI_Allreduce()
-      MFEM_ASSERT(y, "error in N_VNewEmpty_Parallel()");
+      y = N_VNewEmpty_ParHyp(comm, 0, 0); // calls MPI_Allreduce()
+      MFEM_ASSERT(y, "error in N_VNewEmpty_ParHyp()");
    }
 
    // Create the solver memory.

@@ -92,8 +92,9 @@ protected:
 
    N_Vector y;  ///< Auxiliary N_Vector.
 #ifdef MFEM_USE_MPI
-   bool Parallel() const
-   { return (y->ops->nvgetvectorid != N_VGetVectorID_Serial); }
+   MPI_Comm comm_;
+
+   bool Parallel() const { return (comm_ != MPI_COMM_NULL); }
 #else
    bool Parallel() const { return false; }
 #endif

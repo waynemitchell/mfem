@@ -20,6 +20,7 @@
 #include "HYPRE_parcsr_ls.h"
 // #include "_hypre_parcsr_ls.h"
 #include "_hypre_parcsr_mv.h"
+#include "../../general/tic_toc.hpp"
 
 #if defined(HYPRE_BIGINT)
 #error Recompile without HYPRE_BIGINT and read hypre.cpp
@@ -39,43 +40,23 @@ class AMGSolver : public Solver
    HYPRE_Solver solver;
    hypre_ParVector *x_vec, *y_vec;
 
+   mutable StopWatch sw;
+   mutable double setup_time, solve_time;
+
 public:
-   AMGSolver(ParMatrix *A_)
-      : Solver(A_->InLayout()->As<Layout>(), A_->OutLayout()->As<Layout>()),
-        A(NULL), x_vec(NULL), y_vec(NULL)
-   {
-      HYPRE_BoomerAMGCreate(&solver);
-      Setup(A_);
-   }
+   AMGSolver(ParMatrix *A_);
 
-   void Setup(ParMatrix *A_)
-   {
-      A = A_;
-      if (x_vec != NULL) hypre_ParVectorDestroy(x_vec);
-      if (y_vec != NULL) hypre_ParVectorDestroy(y_vec);
-      x_vec = InitializeVector(A->InLayout()->As<Layout>());
-      y_vec = InitializeVector(A->OutLayout()->As<Layout>());
-      HYPRE_BoomerAMGSetup(solver, A->HypreMatrix(), x_vec, y_vec);
-   }
-
+   void Setup(ParMatrix *A_);
    virtual void SetOperator(const Operator &op)
    {
       mfem_error("Not supported");
    }
 
-   virtual ~AMGSolver()
-   {
-      hypre_ParVectorDestroy(x_vec);
-      hypre_ParVectorDestroy(y_vec);
-      HYPRE_BoomerAMGDestroy(solver);
-   }
+   virtual ~AMGSolver();
+   virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const;
 
-   virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const {
-      hypre_VectorData(hypre_ParVectorLocalVector(x_vec)) = (HYPRE_Complex *) x.Get_PVector()->GetData();
-      hypre_VectorData(hypre_ParVectorLocalVector(y_vec)) = (HYPRE_Complex *) y.Get_PVector()->GetData();
-      HYPRE_BoomerAMGSolve(solver, A->HypreMatrix(), x_vec, y_vec);
-   }
-
+   double SetupTime() const { return setup_time; }
+   double SolveTime() const { return solve_time; }
 };
 
 } // namespace mfem::hypre

@@ -14,6 +14,7 @@
 #include <iostream>
 #include "backends/occa/vector.hpp"
 #include "backends/hypre/solvers.hpp"
+#include "cuda_profiler_api.h"
 
 #if !defined(MFEM_USE_OCCA) || !defined(MFEM_USE_BACKENDS)
 #error Requires OCCA backend support
@@ -142,6 +143,9 @@ public:
    {
       amg_solver->Mult(x, y);
    }
+
+   double SetupTime() const { return amg_solver->SetupTime(); }
+   double SolveTime() const { return amg_solver->SolveTime(); }
 };
 
 /** After spatial discretization, the model can be written as:
@@ -185,6 +189,8 @@ protected:
 
    int precond;
 
+   double solve_time;
+
 public:
    ModelOperator(ParFiniteElementSpace &f,
                  const int basis_,
@@ -203,7 +209,47 @@ public:
    /// Update the diffusion BilinearForm K using the given true-dof vector `u`.
    void SetParameters(const Vector &u);
 
+   /** Solve the system (M + dt K) y = M b. The result y replaces the input b.
+       This method is used by the implicit SUNDIALS solvers. */
+   void SundialsSolve(const double dt, Vector &b);
+
    virtual ~ModelOperator() { delete T; delete lor_amg_solver; }
+
+   void PrintStats() const {
+      std::cout << "==== Stats ====" << std::endl;
+      std::cout << "Solver time = " << solve_time << std::endl;
+      if (lor_amg_solver) {
+         std::cout << "LOR AMG setup time = " << lor_amg_solver->SetupTime() << std::endl;
+         std::cout << "LOR AMG solve time = " << lor_amg_solver->SolveTime() << std::endl;
+      }
+   }
+};
+
+/// Custom Jacobian system solver for the SUNDIALS time integrators.
+/** For the ODE system represented by ModelOperator
+
+        M du/dt = -K - b(u),
+
+    this class facilitates the solution of linear systems of the form
+
+        (M + γK) y = M b(u),
+
+    for given b, u (not used), and γ = GetTimeStep(). */
+class SundialsJacSolver : public SundialsODELinearSolver
+{
+private:
+   ModelOperator *oper;
+
+public:
+   SundialsJacSolver() : oper(NULL) { }
+
+   int InitSystem(void *sundials_mem);
+   int SetupSystem(void *sundials_mem, int conv_fail,
+                   const Vector &y_pred, const Vector &f_pred, int &jac_cur,
+                   Vector &v_temp1, Vector &v_temp2, Vector &v_temp3);
+   int SolveSystem(void *sundials_mem, Vector &b, const Vector &weight,
+                   const Vector &y_cur, const Vector &f_cur);
+   int FreeSystem(void *sundials_mem);
 };
 
 enum MethodType {
@@ -336,27 +382,48 @@ int main(int argc, char *argv[])
    //    singly diagonal implicit Runge-Kutta (SDIRK) methods, as well as
    //    explicit Runge-Kutta methods are available.
    ODESolver *ode_solver;
+   CVODESolver *cvode = NULL;
+   ARKODESolver *arkode = NULL;
+   SundialsJacSolver sun_solver; // Used by the implicit SUNDIALS ode solvers.
+   // Relative and absolute tolerances for CVODE and ARKODE.
+   const double reltol = 1e-4, abstol = 1e-4;
+
    switch (ode_solver_type)
    {
-      // Implicit L-stable methods
-      case 1:  ode_solver = new BackwardEulerSolver; break;
-      case 2:  ode_solver = new SDIRK23Solver(2); break;
-      case 3:  ode_solver = new SDIRK33Solver; break;
-      // Explicit methods
-      case 11: ode_solver = new ForwardEulerSolver; break;
-      case 12: ode_solver = new RK2Solver(0.5); break; // midpoint method
-      case 13: ode_solver = new RK3SSPSolver; break;
-      case 14: ode_solver = new RK4Solver; break;
-      case 15: ode_solver = new GeneralizedAlphaSolver(0.5); break;
-      // Implicit A-stable methods (not L-stable)
-      case 22: ode_solver = new ImplicitMidpointSolver; break;
-      case 23: ode_solver = new SDIRK23Solver; break;
-      case 24: ode_solver = new SDIRK34Solver; break;
-      default:
-         cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
-         delete mesh;
-         return 3;
+   case 1:  ode_solver = new BackwardEulerSolver; break;
+   case 2:
+         cvode = new CVODESolver(MPI_COMM_WORLD, CV_ADAMS, CV_FUNCTIONAL);
+         cvode->SetSStolerances(reltol, abstol);
+         cvode->SetMaxStep(dt);
+         ode_solver = cvode; break;
+   case 3:
+         cvode = new CVODESolver(MPI_COMM_WORLD, CV_BDF, CV_NEWTON);
+         cvode->SetLinearSolver(sun_solver);
+         cvode->SetSStolerances(reltol, abstol);
+         cvode->SetMaxStep(dt);
+         ode_solver = cvode; break;
+   case 4:
+         arkode = new ARKODESolver(MPI_COMM_WORLD, ARKODESolver::EXPLICIT);
+         arkode->SetSStolerances(reltol, abstol);
+         arkode->SetMaxStep(dt);
+         if (ode_solver_type == 3) { arkode->SetERKTableNum(FEHLBERG_13_7_8); }
+         ode_solver = arkode; break;
+   case 5:
+         arkode = new ARKODESolver(MPI_COMM_WORLD, ARKODESolver::IMPLICIT);
+         arkode->SetLinearSolver(sun_solver);
+         arkode->SetSStolerances(reltol, abstol);
+         arkode->SetMaxStep(dt);
+         ode_solver = arkode; break;
+   default:
+      cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
+      delete mesh;
+      return 3;
    }
+
+   // Since we want to update the diffusion coefficient after every time step,
+   // we need to use the "one-step" mode of the SUNDIALS solvers.
+   if (cvode) { cvode->SetStepMode(CV_ONE_STEP); }
+   if (arkode) { arkode->SetStepMode(ARK_ONE_STEP); }
 
    // 4. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement, where 'ref_levels' is a
@@ -463,7 +530,13 @@ int main(int argc, char *argv[])
          last_step = true;
       }
 
+      // if (ti == 2) {
+      //    cudaProfilerStart();
+      // }
       ode_solver->Step(u, t, dt);
+      // if (ti == 2) {
+      //    cudaProfilerStop();
+      // }
 
       if (last_step || (ti % vis_steps) == 0)
       {
@@ -471,6 +544,9 @@ int main(int argc, char *argv[])
          {
             cout << "step " << ti << ", t = " << t << endl;
          }
+
+         if (cvode) { cvode->PrintInfo(); }
+         if (arkode) { arkode->PrintInfo(); }
 
          u_gf.SetFromTrueDofs(u);
          if (visualization)
@@ -482,6 +558,8 @@ int main(int argc, char *argv[])
       }
       oper.SetParameters(u);
    }
+
+   oper.PrintStats();
 
    // 11. Save the final solution in parallel. This output can be viewed later
    //     using GLVis: "glvis -np <np> -m ex16-mesh -g ex16-final".
@@ -501,8 +579,6 @@ int main(int argc, char *argv[])
    return 0;
 }
 
-// #include "backends/hypre/parmatrix.hpp"
-
 ModelOperator::ModelOperator(ParFiniteElementSpace &f, const int basis_,
                              const char *Mspec, const char *Kspec, const bool precond_,
                              const double alpha_, const Vector &u, ::occa::device device_)
@@ -511,7 +587,7 @@ ModelOperator::ModelOperator(ParFiniteElementSpace &f, const int basis_,
      M_solver(fespace.GetComm()), T_solver(fespace.GetComm()),
      alpha(alpha_), u_gf(&fespace), uc(&u_gf),
      b(&fespace), b_vec(f.GetTrueVLayout()), z(f.GetTrueVLayout()),
-     device(device_), precond(precond_)
+     device(device_), lor_amg_solver(NULL), precond(precond_)
 {
    const double rel_tol = 1e-4;
 
@@ -534,14 +610,14 @@ ModelOperator::ModelOperator(ParFiniteElementSpace &f, const int basis_,
    M_solver.SetRelTol(rel_tol);
    M_solver.SetAbsTol(0.0);
    M_solver.SetMaxIter(200);
-   M_solver.SetPrintLevel(2);
+   M_solver.SetPrintLevel(1);
    M_solver.SetOperator(*Moper);
 
    T_solver.iterative_mode = false;
    T_solver.SetRelTol(rel_tol);
    T_solver.SetAbsTol(0.0);
    T_solver.SetMaxIter(200);
-   T_solver.SetPrintLevel(2);
+   T_solver.SetPrintLevel(3);
 
    SetParameters(u);
 }
@@ -593,7 +669,9 @@ void ModelOperator::ImplicitSolve(const double dt,
    Koper->Mult(u, z);  // z = Ku
    z.Axpby(-1.0, z, -1.0, b_vec); // z = -Ku - b
    // z.Axpby(-1.0, z, 0.0, z); // z = -Ku
+   tic();
    T_solver.Mult(z, du_dt);
+   solve_time += toc();
 }
 
 void ModelOperator::SetParameters(const Vector &u)
@@ -620,6 +698,74 @@ void ModelOperator::SetParameters(const Vector &u)
    b.Assemble();
    b.Push();
    b.ParallelAssemble(b_vec);
+}
+
+void ModelOperator::SundialsSolve(const double dt, Vector &b)
+{
+   if (!T)
+   {
+      T = new TimeDerivativeOperator(Moper, dt, Koper);
+      T_solver.SetOperator(*T);
+
+      if (precond == PRECOND_AMG)
+      {
+         lor_amg_solver = new LORAMGSolver(fespace, fespace.GetFE(0)->GetOrder(), basis, dt);
+         T_solver.SetPreconditioner(*lor_amg_solver);
+      }
+   }
+   else
+   {
+      T->SetTimestep(dt);
+      if (precond == PRECOND_AMG)
+      {
+         const double last_dt = T->TimeStep();
+         const double factor = 5;
+         if ((dt < (1.0/factor) * last_dt) || (dt > factor * last_dt))
+         {
+            lor_amg_solver->Reassemble(dt);
+         }
+         // preconditioner object set by SetPreconditioner() call above is still valid
+      }
+   }
+
+   Moper->Mult(b, z);  // z = Mb
+   tic();
+   T_solver.Mult(z, b);
+   solve_time += toc();
+}
+
+int SundialsJacSolver::InitSystem(void *sundials_mem)
+{
+   TimeDependentOperator *td_oper = GetTimeDependentOperator(sundials_mem);
+
+   oper = static_cast<ModelOperator*>(td_oper);
+   MFEM_VERIFY(oper, "operator is not ModelOperator");
+
+   return 0;
+}
+
+int SundialsJacSolver::SetupSystem(void *sundials_mem, int conv_fail,
+                                   const Vector &y_pred, const Vector &f_pred,
+                                   int &jac_cur, Vector &v_temp1,
+                                   Vector &v_temp2, Vector &v_temp3)
+{
+   jac_cur = 1;
+
+   return 0;
+}
+
+int SundialsJacSolver::SolveSystem(void *sundials_mem, Vector &b,
+                                   const Vector &weight, const Vector &y_cur,
+                                   const Vector &f_cur)
+{
+   oper->SundialsSolve(GetTimeStep(sundials_mem), b);
+
+   return 0;
+}
+
+int SundialsJacSolver::FreeSystem(void *sundials_mem)
+{
+   return 0;
 }
 
 double InitialCondition(const Vector &x)

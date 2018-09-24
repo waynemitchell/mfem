@@ -98,7 +98,7 @@ MFEM_THREAD_SAFE     = NO
 MFEM_USE_OPENMP      = NO
 MFEM_USE_MEMALLOC    = YES
 MFEM_TIMER_TYPE      = $(if $(NOTMAC),2,4)
-MFEM_USE_SUNDIALS    = NO
+MFEM_USE_SUNDIALS    = YES
 MFEM_USE_MESQUITE    = NO
 MFEM_USE_SUITESPARSE = NO
 MFEM_USE_SUPERLU     = NO
@@ -158,13 +158,13 @@ OPENMP_LIB =
 POSIX_CLOCKS_LIB = -lrt
 
 # SUNDIALS library configuration
-SUNDIALS_DIR = @MFEM_DIR@/../sundials-3.0.0
+SUNDIALS_DIR = @MFEM_DIR@/../sundials
 SUNDIALS_OPT = -I$(SUNDIALS_DIR)/include
-SUNDIALS_LIB = -Wl,-rpath,$(SUNDIALS_DIR)/lib -L$(SUNDIALS_DIR)/lib\
+SUNDIALS_LIB = -Wl,-rpath,$(SUNDIALS_DIR)/lib -L$(SUNDIALS_DIR)/lib -L$(SUNDIALS_DIR)/../raja/lib\
  -lsundials_arkode -lsundials_cvode -lsundials_nvecserial -lsundials_kinsol
 
 ifeq ($(MFEM_USE_MPI),YES)
-   SUNDIALS_LIB += -lsundials_nvecparhyp -lsundials_nvecparallel
+   SUNDIALS_LIB += -lsundials_nvecparhyp -lsundials_nvecparallel -lRAJA
 endif
 # If SUNDIALS was built with KLU:
 # MFEM_USE_SUITESPARSE = YES
