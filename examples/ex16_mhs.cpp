@@ -1,6 +1,6 @@
 //                           Example using MFEM / HYPRE / SUNDIALS
 //
-// Compile with: make ex16
+// Compile with: make ex16p_mhs
 //
 // Sample runs:
 //
@@ -102,6 +102,35 @@ public:
    virtual ~ModelOperator() { delete T; }
 };
 
+
+/// Custom Jacobian system solver for the SUNDIALS time integrators.
+/** For the ODE system represented by ConductionOperator
+
+        M du/dt = -K(u),
+
+    this class facilitates the solution of linear systems of the form
+
+        (M + γK) y = M b,
+
+    for given b, u (not used), and γ = GetTimeStep(). */
+class SundialsJacSolver : public SundialsODELinearSolver
+{
+private:
+   ModelOperator *oper;
+
+public:
+   SundialsJacSolver() : oper(NULL) { }
+
+   int InitSystem(void *sundials_mem);
+   int SetupSystem(void *sundials_mem, int conv_fail,
+                   const Vector &y_pred, const Vector &f_pred, int &jac_cur,
+                   Vector &v_temp1, Vector &v_temp2, Vector &v_temp3);
+   int SolveSystem(void *sundials_mem, Vector &b, const Vector &weight,
+                   const Vector &y_cur, const Vector &f_cur);
+   int FreeSystem(void *sundials_mem);
+};
+
+
 double InitialCondition(const Vector &x);
 
 int main(int argc, char *argv[])
@@ -169,31 +198,16 @@ int main(int argc, char *argv[])
    mesh->SetEngine(*engine);
    int dim = mesh->Dimension();
 
-   // 3. Define the ODE solver used for time integration. Several implicit
-   //    singly diagonal implicit Runge-Kutta (SDIRK) methods, as well as
-   //    explicit Runge-Kutta methods are available.
-   ODESolver *ode_solver;
-   switch (ode_solver_type)
-   {
-      // Implicit L-stable methods
-      case 1:  ode_solver = new BackwardEulerSolver; break;
-      case 2:  ode_solver = new SDIRK23Solver(2); break;
-      case 3:  ode_solver = new SDIRK33Solver; break;
-      // Explicit methods
-      case 11: ode_solver = new ForwardEulerSolver; break;
-      case 12: ode_solver = new RK2Solver(0.5); break; // midpoint method
-      case 13: ode_solver = new RK3SSPSolver; break;
-      case 14: ode_solver = new RK4Solver; break;
-      case 15: ode_solver = new GeneralizedAlphaSolver(0.5); break;
-      // Implicit A-stable methods (not L-stable)
-      case 22: ode_solver = new ImplicitMidpointSolver; break;
-      case 23: ode_solver = new SDIRK23Solver; break;
-      case 24: ode_solver = new SDIRK34Solver; break;
-      default:
-         cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
-         delete mesh;
-         return 3;
-   }
+   // 4. Define the ODE solver used for time integration.
+   ODESolver *ode_solver = NULL;
+   const double reltol = 1e-4, abstol = 1e-4;
+   SundialsJacSolver sun_solver; // Used by the implicit SUNDIALS ode solvers.
+   CVODESolver *cvode = new CVODESolver(MPI_COMM_WORLD, CV_BDF, CV_NEWTON);
+   cvode->SetLinearSolver(sun_solver);
+   cvode->SetSStolerances(reltol, abstol);
+   cvode->SetMaxStep(dt);
+   vode->SetStepMode(CV_ONE_STEP);
+   ODESolver *ode_solver = cvode;  
 
    // 4. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement, where 'ref_levels' is a
@@ -401,6 +415,40 @@ void ModelOperator::SetParameters(const Vector &u)
    b.Assemble();
    b.Push();
 }
+
+
+int SundialsJacSolver::InitSystem(void *sundials_mem)
+{
+   TimeDependentOperator *td_oper = GetTimeDependentOperator(sundials_mem);
+
+   // During development, we use dynamic_cast<> to ensure the setup is correct:
+   oper = dynamic_cast<ModelOperator*>(td_oper);
+   MFEM_VERIFY(oper, "operator is not ModelOperator");
+   return 0;
+}
+
+int SundialsJacSolver::SetupSystem(void *sundials_mem, int conv_fail,
+                                   const Vector &y_pred, const Vector &f_pred,
+                                   int &jac_cur, Vector &v_temp1,
+                                   Vector &v_temp2, Vector &v_temp3)
+{
+   jac_cur = 1;
+   return 0;
+}
+
+int SundialsJacSolver::SolveSystem(void *sundials_mem, Vector &b,
+                                   const Vector &weight, const Vector &y_cur,
+                                   const Vector &f_cur)
+{
+   oper->SundialsSolve(GetTimeStep(sundials_mem), b);
+   return 0;
+}
+
+int SundialsJacSolver::FreeSystem(void *sundials_mem)
+{
+   return 0;
+}
+
 
 double InitialCondition(const Vector &x)
 {
