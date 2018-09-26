@@ -156,7 +156,8 @@ static int arkLinSysFree(ARKodeMem ark_mem)
 const double SundialsSolver::default_rel_tol = 1e-4;
 const double SundialsSolver::default_abs_tol = 1e-9;
 
-static void SetPVectorData(Vector& vec, N_Vector nv) {
+static void SetPVectorData(Vector& vec, N_Vector nv)
+{
    N_Vector_ID nvid = N_VGetVectorID(nv);
    switch (nvid)
    {
@@ -166,6 +167,30 @@ static void SetPVectorData(Vector& vec, N_Vector nv) {
 #ifdef MFEM_USE_MPI
       case SUNDIALS_NVEC_PARHYP:
          vec.PushData(N_VGetVector_ParHyp(nv)->local_vector->data);
+         break;
+      // case SUNDIALS_NVEC_PARHYP:
+      //    vec.PushData(N_VGetVector_ParHyp(nv)->local_vector->data);
+      //    break;
+#endif
+      default:
+         MFEM_ABORT("N_Vector type " << nvid << " is not supported");
+   }
+}
+
+static void GrabPVectorData(N_Vector nv, Vector& vec)
+{
+   N_Vector_ID nvid = N_VGetVectorID(nv);
+   switch (nvid)
+   {
+      case SUNDIALS_NVEC_SERIAL:
+         mfem_error("TBD");
+         break;
+#ifdef MFEM_USE_MPI
+      case SUNDIALS_NVEC_PARHYP:
+      {
+         hypre_VectorData(hypre_ParVectorLocalVector(N_VGetVector_ParHyp(nv))) = (double *)
+            ( vec.Get_PVector() ? vec.Get_PVector()->GetData() : vec.GetData() );
+      }
          break;
       // case SUNDIALS_NVEC_PARHYP:
       //    vec.PushData(N_VGetVector_ParHyp(nv)->local_vector->data);
@@ -188,22 +213,24 @@ int SundialsSolver::ODEMult(realtype t, const N_Vector y,
       Vector mfem_y(f->InLayout());
       SetPVectorData(mfem_y, y);
       Vector mfem_ydot(f->InLayout());
-      SetPVectorData(mfem_ydot, ydot);
 
       // Compute y' = f(t, y).
       f->SetTime(t);
       f->Mult(mfem_y, mfem_ydot);
+
+      GrabPVectorData(ydot, mfem_ydot);
    }
    else
 #else
    {
-      const Vector mfem_y(y);
-      Vector mfem_ydot(ydot);
+      mfem_error("Don't do this");
+      // const Vector mfem_y(y);
+      // Vector mfem_ydot(ydot);
 
-      // Compute y' = f(t, y).
-      TimeDependentOperator *f = static_cast<TimeDependentOperator *>(td_oper);
-      f->SetTime(t);
-      f->Mult(mfem_y, mfem_ydot);
+      // // Compute y' = f(t, y).
+      // TimeDependentOperator *f = static_cast<TimeDependentOperator *>(td_oper);
+      // f->SetTime(t);
+      // f->Mult(mfem_y, mfem_ydot);
    }
 #endif
 
@@ -235,7 +262,8 @@ CVODESolver::CVODESolver(int lmm, int iter)
 
 #ifdef MFEM_USE_MPI
 
-CVODESolver::CVODESolver(MPI_Comm comm, int lmm, int iter)
+CVODESolver::CVODESolver(MPI_Comm comm, int lmm, int iter,
+                         HYPRE_Int *offsets_, HYPRE_Int globaltvsize_)
 {
    if (comm == MPI_COMM_NULL)
    {
@@ -250,6 +278,8 @@ CVODESolver::CVODESolver(MPI_Comm comm, int lmm, int iter)
       // y = N_VNewEmpty_ParHyp(comm, 0, 0); // calls MPI_Allreduce()
       y = NULL;
       comm_ = comm;
+      offsets = offsets_;
+      globaltvsize = globaltvsize_;
       // MFEM_ASSERT(y, "error in N_VNewEmpty_ParHyp()");
    }
 
@@ -297,6 +327,65 @@ void CVODESolver::SetLinearSolver(SundialsODELinearSolver &ls_spec)
    ls_spec.type = SundialsODELinearSolver::CVODE;
 }
 
+struct LinSolData {
+   CVodeMem mem;
+   SundialsLinearSolver *solver;
+   const DLayout layout;
+};
+
+double SundialsLinearSolver::GetTimeStep(void *sundials_mem)
+{
+   return static_cast<CVodeMem>(sundials_mem)->cv_gamma;
+}
+
+static inline SundialsLinearSolver *get_solver(SUNLinearSolver ls)
+{
+   return static_cast<SundialsLinearSolver *>(static_cast<LinSolData*>(ls->content)->solver);
+}
+
+static inline CVodeMem get_sunmem(SUNLinearSolver ls)
+{
+   return static_cast<CVodeMem>(static_cast<LinSolData*>(ls->content)->mem);
+}
+
+static inline DLayout& get_layout(SUNLinearSolver ls)
+{
+   return static_cast<DLayout&>(static_cast<LinSolData*>(ls->content)->layout);
+}
+
+static int cvLinSolSetup(SUNLinearSolver ls, SUNMatrix mat)
+{ return get_solver(ls)->SetupSystem(get_sunmem(ls)); }
+
+static int cvLinSolSolve(SUNLinearSolver ls, SUNMatrix mat,
+                          N_Vector x, N_Vector b, realtype tol)
+{
+   Vector xv(get_layout(ls));
+   Vector bv(get_layout(ls));
+   SetPVectorData(bv, b);
+   // TimeDependentOperator *f = static_cast<TimeDependentOperator *>(td_oper);
+   const int ret = get_solver(ls)->SolveSystem(get_sunmem(ls), xv, bv, tol);
+   GrabPVectorData(x, xv);
+
+   return ret;
+}
+
+static int cvLinSolFree(SUNLinearSolver ls)
+{ return to_solver(ls)->FreeSystem(ls->content); }
+
+void CVODESolver::SetNewLinearSolver(SundialsLinearSolver &ls_spec, const DLayout &layout)
+{
+   _generic_SUNLinearSolver *LS = new _generic_SUNLinearSolver;
+   LS->content = (void *) new LinSolData({Mem(this), &ls_spec, layout});
+   LS->ops = new _generic_SUNLinearSolver_Ops;
+   // Setup, Solve, Free
+   LS->ops->setup = cvLinSolSetup;
+   LS->ops->solve = cvLinSolSolve;
+   LS->ops->free  = cvLinSolFree;
+   // SUNLinearSolver LS;
+   // LS = SUNSPGMR(y, PREC_NONE, 0);
+   flag = CVSpilsSetLinearSolver(sundials_mem, LS);
+}
+
 void CVODESolver::SetStepMode(int itask)
 {
    Mem(this)->cv_taskc = itask;
@@ -337,78 +426,7 @@ static inline void cvCopyInit(CVodeMem src, CVodeMem dest)
 
 void CVODESolver::Init(TimeDependentOperator &f_)
 {
-   CVodeMem mem = Mem(this);
-   CVodeMemRec backup;
-
-   if (mem->cv_MallocDone == SUNTRUE)
-   {
-      // // TODO: preserve more options.
-      // cvCopyInit(mem, &backup);
-      // CVodeFree(&sundials_mem);
-      // sundials_mem = CVodeCreate(backup.cv_lmm, backup.cv_iter);
-      // MFEM_ASSERT(sundials_mem, "error in CVodeCreate()");
-      // cvCopyInit(&backup, mem);
-      mfem_error("Bad option");
-   }
-
    ODESolver::Init(f_);
-
-//    // Set actual size and data in the N_Vector y.
-//    int loc_size = f_.Height();
-//    if (!Parallel())
-//    {
-//       NV_LENGTH_S(y) = loc_size;
-//       NV_DATA_S(y) = new double[loc_size](); // value-initialize
-//    }
-//    else
-//    {
-// #ifdef MFEM_USE_MPI
-//       long local_size = loc_size, global_size;
-
-//       // HYPRE_ParVector ypv = N_VGetVector_ParHyp(y);
-//       // hypre_ParVectorComm(ypv) = comm;
-
-//       MPI_Allreduce(&local_size, &global_size, 1, MPI_LONG, MPI_SUM, comm_);
-
-//       // y = N_VNewEmpty_ParHyp(comm_, local_size, global_size);
-//       // HYPRE_ParVector ypv = N_VGetVector_ParHyp(y);
-//       // hypre_VectorData(hypre_ParVectorLocalVector(ypv)) = NULL;
-//       // hypre_VectorData(hypre_ParVectorLocalVector(ypv)) = new double[loc_size]();
-//       // N_VSetArrayPointer_ParHyp(new double[loc_size](), y);
-//       // NV_DATA_PH(y) = new double[loc_size](); // value-initialize
-// #endif
-//    }
-
-   // // Call CVodeInit().
-   // cvCopyInit(mem, &backup);
-   // flag = CVodeInit(mem, ODEMult, f_.GetTime(), y);
-   // MFEM_ASSERT(flag >= 0, "CVodeInit() failed!");
-   // cvCopyInit(&backup, mem);
-
-//    // Delete the allocated data in y.
-//    if (!Parallel())
-//    {
-//       delete [] NV_DATA_S(y);
-//       NV_DATA_S(y) = NULL;
-//    }
-//    else
-//    {
-// #ifdef MFEM_USE_MPI
-//       HYPRE_ParVector ypv = N_VGetVector_ParHyp(y);
-//       delete [] hypre_VectorData(hypre_ParVectorLocalVector(ypv));
-//       // delete [] NV_DATA_PH(y);
-//       hypre_VectorData(hypre_ParVectorLocalVector(ypv)) = NULL;
-//       // N_VSetArrayPointer_ParHyp(NULL, y);
-//       // NV_DATA_PH(y) = NULL;
-// #endif
-//    }
-
-//    // The TimeDependentOperator pointer, f, will be the user-defined data.
-//    flag = CVodeSetUserData(sundials_mem, f);
-//    MFEM_ASSERT(flag >= 0, "CVodeSetUserData() failed!");
-
-//    flag = CVodeSStolerances(mem, mem->cv_reltol, mem->cv_Sabstol);
-//    MFEM_ASSERT(flag >= 0, "CVodeSStolerances() failed!");
 }
 
 void CVODESolver::Step(Vector &x, double &t, double &dt)
@@ -421,9 +439,7 @@ void CVODESolver::Step(Vector &x, double &t, double &dt)
       {
          HYPRE_ParVector ypv;
          // MPI_Scan and use IJVector
-         HYPRE_ParVectorCreate(comm_,
-                               x.Get_PVector()->GetLayout().As<mfem::hypre::Layout>().GlobalSize(),
-                               x.Get_PVector()->GetLayout().As<mfem::hypre::Layout>().Offsets(), &ypv);
+         HYPRE_ParVectorCreate(comm_, globaltvsize, offsets, &ypv);
          HYPRE_ParVectorInitialize(ypv);
 
          y = N_VMake_ParHyp(ypv);
@@ -465,26 +481,25 @@ void CVODESolver::Step(Vector &x, double &t, double &dt)
 
    if (mem->cv_nst == 0)
    {
-      // Set default linear solver, if not already set.
-      if (mem->cv_iter == CV_NEWTON && mem->cv_lsolve == NULL)
-      {
-#if MFEM_SUNDIALS_VERSION < 30000
-         flag = CVSpgmr(sundials_mem, PREC_NONE, 0);
-#else
-         SUNLinearSolver LS;
-         LS = SUNSPGMR(y, PREC_NONE, 0);
-         flag = CVSpilsSetLinearSolver(sundials_mem, LS);
-#endif
-      }
       // Set the actual t0 and y0.
       mem->cv_tn = t;
       N_VScale(ONE, y, mem->cv_zn[0]);
    }
 
    double tout = t + dt;
+   // x.Pull();
+   // x.Print();
    // The actual time integration.
    flag = CVode(sundials_mem, tout, y, &t, mem->cv_taskc);
    MFEM_ASSERT(flag >= 0, "CVode() failed!");
+   // {
+   //    HYPRE_ParVector ypv = N_VGetVector_ParHyp(y);
+   //    double *data = hypre_VectorData(hypre_ParVectorLocalVector(ypv));
+   //    for (int i = 0; i < 100; i++) std::cout << data[i] << " ";
+   //    std::cout << std::endl;
+   // }
+   // x.Pull();
+   // x.Print();
 
    // Return the last incremental step size.
    dt = mem->cv_hu;

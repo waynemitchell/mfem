@@ -22,6 +22,7 @@
 
 #include "ode.hpp"
 #include "solvers.hpp"
+#include "hypre.hpp"
 
 #include <cvode/cvode.h>
 #include <arkode/arkode.h>
@@ -80,6 +81,16 @@ public:
    ///@}
 };
 
+class SundialsLinearSolver
+{
+protected:
+   double GetTimeStep(void *sundials_mem);
+public:
+   virtual int SetupSystem(void *sundials_mem) = 0;
+   virtual int SolveSystem(void *sundials_mem, Vector &x, Vector &b, double tol) = 0;
+   virtual int FreeSystem(void *sundials_mem) = 0;
+};
+
 
 /// A base class for the MFEM classes wrapping SUNDIALS' solvers.
 /** This class defines some common data and functions used by the SUNDIALS
@@ -91,8 +102,11 @@ protected:
    mutable int flag;   ///< Flag returned by the last call to SUNDIALS.
 
    N_Vector y;  ///< Auxiliary N_Vector.
+
 #ifdef MFEM_USE_MPI
    MPI_Comm comm_;
+   HYPRE_Int *offsets;
+   HYPRE_Int globaltvsize;
 
    bool Parallel() const { return (comm_ != MPI_COMM_NULL); }
 #else
@@ -154,7 +168,7 @@ public:
                         options are CV_FUNCTIONAL (usually with CV_ADAMS) or
                         CV_NEWTON (usually with CV_BDF).
        For parameter desciption, see the CVodeCreate documentation (cvode.h). */
-   CVODESolver(MPI_Comm comm, int lmm, int iter);
+   CVODESolver(MPI_Comm comm, int lmm, int iter, HYPRE_Int *offsets_, HYPRE_Int globaltvsize_);
 #endif
 
    /// Set the scalar relative and scalar absolute tolerances.
@@ -163,6 +177,8 @@ public:
    /// Set a custom Jacobian system solver for the CV_NEWTON option usually used
    /// with implicit CV_BDF.
    void SetLinearSolver(SundialsODELinearSolver &ls_spec);
+
+   void SetNewLinearSolver(SundialsLinearSolver &ls_spec, const DLayout &layout);
 
    /** @brief CVode supports two modes, specified by itask: CV_NORMAL (default)
        and CV_ONE_STEP. */

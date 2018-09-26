@@ -333,10 +333,6 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
    {
       d.Assign(r); // d = r
    }
-   r.Pull();
-   r.Print();
-   d.Pull();
-   d.Print();
    nom0 = nom = Dot(d, r);
    MFEM_ASSERT(IsFinite(nom), "nom = " << nom);
 
