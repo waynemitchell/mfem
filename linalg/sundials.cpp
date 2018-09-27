@@ -373,7 +373,7 @@ static int cvLinSolSolve(SUNLinearSolver ls, SUNMatrix mat,
 }
 
 static int cvLinSolFree(SUNLinearSolver ls)
-{ return to_solver(ls)->FreeSystem(ls->content); }
+{ return to_solver(ls)->FreeSystem(get_sunmem(ls)); }
 
 static SUNLinearSolver_Type cvLinSolGetType(SUNLinearSolver ls)
 { return SUNLINEARSOLVER_ITERATIVE; }
