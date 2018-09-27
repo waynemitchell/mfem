@@ -86,6 +86,7 @@ class SundialsLinearSolver
 protected:
    double GetTimeStep(void *sundials_mem);
 public:
+   virtual int InitializeSystem(void *sundials_mem) = 0;
    virtual int SetupSystem(void *sundials_mem) = 0;
    virtual int SolveSystem(void *sundials_mem, Vector &x, Vector &b, double tol) = 0;
    virtual int FreeSystem(void *sundials_mem) = 0;

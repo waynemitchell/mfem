@@ -243,6 +243,7 @@ private:
 public:
    SundialsJacSolver(ModelOperator *oper_) : oper(oper_) { }
 
+   int InitializeSystem(void *sundials_mem);
    int SetupSystem(void *sundials_mem);
    int SolveSystem(void *sundials_mem, Vector &x, Vector &b, double tol);
    int FreeSystem(void *sundials_mem);
@@ -731,6 +732,11 @@ void ModelOperator::SundialsSolve(const double dt, const Vector &b, Vector &x)
    tic();
    T_solver.Mult(z, x);
    solve_time += toc();
+}
+
+int SundialsJacSolver::InitializeSystem(void *sundials_mem)
+{
+   return 0;
 }
 
 int SundialsJacSolver::SetupSystem(void *sundials_mem)

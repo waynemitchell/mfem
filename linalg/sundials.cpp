@@ -328,7 +328,7 @@ void CVODESolver::SetLinearSolver(SundialsODELinearSolver &ls_spec)
 }
 
 struct LinSolData {
-   CVodeMem mem;
+   void* mem;
    SundialsLinearSolver *solver;
    const DLayout layout;
 };
@@ -338,20 +338,23 @@ double SundialsLinearSolver::GetTimeStep(void *sundials_mem)
    return static_cast<CVodeMem>(sundials_mem)->cv_gamma;
 }
 
-static inline SundialsLinearSolver *get_solver(SUNLinearSolver ls)
+static SundialsLinearSolver *get_solver(SUNLinearSolver ls)
 {
    return static_cast<SundialsLinearSolver *>(static_cast<LinSolData*>(ls->content)->solver);
 }
 
-static inline CVodeMem get_sunmem(SUNLinearSolver ls)
+static void *get_sunmem(SUNLinearSolver ls)
 {
-   return static_cast<CVodeMem>(static_cast<LinSolData*>(ls->content)->mem);
+   return static_cast<void*>(static_cast<LinSolData*>(ls->content)->mem);
 }
 
-static inline DLayout& get_layout(SUNLinearSolver ls)
+static const DLayout& get_layout(SUNLinearSolver ls)
 {
-   return static_cast<DLayout&>(static_cast<LinSolData*>(ls->content)->layout);
+   return static_cast<const DLayout&>(static_cast<LinSolData*>(ls->content)->layout);
 }
+
+static int cvLinSolInitialize(SUNLinearSolver ls)
+{ return get_solver(ls)->InitializeSystem(get_sunmem(ls)); }
 
 static int cvLinSolSetup(SUNLinearSolver ls, SUNMatrix mat)
 { return get_solver(ls)->SetupSystem(get_sunmem(ls)); }
@@ -372,18 +375,31 @@ static int cvLinSolSolve(SUNLinearSolver ls, SUNMatrix mat,
 static int cvLinSolFree(SUNLinearSolver ls)
 { return to_solver(ls)->FreeSystem(ls->content); }
 
+static SUNLinearSolver_Type cvLinSolGetType(SUNLinearSolver ls)
+{ return SUNLINEARSOLVER_CUSTOM; }
+
 void CVODESolver::SetNewLinearSolver(SundialsLinearSolver &ls_spec, const DLayout &layout)
 {
    _generic_SUNLinearSolver *LS = new _generic_SUNLinearSolver;
-   LS->content = (void *) new LinSolData({Mem(this), &ls_spec, layout});
+
+   LS->content = (void *) new LinSolData({sundials_mem, &ls_spec, layout});
+
    LS->ops = new _generic_SUNLinearSolver_Ops;
-   // Setup, Solve, Free
+   LS->ops->gettype = cvLinSolGetType;
+   LS->ops->setatimes = NULL;
+   LS->ops->setpreconditioner = NULL;
+   LS->ops->setscalingvectors = NULL;
+   LS->ops->initialize = cvLinSolInitialize;
    LS->ops->setup = cvLinSolSetup;
    LS->ops->solve = cvLinSolSolve;
+   LS->ops->numiters = NULL;
+   LS->ops->resnorm = NULL;
+   LS->ops->lastflag = NULL;
+   LS->ops->space = NULL;
+   LS->ops->resid = NULL;
    LS->ops->free  = cvLinSolFree;
-   // SUNLinearSolver LS;
-   // LS = SUNSPGMR(y, PREC_NONE, 0);
-   flag = CVSpilsSetLinearSolver(sundials_mem, LS);
+
+   CVSpilsSetLinearSolver(sundials_mem, LS);
 }
 
 void CVODESolver::SetStepMode(int itask)
