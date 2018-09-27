@@ -376,7 +376,7 @@ static int cvLinSolFree(SUNLinearSolver ls)
 { return to_solver(ls)->FreeSystem(ls->content); }
 
 static SUNLinearSolver_Type cvLinSolGetType(SUNLinearSolver ls)
-{ return SUNLINEARSOLVER_CUSTOM; }
+{ return SUNLINEARSOLVER_ITERATIVE; }
 
 void CVODESolver::SetNewLinearSolver(SundialsLinearSolver &ls_spec, const DLayout &layout)
 {
