@@ -211,7 +211,7 @@ public:
 
    /** Solve the system (M + dt K) y = M b. The result y replaces the input b.
        This method is used by the implicit SUNDIALS solvers. */
-   void SundialsSolve(const double dt, const Vector &b, Vector &x);
+   void SundialsSolve(const double dt, const Vector &b, Vector &x, double tol);
 
    virtual ~ModelOperator() { delete T; delete lor_amg_solver; }
 
@@ -530,13 +530,7 @@ int main(int argc, char *argv[])
          last_step = true;
       }
 
-      // if (ti == 2) {
-      //    cudaProfilerStart();
-      // }
       ode_solver->Step(u, t, dt);
-      // if (ti == 2) {
-      //    cudaProfilerStop();
-      // }
 
       if (last_step || (ti % vis_steps) == 0)
       {
@@ -545,8 +539,11 @@ int main(int argc, char *argv[])
             cout << "step " << ti << ", t = " << t << endl;
          }
 
-         if (cvode) { cvode->PrintInfo(); }
-         if (arkode) { arkode->PrintInfo(); }
+         if (mpi_session.Root())
+         {
+            if (cvode) { cvode->PrintInfo(); }
+            if (arkode) { arkode->PrintInfo(); }
+         }
 
          u_gf.SetFromTrueDofs(u);
          if (visualization)
@@ -559,7 +556,8 @@ int main(int argc, char *argv[])
       oper.SetParameters(u);
    }
 
-   oper.PrintStats();
+   if (mpi_session.Root()) { oper.PrintStats(); }
+   if (cvode && mpi_session.Root()) { cvode->PrintTiming(); }
 
    // 11. Save the final solution in parallel. This output can be viewed later
    //     using GLVis: "glvis -np <np> -m ex16-mesh -g ex16-final".
@@ -700,7 +698,7 @@ void ModelOperator::SetParameters(const Vector &u)
    b.ParallelAssemble(b_vec);
 }
 
-void ModelOperator::SundialsSolve(const double dt, const Vector &b, Vector &x)
+void ModelOperator::SundialsSolve(const double dt, const Vector &b, Vector &x, double tol)
 {
    if (!T)
    {
@@ -730,6 +728,7 @@ void ModelOperator::SundialsSolve(const double dt, const Vector &b, Vector &x)
 
    Moper->Mult(b, z);  // z = Mb
    tic();
+   // T_solver.SetRelTol(sqrt(tol));
    T_solver.Mult(z, x);
    solve_time += toc();
 }
@@ -746,7 +745,7 @@ int SundialsJacSolver::SetupSystem(void *sundials_mem)
 
 int SundialsJacSolver::SolveSystem(void *sundials_mem, Vector &x, Vector &b, double tol)
 {
-   oper->SundialsSolve(GetTimeStep(sundials_mem), b, x);
+   oper->SundialsSolve(GetTimeStep(sundials_mem), b, x, tol);
    return 0;
 }
 

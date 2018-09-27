@@ -188,8 +188,10 @@ static void GrabPVectorData(N_Vector nv, Vector& vec)
 #ifdef MFEM_USE_MPI
       case SUNDIALS_NVEC_PARHYP:
       {
-         hypre_VectorData(hypre_ParVectorLocalVector(N_VGetVector_ParHyp(nv))) = (double *)
-            ( vec.Get_PVector() ? vec.Get_PVector()->GetData() : vec.GetData() );
+         cudaMemcpy(hypre_VectorData(hypre_ParVectorLocalVector(N_VGetVector_ParHyp(nv))),
+                    (double *) ( vec.Get_PVector() ? vec.Get_PVector()->GetData() : vec.GetData() ),
+                    vec.Size() * sizeof(double),
+                    cudaMemcpyDefault);
       }
          break;
       // case SUNDIALS_NVEC_PARHYP:
@@ -237,12 +239,69 @@ int SundialsSolver::ODEMult(realtype t, const N_Vector y,
    return 0;
 }
 
+struct LinSolData {
+   void* mem;
+   SundialsLinearSolver *solver;
+   const DLayout layout;
+};
+
+double SundialsLinearSolver::GetTimeStep(void *sundials_mem)
+{
+   return static_cast<CVodeMem>(sundials_mem)->cv_gamma;
+}
+
+static SundialsLinearSolver *get_solver(SUNLinearSolver ls)
+{
+   return static_cast<SundialsLinearSolver *>(static_cast<LinSolData*>(ls->content)->solver);
+}
+
+static void *get_sunmem(SUNLinearSolver ls)
+{
+   return static_cast<void*>(static_cast<LinSolData*>(ls->content)->mem);
+}
+
+static const DLayout& get_layout(SUNLinearSolver ls)
+{
+   return static_cast<const DLayout&>(static_cast<LinSolData*>(ls->content)->layout);
+}
+
+static int cvLinSolInitialize(SUNLinearSolver ls)
+{ return get_solver(ls)->InitializeSystem(get_sunmem(ls)); }
+
+static int cvLinSolSetup(SUNLinearSolver ls, SUNMatrix mat)
+{ return get_solver(ls)->SetupSystem(get_sunmem(ls)); }
+
+static int cvLinSolSolve(SUNLinearSolver ls, SUNMatrix mat,
+                          N_Vector x, N_Vector b, realtype tol)
+{
+   Vector xv(get_layout(ls));
+   Vector bv(get_layout(ls));
+   SetPVectorData(bv, b);
+   // TimeDependentOperator *f = static_cast<TimeDependentOperator *>(td_oper);
+   const int ret = get_solver(ls)->SolveSystem(get_sunmem(ls), xv, bv, tol);
+   GrabPVectorData(x, xv);
+
+   return ret;
+}
+
+static int cvLinSolFree(SUNLinearSolver ls)
+{ return to_solver(ls)->FreeSystem(get_sunmem(ls)); }
+
+static SUNLinearSolver_Type cvLinSolGetType(SUNLinearSolver ls)
+{ return SUNLINEARSOLVER_ITERATIVE; }
+
+void CVODESolver::SetNewLinearSolver(SundialsLinearSolver &ls_spec, const DLayout &layout_)
+{
+   linsol = &ls_spec;
+   layout.Reset(layout_.Get());
+}
+
 static inline CVodeMem Mem(const CVODESolver *self)
 {
    return CVodeMem(self->SundialsMem());
 }
 
-CVODESolver::CVODESolver(int lmm, int iter)
+CVODESolver::CVODESolver(int lmm, int iter) : linsol(NULL)
 {
    // Allocate an empty serial N_Vector wrapper in y.
    y = N_VNewEmpty_Serial(0);
@@ -263,7 +322,7 @@ CVODESolver::CVODESolver(int lmm, int iter)
 #ifdef MFEM_USE_MPI
 
 CVODESolver::CVODESolver(MPI_Comm comm, int lmm, int iter,
-                         HYPRE_Int *offsets_, HYPRE_Int globaltvsize_)
+                         HYPRE_Int *offsets_, HYPRE_Int globaltvsize_) : linsol(NULL)
 {
    if (comm == MPI_COMM_NULL)
    {
@@ -327,81 +386,6 @@ void CVODESolver::SetLinearSolver(SundialsODELinearSolver &ls_spec)
    ls_spec.type = SundialsODELinearSolver::CVODE;
 }
 
-struct LinSolData {
-   void* mem;
-   SundialsLinearSolver *solver;
-   const DLayout layout;
-};
-
-double SundialsLinearSolver::GetTimeStep(void *sundials_mem)
-{
-   return static_cast<CVodeMem>(sundials_mem)->cv_gamma;
-}
-
-static SundialsLinearSolver *get_solver(SUNLinearSolver ls)
-{
-   return static_cast<SundialsLinearSolver *>(static_cast<LinSolData*>(ls->content)->solver);
-}
-
-static void *get_sunmem(SUNLinearSolver ls)
-{
-   return static_cast<void*>(static_cast<LinSolData*>(ls->content)->mem);
-}
-
-static const DLayout& get_layout(SUNLinearSolver ls)
-{
-   return static_cast<const DLayout&>(static_cast<LinSolData*>(ls->content)->layout);
-}
-
-static int cvLinSolInitialize(SUNLinearSolver ls)
-{ return get_solver(ls)->InitializeSystem(get_sunmem(ls)); }
-
-static int cvLinSolSetup(SUNLinearSolver ls, SUNMatrix mat)
-{ return get_solver(ls)->SetupSystem(get_sunmem(ls)); }
-
-static int cvLinSolSolve(SUNLinearSolver ls, SUNMatrix mat,
-                          N_Vector x, N_Vector b, realtype tol)
-{
-   Vector xv(get_layout(ls));
-   Vector bv(get_layout(ls));
-   SetPVectorData(bv, b);
-   // TimeDependentOperator *f = static_cast<TimeDependentOperator *>(td_oper);
-   const int ret = get_solver(ls)->SolveSystem(get_sunmem(ls), xv, bv, tol);
-   GrabPVectorData(x, xv);
-
-   return ret;
-}
-
-static int cvLinSolFree(SUNLinearSolver ls)
-{ return to_solver(ls)->FreeSystem(get_sunmem(ls)); }
-
-static SUNLinearSolver_Type cvLinSolGetType(SUNLinearSolver ls)
-{ return SUNLINEARSOLVER_ITERATIVE; }
-
-void CVODESolver::SetNewLinearSolver(SundialsLinearSolver &ls_spec, const DLayout &layout)
-{
-   _generic_SUNLinearSolver *LS = new _generic_SUNLinearSolver;
-
-   LS->content = (void *) new LinSolData({sundials_mem, &ls_spec, layout});
-
-   LS->ops = new _generic_SUNLinearSolver_Ops;
-   LS->ops->gettype = cvLinSolGetType;
-   LS->ops->setatimes = NULL;
-   LS->ops->setpreconditioner = NULL;
-   LS->ops->setscalingvectors = NULL;
-   LS->ops->initialize = cvLinSolInitialize;
-   LS->ops->setup = cvLinSolSetup;
-   LS->ops->solve = cvLinSolSolve;
-   LS->ops->numiters = NULL;
-   LS->ops->resnorm = NULL;
-   LS->ops->lastflag = NULL;
-   LS->ops->space = NULL;
-   LS->ops->resid = NULL;
-   LS->ops->free  = cvLinSolFree;
-
-   CVSpilsSetLinearSolver(sundials_mem, LS);
-}
-
 void CVODESolver::SetStepMode(int itask)
 {
    Mem(this)->cv_taskc = itask;
@@ -461,10 +445,8 @@ void CVODESolver::Step(Vector &x, double &t, double &dt)
          y = N_VMake_ParHyp(ypv);
 
          // Call CVodeInit().
-         // cvCopyInit(mem, &backup);
          flag = CVodeInit(mem, ODEMult, f->GetTime(), y);
          MFEM_ASSERT(flag >= 0, "CVodeInit() failed!");
-         // cvCopyInit(&backup, mem);
 
          flag = CVodeSetUserData(sundials_mem, f);
          MFEM_ASSERT(flag >= 0, "CVodeSetUserData() failed!");
@@ -473,6 +455,37 @@ void CVODESolver::Step(Vector &x, double &t, double &dt)
          MFEM_ASSERT(flag >= 0, "CVodeSStolerances() failed!");
 
          hypre_TFree(hypre_VectorData(hypre_ParVectorLocalVector(ypv)), HYPRE_MEMORY_SHARED);
+
+         if (linsol != NULL)
+         {
+            _generic_SUNLinearSolver *LS = new _generic_SUNLinearSolver;
+
+            LS->content = (void *) new LinSolData({sundials_mem, linsol, layout});
+
+            LS->ops = new _generic_SUNLinearSolver_Ops;
+            LS->ops->gettype = cvLinSolGetType;
+            LS->ops->setatimes = NULL;
+            LS->ops->setpreconditioner = NULL;
+            LS->ops->setscalingvectors = NULL;
+            LS->ops->initialize = cvLinSolInitialize;
+            LS->ops->setup = cvLinSolSetup;
+            LS->ops->solve = cvLinSolSolve;
+            LS->ops->numiters = NULL;
+            LS->ops->resnorm = NULL;
+            LS->ops->lastflag = NULL;
+            LS->ops->space = NULL;
+            LS->ops->resid = NULL;
+            LS->ops->free  = cvLinSolFree;
+
+            flag = CVSpilsSetLinearSolver(sundials_mem, LS);
+            MFEM_ASSERT(flag >= 0, "CVSpilsSetLinearSolver() failed!");
+         }
+         else
+         {
+            SUNLinearSolver LS = SUNSPGMR(y, PREC_NONE, 0);
+            flag = CVSpilsSetLinearSolver(sundials_mem, LS);
+            MFEM_ASSERT(flag >= 0, "CVSpilsSetLinearSolver() failed!");
+         }
       }
       else
       {
@@ -506,8 +519,11 @@ void CVODESolver::Step(Vector &x, double &t, double &dt)
    // x.Pull();
    // x.Print();
    // The actual time integration.
+   sw.Start();
    flag = CVode(sundials_mem, tout, y, &t, mem->cv_taskc);
    MFEM_ASSERT(flag >= 0, "CVode() failed!");
+   sw.Stop();
+   time += sw.UserTime();
    // {
    //    HYPRE_ParVector ypv = N_VGetVector_ParHyp(y);
    //    double *data = hypre_VectorData(hypre_ParVectorLocalVector(ypv));

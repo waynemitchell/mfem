@@ -23,6 +23,7 @@
 #include "ode.hpp"
 #include "solvers.hpp"
 #include "hypre.hpp"
+#include "../general/tic_toc.hpp"
 
 #include <cvode/cvode.h>
 #include <arkode/arkode.h>
@@ -149,6 +150,10 @@ public:
 */
 class CVODESolver : public ODESolver, public SundialsSolver
 {
+   SundialsLinearSolver *linsol;
+   DLayout layout;
+   double time;
+   StopWatch sw;
 public:
    /// Construct a serial CVODESolver, a wrapper for SUNDIALS' CVODE solver.
    /** @param[in] lmm   Specifies the linear multistep method, the options are
@@ -221,6 +226,8 @@ public:
 
    /// Print CVODE statistics.
    void PrintInfo() const;
+
+   void PrintTiming() const { std::cout << "CVODE time (inclusive): " << time << std::endl; }
 
    /// Destroy the associated CVODE memory.
    virtual ~CVODESolver();
