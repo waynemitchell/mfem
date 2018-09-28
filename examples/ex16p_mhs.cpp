@@ -176,10 +176,10 @@ protected:
 
    double alpha;
 
-   ParGridFunction u_gf;
-   GridFunctionCoefficient uc;
-   ParLinearForm b;
-   Vector b_vec;
+   mutable ParGridFunction u_gf;
+   mutable GridFunctionCoefficient uc;
+   mutable ParLinearForm b;
+   mutable Vector b_vec;
 
    mutable Vector z; // auxiliary vector
 
@@ -207,7 +207,7 @@ public:
    virtual void ImplicitSolve(const double dt, const Vector &u, Vector &k);
 
    /// Update the diffusion BilinearForm K using the given true-dof vector `u`.
-   void SetParameters(const Vector &u);
+   void SetParameters(const Vector &u) const;
 
    /** Solve the system (M + dt K) y = M b. The result y replaces the input b.
        This method is used by the implicit SUNDIALS solvers. */
@@ -276,6 +276,7 @@ int main(int argc, char *argv[])
    int par_ref_levels = 1;
    int order = 2;
    int ode_solver_type = 1;
+   int max_steps = -1;
    double t_final = 0.5;
    double dt = 1.0e-2;
    double alpha = 1.0e-2;
@@ -304,6 +305,8 @@ int main(int argc, char *argv[])
    args.AddOption(&ode_solver_type, "-s", "--ode-solver",
                   "ODE solver: 1 - Backward Euler, 2 - SDIRK2, 3 - SDIRK3,\n\t"
                   "\t   11 - Forward Euler, 12 - RK2, 13 - RK3 SSP, 14 - RK4.");
+   args.AddOption(&max_steps, "-maxs", "--max-steps",
+                  "(If > 0) Maximum number of integrator steps.");
    args.AddOption(&t_final, "-tf", "--t-final",
                   "Final time; start time is 0.");
    args.AddOption(&dt, "-dt", "--time-step",
@@ -525,10 +528,10 @@ int main(int argc, char *argv[])
    bool last_step = false;
    for (int ti = 1; !last_step; ti++)
    {
-      if (t + dt >= t_final - dt/2)
-      {
-         last_step = true;
-      }
+      // if (t + dt >= t_final - dt/2)
+      // {
+      //    last_step = true;
+      // }
 
       ode_solver->Step(u, t, dt);
 
@@ -553,6 +556,8 @@ int main(int argc, char *argv[])
             sout << "solution\n" << *pmesh << u_gf << flush;
          }
       }
+      if (t >= t_final) break;
+      if ((max_steps > 0) && (ti > max_steps)) break;
       oper.SetParameters(u);
    }
 
@@ -625,6 +630,8 @@ void ModelOperator::Mult(const Vector &u, Vector &du_dt) const
    // Compute:
    //    du_dt = -M^{-1}*(K(u) + b(u))
    // for du_dt
+   SetParameters(u);
+
    Koper->Mult(u, z);
    z.Axpby(-1.0, z, -1.0, b_vec);
    M_solver.Mult(z, du_dt);
@@ -638,6 +645,7 @@ void ModelOperator::ImplicitSolve(const double dt,
    // for du_dt
    // T = M + dt*K
    // T_solver is solving T du_dt = -(Ku + b)
+
    if (!T)
    {
       T = new TimeDerivativeOperator(Moper, dt, Koper);
@@ -672,7 +680,7 @@ void ModelOperator::ImplicitSolve(const double dt,
    solve_time += toc();
 }
 
-void ModelOperator::SetParameters(const Vector &u)
+void ModelOperator::SetParameters(const Vector &u) const
 {
    // Call an occa kernel that computes b = alpha * u^2
    static ::occa::kernelBuilder rhs_builder =
@@ -727,8 +735,9 @@ void ModelOperator::SundialsSolve(const double dt, const Vector &b, Vector &x, d
    }
 
    Moper->Mult(b, z);  // z = Mb
+   // The setting below overrides MFEM's default tolerance
+   // T_solver.SetAbsTol(sqrt(tol));
    tic();
-   // T_solver.SetRelTol(sqrt(tol));
    T_solver.Mult(z, x);
    solve_time += toc();
 }
