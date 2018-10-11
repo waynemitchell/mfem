@@ -144,6 +144,8 @@ public:
       amg_solver->Mult(x, y);
    }
 
+   double TimeStep() { return dt; }
+
    double SetupTime() const { return amg_solver->SetupTime(); }
    double SolveTime() const { return amg_solver->SolveTime(); }
 };
@@ -189,7 +191,9 @@ protected:
 
    int precond;
 
-   double solve_time;
+   double msolve_time;
+   double tsolve_time;
+   double prec_time;
 
 public:
    ModelOperator(ParFiniteElementSpace &f,
@@ -217,7 +221,8 @@ public:
 
    void PrintStats() const {
       std::cout << "==== Stats ====" << std::endl;
-      std::cout << "Solver time = " << solve_time << std::endl;
+      std::cout << "Solver time = " << msolve_time << ", " << tsolve_time << std::endl;
+      std::cout << "Prec time = " << prec_time << std::endl;
       if (lor_amg_solver) {
          std::cout << "LOR AMG setup time = " << lor_amg_solver->SetupTime() << std::endl;
          std::cout << "LOR AMG solve time = " << lor_amg_solver->SolveTime() << std::endl;
@@ -257,8 +262,8 @@ enum MethodType {
 };
 
 enum PreconditionerType {
-   PRECOND_NONE,
-   PRECOND_AMG
+   PRECOND_NONE=0,
+   PRECOND_AMG=1
 };
 
 double InitialCondition(const Vector &x);
@@ -329,11 +334,11 @@ int main(int argc, char *argv[])
       switch (method)
       {
       case METHOD_CPU_PA:
-         occa_spec = "mode: 'Serial', integrator: 'acrotensor'";
+         occa_spec = "mode: 'Serial', integrator: 'acrotensor', memory:{unified:true}";
          Mspec = Kspec = "representation: 'partial'";
          break;
       case METHOD_CPU_FA:
-         occa_spec = "mode: 'Serial', integrator: 'acrotensor'";
+         occa_spec = "mode: 'Serial', integrator: 'acrotensor', memory:{unified:true}";
          Mspec = Kspec = "representation: 'full'";
          break;
       case METHOD_GPU_PA:
@@ -349,14 +354,12 @@ int main(int argc, char *argv[])
          break;
       };
    }
+   if (mpi_session.Root()) args.PrintOptions(cout);
    if (!args.Good())
    {
-      if (mpi_session.Root()) args.PrintUsage(cout);
       return 1;
    }
-   if (mpi_session.Root()) args.PrintOptions(cout);
-
-
+   
    // Examples for OCCA specifications:
    //   - CPU (serial): "mode: 'Serial'"
    //   - CUDA GPU: "mode: 'CUDA', device_id: 0"
@@ -532,7 +535,6 @@ int main(int argc, char *argv[])
       // {
       //    last_step = true;
       // }
-
       ode_solver->Step(u, t, dt);
 
       if (last_step || (ti % vis_steps) == 0)
@@ -593,6 +595,9 @@ ModelOperator::ModelOperator(ParFiniteElementSpace &f, const int basis_,
      device(device_), lor_amg_solver(NULL), precond(precond_)
 {
    const double rel_tol = 1e-4;
+   msolve_time = 0.0;
+   tsolve_time = 0.0;
+   prec_time = 0.0;
 
    // TODO: Switch to FormLinearSystem as this will not work if there are Dirichlet BCs
    M.AddDomainIntegrator(new MassIntegrator());
@@ -613,15 +618,18 @@ ModelOperator::ModelOperator(ParFiniteElementSpace &f, const int basis_,
    M_solver.SetRelTol(rel_tol);
    M_solver.SetAbsTol(0.0);
    M_solver.SetMaxIter(200);
-   M_solver.SetPrintLevel(2);
+   M_solver.SetPrintLevel(0);
    M_solver.SetOperator(*Moper);
 
    T_solver.iterative_mode = false;
    T_solver.SetRelTol(rel_tol);
    T_solver.SetAbsTol(0.0);
    T_solver.SetMaxIter(200);
-   T_solver.SetPrintLevel(2);
+   T_solver.SetPrintLevel(0);
 
+   double *barr = (double*)b_vec.Get_PVector()->As<mfem::occa::Vector>().OccaMem().ptr();
+   for (int i = 0; i < b_vec.Size(); ++i)
+      barr[i] = 0.0;
    SetParameters(u);
 }
 
@@ -630,11 +638,12 @@ void ModelOperator::Mult(const Vector &u, Vector &du_dt) const
    // Compute:
    //    du_dt = -M^{-1}*(K(u) + b(u))
    // for du_dt
+   tic();
    SetParameters(u);
-
    Koper->Mult(u, z);
    z.Axpby(-1.0, z, -1.0, b_vec);
    M_solver.Mult(z, du_dt);
+   std::cout << "Msolve time:  " << toc() << std::endl;
 }
 
 void ModelOperator::ImplicitSolve(const double dt,
@@ -654,16 +663,17 @@ void ModelOperator::ImplicitSolve(const double dt,
       if (precond == PRECOND_AMG)
       {
          lor_amg_solver = new LORAMGSolver(fespace, fespace.GetFE(0)->GetOrder(), basis, dt);
+         prec_time += lor_amg_solver->SetupTime();
          T_solver.SetPreconditioner(*lor_amg_solver);
       }
    }
    else
    {
+      const double last_dt = lor_amg_solver->TimeStep();
       T->SetTimestep(dt);
       if (precond == PRECOND_AMG)
-      {
-         const double last_dt = T->TimeStep();
-         const double factor = 5;
+      {     
+         const double factor = 1.0;
          if ((dt < (1.0/factor) * last_dt) || (dt > factor * last_dt))
          {
             lor_amg_solver->Reassemble(dt);
@@ -677,13 +687,13 @@ void ModelOperator::ImplicitSolve(const double dt,
    // z.Axpby(-1.0, z, 0.0, z); // z = -Ku
    tic();
    T_solver.Mult(z, du_dt);
-   solve_time += toc();
+   tsolve_time += toc();
 }
 
 void ModelOperator::SetParameters(const Vector &u) const
 {
    // Call an occa kernel that computes b = alpha * u^2
-   static ::occa::kernelBuilder rhs_builder =
+/*   static ::occa::kernelBuilder rhs_builder =
       ::occa::linalg::customLinearMethod(
          "modeloperator_rhs",
          "v0[i] = c0 * v0[i] * v0[i];",
@@ -701,13 +711,19 @@ void ModelOperator::SetParameters(const Vector &u) const
    kernel((int)u_gf.Size(), alpha, u_data);
 
    // u changed, so reassemble b
+
+   tic();
+   b_vec = 0.0;
    b.Assemble();
    b.Push();
    b.ParallelAssemble(b_vec);
+   std::cout << "b reassembly time:  " << toc() << std::endl;*/
 }
 
 void ModelOperator::SundialsSolve(const double dt, const Vector &b, Vector &x, double tol)
 {
+   double inc;
+   tic();
    if (!T)
    {
       T = new TimeDerivativeOperator(Moper, dt, Koper);
@@ -721,11 +737,11 @@ void ModelOperator::SundialsSolve(const double dt, const Vector &b, Vector &x, d
    }
    else
    {
+      const double last_dt = lor_amg_solver->TimeStep();
       T->SetTimestep(dt);
       if (precond == PRECOND_AMG)
       {
-         const double last_dt = T->TimeStep();
-         const double factor = 5;
+         const double factor = 1.0;
          if ((dt < (1.0/factor) * last_dt) || (dt > factor * last_dt))
          {
             lor_amg_solver->Reassemble(dt);
@@ -733,13 +749,19 @@ void ModelOperator::SundialsSolve(const double dt, const Vector &b, Vector &x, d
          // preconditioner object set by SetPreconditioner() call above is still valid
       }
    }
+   inc += toc();
+   prec_time += inc;
+   std::cout << "Precond setup time:  " << inc << std::endl;
 
    Moper->Mult(b, z);  // z = Mb
+
    // The setting below overrides MFEM's default tolerance
    // T_solver.SetAbsTol(sqrt(tol));
    tic();
    T_solver.Mult(z, x);
-   solve_time += toc();
+   inc = toc();
+   tsolve_time += inc;
+   std::cout << "TSolve time:  " << inc << std::endl;
 }
 
 int SundialsJacSolver::InitializeSystem(void *sundials_mem)

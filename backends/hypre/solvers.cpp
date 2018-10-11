@@ -25,11 +25,11 @@ void AMGSolver::Setup(ParMatrix *A_)
    // HYPRE_BoomerAMGSetRelaxType(solver, 18);
    HYPRE_BoomerAMGSetMaxIter(solver, 2);
 
+   sw.Clear();
    sw.Start();
    HYPRE_BoomerAMGSetup(solver, A->HypreMatrix(), x_vec, y_vec);
    sw.Stop();
    setup_time = sw.UserTime();
-   sw.Clear();
 }
 
 AMGSolver::~AMGSolver()
@@ -40,13 +40,13 @@ AMGSolver::~AMGSolver()
 }
 
 void AMGSolver::Mult(const mfem::Vector &x, mfem::Vector &y) const {
+   sw.Clear();
    sw.Start();
    hypre_VectorData(hypre_ParVectorLocalVector(x_vec)) = (HYPRE_Complex *) x.Get_PVector()->GetData();
    hypre_VectorData(hypre_ParVectorLocalVector(y_vec)) = (HYPRE_Complex *) y.Get_PVector()->GetData();
    HYPRE_BoomerAMGSolve(solver, A->HypreMatrix(), x_vec, y_vec);
    sw.Stop();
    solve_time += sw.UserTime();
-   sw.Clear();
 }
 
 } // namespace mfem::hypre

@@ -223,6 +223,7 @@ int SundialsSolver::ODEMult(realtype t, const N_Vector y,
       GrabPVectorData(ydot, mfem_ydot);
    }
    else
+      mfem_error("No engine.");
 #else
    {
       mfem_error("Don't do this");
@@ -519,6 +520,7 @@ void CVODESolver::Step(Vector &x, double &t, double &dt)
    // x.Pull();
    // x.Print();
    // The actual time integration.
+   sw.Clear();
    sw.Start();
    flag = CVode(sundials_mem, tout, y, &t, mem->cv_taskc);
    MFEM_ASSERT(flag >= 0, "CVode() failed!");
