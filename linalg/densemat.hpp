@@ -31,6 +31,8 @@ private:
 
    void Eigensystem(Vector &ev, DenseMatrix *evect = NULL);
 
+   void Eigensystem(DenseMatrix &b, Vector &ev, DenseMatrix *evect = NULL);
+
    // Auxiliary method used in FNorm2() and FNorm()
    void FNorm(double &scale_factor, double &scaled_fnorm2) const;
 
@@ -216,14 +218,31 @@ public:
    /// Compute the square of the Frobenius norm of the matrix
    double FNorm2() const { double s, n2; FNorm(s, n2); return s*s*n2; }
 
+   /// Compute eigenvalues of A x = ev x where A = *this
    void Eigenvalues(Vector &ev)
    { Eigensystem(ev); }
 
+   /// Compute eigenvalues and eigenvectors of A x = ev x where A = *this
    void Eigenvalues(Vector &ev, DenseMatrix &evect)
    { Eigensystem(ev, &evect); }
 
+   /// Compute eigenvalues and eigenvectors of A x = ev x where A = *this
    void Eigensystem(Vector &ev, DenseMatrix &evect)
    { Eigensystem(ev, &evect); }
+
+   /** Compute generalized eigenvalues and eigenvectors of A x = ev B x,
+       where A = *this */
+   void Eigenvalues(DenseMatrix &b, Vector &ev)
+   { Eigensystem(b, ev); }
+
+   /// Compute generalized eigenvalues of A x = ev B x, where A = *this
+   void Eigenvalues(DenseMatrix &b, Vector &ev, DenseMatrix &evect)
+   { Eigensystem(b, ev, &evect); }
+
+   /** Compute generalized eigenvalues and eigenvectors of A x = ev B x,
+       where A = *this */
+   void Eigensystem(DenseMatrix &b, Vector &ev, DenseMatrix &evect)
+   { Eigensystem(b, ev, &evect); }
 
    void SingularValues(Vector &sv) const;
    int Rank(double tol) const;
@@ -420,6 +439,9 @@ void MultVWt(const Vector &v, const Vector &w, DenseMatrix &VWt);
 
 /// VWt += v w^t
 void AddMultVWt(const Vector &v, const Vector &w, DenseMatrix &VWt);
+
+/// VVt += v v^t
+void AddMultVVt(const Vector &v, DenseMatrix &VWt);
 
 /// VWt += a * v w^t
 void AddMult_a_VWt(const double a, const Vector &v, const Vector &w,
