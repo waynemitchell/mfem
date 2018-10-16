@@ -426,6 +426,7 @@ int main (int argc, char *argv[])
    int max_lin_iter      = 100;
    bool move_bnd         = true;
    bool combomet         = 0;
+   bool normalization    = false;
    bool visualization    = true;
    int verbosity_level   = 0;
    int solver_type       = 0;
@@ -491,6 +492,9 @@ int main (int argc, char *argv[])
                   "Enable motion along horizontal and vertical boundaries.");
    args.AddOption(&combomet, "-cmb", "--combo-met", "-no-cmb", "--no-combo-met",
                   "Combination of metrics.");
+   args.AddOption(&normalization, "-nor", "--normalization", "-no-nor",
+                  "--no-normalization",
+                  "Make all terms in the optimization functional unitless.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -548,9 +552,12 @@ int main (int argc, char *argv[])
 
    // 8. Define a vector representing the minimal local mesh size in the mesh
    //    nodes. We index the nodes using the scalar version of the degrees of
-   //    freedom in pfespace.
+   //    freedom in pfespace. Note: this is partition-dependent.
+   //
+   //    In addition, compute average mesh size and total volume.
    Vector h0(pfespace->GetNDofs());
    h0 = infinity();
+   double sizes_loc = 0.0, vol_loc = 0.0;
    Array<int> dofs;
    for (int i = 0; i < pmesh->GetNE(); i++)
    {
@@ -559,9 +566,16 @@ int main (int argc, char *argv[])
       // Adjust the value of h0 in dofs based on the local mesh size.
       for (int j = 0; j < dofs.Size(); j++)
       {
-         h0(dofs[j]) = min(h0(dofs[j]), pmesh->GetElementSize(i));
+         double s = pmesh->GetElementSize(i), v = pmesh->GetElementVolume(i);
+         h0(dofs[j]) = min(h0(dofs[j]), s);
+         sizes_loc += s;
+         vol_loc   += v;
       }
    }
+   double avg_size, volume;
+   MPI_Allreduce(&sizes_loc, &avg_size, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+   avg_size /= pmesh->GetGlobalNE();
+   MPI_Allreduce(&vol_loc, &volume, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
    // 9. Add a random perturbation to the nodes in the interior of the domain.
    //    We define a random grid function of fespace and make sure that it is
@@ -745,6 +759,10 @@ int main (int argc, char *argv[])
    he_nlf_integ->SetIntegrationRule(*ir);
 
    // 14. Limit the node movement.
+   if (normalization)
+   {
+      lim_const /= (avg_size * avg_size * volume);
+   }
    ConstantCoefficient lim_coeff(lim_const);
    if (lim_const != 0.0) { he_nlf_integ->EnableLimiting(x0, lim_coeff); }
 
@@ -781,6 +799,13 @@ int main (int argc, char *argv[])
       a.AddDomainIntegrator(he_nlf_integ2);
    }
    else { a.AddDomainIntegrator(he_nlf_integ); }
+
+   double init_en = a.GetParGridFunctionEnergy(x);
+   if (myid == 0) { cout << "Initial strain energy: " << init_en << endl; }
+   ConstantCoefficient nc((init_en > 0.0) ? 1.0 / init_en : 1.0);
+   if (normalization) { he_nlf_integ->SetCoefficient(nc); }
+   init_en = a.GetParGridFunctionEnergy(x);
+   if (myid == 0) { cout << "Initial strain energy: " << init_en << endl; }
 
    // 16. Visualize the starting mesh and metric values.
    if (visualization)
@@ -848,45 +873,44 @@ int main (int argc, char *argv[])
      a.SetEssentialVDofs(ess_vdofs);
    }
 
-// Set essential dofs based on location - Begin
+   // Set essential dofs based on location - Begin
+   /*
    ParGridFunction pnodes(pfespace);
    pmesh->GetNodes(pnodes);
    const int nNodes = pnodes.Size() / dim;
    int n = 0;
-   for (int i = 0; i < nNodes; ++i) 
-    {
-     int valchk = spatial_essdof(pnodes(i),pnodes(nNodes+i));
-     if (valchk == 1)
-     {
-       n += dim;
-     }
-    }
+   for (int i = 0; i < nNodes; ++i)
+   {
+      int valchk = spatial_essdof(pnodes(i),pnodes(nNodes+i));
+      if (valchk == 1)
+      {
+         n += dim;
+      }
+   }
 
    Array<int> spat_ess_vdofs(n);
-   if (n > 0) 
+   if (n > 0)
    {
-    n = 0;
-    for (int i = 0; i < nNodes; ++i)
-    {
-     int valchk = spatial_essdof(pnodes(i),pnodes(nNodes+i));
-     if (valchk == 1)
-     {
-       spat_ess_vdofs[n] = i;
-       spat_ess_vdofs[n+1] = nNodes+i;
-       n += dim;
-     }
-    }
+      n = 0;
+      for (int i = 0; i < nNodes; ++i)
+      {
+         int valchk = spatial_essdof(pnodes(i),pnodes(nNodes+i));
+         if (valchk == 1)
+         {
+            spat_ess_vdofs[n] = i;
+            spat_ess_vdofs[n+1] = nNodes+i;
+            n += dim;
+         }
+      }
    }
-    a.SetAddEssentialVDofs(spat_ess_vdofs); 
-// Set essential dofs based on location - End
+   a.SetAddEssentialVDofs(spat_ess_vdofs);
+   // Set essential dofs based on location - End
 
-// Set essential Elements based on essential nodes
-// Must be called because it sets the array ess_el_list (set to 0 for all elements 
-// in non-linear form constructor)
-    a.SetEssentialElems();
-
-   const double init_en = a.GetParGridFunctionEnergy(x);
-   if (myid == 0) { cout << "Initial strain energy: " << init_en << endl; }
+   // Set essential Elements based on essential nodes
+   // Must be called because it sets the array ess_el_list (set to 0 for all
+   // elements in non-linear form constructor)
+   a.SetEssentialElems();
+   */
 
    // 18. As we use the Newton method to solve the resulting nonlinear system,
    //     here we setup the linear solver for the system's Jacobian.

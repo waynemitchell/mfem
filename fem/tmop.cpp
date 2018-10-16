@@ -1289,6 +1289,7 @@ void TMOP_Integrator::AssembleElementVector(const FiniteElement &el,
       AddMultABt(DS, P, PMatO); //This is ip.weight*det(W)*W^-1dA/dx*Dmu/DT 
   
       // Derivative of the target matrix.
+      /*
       targetC->ComputeTargetDerivatives(T.ElementNo, i, el, *ir, Jtr_dx);
       Tpr->SetIntPoint(&ip);
       for (int j = 0; j < dof * dim; j++)
@@ -1305,8 +1306,10 @@ void TMOP_Integrator::AssembleElementVector(const FiniteElement &el,
             }
          }
       }
+      */
 
       // Derivative of Determinant of target matrix
+      /*
       targetC->ComputeTargetDetDerivatives(T.ElementNo, i, el, *ir, Jtr_dx);
       Tpr->SetIntPoint(&ip);
       double mu = metric->EvalW(Jpt);
@@ -1319,6 +1322,7 @@ void TMOP_Integrator::AssembleElementVector(const FiniteElement &el,
        elvect(j) += AdW(0,0);
 //     ip.weight*d(detW)/dx*mu
       }
+      */
 
       if (coeff0)
       {
