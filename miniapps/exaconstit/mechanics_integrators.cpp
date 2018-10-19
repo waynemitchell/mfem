@@ -1117,10 +1117,10 @@ void NeoHookean::EvalModel(const DenseMatrix &J, const DenseMatrix &DS,
    // the 6 unique components of the symmetric Cauchy stress tensor.
    // 
    // RC, uncomment to transform Cauchy to PK1 (SRW)
-//   double sigma[6];
-//   for (int i=0; i<6; ++i) sigma[i] = 0.0;
+   double sigma[6];
+   for (int i=0; i<6; ++i) sigma[i] = 0.0;
 //   printf("NeoHookean::EvalModel before PK1ToCauchy \n");
-//   PK1ToCauchy(P, J, sigma);
+   PK1ToCauchy(P, J, sigma);
 
    // update total stress; We store the Cauchy stress, so we have to update 
    // that, and then we want to also carry around a local full PK1 stress 
@@ -1129,27 +1129,27 @@ void NeoHookean::EvalModel(const DenseMatrix &J, const DenseMatrix &DS,
    // RC, uncomment to access end step stress at current element/IP 
    // in order to update stress. Getting stress here, if printed to 
    // screen, gives screwy values. (SRW)
-//   double sigma1[6];
+   double sigma1[6];
 //   printf("NeoHookean::EvalModel before GetElementStress \n");
-//   GetElementStress(elemID, ipID, false, sigma1, 6);
+   GetElementStress(elemID, ipID, false, sigma1, 6);
 
    // update stress
    //
    // RC, uncomment to print the stress from the previous call to 
    // GetElementStress (SRW)
 //   printf("NeoHookean::EvalModel before stress update \n");
-//   for (int i=0; i<6; ++i)
-//   {
+   for (int i=0; i<6; ++i)
+   {
 //      printf("sigma1 prior to resetting to new stress %f \n", sigma1[i]);
-//      sigma1[i] = sigma[i];
-//   }
+      sigma1[i] = sigma[i];
+   }
 
    // set full updated stress on the quadrature function
 //   printf("NeoHookean::EvalModel before SetElementStress \n");
 //
 //   RC, since the Getter didn't produce the correct initialized values of 
 //   stress, then there is no point in testing the setter yet (SRW)
-//   SetElementStress(elemID, ipID, false, sigma1, 6);
+   SetElementStress(elemID, ipID, false, sigma1, 6);
 
    /////////////////////////////////////////////////////////////////////////////
    // DEBUG CODE: remove later
