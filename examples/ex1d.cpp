@@ -12,7 +12,8 @@ int main(int argc, char *argv[])
    const char *spec = "cpu";
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
-   int ref_levels = -1;
+   int level = -1;
+   int max_iter = 2000;
    bool static_cond = false;
    bool visualization = 1;
 
@@ -24,8 +25,9 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
-   args.AddOption(&ref_levels, "-r", "--refine-levels",
-                  "Number of uniform refinements to apply to the mesh.");
+   args.AddOption(&level, "-l", "--level", "Refinement level");
+   args.AddOption(&max_iter, "-mi", "--max-iter",
+                  "Maximum number of CG iterations");
    args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
                   "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
@@ -42,8 +44,8 @@ int main(int argc, char *argv[])
 #ifdef MFEM_USE_BACKENDS
    /// Engine *engine = EngineDepot.Select(spec);
 
-   // string occa_spec("mode: 'Serial'");
-   string occa_spec("mode: 'CUDA', device_id: 0");
+   string occa_spec("mode: 'Serial'");
+   //string occa_spec("mode: 'CUDA', device_id: 0");
    // string occa_spec("mode: 'OpenMP', threads: 4");
    // string occa_spec("mode: 'OpenCL', device_id: 0, platform_id: 0");
 
@@ -69,8 +71,8 @@ int main(int argc, char *argv[])
    //    largest number that gives a final mesh with no more than 50,000
    //    elements.
    {
-      ref_levels = ref_levels >= 0 ? ref_levels :
-         (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
+      int ref_levels = level>=0 ? level :
+                       (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
@@ -135,28 +137,58 @@ int main(int argc, char *argv[])
    //    conditions, applying conforming constraints for non-conforming AMR,
    //    static condensation, etc.
    if (static_cond) { a->EnableStaticCondensation(); }
+
+   tic_toc.Clear();
+   tic_toc.Start();
    a->Assemble();
 
    OperatorHandle A(Operator::ANY_TYPE);
    Vector B, X;
    a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
+   
+   double my_rt = tic_toc.RealTime();
+   cout << "\nTotal BilinearForm time:    " << my_rt << " sec.";
+   cout << "\n\"DOFs/sec\" in assembly: "
+        << 1e-6*A.Ptr()->Height()/my_rt << " million.\n"
+        << endl;
 
    cout << "Size of linear system: " << A.Ptr()->Height() << endl;
 
-   // 10. Solve the system A X = B with CG.
+   CGSolver *cg;
+   cg = new CGSolver;
+   cg->SetRelTol(1e-6);
+   cg->SetMaxIter(max_iter);
+   cg->SetPrintLevel(3);
+   cg->SetOperator(*A.Ptr());
+
    tic_toc.Clear();
    tic_toc.Start();
-   const int print_level = 3;
-   CG(*A.Ptr(), B, X, print_level, 1000, 1e-12, 0.0);
-   tic_toc.Stop();
-   cout << "CG time: " << tic_toc.RealTime() << " sec." << endl;
+#ifndef MFEM_USE_SUITESPARSE
+   cg->Mult(B, X);
+#else
+   // 10. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
+   UMFPackSolver umf_solver;
+   umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
+   umf_solver.SetOperator(A.Ptr());
+   umf_solver.Mult(B, X);
+#endif
+
+   my_rt = tic_toc.RealTime();
+   cout << "\nTotal CG time:    " << my_rt << " sec." << endl;
+   cout << "Time per CG step: "
+        << my_rt / cg->GetNumIterations() << " sec." << endl;
+   cout << "\n\"DOFs/sec\" in CG: "
+        << 1e-6*A.Ptr()->Height()*cg->GetNumIterations()/my_rt << " million.\n"
+        << endl;
+
+   delete cg;
 
    // 11. Recover the solution as a finite element grid function.
    a->RecoverFEMSolution(X, *b, x);
    x.Pull();
 
-   // 12. Save the refined mesh and the solution. This output can be viewed
-   //     later using GLVis: "glvis -m refined.mesh -g sol.gf".
+   // 12. Save the refined mesh and the solution. This output can be viewed later
+   //     using GLVis: "glvis -m refined.mesh -g sol.gf".
    ofstream mesh_ofs("refined.mesh");
    mesh_ofs.precision(8);
    mesh->Print(mesh_ofs);
