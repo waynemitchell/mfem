@@ -8,7 +8,6 @@
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
-
 #ifndef MFEM_TEMPLATE_CONFIG_SIMD_M64
 #define MFEM_TEMPLATE_CONFIG_SIMD_M64
 
@@ -21,7 +20,7 @@ template <typename scalar_t> struct AutoSIMD<scalar_t,1,1>
 
    scalar_t vec[size];
 
-   inline MFEM_ALWAYS_INLINE scalar_t &operator[](int i) { return vec[0]; }
+  inline MFEM_ALWAYS_INLINE scalar_t &operator[](int i) { return vec[0]; }
   
    inline MFEM_ALWAYS_INLINE const scalar_t &operator[](int i) const { return vec[0]; }
 

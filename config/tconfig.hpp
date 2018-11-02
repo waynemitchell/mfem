@@ -48,6 +48,7 @@
 
 // --- AutoSIMD or X86 intrinsics
 #ifndef MFEM_USE_X86INTRIN
+#warning no MFEM_USE_X86INTRIN
 #include "simd/auto.hpp"
 #else
 #ifdef __VSX__
@@ -56,6 +57,7 @@
 #ifdef __bgq__
 #include "simd/qpx256.hpp"
 #else
+#warning x86
 #include "simd/x86.hpp"
 #endif
 #endif
@@ -74,7 +76,7 @@
 #endif
 #endif
 
-template<typename complex_t, typename real_t>
+template<typename complex_t, typename real_t, bool simd>
 struct AutoImplTraits
 {
    static const int block_size = MFEM_TEMPLATE_BLOCK_SIZE;
@@ -83,9 +85,9 @@ struct AutoImplTraits
 
    static const int batch_size = 1;
 
-   static const int simd_size = MFEM_SIMD_SIZE/sizeof(complex_t);
+   static const int simd_size = simd?(MFEM_SIMD_SIZE/sizeof(complex_t)):1;
 
-   static const int valign_size = simd_size;
+   static const int valign_size = simd?simd_size:1;
 
    typedef AutoSIMD<complex_t,simd_size,valign_size> vcomplex_t;
    typedef AutoSIMD<   real_t,simd_size,valign_size> vreal_t;
