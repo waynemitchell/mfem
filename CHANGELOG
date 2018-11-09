@@ -55,6 +55,10 @@ Discretization improvements
   allowing for the use of Zienkiewicz-Zhu type error estimators with the
   integrator. For an illustration of this addition, see the new Example 22.
 
+New and improved solvers and preconditioners
+--------------------------------------------
+- Added support for parallel ILU preconditioning via hypre's Euclid solver.
+
 New and updated examples and miniapps
 -------------------------------------
 - Added a new meshing miniapp, Toroid, which can produce a variety of torus
