@@ -557,25 +557,23 @@ int main (int argc, char *argv[])
    //    In addition, compute average mesh size and total volume.
    Vector h0(pfespace->GetNDofs());
    h0 = infinity();
-   double sizes_loc = 0.0, vol_loc = 0.0;
+   double vol_loc = 0.0;
    Array<int> dofs;
    for (int i = 0; i < pmesh->GetNE(); i++)
    {
       // Get the local scalar element degrees of freedom in dofs.
       pfespace->GetElementDofs(i, dofs);
       // Adjust the value of h0 in dofs based on the local mesh size.
+      const double s = pmesh->GetElementSize(i);
       for (int j = 0; j < dofs.Size(); j++)
       {
-         double s = pmesh->GetElementSize(i), v = pmesh->GetElementVolume(i);
          h0(dofs[j]) = min(h0(dofs[j]), s);
-         sizes_loc += s;
-         vol_loc   += v;
       }
+      vol_loc   += pmesh->GetElementVolume(i);
    }
-   double avg_size, volume;
-   MPI_Allreduce(&sizes_loc, &avg_size, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-   avg_size /= pmesh->GetGlobalNE();
+   double volume;
    MPI_Allreduce(&vol_loc, &volume, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+   const double small_phys_size = pow(volume, 1.0 / dim) / 100.0;
 
    // 9. Add a random perturbation to the nodes in the interior of the domain.
    //    We define a random grid function of fespace and make sure that it is
@@ -761,7 +759,7 @@ int main (int argc, char *argv[])
    // 14. Limit the node movement.
    if (normalization)
    {
-      lim_const /= (avg_size * avg_size * volume);
+      lim_const /= (pmesh->GetGlobalNE() * small_phys_size * small_phys_size);
    }
    ConstantCoefficient lim_coeff(lim_const);
    if (lim_const != 0.0) { he_nlf_integ->EnableLimiting(x0, lim_coeff); }
@@ -780,10 +778,9 @@ int main (int argc, char *argv[])
 
    if (combomet)
    {
-      // Weight of the original metric.
-      coeff1 = new ConstantCoefficient(1.0);
-      he_nlf_integ->SetCoefficient(*coeff1);
       a.AddDomainIntegrator(he_nlf_integ);
+
+      const double energy_1 = a.GetParGridFunctionEnergy(x);
 
       metric2 = new TMOP_Metric_077;
       target_c2 = new TargetConstructor(
@@ -793,12 +790,26 @@ int main (int argc, char *argv[])
       TMOP_Integrator *he_nlf_integ2;
       he_nlf_integ2 = new TMOP_Integrator(metric2, target_c2);
       he_nlf_integ2->SetIntegrationRule(*ir);
+      a.AddDomainIntegrator(he_nlf_integ2);
 
+      const double energy_2 = a.GetParGridFunctionEnergy(x) - energy_1;
+
+      if (myid == 0)
+      {
+         cout << "Initial strain energy 1: " << energy_1 << endl;
+         cout << "Initial strain energy 2: " << energy_2 << endl;
+      }
+
+      // Weights of the metrics in the combination.
+      coeff1 = new ConstantCoefficient(1.0);
+      he_nlf_integ->SetCoefficient(*coeff1);
       // Weight of metric2.
       he_nlf_integ2->SetCoefficient(coeff2);
-      a.AddDomainIntegrator(he_nlf_integ2);
    }
-   else { a.AddDomainIntegrator(he_nlf_integ); }
+   else
+   {
+      a.AddDomainIntegrator(he_nlf_integ);
+   }
 
    double init_en = a.GetParGridFunctionEnergy(x);
    if (myid == 0) { cout << "Initial strain energy: " << init_en << endl; }
@@ -1049,10 +1060,14 @@ int main (int argc, char *argv[])
 
    // 22. Compute the amount of energy decrease.
    const double fin_en = a.GetParGridFunctionEnergy(x);
+   he_nlf_integ->DisableLimiting();
+   const double mu_part = a.GetParGridFunctionEnergy(x);
    if (myid == 0)
    {
       if (verbosity_level>=1) {cout << "Initial strain energy: " << init_en << endl;}
-      cout << "Final strain energy : " << fin_en << endl;
+      cout << "Final strain energy : " << fin_en
+           << " mu: " << mu_part
+           << " lim: " << fin_en - mu_part << endl;
       cout << "The strain energy decreased by: " << setprecision(12)
            << (init_en - fin_en) * 100.0 / init_en << " %." << endl;
    }
@@ -1067,6 +1082,7 @@ int main (int argc, char *argv[])
    // Remap test.
    //AdvectorCG advector2(mesh0, *remap_gf.ParFESpace()->FEColl());
    //advector2.Advect(x0, x, remap_gf);
+   /*
    if (visualization)
    {
       osockstream sock(19916, "localhost");
@@ -1079,6 +1095,7 @@ int main (int argc, char *argv[])
            << 700 << " " << 0 << " " << 600 << " " << 600 << "\n"
            << "keys jRmclA" << endl;
    }
+   */
 
    // 23. Visualize the mesh displacement.
    if (visualization)
@@ -1090,7 +1107,7 @@ int main (int argc, char *argv[])
          sock.open("localhost", 19916);
          sock << "solution\n";
       }
-      mesh0.PrintAsOne(sock);
+      pmesh->PrintAsOne(sock);
       x0.SaveAsOne(sock);
       if (myid == 0)
       {

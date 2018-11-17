@@ -606,6 +606,7 @@ public:
       nodes0 = &n0;
       coeff0 =&w0;
    }
+   void DisableLimiting() { nodes0 = NULL; coeff0 = NULL; }
 
    /// Update the original/reference nodes used for limiting.
    void SetLimitingNodes(const GridFunction &n0) { nodes0 = &n0; }
