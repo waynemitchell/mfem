@@ -22,11 +22,6 @@
 namespace mfem
 {
 
-// free function to compute the beginning step deformation gradient to store 
-// on a quadrature function
-void computeDefGrad(const QuadratureFunction *qf, const ParFiniteElementSpace *fes, 
-                    const Vector &x0);
-
 class ExaModel 
 {
 public:
@@ -37,6 +32,13 @@ public:
    DenseMatrix currElemCoords; // local variable to store current configuration 
                                // element coordinates 
    DenseMatrix P; // temporary PK1 stress for NLF integrator to populate/access 
+
+   // beginning and end (at NR iterate) step deformation gradient for current
+   // element (full deformation gradients) and material tangent.
+   // All matrices are local to an integration point used 
+   // for a given element level computation
+   DenseMatrix Jpt0, Jpt1, CMat; // note: these local copies are for convenience 
+
 protected:
    ElementTransformation *Ttr; /**< Reference-element to target-element
                                     transformation. */
@@ -78,12 +80,6 @@ protected:
    // the same at all quadrature points. That is, the material properties are 
    // constant and not dependent on space
    Vector matProps;
-
-   // beginning and end (at NR iterate) step deformation gradient for current
-   // element (full deformation gradients) and material tangent.
-   // All matrices are local to an integration point used 
-   // for a given element level computation
-   DenseMatrix Jpt0, Jpt1, CMat; // note: these local copies are for convenience 
 
    //---------------------------------------------------------------------------
 
@@ -199,6 +195,10 @@ public:
    // (calculated from the element transformation)
    void CalcElemDefGrad1(const DenseMatrix &Jpt);
 
+   void UpdateDefGrad0(const ParFiniteElementSpace *fes, const Vector &x0);
+
+   void SetElemDefGrad0(const DenseMatrix& F, const int elID, const int ipNum);
+
    // routine to update beginning step stress with end step values
    void UpdateStress(int elID, int ipNum);
 
@@ -214,6 +214,8 @@ public:
    void PK1ToCauchy(const DenseMatrix &P, const DenseMatrix& J, double* sigma);
 
    void ComputeVonMises(const int elemID, const int ipID);
+
+   void PrintStressToScreen(const ParFiniteElementSpace *fes);
 
 };
 

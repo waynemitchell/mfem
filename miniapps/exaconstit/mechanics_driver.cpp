@@ -198,6 +198,9 @@ void setStateVarData(Vector* sVars, Vector* orient, ParFiniteElementSpace *fes,
 // initialize a quadrature function with a single input value, val.
 void initQuadFunc(QuadratureFunction *qf, double val, ParFiniteElementSpace *fes);
 
+// initialize a quadrature function to identity
+void initQuadFuncToIdentity(QuadratureFunction *qf, ParFiniteElementSpace *fes);
+
 // set the time step on the boundary condition objects
 void setBCTimeStep(double dt, int nDBC);
 
@@ -392,7 +395,6 @@ int main(int argc, char *argv[])
    }
 
    // Check material model argument input parameters for valid combinations
-   printf("after input before checkMaterialArgs. \n");
    bool err = checkMaterialArgs(hyperelastic, umat, cp, grain_euler, grain_q, grain_custom, 
               ngrains, nProps, numStateVars);
    if (!err && myid == 0) 
@@ -426,10 +428,7 @@ int main(int argc, char *argv[])
    }
    else // read in mesh file
    {
-      printf("opening mesh file \n");
-
       ifstream imesh(mesh_file);
-      printf("after declaring imesh \n");
       if (!imesh)
       {
          if (myid == 0)
@@ -440,9 +439,7 @@ int main(int argc, char *argv[])
          return 2;
       }
   
-      printf("before declaring new mesh \n");
       mesh = new Mesh(imesh, 1, 1, true);
-      printf("after declaring new mesh \n");
       imesh.close();
    }
 
@@ -488,8 +485,6 @@ int main(int argc, char *argv[])
       }
 
    delete mesh;
-
-   printf("after mesh section. \n");
 
    int dim = pmesh->Dimension();
 
@@ -646,7 +641,7 @@ int main(int argc, char *argv[])
    // step deformation gradient on the model.
    int kinDim = 9;
    QuadratureFunction kinVars0(&qspace, kinDim);
-   initQuadFunc(&kinVars0, 0.0, &fe_space);
+   initQuadFuncToIdentity(&kinVars0, &fe_space);
 
    // Define a grid function for the global reference configuration, the beginning 
    // step configuration, the global deformation, the current configuration/solution 
@@ -725,9 +720,9 @@ int main(int argc, char *argv[])
       // set the active boundary attributes
       if (bc.compID != 0) {
          ess_bdr[i] = 1;
-         printf("active ess_bdr: %d \n", i+1);
-         printf("bc comp id: %d \n", bc.compID);
-         printf("component vals %f %f %f \n", bc.essDisp[0], bc.essDisp[1], bc.essDisp[2]);
+//         printf("active ess_bdr: %d \n", i+1);
+//         printf("bc comp id: %d \n", bc.compID);
+//         printf("component vals %f %f %f \n", bc.essDisp[0], bc.essDisp[1], bc.essDisp[2]);
       }
       ++numDirBCs;
 //      printf("bcid, dirDisp: %d %f %f %f \n", bcID, bc.essDisp[0], bc.essDisp[1], bc.essDisp[2]);
@@ -743,19 +738,16 @@ int main(int argc, char *argv[])
    // this where the grain info is a possible subset only of some 
    // material history variable quadrature function. Also handle the 
    // case where there is no grain data.
-   printf("before NonlinearMechOperator constructor. \n");
    NonlinearMechOperator oper(fe_space, ess_bdr, 
                               newton_rel_tol, newton_abs_tol, 
                               newton_iter, gmres_solver, slu_solver,
                               hyperelastic, umat, matVars0, 
                               matVars1, sigma0, sigma1, matGrd,
-                              kinVars0, matProps, nProps, numStateVars);
-   printf("after NonlinearMechOperator constructor. \n");
+                              kinVars0, matProps, nProps, 
+                              numStateVars);
 
    oper.SetModelDebugFlg(grad_debug);
 
-   printf("after SetModelDebugFlg \n");
-   
    // get the essential true dof list. This may not be used.
    const Array<int> ess_tdof_list = oper.GetEssTDofList();
 
@@ -781,8 +773,6 @@ int main(int argc, char *argv[])
       MPI_Barrier(pmesh->GetComm());
    }
 
-   printf("after visualization if-block \n");
-
    // initialize/set the time
    double t = 0.0;
    oper.SetTime(t); 
@@ -793,15 +783,12 @@ int main(int argc, char *argv[])
    for (int ti = 1; !last_step; ti++)
    {
 
-      printf("inside timestep loop %d \n", ti);
-
+      printf("time: %d \n", ti);
       // compute time step (this calculation is pulled from ex10p.cpp)
       double dt_real = min(dt, t_final - t);
 
       // set the time step on the boundary conditions
       setBCTimeStep(dt_real, numDirBCs);
-
-      printf("after setBCTimeStep \n");
 
       // compute current time
       t = t + dt_real;
@@ -823,14 +810,12 @@ int main(int argc, char *argv[])
       // the previous time step, so that the velocity projection produces a 
       // guess to the incremental nodal displacement equal to the last estimate
       // of the incremental nodal velocity times the current time step
-      printf("before x_bar.ProjectCoefficient \n");
 //      x_bar.ProjectCoefficient(velProj);
 
       // overwrite entries in x_bar for dofs with Dirichlet 
       // boundary conditions (note, this routine overwrites, not adds).
       // Note: these are prescribed incremental nodal displacements at 
       // Dirichlet BC dofs.
-      printf("before x_bar.ProjectBdrCoefficient \n");
       x_bar.ProjectBdrCoefficient(ess_bdr_func); // don't need attr list as input
                                                  // pulled off the 
                                                  // VectorFunctionRestrictedCoefficient
@@ -843,7 +828,6 @@ int main(int argc, char *argv[])
       // At this point we initialized x_bar, performed a velocity projection for 
       // all dofs, and then over-wrote the Dirichlet BC dofs with the boundary condition 
       // function.
-      printf("before x_cur.GetTrueDofs \n");
       x_cur.GetTrueDofs(x_sol);
 
       // debug print
@@ -853,9 +837,22 @@ int main(int argc, char *argv[])
 //      }
 
       // Solve the Newton system 
-      printf("before oper.Solve. \n");
       oper.Solve(x_sol);
-      printf("after oper.Solve. \n");
+
+      // debug solution print after solve
+      for (int i=0; i<x_sol.Size(); ++i)
+      {
+         printf("x_sol: %f \n", x_sol[i]);
+      }
+     
+      // update the beginning step stress and material state variables 
+      // prior to the next time step for all Exa material models
+      // This also updates the deformation gradient with the beginning step 
+      // deformation gradient stored on an Exa model
+      printf("before oper.UpdateModel. \n");
+      // TODO a call to UpdateModel appears to give a seg fault. Debug this.
+      oper.UpdateModel(x_sol);
+      printf("after oper.UpdateModel. \n");
 
       // distribute the solution vector to x_cur
       x_cur.Distribute(x_sol);
@@ -876,14 +873,6 @@ int main(int argc, char *argv[])
 //      x_bar = x_inc; // set x_bar to the incremental solution
 //      x_bar.ProjectCoefficient(compVel); // performs x_inc / dt to get inc. grid vel. 
 
-      // update the beginning step stress and material state variables 
-      // prior to the next time step for all Exa material models
-      // This also updates the deformation gradient with the beginning step 
-      // deformation gradient stored on an Exa model
-      printf("before oper.UpdateModel. \n");
-//      oper.UpdateModel(x_sol);
-      printf("after oper.UpdateModel. \n");
-
       last_step = (t >= t_final - 1e-8*dt);
 
       if (last_step || (ti % vis_steps) == 0)
@@ -896,6 +885,12 @@ int main(int argc, char *argv[])
 
       { // mesh and stress output. Consider moving this to a separate routine
 
+      //////////////////////////////////////////////////////////////////
+      //
+      // Save the current configuration mesh
+      //
+      //////////////////////////////////////////////////////////////////
+
       // Save the displaced mesh. These are snapshots of the endstep current 
       // configuration. Later add functionality to not save the mesh at each timestep.
 
@@ -904,24 +899,24 @@ int main(int argc, char *argv[])
          pmesh->SwapNodes(nodes, owns_nodes); // pmesh has current configuration nodes
 
          ostringstream mesh_name, deformed_name;
-         mesh_name << "mesh." << setfill('0') << setw(6) << myid << "_" << ti;
-         deformed_name << "end_step_def." << setfill('0') << setw(6) << myid << "_" << ti;
+         mesh_name << "mesh." << setfill('0') << setw(6) << myid << "_" << ti << ".vtk";
+//         deformed_name << "end_step_def." << setfill('0') << setw(6) << myid << "_" << ti;
 
          // saving mesh for plotting. pmesh has global current configuration nodal coordinates
          ofstream mesh_ofs(mesh_name.str().c_str());
          mesh_ofs.precision(8);
-         pmesh->Print(mesh_ofs); 
+         pmesh->PrintVTK(mesh_ofs); 
        
          // save each current configuration as this data will match the mesh output.
-         ofstream deformation_ofs(deformed_name.str().c_str());
-         deformation_ofs.precision(8);
-         x_beg.Save(deformation_ofs); 
+//         ofstream deformation_ofs(deformed_name.str().c_str());
+//         deformation_ofs.precision(8);
+//         x_beg.Save(deformation_ofs); 
 
+         //////////////////////////////////////////////////////////////
+         //
          // stress output to VTK
          //
-         // RC, this output is commented out until the quadrature functions are working.
-         // For now, there is no stress output, only displacement output. Eventually this 
-         // will move off to its own subroutine (SRW).
+         //////////////////////////////////////////////////////////////
  
 //         printf("before stress output to VTK. \n");
 //         // declare stress grid function
@@ -929,16 +924,23 @@ int main(int argc, char *argv[])
 //
 //         // project updated beginning step stress (that lives 
 //         // on the model) to the stress grid function
+//         printf("before ProjectModelStress. \n");
 //         oper.ProjectModelStress(stress);
+//         printf("after ProjectModelStress. \n");
+//
+//         nodes = &stress;
+//         pmesh->SwapNodes(nodes, owns_nodes); // pmesh has current configuration nodes
 //
 //         ostringstream stress_name;
-//         stress_name << "stress." << setfill('0') << setw(6) << myid << "_" << ti;
+//         stress_name << "stress_" << setfill('0') << setw(6) << myid << "_" << ti << ".vtk";
 //         
 //         ofstream stress_ofs(stress_name.str().c_str());
 //         stress_ofs.precision(8);
 //
 //         // have to call this first
+//         printf("before PrintVTK for stress. \n");
 //         pmesh->PrintVTK(stress_ofs); 
+//         printf("after PrintVTK for stress. \n");
 //
 //         // output stress. Note that call to SaveVTK on grid function 
 //         // will output a scalar if the dimension of the grid function 
@@ -948,7 +950,9 @@ int main(int argc, char *argv[])
 //         // elements (symmetry of the Cauchy stress tensor) and so this 
 //         // function call will output individual scalars for each component
 //         string cstress;
+//         printf("before stress.SaveVTK \n");
 //         stress.SaveVTK(stress_ofs, cstress, 0);
+//         printf("after stress.SaveVTK \n");
 //
 //         printf("after stress output to VTK before von Mises. \n");
 //
@@ -957,7 +961,9 @@ int main(int argc, char *argv[])
 //
 //         // project von Mises stress (on the model) to the 
 //         // von Mises stress grid function
+//         printf("before ProjectVonMisesStress. \n");
 //         oper.ProjectVonMisesStress(vonMises);
+//         printf("after ProjectVonMisesStress. \n");
 //
 //         ostringstream vonMises_name;
 //         vonMises_name << "vonMises." << setfill('0') << setw(6) << myid << "_" << ti;
@@ -1016,13 +1022,16 @@ NonlinearMechOperator::NonlinearMechOperator(ParFiniteElementSpace &fes,
 
    // Set the essential boundary conditions
    Hform->SetEssentialBCPartial(ess_bdr, rhs); 
+
+//   old code
 //   Hform->SetEssentialBC(ess_bdr, rhs);
 
-   double *qf_data = q_sigma1.GetData();
-   for (int i=0; i<q_sigma1.Size(); ++i)
-   {
-      printf("q_sigma1: %f \n", qf_data[i]);
-   }
+   // debug print
+//   double *qf_data = q_sigma1.GetData();
+//   for (int i=0; i<q_sigma1.Size(); ++i)
+//   {
+//      printf("q_sigma1: %f \n", qf_data[i]);
+//   }
 
    if (umat) {
       model = new AbaqusUmatModel(&q_sigma0, &q_sigma1, &q_matGrad, &q_matVars0, &q_matVars1,
@@ -1140,22 +1149,28 @@ void NonlinearMechOperator::UpdateModel(const Vector &x)
       for (int j = 0; j < ir->GetNPoints(); ++j)
       {
          // update the beginning step stress 
+         printf("UpdateModel: before UpdateStress %d %d \n", i, j);
          model->UpdateStress(i, j);
+         printf("UpdateModel: after UpdateStress \n");
 
          // compute von Mises stress
-         model->ComputeVonMises(i, j);
+//         model->ComputeVonMises(i, j);
 
          // update the beginning step state variables
          if (model->numStateVars > 0)
          {
-           model->UpdateStateVars(i, j);
+//           model->UpdateStateVars(i, j);
          }
       }
    } 
 
+   model->PrintStressToScreen(fes);
+
    // update the model variables particular to the model class extension
    // NOTE: for an AbaqusUmatModel this updates the beginning step def grad, 
+   printf("UpdateModel: before UpdateModelVars \n");
    model->UpdateModelVars(fes, x);
+   printf("UpdateModel: after UpdateModelVars \n");
 
 }
 
@@ -1493,8 +1508,8 @@ void initQuadFunc(QuadratureFunction *qf, double val, ParFiniteElementSpace *fes
    int vdim = qf->GetVDim();
    QuadratureSpace* qspace = qf->GetSpace();
 
-   printf("qf data size: %d \n", qf->Size());
-   printf("qf vdim: %d \n", vdim);
+//   printf("qf data size: %d \n", qf->Size());
+//   printf("qf vdim: %d \n", vdim);
 
 //   printf("qspace size: %d \n", qspace->GetSize()); 
 
@@ -1530,10 +1545,12 @@ void initQuadFunc(QuadratureFunction *qf, double val, ParFiniteElementSpace *fes
             // bug I was chasing down and the erroneous output will be clear. 
             // (SRW).
             //
-            vals[vdim*j + k] = k;
+            // set quadrature function data from the local element vector
+            vals[vdim*j + k] = val;
 //   
 //         KEEP THE FOLLOWING CODE
 //
+//         set the quadrature function data from qf_data
 //         int k = i*elem_offset + j;
 //         qf_data[k] = val;
          }
@@ -1541,20 +1558,86 @@ void initQuadFunc(QuadratureFunction *qf, double val, ParFiniteElementSpace *fes
 
       // debug print to test accessing the quadrature
       // function
-      Vector newVals;
-      qf->GetElementValues(i, newVals);
+//      Vector newVals;
+//      qf->GetElementValues(i, newVals);
+//      for (int j = 0; j < ir->GetNPoints(); ++j)
+//      {
+//         for (int k = 0; k<vdim; ++k)
+//         {
+//            printf("newVals: %f \n", newVals[vdim*j + k]);
+//         }
+//      }
+//
+//      for (int j = 0; j<qf->Size(); ++j)
+//      {
+//         printf("full init qf_data %f \n", qf_data[j]);
+//      }
+   } 
+}
+
+void initQuadFuncToIdentity(QuadratureFunction *qf, ParFiniteElementSpace *fes)
+{
+//   const FiniteElement *fe;
+   const IntegrationRule *ir;
+   double* qf_data = qf->GetData();
+   int vdim = qf->GetVDim();
+   QuadratureSpace* qspace = qf->GetSpace();
+
+   // check to see that vdim = 9 as we are setting a 3x3 matrix to I
+   if (vdim != 9)
+   { 
+      cerr << "\ninitQuadFuncToIdentity, qf vdim must be 9." << '\n';
+   }
+
+//   printf("qf data size: %d \n", qf->Size());
+//   printf("qf vdim: %d \n", vdim);
+
+//   printf("qspace size: %d \n", qspace->GetSize()); 
+
+   for (int i = 0; i < fes->GetNE(); ++i)
+   {
+//      fe = fes->GetFE(i);
+      ir = &(qspace->GetElementIntRule(i));
+//      ir = &(IntRules.Get(fe->GetGeomType(), 2*fe->GetOrder() + 3));
+
+      int elem_offset = vdim * ir->GetNPoints();
+
+      Vector vals;
+      qf->GetElementValues(i, vals);
+
+      // loop over element data at each quadrature point
       for (int j = 0; j < ir->GetNPoints(); ++j)
       {
          for (int k = 0; k<vdim; ++k)
          {
-            printf("newVals: %f \n", newVals[vdim*j + k]);
+            // set quadrature function data from the local element vector
+            if (k == 0 || k == 4 || k == 8)
+            {
+               vals[vdim*j + k] = 1.0;
+            }
+            else
+            {
+               vals[vdim*j + k] = 0.0;
+            }
          }
       }
 
-      for (int j = 0; j<qf->Size(); ++j)
-      {
-         printf("full init qf_data %f \n", qf_data[j]);
-      }
+      // debug print to test accessing the quadrature
+      // function
+//      Vector newVals;
+//      qf->GetElementValues(i, newVals);
+//      for (int j = 0; j < ir->GetNPoints(); ++j)
+//      {
+//         for (int k = 0; k<vdim; ++k)
+//         {
+//            printf("newVals: %f \n", newVals[vdim*j + k]);
+//         }
+//      }
+//
+//      for (int j = 0; j<qf->Size(); ++j)
+//      {
+//         printf("full init qf_data %f \n", qf_data[j]);
+//      }
    } 
 }
 
