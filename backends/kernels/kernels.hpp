@@ -33,8 +33,10 @@
 // __NVCC__ ********************************************************************
 #ifdef __NVCC__
 #include <cuda.h>
-#include <helper_cuda.h>
-#include <helper_functions.h>
+//#include <helper_cuda.h>
+//#include <helper_functions.h>
+//#define checkCudaErrors
+#define checkCudaErrors(...) __VA_ARGS__
 #define cuCheck checkCudaErrors
 #include "cuda_runtime_api.h"
 #endif

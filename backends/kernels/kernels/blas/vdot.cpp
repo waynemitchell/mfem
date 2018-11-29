@@ -17,31 +17,54 @@
 
 // *****************************************************************************
 #ifdef __NVCC__
-__inline__ __device__ double4 operator*(double4 a, double4 b)
-{
-   return make_double4(a.x*b.x, a.y*b.y, a.z*b.z, a.w*b.w);
-}
-#include <cub/cub.cuh>
 
 // *****************************************************************************
-static double cub_vector_dot(const int N,
-                             const double* __restrict vec1,
-                             const double* __restrict vec2)
+#define CUDA_BLOCKSIZE 256
+
+// *****************************************************************************
+__global__ void cuKernelDot(const size_t N, double *gdsr,
+                            const double *x, const double *y)
 {
-   static double *h_dot = NULL;
-   if (!h_dot) { h_dot = (double*)mfem::kernels::kmalloc<double>::operator new (1,true); }
-   static double *d_dot = NULL;
-   if (!d_dot) { d_dot=(double*)mfem::kernels::kmalloc<double>::operator new (1); }
-   static void *d_storage = NULL;
-   static size_t storage_bytes = 0;
-   if (!d_storage)
+   __shared__ double s_dot[CUDA_BLOCKSIZE];
+   const size_t n = blockDim.x*blockIdx.x + threadIdx.x;
+   if (n>=N) { return; }
+   const size_t bid = blockIdx.x;
+   const size_t tid = threadIdx.x;
+   const size_t bbd = bid*blockDim.x;
+   const size_t rid = bbd+tid;
+   s_dot[tid] = x[n] * y[n];
+   for (size_t workers=blockDim.x>>1; workers>0; workers>>=1)
    {
-      cub::DeviceReduce::Dot(d_storage, storage_bytes, vec1, vec2, d_dot, N);
-      d_storage = mfem::kernels::kmalloc<char>::operator new (storage_bytes);
+      __syncthreads();
+      if (tid >= workers) { continue; }
+      if (rid >= N) { continue; }
+      const size_t dualTid = tid + workers;
+      if (dualTid >= N) { continue; }
+      const size_t rdd = bbd+dualTid;
+      if (rdd >= N) { continue; }
+      if (dualTid >= blockDim.x) { continue; }
+      s_dot[tid] += s_dot[dualTid];
    }
-   cub::DeviceReduce::Dot(d_storage, storage_bytes, vec1, vec2, d_dot, N);
-   mfem::kernels::kmemcpy::rDtoH(h_dot,d_dot,sizeof(double));
-   return *h_dot;
+   if (tid==0) { gdsr[bid] = s_dot[0]; }
+}
+
+// *****************************************************************************
+double cuVectorDot(const size_t N, const double *x, const double *y)
+{
+   const size_t tpb = CUDA_BLOCKSIZE;
+   const size_t blockSize = CUDA_BLOCKSIZE;
+   const size_t gridSize = (N+blockSize-1)/blockSize;
+   const size_t dot_sz = (N%tpb)==0? (N/tpb) : (1+N/tpb);
+   const size_t bytes = dot_sz*sizeof(double);
+   static double *h_dot = NULL;
+   if (!h_dot) { h_dot = (double*)calloc(dot_sz,sizeof(double)); }
+   static CUdeviceptr gdsr = (CUdeviceptr) NULL;
+   if (!gdsr) { cuMemAlloc(&gdsr,bytes); }
+   cuKernelDot<<<gridSize,blockSize>>>(N, (double*)gdsr, x, y);
+   cuMemcpy((CUdeviceptr)h_dot,(CUdeviceptr)gdsr,bytes);
+   double dot = 0.0;
+   for (size_t i=0; i<dot_sz; i+=1) { dot += h_dot[i]; }
+   return dot;
 }
 #endif // __NVCC__
 
@@ -51,14 +74,15 @@ double vector_dot(const int N,
                   const double* __restrict vec2)
 {
    push();
-#ifdef __NVCC__
    if (mfem::kernels::config::Get().Cuda())
    {
-      const double result = cub_vector_dot(N,vec1,vec2);
+ #ifdef __NVCC__
+      const double result = cuVectorDot(N, vec1, vec2);
       pop();
       return result;
+#endif // __NVCC__
    }
-#endif
+   
    double dot=0.0;
    for (int i=0; i<N; i+=1)
    {
