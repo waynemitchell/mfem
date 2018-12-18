@@ -82,11 +82,11 @@ void kConstrainedOperator::Mult_(const kernels::Vector &x,
                                  kernels::Vector &y) const
 {
    push();
+   mfem::Vector my(y);
 
    if (constraintIndices == 0)
    {
       dbg("constraintIndices==0");
-      mfem::Vector my(y);
       A->Mult(x.Wrap(), my);
       dbg("\033[7;1mdone");
       return;
@@ -101,12 +101,12 @@ void kConstrainedOperator::Mult_(const kernels::Vector &x,
    vector_clear_dofs(constraintIndices,
                      (double*)kz.KernelsMem().ptr(),
                      (const int*) constraints_list.KernelsMem().ptr());
-
-   A->Mult(mfem_z, mfem_y);
+   
+   A->Mult(mfem_z, my);
 
    vector_map_dofs(constraintIndices,
                    (double*)y.KernelsMem().ptr(),
-                   (const double*)x.KernelsMem().ptr(),
+                   (const double*)kz.KernelsMem().ptr(),
                    (const int*) constraints_list.KernelsMem().ptr());
 }
 

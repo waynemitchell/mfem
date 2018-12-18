@@ -20,6 +20,7 @@ namespace mfem
 namespace kernels
 {
 
+#ifdef MFEM_USE_MPI
 
 // **************************************************************************
 ProlongationOperator::ProlongationOperator(const
@@ -97,6 +98,8 @@ void ProlongationOperator::MultTranspose_(const kernels::Vector &x,
    }
    pop();
 }
+
+#endif // MFEM_USE_MPI
 
 } // namespace mfem::kernels
 

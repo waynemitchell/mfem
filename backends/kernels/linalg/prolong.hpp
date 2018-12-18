@@ -21,6 +21,8 @@ namespace mfem
 namespace kernels
 {
 
+#ifdef MFEM_USE_MPI
+
 // *****************************************************************************
 class ProlongationOperator : public Operator
 {
@@ -33,6 +35,8 @@ public:
    virtual void MultTranspose_(const kernels::Vector &x, kernels::Vector &y) const;
 
 };
+
+#endif // MFEM_USE_MPI
 
 } // namespace mfem::kernels
 

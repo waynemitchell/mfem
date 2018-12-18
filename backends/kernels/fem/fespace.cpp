@@ -109,6 +109,7 @@ kFiniteElementSpace(const Engine& e,
       return;
    }
 
+#ifdef MFEM_USE_MPI
    Layout &v_layout = KernelsVLayout();
    Layout &t_layout = KernelsTrueVLayout();
 
@@ -166,6 +167,7 @@ kFiniteElementSpace(const Engine& e,
    dbg("\033[7mProlongationOperator");
    prolongationOp = new kernels::ProlongationOperator(P);
    dbg("done");
+#endif // MFEM_USE_MPI
    pop();
 }
 

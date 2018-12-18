@@ -107,7 +107,7 @@ public:
    inline bool Occa() { return occa; }
    inline bool Hcpo() { return hcpo; }
    inline bool Sync() { return sync; }
-   inline bool Nvvp(bool toggle=false) { return toggle?nvvp=!nvvp:nvvp; }
+   inline bool Nvvp(bool toggle=false) { return toggle?(nvvp=!nvvp):nvvp; }
    inline int MaxXGridSize() { return maxXGridSize; }
    inline int MaxXThreadsDim() { return maxXThreadsDim; }
    // *************************************************************************

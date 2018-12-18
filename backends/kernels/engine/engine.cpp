@@ -43,8 +43,13 @@ void Engine::Init(const std::string &engine_spec)
       cuda = true;
    }
 
-   kernels::config::Get().Setup(world_rank,
+   kernels::config::Get().Setup(
+#ifdef MFEM_USE_MPI
+                                world_rank,
                                 world_size,
+#else
+                                0,1,
+#endif
                                 cuda,
                                 false, // CG on device
                                 uvm,
