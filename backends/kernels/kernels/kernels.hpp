@@ -37,7 +37,7 @@
 #include <cuda.h>
 //#include <helper_cuda.h>
 //#include <helper_functions.h>
-//#define checkCudaErrors(...) __VA_ARGS__
+#define checkCudaErrors(...) __VA_ARGS__
 #endif // __NVCC__
 
 // *****************************************************************************
