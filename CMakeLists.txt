@@ -262,20 +262,10 @@ if (MFEM_USE_PUMI)
   endif()
 endif()
 
-# ADIOS2 passed as -DMFEM_USE_ADIOS2=ON
-option(MFEM_USE_ADIOS2 "Enable ADIOS2 support" OFF)
+# ADIOS2
 if (MFEM_USE_ADIOS2)
-  find_package(ADIOS2 REQUIRED CONFIG)
+  find_package(ADIOS2 REQUIRED)
 endif()
-
-if (MFEM_USE_PETSC)
-    find_package(PETSc REQUIRED)
-    message(STATUS "Found PETSc version ${PETSC_VERSION}")
-    if (PETSC_VERSION AND (PETSC_VERSION VERSION_LESS 3.8.0))
-      message(FATAL_ERROR "PETSc version >= 3.8.0 is required")
-    endif()
-    set(PETSC_INCLUDE_DIRS ${PETSC_INCLUDES})
-  endif()
 
 # MFEM_TIMER_TYPE
 if (NOT DEFINED MFEM_TIMER_TYPE)
@@ -302,7 +292,7 @@ endif()
 #    be before SuiteSparse.
 set(MFEM_TPLS MPI_CXX OPENMP BLAS LAPACK METIS HYPRE SuiteSparse SUNDIALS PETSC
     MESQUITE SuperLUDist STRUMPACK AXOM CONDUIT GECKO GNUTLS NETCDF MPFR PUMI
-    POSIXCLOCKS MFEMBacktrace ZLIB)
+    POSIXCLOCKS MFEMBacktrace ZLIB ADIOS2)
 # Add all *_FOUND libraries in the variable TPL_LIBRARIES.
 set(TPL_LIBRARIES "")
 set(TPL_INCLUDE_DIRS "")
@@ -355,13 +345,6 @@ if (CMAKE_VERSION VERSION_GREATER 2.8.11)
   target_link_libraries(mfem PUBLIC ${TPL_LIBRARIES})
 else()
   target_link_libraries(mfem ${TPL_LIBRARIES})
-endif()
-if (MFEM_USE_ADIOS2)
-  if (MFEM_USE_MPI)
-    target_link_libraries(mfem PRIVATE adios2::adios2 MPI::MPI_C)
-  else()
-    target_link_libraries(mfem PRIVATE adios2::adios2)
-  endif()
 endif()
 if (MINGW)
   target_link_libraries(mfem ws2_32)
