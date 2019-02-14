@@ -3957,6 +3957,11 @@ void ParMesh::Print(std::ostream &out) const
    }
 }
 
+void ParMesh::Print(mfem::adios2stream &out = mfem::out) const
+{
+   //TODO print parallel mesh, use local arrays in adios2
+}
+
 static void dump_element(const Element* elem, Array<int> &data)
 {
    data.Append(elem->GetGeometryType());
