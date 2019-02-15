@@ -1886,7 +1886,7 @@ void FiniteElementSpace::Save(std::ostream &out) const
    }
 }
 
-void FiniteElementSpace::Save(mfem::adios2stream &out) const
+void FiniteElementSpace::Save(adios2stream &out) const
 {
    //TODO
 }

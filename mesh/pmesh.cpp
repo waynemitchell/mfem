@@ -3957,7 +3957,7 @@ void ParMesh::Print(std::ostream &out) const
    }
 }
 
-void ParMesh::Print(mfem::adios2stream &out = mfem::out) const
+void ParMesh::Print(adios2stream &out) const
 {
    //TODO print parallel mesh, use local arrays in adios2
 }

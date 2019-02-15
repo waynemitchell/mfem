@@ -500,7 +500,7 @@ void ParGridFunction::Save(std::ostream &out) const
    }
 }
 
-void ParGridFunction::Save(mfem::adios2stream &out) const
+void ParGridFunction::Save(adios2stream &out) const
 {
 
    for (int i = 0; i < size; i++)
