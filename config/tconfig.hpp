@@ -55,7 +55,7 @@
 #include "simd/vsx128.hpp"
 #endif
 #ifdef __bgq__
-#include "simd/qpx256.hpp"
+#include "simd/qpx.hpp"
 #else
 #warning x86
 #include "simd/x86.hpp"

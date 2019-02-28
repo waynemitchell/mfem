@@ -38,8 +38,8 @@ using namespace mfem;
 
 // Define template parameters for optimized build.
 const Geometry::Type geom     = Geometry::SQUARE; // mesh elements  (default: hex)
-const int            mesh_p   = 1;              // mesh curvature (default: 3)
-const int            sol_p    = 1;              // solution order (default: 3)
+const int            mesh_p   = 3;              // mesh curvature (default: 3)
+const int            sol_p    = 3;              // solution order (default: 3)
 const int            rdim     = Geometry::Constants<geom>::Dimension;
 const int            ir_order = 2*sol_p+rdim-1;
 
@@ -67,6 +67,7 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../../data/star.mesh";
    int ref_levels = -1;
    int order = sol_p;
+   int max_iter = 2000;
    const char *basis_type = "G"; // Gauss-Lobatto
    bool static_cond = false;
    const char *pc = "none";
@@ -383,7 +384,26 @@ int main(int argc, char *argv[])
    }
    else
    {
-      CG(*a_oper, B, X, 1, 500, 1e-12, 0.0);
+      CGSolver *cg;
+      cg = new CGSolver;
+      cg->SetRelTol(1e-6);
+      cg->SetMaxIter(max_iter);
+      cg->SetPrintLevel(3);
+      cg->SetOperator(*a_oper);
+
+      tic_toc.Clear();
+      tic_toc.Start();
+      cg->Mult(B, X);
+      
+      double my_rt = tic_toc.RealTime();
+      cout << "\nTotal CG time:    " << my_rt << " sec." << endl;
+      cout << "Time per CG step: "
+           << my_rt / cg->GetNumIterations() << " sec." << endl;
+      cout << "\n\"DOFs/sec\" in CG: "
+           << 1e-6*a_oper->Height()*cg->GetNumIterations()/my_rt << " million.\n"
+           << endl;
+      delete cg;
+      //CG(*a_oper, B, X, 1, 500, 1e-12, 0.0);
    }
    tic_toc.Stop();
    cout << "Solve time: " << tic_toc.RealTime() << "s." << endl;

@@ -103,19 +103,19 @@ all: $(MINIAPPS)
 
 ex1rtc:ex1rtc.cpp
 	dbg=1 okrtc g++ -O3 -march=native -std=c++11 -pedantic -Wall \
-	-I/home/camier1/home/mfem/x86_auto \
+	-I/home/camier1/home/mfem/x86_hybrid \
 	-o ex1rtc ex1rtc.cpp \
-	-Wl,-rpath,/home/camier1/home/mfem/x86_auto \
-	-L/home/camier1/home/mfem/x86_auto -lmfem -lrt
+	-Wl,-rpath,/home/camier1/home/mfem/x86_hybrid \
+	-L/home/camier1/home/mfem/x86_hybrid -lmfem -lrt
 
 bprtc: bprtc.cpp
 	okrtc mpicxx -O3 -march=native -std=c++11 -pedantic -Wall \
-	-I/home/camier1/home/mfem/x86_auto/ \
+	-I/home/camier1/home/mfem/x86_hybrid/ \
 	-I/home/camier1/usr/local/hypre/2.11.2/include \
 	-I/home/camier1/usr/local/metis/5.1.0/include \
 	-I/home/camier1/usr/local/openmpi/3.0.0/include \
 	-o $@ $< \
-	-L/home/camier1/home/mfem/x86_auto -lmfem \
+	-L/home/camier1/home/mfem/x86_hybrid -lmfem \
 	-L/home/camier1/usr/local/hypre/2.11.2/lib -lHYPRE \
 	-L/home/camier1/usr/local/metis/5.1.0/lib -lmetis \
 	-lrt

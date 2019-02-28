@@ -43,11 +43,11 @@ using namespace mfem;
 #endif
 
 #ifndef MESH_P
-#define MESH_P 6
+#define MESH_P 2
 #endif
 
 #ifndef SOL_P
-#define SOL_P 6
+#define SOL_P 2
 #endif
 
 #ifndef IR_ORDER
@@ -170,8 +170,7 @@ typedef VectorLayout<VEC_LAYOUT,VDIM>         vec_layout_t;
 #endif
 
 // Static bilinear form type, combining the above types
-typedef TBilinearForm<mesh_t,sol_fes_t,int_rule_t,integ_t,
-        vec_layout_t> HPCBilinearForm;
+typedef TBilinearForm<mesh_t, sol_fes_t, int_rule_t, integ_t, true, vec_layout_t> HPCBilinearForm;
 
 int main(int argc, char *argv[])
 {
