@@ -15,7 +15,7 @@
 #include "../config/config.hpp"
 #include "nonlininteg.hpp"
 #include "fespace.hpp"
-#include "doftoquad.hpp"
+#include "bilininteg_ext.hpp"
 
 namespace mfem
 {
@@ -29,8 +29,7 @@ public:
    AbstractBilinearFormIntegrator(const IntegrationRule *ir = NULL) :
       NonlinearFormIntegrator(ir) { }
    virtual ~AbstractBilinearFormIntegrator() { };
-   virtual void Setup(const FiniteElementSpace*, const IntegrationRule*) { }
-   virtual void Assemble() { }
+   virtual void Assemble(const FiniteElementSpace&) { }
    virtual void MultAdd(Vector&, Vector&) { }
    virtual void MultTransposeAdd(Vector&, Vector&) { }
    virtual void AssembleElementMatrix(const FiniteElement&,
@@ -47,28 +46,8 @@ public:
    BilinearPAFormIntegrator(const IntegrationRule *ir = NULL) :
       AbstractBilinearFormIntegrator(ir) { }
    virtual ~BilinearPAFormIntegrator() { };
-   virtual void Setup(const FiniteElementSpace*, const IntegrationRule*) =0;
-   virtual void Assemble() =0;
+   virtual void Assemble(const FiniteElementSpace&) =0;
    virtual void MultAdd(Vector&, Vector&) =0;
-};
-
-// *****************************************************************************
-// * PA Mass Integrator
-// *****************************************************************************
-class PAMassIntegrator: public BilinearPAFormIntegrator
-{
-private:
-   Vector op;
-   kDofQuadMaps *maps;
-   const FiniteElementSpace *fes;
-   const IntegrationRule *ir;
-public:
-   PAMassIntegrator () : BilinearPAFormIntegrator(), op(), maps(NULL) { }
-   ~PAMassIntegrator() { delete maps; }
-   void Setup(const FiniteElementSpace*, const IntegrationRule*);
-   void Assemble();
-   void SetOperator(Vector&);
-   void MultAdd(Vector&, Vector&);
 };
 
 // *****************************************************************************
@@ -78,16 +57,32 @@ class PADiffusionIntegrator: public BilinearPAFormIntegrator
 {
 private:
    Coefficient *Q;
-   Vector op;
-   kDofQuadMaps *maps;
-   const FiniteElementSpace *fes;
-   const IntegrationRule *ir;
+   Vector vec;
+   DofToQuad *maps;
+   int dim, ne, nq, dofs1D, quad1D;
 public:
-   PADiffusionIntegrator (Coefficient &q) :
-      BilinearPAFormIntegrator(), Q(&q), op(), maps(NULL) { }
+   PADiffusionIntegrator (Coefficient &q, const IntegrationRule *ir = NULL) :
+      BilinearPAFormIntegrator(ir), Q(&q), vec(), maps(NULL) { }
    ~PADiffusionIntegrator() { delete maps; }
-   void Setup(const FiniteElementSpace*, const IntegrationRule*);
-   void Assemble();
+   void Assemble(const FiniteElementSpace&);
+   void MultAdd(Vector&, Vector&);
+};
+
+// *****************************************************************************
+// * PA Mass Integrator
+// *****************************************************************************
+class PAMassIntegrator: public BilinearPAFormIntegrator
+{
+private:
+   Coefficient *Q;
+   Vector vec;
+   DofToQuad *maps;
+   int dim, ne, nq, dofs1D, quad1D;
+public:
+   PAMassIntegrator (Coefficient &q, const IntegrationRule *ir = NULL) :
+      BilinearPAFormIntegrator(ir), Q(&q), vec(), maps(NULL) { }
+   ~PAMassIntegrator() { delete maps; }
+   void Assemble(const FiniteElementSpace&);
    void MultAdd(Vector&, Vector&);
 };
 
@@ -206,8 +201,6 @@ public:
    virtual ~BilinearFormIntegrator() { }
 };
 
-// *****************************************************************************
-// *****************************************************************************
 class TransposeIntegrator : public BilinearFormIntegrator
 {
 private:
