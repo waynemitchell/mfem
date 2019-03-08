@@ -3004,6 +3004,7 @@ void DenseMatrix::Threshold(double eps)
 
 void DenseMatrix::Print(std::ostream &out, int width_) const
 {
+   Pull();
    // save current output flags
    ios::fmtflags old_flags = out.flags();
    // output flags = scientific + show sign
@@ -3030,6 +3031,7 @@ void DenseMatrix::Print(std::ostream &out, int width_) const
 
 void DenseMatrix::PrintMatlab(std::ostream &out) const
 {
+  Print();
    // save current output flags
    ios::fmtflags old_flags = out.flags();
    // output flags = scientific + show sign

@@ -2651,6 +2651,7 @@ void SparseMatrix::Print(std::ostream & out, int _width) const
 
 void SparseMatrix::PrintMatlab(std::ostream & out) const
 {
+   Pull(); //pull data
    out << "% size " << height << " " << width << "\n";
    out << "% Non Zeros " << NumNonZeroElems() << "\n";
    int i, j;

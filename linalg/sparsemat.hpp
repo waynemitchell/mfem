@@ -125,6 +125,22 @@ public:
        it will not own its data. The @a master must be finalized. */
    void MakeRef(const SparseMatrix &master);
 
+   void Push() const
+   {
+     const int nnz = I[height];
+     mm::push(I, (height+1)*sizeof(int));
+     mm::push(J, nnz*sizeof(int));
+     mm::push(A, nnz*sizeof(double));
+   }
+
+  void Pull() const
+  {
+    const int nnz = I[height];
+    mm::pull(I, (height+1)*sizeof(int));
+    mm::pull(J, nnz*sizeof(int));
+    mm::pull(A, nnz*sizeof(double));
+  }
+
    /// For backward compatibility, define Size() to be synonym of Height().
    int Size() const { return Height(); }
 

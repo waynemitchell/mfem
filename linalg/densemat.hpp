@@ -82,6 +82,16 @@ public:
 
    /// For backward compatibility define Size to be synonym of Width()
    int Size() const { return Width(); }
+  
+    void Push() const
+    {
+      mm::push(data, capacity*sizeof(double));
+    }
+
+    void Pull() const
+    {
+      mm::pull(data, capacity*sizeof(double));
+    }
 
    /// Change the size of the DenseMatrix to s x s.
    void SetSize(int s) { SetSize(s, s); }
@@ -689,6 +699,18 @@ public:
       }
    }
 
+  /// Copies data from host to device
+   void Push() const 
+   {
+     mm::push(tdata, Mk.Height()*Mk.Width()*nk*sizeof(double));
+   }
+  
+   /// Copies data from device to host
+   void Pull() const
+   {
+     mm::pull(tdata, Mk.Height()*Mk.Width()*nk*sizeof(double));
+   }
+  
    int SizeI() const { return Mk.Height(); }
    int SizeJ() const { return Mk.Width(); }
    int SizeK() const { return nk; }
