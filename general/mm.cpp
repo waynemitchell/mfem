@@ -245,15 +245,21 @@ static void *PtrAlias(mm::ledger &maps, void *ptr)
 
 // *****************************************************************************
 // * Turn an address to the right host or device one
+// * If the pointer is NULL the companion pointer 
+// * will be too.
 // *****************************************************************************
 void *mm::Ptr(void *ptr)
 {
    if (MmDeviceIniFilter()) { return ptr; }
    if (Known(ptr)) { return PtrKnown(maps, ptr); }
-   if (Alias(ptr)) { return PtrAlias(maps, ptr); }
-   if (config::UsingDevice())
+   if (Alias(ptr)) { return PtrAlias(maps, ptr); }   
+   if (config::UsingDevice() && ptr==NULL)
    {
-      mfem_error("Trying to use unknown pointer on the DEVICE!");
+     return NULL;
+   }
+   else
+   {
+     mfem_error("Trying to use unknown pointer on the DEVICE!");
    }
    return ptr;
 }
