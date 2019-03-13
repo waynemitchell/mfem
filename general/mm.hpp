@@ -124,12 +124,11 @@ public:
    static void RegisterHostAndDevicePtr(T * ptr_host, T * ptr_device, const size_t size)
    {
      MM().Insert(ptr_host, size*sizeof(T));
-     MM().maps.memories.at(ptr_host);
      mm::memory &base = MM().maps.memories.at(ptr_host);
      base.d_ptr = ptr_device;
      base.host = false;
    }
-   
+
 private:
    ledger maps;
    mm() {}
@@ -150,7 +149,8 @@ private:
    void Push(const void *ptr, const size_t bytes = 0);
    void Pull(const void *ptr, const size_t bytes = 0);
 };
-
+  //Check if pointer has been registered with the okina memory manager
+  void RegisterCheck(void *ptr);
 } // namespace mfem
 
 #endif
