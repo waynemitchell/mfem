@@ -140,7 +140,8 @@ void* mm::Insert(void *ptr, const size_t bytes)
    const bool known = Known(ptr);
    if (known)
    {
-      mfem_error("Trying to add an already present address!");
+     assert(0 && "Trying to add an already present address!");
+     mfem_error("Trying to add an already present address!");
    }
    DumpMode();
    // ex1p comes with (bytes==0)
@@ -256,6 +257,7 @@ void *mm::Ptr(void *ptr)
    }
    else
    {
+     assert( 0 && "Trying to use unknown pointer on the DEVICE!");
      mfem_error("Trying to use unknown pointer on the DEVICE!");
    }
    return ptr;

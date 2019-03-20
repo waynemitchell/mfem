@@ -34,6 +34,19 @@ void cuWrap(const int N, DBODY &&d_body)
    if (N==0) { return; }
    const int GRID = (N+BLOCKS-1)/BLOCKS;
    cuKernel<<<GRID,BLOCKS>>>(N,d_body);
+
+   // make the host block until the device is finished with foo
+   cudaDeviceSynchronize();
+
+   // check for error
+   cudaError_t error = cudaGetLastError();
+   if(error != cudaSuccess)
+   {
+     // print the CUDA error message and exit
+     printf("CUDA error: %s\n", cudaGetErrorString(error));
+     exit(-1);
+   }
+
    const cudaError_t last = cudaGetLastError();
    MFEM_ASSERT(last == cudaSuccess, cudaGetErrorString(last));
 }

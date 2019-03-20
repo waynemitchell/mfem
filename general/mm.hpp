@@ -77,8 +77,8 @@ public:
    template<class T>
    static inline void free(void *ptr)
    {
-      if (!ptr) { return; }
-      ::delete[] static_cast<T*>(ptr);
+      if (!ptr) { return;}
+      if (ptr != NULL) ::delete[] static_cast<T*>(ptr);
       mm::MM().Erase(ptr);
    }
 
