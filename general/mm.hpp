@@ -163,6 +163,7 @@ private:
 };
   //Check if pointer has been registered with the okina memory manager
   void RegisterCheck(void *ptr);
+  bool IsTracking();
 } // namespace mfem
 
 #endif
