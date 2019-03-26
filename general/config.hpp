@@ -33,6 +33,7 @@ private:
    bool omp = false;
    bool sync = false;
    bool nvvp = false;
+   bool isTracking = true;
    CUdevice cuDevice;
    CUstream *cuStream;
    CUcontext cuContext;

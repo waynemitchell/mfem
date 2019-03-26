@@ -173,6 +173,7 @@ static inline bool MmDeviceIniFilter(void)
 {
    if (!config::UsingMM()) { return true; }
    if (config::DeviceDisabled()) { return true; }
+   if (config::IsTracking() == false) { return true; }
    if (!config::DeviceHasBeenEnabled()) { return true; }
    if (config::UsingOcca()) { mfem_error("config::UsingOcca()"); }
    return false;
