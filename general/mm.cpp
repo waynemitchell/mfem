@@ -157,7 +157,7 @@ void *mm::Erase(void *ptr)
 {
    if (!config::UsingMM()) { return ptr; }
    const bool known = Known(ptr);
-   if (!known) { mfem_error("Trying to erase an unknown pointer!"); }
+   if (!known) { assert(0 && "Trying to erase an unknown pointer!"); }
    memory &mem = maps.memories.at(ptr);
    for (const alias* const alias : mem.aliases)
    {
@@ -190,7 +190,7 @@ static void *PtrKnown(mm::ledger &maps, void *ptr)
    const size_t bytes = base.bytes;
    const bool gpu = config::UsingDevice();
    if (host && !gpu) { return ptr; }
-   if (bytes==0) { mfem_error("PtrKnown bytes==0"); }
+   if (bytes==0) { assert( 0 && "PtrKnown bytes==0"); }
    if (!base.d_ptr) { cuMemAlloc(&base.d_ptr, bytes); }
    if (!base.d_ptr) { mfem_error("PtrKnown !base->d_ptr"); }
    if (device &&  gpu) { return base.d_ptr; }
@@ -250,13 +250,10 @@ static void *PtrAlias(mm::ledger &maps, void *ptr)
 void *mm::Ptr(void *ptr)
 {
    if (MmDeviceIniFilter()) { return ptr; }
+   if (ptr==NULL) {return NULL;};
    if (Known(ptr)) { return PtrKnown(maps, ptr); }
    if (Alias(ptr)) { return PtrAlias(maps, ptr); }
-   if (ptr==NULL)
-   {
-     return NULL;
-   }
-   else
+   if (config::UsingDevice())
    {
      assert( 0 && "Trying to use unknown pointer on the DEVICE!");
      mfem_error("Trying to use unknown pointer on the DEVICE!");

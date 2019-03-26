@@ -80,8 +80,12 @@ public:
    static inline bool UsingDevice() { return DeviceEnabled() && Get().mode == DEVICE; }
    static inline bool UsingHost() { return !UsingDevice(); }
 
-   static inline void SwitchToDevice() { Get().mode = config::DEVICE; }
-   static inline void SwitchToHost() { Get().mode = config::HOST; }
+   static inline void SwitchToDevice() { printf("\n Switch to device \n"); Get().mode = config::DEVICE; }
+   static inline void SwitchToHost() { printf("\n Switch to host \n"); Get().mode = config::HOST; }
+
+   static inline void DisableTracking() {printf("Disabled Tracking \n"); Get().isTracking = false;};
+   static inline void EnableTracking() {printf("Enabled Tracking \n"); Get().isTracking = true;};
+   static inline bool IsTracking() {return Get().isTracking;};
 
    static inline MODES GetMode() {return Get().mode; };
    static inline MODES DeviceMode() {return config::DEVICE;};

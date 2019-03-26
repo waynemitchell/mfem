@@ -20,6 +20,8 @@ using std::size_t;
 
 #include "occa.hpp" // for OccaMemory
 
+#define MY_GET_PTR(v) double *d_##v = (double*) mfem::mm::ptr(v)
+
 namespace mfem
 {
 
@@ -162,23 +164,40 @@ private:
    void Pull(const void *ptr, const size_t bytes = 0);
 
 public:
+
   static inline void PrintPtrs(void)
   {
     for( const auto& n : MM().maps.memories ) {
       printf("key %p, host %p, device %p \n", n.first, n.second.h_ptr, n.second.d_ptr);
+      printf(n.second.host ? "on host \n" : "on device \n \n");
     }
   }
 
-  static inline void PullAll(void){
+  static inline void PrintDevicePtrs(void)
+  {
     for( const auto& n : MM().maps.memories ) {
-      MM().Pull(n.first,n.second.bytes);
+      if(!n.second.host) {      
+        printf("key %p, host %p, device %p \n", n.first, n.second.h_ptr, n.second.d_ptr);
+        printf(n.second.host ? "on host \n" : "on device \n \n");
+      }
     }
   }
 
-  static inline void PushAll(void){
+  static inline void PrintHostPtrs(void)
+  {
     for( const auto& n : MM().maps.memories ) {
-      MM().Push(n.first,n.second.bytes);
+      if(!n.second.host) {      
+        printf("key %p, host %p, device %p \n", n.first, n.second.h_ptr, n.second.d_ptr);
+        printf(n.second.host ? "on host \n" : "on device \n \n");
+      }
     }
+  }
+  
+   static inline void GetAll(void){
+   for( const auto& n : MM().maps.memories ) {    
+    const void *ptr = n.first;
+    mfem::mm::ptr(ptr);
+   }
   }
 
 };
